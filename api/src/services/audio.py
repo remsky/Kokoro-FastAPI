@@ -15,7 +15,25 @@ class AudioNormalizer:
         self.chunk_trim_ms = settings.gap_trim_ms
         self.sample_rate = 24000  # Sample rate of the audio
         self.samples_to_trim = int(self.chunk_trim_ms * self.sample_rate / 1000)
-    
+        self.samples_to_pad= int(settings.dynamic_gap_trim_padding_ms * self.sample_rate / 2000)
+
+    def find_first_last_non_silent(self,audio_data: np.ndarray, silence_threshold_db: int = -45,padding=250) -> tuple[int, int]:
+        """
+        Finds the indices of the first and last non-silent samples in audio data.
+        """
+
+        # Convert dBFS threshold to amplitude
+        amplitude_threshold = self.int16_max * (10 ** (silence_threshold_db / 20))
+
+        # Find all samples above the silence threshold
+        non_silent_indices =[X for X,Y in enumerate(audio_data) if Y > amplitude_threshold]
+
+        # Handle the case where the entire audio is silent
+        if len(non_silent_indices) == 0:
+            return 0, len(audio_data)
+
+        return max(non_silent_indices[0] - padding,0), min(non_silent_indices[-1] + padding,len(audio_data))
+
     def normalize(self, audio_data: np.ndarray, is_last_chunk: bool = False) -> np.ndarray:
         """Normalize audio data to int16 range and trim chunk boundaries"""
         # Convert to float32 if not already
@@ -29,8 +47,12 @@ class AudioNormalizer:
         if not is_last_chunk and len(audio_float) > self.samples_to_trim:
             audio_float = audio_float[:-self.samples_to_trim]
             
+        audio_int=(audio_float * self.int16_max).astype(np.int16)
+
+        start_index,end_index=self.find_first_last_non_silent(audio_int,padding=self.samples_to_pad)
+ 
         # Scale to int16 range
-        return (audio_float * self.int16_max).astype(np.int16)
+        return audio_int[start_index:end_index]
 
 class AudioService:
     """Service for audio format conversions"""
