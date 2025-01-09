@@ -15,9 +15,9 @@ class AudioNormalizer:
         self.chunk_trim_ms = settings.gap_trim_ms
         self.sample_rate = 24000  # Sample rate of the audio
         self.samples_to_trim = int(self.chunk_trim_ms * self.sample_rate / 1000)
-        self.samples_to_pad= int(settings.dynamic_gap_trim_padding_ms * self.sample_rate / 2000)
-
-    def find_first_last_non_silent(self,audio_data: np.ndarray, silence_threshold_db: int = -45,padding=250) -> tuple[int, int]:
+        self.samples_to_pad_end= int(settings.dynamic_gap_trim_padding_ms * self.sample_rate / 1000)
+        self.samples_to_pad_start= int(50 * self.sample_rate / 1000)
+    def find_first_last_non_silent(self,audio_data: np.ndarray, silence_threshold_db: int = -45) -> tuple[int, int]:
         """
         Finds the indices of the first and last non-silent samples in audio data.
         """
@@ -32,7 +32,7 @@ class AudioNormalizer:
         if len(non_silent_indices) == 0:
             return 0, len(audio_data)
 
-        return max(non_silent_indices[0] - padding,0), min(non_silent_indices[-1] + padding,len(audio_data))
+        return max(non_silent_indices[0] - self.samples_to_pad_start,0), min(non_silent_indices[-1] + max(self.samples_to_pad_end - self.samples_to_pad_start,0),len(audio_data))
 
     def normalize(self, audio_data: np.ndarray, is_last_chunk: bool = False) -> np.ndarray:
         """Normalize audio data to int16 range and trim chunk boundaries"""
@@ -49,7 +49,7 @@ class AudioNormalizer:
             
         audio_int=(audio_float * self.int16_max).astype(np.int16)
 
-        start_index,end_index=self.find_first_last_non_silent(audio_int,padding=self.samples_to_pad)
+        start_index,end_index=self.find_first_last_non_silent(audio_int)
  
         # Scale to int16 range
         return audio_int[start_index:end_index]
