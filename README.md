@@ -3,19 +3,20 @@
 </p>
 
 # Kokoro TTS API
-[![Tests](https://img.shields.io/badge/tests-105%20passed-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-74%25-darkgreen)]()
+[![Tests](https://img.shields.io/badge/tests-117%20passed-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-75%25-darkgreen)]()
 [![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - OpenAI-compatible Speech endpoint, with inline voice combination functionality
-- NVIDIA GPU accelerated inference (or CPU Onnx) option
+- NVIDIA GPU accelerated or CPU Onnx inference 
 - very fast generation time
-  - ~100x+ real time speed via HF A100
-  -   35x+ real time speed via 4060Ti, ~300ms latency
-  -    5x+ real time speed via M3 Pro CPU, ~1000ms latency
+  - 100x+ real time speed via HF A100
+  - 35-50x+ real time speed via 4060Ti
+  - 5x+ real time speed via M3 Pro CPU
 - streaming support w/ variable chunking to control latency & artifacts
 - simple audio generation web ui utility
+- (new) phoneme endpoints for conversion and generation
 
 
 ## Quick Start
@@ -277,6 +278,43 @@ docker compose -f docker-compose.cpu.yml up --build
 
 - Automatically splits and stitches at sentence boundaries 
 - Helps to reduce artifacts and allow long form processing as the base model is only currently configured for approximately 30s output 
+</details>
+
+<details>
+<summary>Phoneme & Token Routes</summary>
+
+Convert text to phonemes and/or generate audio directly from phonemes:
+```python
+import requests
+
+# Convert text to phonemes
+response = requests.post(
+    "http://localhost:8880/dev/phonemize",
+    json={
+        "text": "Hello world!",
+        "language": "a"  # "a" for American English
+    }
+)
+result = response.json()
+phonemes = result["phonemes"]  # Phoneme string e.g  ðɪs ɪz ˈoʊnli ɐ tˈɛst
+tokens = result["tokens"]      # Token IDs including start/end tokens 
+
+# Generate audio from phonemes
+response = requests.post(
+    "http://localhost:8880/dev/generate_from_phonemes",
+    json={
+        "phonemes": phonemes,
+        "voice": "af_bella",
+        "speed": 1.0
+    }
+)
+
+# Save WAV audio
+with open("speech.wav", "wb") as f:
+    f.write(response.content)
+```
+
+See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
 </details>
 
 ## Model and License

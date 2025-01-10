@@ -106,6 +106,13 @@ class TTSGPUModel(TTSBaseModel):
     _device = "cuda"
 
     @classmethod
+    def get_instance(cls):
+        """Get the model instance"""
+        if cls._instance is None:
+            raise RuntimeError("GPU model not initialized. Call initialize() first.")
+        return cls._instance
+
+    @classmethod
     def initialize(cls, model_dir: str, model_path: str):
         """Initialize PyTorch model for GPU inference"""
         if cls._instance is None and torch.cuda.is_available():
@@ -114,7 +121,7 @@ class TTSGPUModel(TTSBaseModel):
                 model_path = os.path.join(model_dir, settings.pytorch_model_path)
                 model = build_model(model_path, cls._device)
                 cls._instance = model
-                return cls._instance
+                return model
             except Exception as e:
                 logger.error(f"Failed to initialize GPU model: {e}")
                 return None

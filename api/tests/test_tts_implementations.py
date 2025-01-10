@@ -32,10 +32,15 @@ async def test_setup_cuda_available(mock_save, mock_load, mock_listdir, mock_joi
     mock_listdir.return_value = ["voice1.pt", "voice2.pt"]
     mock_join.return_value = "/mocked/path"
     
-    # Mock the abstract methods
-    TTSBaseModel.initialize = MagicMock(return_value=True)
-    TTSBaseModel.process_text = MagicMock(return_value=("dummy", [1,2,3]))
-    TTSBaseModel.generate_from_tokens = MagicMock(return_value=np.zeros(1000))
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.bert = MagicMock()
+    mock_model.process_text = MagicMock(return_value=("dummy", [1,2,3]))
+    mock_model.generate_from_tokens = MagicMock(return_value=np.zeros(1000))
+    
+    # Mock initialize to return our mock model
+    TTSBaseModel.initialize = MagicMock(return_value=mock_model)
+    TTSBaseModel._instance = mock_model
     
     voice_count = await TTSBaseModel.setup()
     assert TTSBaseModel._device == "cuda"
@@ -57,10 +62,15 @@ async def test_setup_cuda_unavailable(mock_save, mock_load, mock_listdir, mock_j
     mock_listdir.return_value = ["voice1.pt", "voice2.pt"]
     mock_join.return_value = "/mocked/path"
     
-    # Mock the abstract methods
-    TTSBaseModel.initialize = MagicMock(return_value=True)
-    TTSBaseModel.process_text = MagicMock(return_value=("dummy", [1,2,3]))
-    TTSBaseModel.generate_from_tokens = MagicMock(return_value=np.zeros(1000))
+    # Create mock model
+    mock_model = MagicMock()
+    mock_model.bert = MagicMock()
+    mock_model.process_text = MagicMock(return_value=("dummy", [1,2,3]))
+    mock_model.generate_from_tokens = MagicMock(return_value=np.zeros(1000))
+    
+    # Mock initialize to return our mock model
+    TTSBaseModel.initialize = MagicMock(return_value=mock_model)
+    TTSBaseModel._instance = mock_model
     
     voice_count = await TTSBaseModel.setup()
     assert TTSBaseModel._device == "cpu"
@@ -69,7 +79,9 @@ async def test_setup_cuda_unavailable(mock_save, mock_load, mock_listdir, mock_j
 # CPU Model Tests
 def test_cpu_initialize_missing_model():
     """Test CPU initialize with missing model"""
-    with patch('os.path.exists', return_value=False):
+    TTSCPUModel._onnx_session = None  # Reset the session
+    with patch('os.path.exists', return_value=False), \
+         patch('onnxruntime.InferenceSession', return_value=None):
         result = TTSCPUModel.initialize("dummy_dir")
         assert result is None
 

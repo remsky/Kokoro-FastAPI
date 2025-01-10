@@ -34,7 +34,7 @@ def stream_to_speakers() -> None:
 
     with openai.audio.speech.with_streaming_response.create(
         model="kokoro",
-        voice="af_sky+af_bella+af_nicole+bm_george",
+        voice="af_0p0_n2p0",
         response_format="pcm",  # similar to WAV, but without a header chunk at the start.
         input="""My dear sir, that is just where you are wrong. That is just where the whole world has gone wrong. We are always getting away from the present moment. Our mental existences, which are immaterial and have no dimensions, are passing along the Time-Dimension with a uniform velocity from the cradle to the grave. Just as we should travel down if we began our existence fifty miles above the earth’s surface""",
     ) as response:

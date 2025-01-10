@@ -20,10 +20,10 @@ from .audio import AudioService, AudioNormalizer
 class TTSService:
     def __init__(self, output_dir: str = None):
         self.output_dir = output_dir
-
+        self.model = TTSModel.get_instance()
 
     @staticmethod
-    @lru_cache(maxsize=20)  # Cache up to 8 most recently used voices
+    @lru_cache(maxsize=3)  # Cache up to 3 most recently used voices
     def _load_voice(voice_path: str) -> torch.Tensor:
         """Load and cache a voice model"""
         return torch.load(voice_path, map_location=TTSModel.get_device(), weights_only=True)
@@ -141,7 +141,6 @@ class TTSService:
             # Process chunks as they're generated
             is_first = True
             chunks_processed = 0
-            # last_chunk_end = time.time()
             
             # Process chunks as they come from generator
             chunk_gen = chunker.split_text(text)
@@ -149,21 +148,14 @@ class TTSService:
             
             while current_chunk is not None:
                 next_chunk = next(chunk_gen, None)  # Peek at next chunk
-                # chunk_start = time.time()
                 chunks_processed += 1
                 try:
                     # Process text and generate audio
-                    # text_process_start = time.time()
                     phonemes, tokens = TTSModel.process_text(current_chunk, voice[0])
-                    # text_process_time = time.time() - text_process_start
-                    
-                    # audio_gen_start = time.time()
                     chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
-                    # audio_gen_time = time.time() - audio_gen_start
                     
                     if chunk_audio is not None:
                         # Convert chunk with proper header handling
-                        convert_start = time.time()
                         chunk_bytes = AudioService.convert_audio(
                             chunk_audio,
                             24000,
@@ -173,25 +165,9 @@ class TTSService:
                             is_last_chunk=(next_chunk is None),  # Last if no next chunk
                             chunk=current_chunk
                         )
-                        # convert_time = time.time() - convert_start
-                        
-                        # Calculate gap from last chunk
-                        # gap_time = chunk_start - last_chunk_end
-                        
-                        # Log timing details if not silent
-                        # if not silent:
-                        #     logger.debug(
-                        #         f"\nChunk {chunks_processed} timing:"
-                        #         f"\n  Gap from last chunk: {gap_time*1000:.1f}ms"
-                        #         f"\n  Text processing: {text_process_time*1000:.1f}ms"
-                        #         f"\n  Audio generation: {audio_gen_time*1000:.1f}ms"
-                        #         f"\n  Audio conversion: {convert_time*1000:.1f}ms"
-                        #         f"\n  Total chunk time: {(time.time() - chunk_start)*1000:.1f}ms"
-                        #     )
                         
                         yield chunk_bytes
                         is_first = False
-                        # last_chunk_end = time.time()
                     else:
                         logger.error(f"No audio generated for chunk: '{current_chunk}'")
 
@@ -203,7 +179,6 @@ class TTSService:
         except Exception as e:
             logger.error(f"Error in audio generation stream: {str(e)}")
             raise
-
 
     def _save_audio(self, audio: torch.Tensor, filepath: str):
         """Save audio to file"""

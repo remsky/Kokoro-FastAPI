@@ -36,9 +36,11 @@ class TTSBaseModel(ABC):
                 model_path = os.path.join(settings.model_dir, settings.onnx_model_path)
             logger.info(f"Initializing model on {cls._device}")
 
-            # Initialize model
-            if not cls.initialize(settings.model_dir, model_path=model_path):
+            # Initialize model first
+            model = cls.initialize(settings.model_dir, model_path=model_path)
+            if model is None:
                 raise RuntimeError(f"Failed to initialize {cls._device.upper()} model")
+            cls._instance = model
 
             # Setup voices directory
             os.makedirs(cls.VOICES_DIR, exist_ok=True)
@@ -59,7 +61,10 @@ class TTSBaseModel(ABC):
                             except Exception as e:
                                 logger.error(f"Error copying voice {voice_name}: {str(e)}")
 
-            # Load warmup text
+            # Count voices in directory
+            voice_count = len([f for f in os.listdir(cls.VOICES_DIR) if f.endswith(".pt")])
+
+            # Now that model and voices are ready, do warmup
             try:
                 with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "don_quixote.txt")) as f:
                     warmup_text = f.read()
@@ -67,7 +72,7 @@ class TTSBaseModel(ABC):
                 logger.warning(f"Failed to load warmup text: {e}")
                 warmup_text = "This is a warmup text that will be split into chunks for processing."
 
-            # Use warmup service
+            # Use warmup service after model is fully initialized
             from .warmup import WarmupService
             warmup = WarmupService()
             

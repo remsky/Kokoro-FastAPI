@@ -3,6 +3,7 @@ FastAPI OpenAI Compatible API
 """
 
 from contextlib import asynccontextmanager
+import sys
 
 import uvicorn
 from loguru import logger
@@ -13,7 +14,33 @@ from .core.config import settings
 from .services.tts_model import TTSModel
 from .services.tts_service import TTSService
 from .routers.openai_compatible import router as openai_router
-from .routers.text_processing import router as text_router
+from .routers.development import router as dev_router
+
+
+def setup_logger():
+    """Configure loguru logger with custom formatting"""
+    config = {
+        "handlers": [
+            {
+                "sink": sys.stdout,
+                "format": "<fg #2E8B57>{time:hh:mm:ss A}</fg #2E8B57> | "
+                         "{level: <8} | "
+                         "{message}",
+                "colorize": True,
+                "level": "INFO"
+            },
+        ],
+    }
+    # Remove default logger
+    logger.remove()
+    # Add our custom logger
+    logger.configure(**config)
+    # Override error colors
+    logger.level("ERROR", color="<red>")
+
+
+# Configure logger
+setup_logger()
 
 
 @asynccontextmanager
@@ -67,7 +94,8 @@ app.add_middleware(
 
 # Include routers
 app.include_router(openai_router, prefix="/v1")
-app.include_router(text_router)
+app.include_router(dev_router)  # New development endpoints
+# app.include_router(text_router)  # Deprecated but still live for backwards compatibility
 
 
 # Health check endpoint

@@ -5,12 +5,17 @@ from loguru import logger
 
 from .tts_service import TTSService
 from .tts_model import TTSModel
+from ..core.config import settings
 
 
 class WarmupService:
     """Service for warming up TTS models and voice caches"""
     
     def __init__(self):
+        """Initialize warmup service and ensure model is ready"""
+        # Initialize model if not already initialized
+        if TTSModel._instance is None:
+            TTSModel.initialize(settings.model_dir)
         self.tts_service = TTSService()
         
     def load_voices(self) -> List[Tuple[str, torch.Tensor]]:
@@ -21,13 +26,15 @@ class WarmupService:
             key=len
         )
         
-        # Load up to LRU cache limit (20)
+        n_voices_cache=1
         loaded_voices = []
-        for voice_file in voice_files[:20]:
+        for voice_file in voice_files[:n_voices_cache]:
             try:
                 voice_path = os.path.join(TTSModel.VOICES_DIR, voice_file)
-                voicepack = torch.load(voice_path, map_location=TTSModel.get_device(), weights_only=True)
+                # load using service, lru cache
+                voicepack = self.tts_service._load_voice(voice_path)
                 loaded_voices.append((voice_file[:-3], voicepack))  # Store name and tensor
+                # voicepack = torch.load(voice_path, map_location=TTSModel.get_device(), weights_only=True)
                 # logger.info(f"Loaded voice {voice_file[:-3]} into cache")
             except Exception as e:
                 logger.error(f"Failed to load voice {voice_file}: {e}")

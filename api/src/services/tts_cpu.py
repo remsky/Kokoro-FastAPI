@@ -13,6 +13,13 @@ class TTSCPUModel(TTSBaseModel):
     _onnx_session = None
 
     @classmethod
+    def get_instance(cls):
+        """Get the model instance"""
+        if cls._onnx_session is None:
+            raise RuntimeError("ONNX model not initialized. Call initialize() first.")
+        return cls._onnx_session
+
+    @classmethod
     def initialize(cls, model_dir: str, model_path: str = None):
         """Initialize ONNX model for CPU inference"""
         if cls._onnx_session is None:
@@ -62,14 +69,14 @@ class TTSCPUModel(TTSBaseModel):
                 }
             }
 
-            cls._onnx_session = InferenceSession(
+            session = InferenceSession(
                 onnx_path,
                 sess_options=session_options,
                 providers=['CPUExecutionProvider'],
                 provider_options=[provider_options]
             )
-            
-            return cls._onnx_session
+            cls._onnx_session = session
+            return session
         return cls._onnx_session
 
     @classmethod

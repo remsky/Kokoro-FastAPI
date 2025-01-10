@@ -141,14 +141,8 @@ class AudioService:
                 # Raw 16-bit PCM samples, no header
                 buffer.write(normalized_audio.tobytes())
             elif output_format == "wav":
-                if stream:
-                    # Use soundfile for streaming to ensure proper headers
-                    sf.write(buffer, normalized_audio, sample_rate, format="WAV", subtype='PCM_16')
-                else:
-                    # Trying scipy.io.wavfile for non-streaming WAV generation 
-                    # seems faster than soundfile
-                    # avoids overhead from header generation and PCM encoding
-                    wavfile.write(buffer, sample_rate, normalized_audio)
+                # Always use soundfile for WAV to ensure proper headers and normalization
+                sf.write(buffer, normalized_audio, sample_rate, format="WAV", subtype='PCM_16')
             elif output_format == "mp3":
                 # Use format settings or defaults
                 settings = format_settings.get("mp3", {}) if format_settings else {}

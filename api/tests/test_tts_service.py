@@ -16,8 +16,18 @@ from api.src.services.tts_gpu import TTSGPUModel
 
 
 @pytest.fixture
-def tts_service():
+def tts_service(monkeypatch):
     """Create a TTSService instance for testing"""
+    # Mock TTSModel initialization
+    mock_model = MagicMock()
+    mock_model.generate_from_tokens = MagicMock(return_value=np.zeros(48000))
+    mock_model.process_text = MagicMock(return_value=("mock phonemes", [1, 2, 3]))
+    
+    # Set up model instance
+    monkeypatch.setattr("api.src.services.tts_model.TTSModel._instance", mock_model)
+    monkeypatch.setattr("api.src.services.tts_model.TTSModel.get_instance", MagicMock(return_value=mock_model))
+    monkeypatch.setattr("api.src.services.tts_model.TTSModel.get_device", MagicMock(return_value="cpu"))
+    
     return TTSService()
 
 
@@ -110,6 +120,13 @@ def test_generate_audio_empty_text(tts_service):
     with pytest.raises(ValueError, match="Text is empty after preprocessing"):
         tts_service._generate_audio("", "af", 1.0)
 
+
+@pytest.fixture(autouse=True)
+def mock_settings():
+    """Mock settings for all tests"""
+    with patch('api.src.services.text_processing.chunker.settings') as mock_settings:
+        mock_settings.max_chunk_size = 300
+        yield mock_settings
 
 @patch("api.src.services.tts_model.TTSModel.get_instance")
 @patch("api.src.services.tts_model.TTSModel.get_device")
