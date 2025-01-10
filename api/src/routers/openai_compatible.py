@@ -77,7 +77,7 @@ async def create_speech(
             "wav": "audio/wav",
             "pcm": "audio/pcm",
         }.get(request.response_format, f"audio/{request.response_format}")
-
+        logger.debug(f"Stream requested: {request.stream}")
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
             # Stream audio chunks as they're generated

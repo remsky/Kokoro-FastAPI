@@ -47,6 +47,8 @@ class TTSService:
         start_time = time.time()
 
         try:
+            stream_normalizer = AudioNormalizer()
+            
             # Normalize text once at the start
             if not text:
                 raise ValueError("Text is empty after preprocessing")
@@ -67,10 +69,10 @@ class TTSService:
             if stitch_long_output:
                 # Preprocess all chunks to phonemes/tokens
                 chunks_data = []
-                for chunk in chunker.split_text(text):
+                for index,chunk in enumerate(chunker.split_text(text)):
                     try:
                         phonemes, tokens = TTSModel.process_text(chunk, voice[0])
-                        chunks_data.append((chunk, tokens))
+                        chunks_data.append((chunk, tokens, index))
                     except Exception as e:
                         logger.error(f"Failed to process chunk: '{chunk}'. Error: {str(e)}")
                         continue
@@ -80,10 +82,11 @@ class TTSService:
 
                 # Generate audio for all chunks
                 audio_chunks = []
-                for chunk, tokens in chunks_data:
+                for chunk, tokens, chunk_index in chunks_data:
                     try:
                         chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
                         if chunk_audio is not None:
+                            chunk_audio=stream_normalizer.normalize(chunk_audio,(chunk_index == len(chunks_data) - 1))
                             audio_chunks.append(chunk_audio)
                         else:
                             logger.error(f"No audio generated for chunk: '{chunk}'")
