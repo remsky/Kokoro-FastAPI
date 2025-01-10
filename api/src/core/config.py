@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     max_chunk_size: int = 300  # Maximum size of text chunks for processing
     gap_trim_ms: int = 25  # Amount to trim from streaming chunk ends in milliseconds
     dynamic_gap_trim_padding_ms: int = 410 # Padding to add to dynamic gap trim
+    dynamic_gap_trim_padding_char_multiplier: dict[str,float] = {".":1,"!":0.9,"?":1,",":0.8}
     
     # ONNX Optimization Settings
     onnx_num_threads: int = 4  # Number of threads for intra-op parallelism
