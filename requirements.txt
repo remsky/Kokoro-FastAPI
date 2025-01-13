@@ -32,3 +32,6 @@ loguru==0.7.3
 pytest==8.0.0
 httpx==0.26.0
 pytest-asyncio==0.23.5
+
+#api sharelink
+flask_cloudflared==0.0.14
