@@ -9,10 +9,10 @@ import pytest
 from onnxruntime import InferenceSession
 
 from api.src.core.config import settings
-from api.src.services.tts_model import TTSModel
-from api.src.services.tts_service import TTSService
 from api.src.services.tts_cpu import TTSCPUModel
 from api.src.services.tts_gpu import TTSGPUModel
+from api.src.services.tts_model import TTSModel
+from api.src.services.tts_service import TTSService
 
 
 @pytest.fixture
@@ -22,12 +22,17 @@ def tts_service(monkeypatch):
     mock_model = MagicMock()
     mock_model.generate_from_tokens = MagicMock(return_value=np.zeros(48000))
     mock_model.process_text = MagicMock(return_value=("mock phonemes", [1, 2, 3]))
-    
+
     # Set up model instance
     monkeypatch.setattr("api.src.services.tts_model.TTSModel._instance", mock_model)
-    monkeypatch.setattr("api.src.services.tts_model.TTSModel.get_instance", MagicMock(return_value=mock_model))
-    monkeypatch.setattr("api.src.services.tts_model.TTSModel.get_device", MagicMock(return_value="cpu"))
-    
+    monkeypatch.setattr(
+        "api.src.services.tts_model.TTSModel.get_instance",
+        MagicMock(return_value=mock_model),
+    )
+    monkeypatch.setattr(
+        "api.src.services.tts_model.TTSModel.get_device", MagicMock(return_value="cpu")
+    )
+
     return TTSService()
 
 
@@ -51,13 +56,15 @@ def test_audio_to_bytes(tts_service, sample_audio):
 @pytest.mark.asyncio
 async def test_list_voices(tts_service):
     """Test listing available voices"""
-    # Override list_voices for testing 
-    # # TODO: 
+
+    # Override list_voices for testing
+    # # TODO:
     # Whatever aiofiles does here pathing aiofiles vs aiofiles.os
-    # I am thoroughly confused by it. 
+    # I am thoroughly confused by it.
     # Cheating the test as it seems to work in the real world (for now)
     async def mock_list_voices():
         return ["voice1", "voice2"]
+
     tts_service.list_voices = mock_list_voices
 
     voices = await tts_service.list_voices()
@@ -69,10 +76,12 @@ async def test_list_voices(tts_service):
 @pytest.mark.asyncio
 async def test_list_voices_error(tts_service):
     """Test error handling in list_voices"""
+
     # Override list_voices for testing
     # TODO: See above.
     async def mock_list_voices():
         return []
+
     tts_service.list_voices = mock_list_voices
 
     voices = await tts_service.list_voices()
@@ -93,7 +102,7 @@ def mock_model_setup(cuda_available=False):
 
     # Set device based on CUDA availability
     TTSModel._device = "cuda" if cuda_available else "cpu"
-    
+
     return 3  # Return voice count (including af.pt)
 
 
@@ -101,7 +110,7 @@ def test_model_initialization_cuda():
     """Test model initialization with CUDA"""
     # Simulate CUDA availability
     voice_count = mock_model_setup(cuda_available=True)
-    
+
     assert TTSModel.get_device() == "cuda"
     assert voice_count == 3  # voice1.pt, voice2.pt, af.pt
 
@@ -110,7 +119,7 @@ def test_model_initialization_cpu():
     """Test model initialization with CPU"""
     # Simulate no CUDA availability
     voice_count = mock_model_setup(cuda_available=False)
-    
+
     assert TTSModel.get_device() == "cpu"
     assert voice_count == 3  # voice1.pt, voice2.pt, af.pt
 
@@ -124,9 +133,10 @@ def test_generate_audio_empty_text(tts_service):
 @pytest.fixture(autouse=True)
 def mock_settings():
     """Mock settings for all tests"""
-    with patch('api.src.services.text_processing.chunker.settings') as mock_settings:
+    with patch("api.src.services.text_processing.chunker.settings") as mock_settings:
         mock_settings.max_chunk_size = 300
         yield mock_settings
+
 
 @patch("api.src.services.tts_model.TTSModel.get_instance")
 @patch("api.src.services.tts_model.TTSModel.get_device")
@@ -150,7 +160,10 @@ def test_generate_audio_phonemize_error(
     """Test handling phonemization error"""
     mock_normalize.return_value = "Test text"
     mock_phonemize.side_effect = Exception("Phonemization failed")
-    mock_instance.return_value = (mock_generate, "cpu")  # Use the same mock for consistency
+    mock_instance.return_value = (
+        mock_generate,
+        "cpu",
+    )  # Use the same mock for consistency
     mock_get_device.return_value = "cpu"
     mock_exists.return_value = True
     mock_torch_load.return_value = torch.zeros((10, 24000))
@@ -184,7 +197,10 @@ def test_generate_audio_error(
     mock_phonemize.return_value = "Test text"
     mock_tokenize.return_value = [1, 2]  # Return integers instead of strings
     mock_generate.side_effect = Exception("Generation failed")
-    mock_instance.return_value = (mock_generate, "cpu")  # Use the same mock for consistency
+    mock_instance.return_value = (
+        mock_generate,
+        "cpu",
+    )  # Use the same mock for consistency
     mock_get_device.return_value = "cpu"
     mock_exists.return_value = True
     mock_torch_load.return_value = torch.zeros((10, 24000))
@@ -205,12 +221,11 @@ def test_save_audio(tts_service, sample_audio, tmp_path):
 async def test_combine_voices(tts_service):
     """Test combining multiple voices"""
     # Setup mocks for torch operations
-    with patch('torch.load', return_value=torch.tensor([1.0, 2.0])), \
-            patch('torch.stack', return_value=torch.tensor([[1.0, 2.0], [3.0, 4.0]])), \
-            patch('torch.mean', return_value=torch.tensor([2.0, 3.0])), \
-            patch('torch.save'), \
-            patch('os.path.exists', return_value=True):
-        
+    with patch("torch.load", return_value=torch.tensor([1.0, 2.0])), patch(
+        "torch.stack", return_value=torch.tensor([[1.0, 2.0], [3.0, 4.0]])
+    ), patch("torch.mean", return_value=torch.tensor([2.0, 3.0])), patch(
+        "torch.save"
+    ), patch("os.path.exists", return_value=True):
         # Test combining two voices
         result = await tts_service.combine_voices(["voice1", "voice2"])
 

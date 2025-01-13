@@ -32,10 +32,10 @@ services:
       start_period: 1s
 
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi:latest
-    # Uncomment below to build from source instead of using the released image
-    build:
-      context: .
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:latest
+    # Uncomment below (and comment out above) to build from source instead of using the released image
+    # build:
+      # context: .
     volumes:
       - ./api/src:/app/api/src
       - ./Kokoro-82M:/app/Kokoro-82M
@@ -50,16 +50,22 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8880/v1/audio/voices"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
     depends_on:
       model-fetcher:
         condition: service_healthy
 
   # Gradio UI service [Comment out everything below if you don't need it]
   gradio-ui:
-    # image: ghcr.io/remsky/kokoro-fastapi:latest-ui
-    # Uncomment below to build from source instead of using the released image
-    build:
-      context: ./ui
+    image: ghcr.io/remsky/kokoro-fastapi-ui:latest
+    # Uncomment below (and comment out above) to build from source instead of using the released image
+    # build:
+      # context: ./ui
     ports:
       - "7860:7860"
     volumes:
@@ -67,3 +73,7 @@ services:
       - ./ui/app.py:/app/app.py  # Mount app.py for hot reload
     environment:
       - GRADIO_WATCH=True  # Enable hot reloading
+      - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
+    depends_on:
+      kokoro-tts:
+        condition: service_healthy

@@ -2,8 +2,8 @@
 FastAPI OpenAI Compatible API
 """
 
-from contextlib import asynccontextmanager
 import sys
+from contextlib import asynccontextmanager
 
 import uvicorn
 from loguru import logger
@@ -12,9 +12,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .core.config import settings
 from .services.tts_model import TTSModel
+from .routers.development import router as dev_router
 from .services.tts_service import TTSService
 from .routers.openai_compatible import router as openai_router
-from .routers.development import router as dev_router
 
 
 def setup_logger():
@@ -24,24 +24,20 @@ def setup_logger():
             {
                 "sink": sys.stdout,
                 "format": "<fg #2E8B57>{time:hh:mm:ss A}</fg #2E8B57> | "
-                         "{level: <8} | "
-                         "{message}",
+                "{level: <8} | "
+                "{message}",
                 "colorize": True,
-                "level": "INFO"
+                "level": "INFO",
             },
         ],
     }
-    # Remove default logger
     logger.remove()
-    # Add our custom logger
     logger.configure(**config)
-    # Override error colors
     logger.level("ERROR", color="<red>")
 
 
 # Configure logger
 setup_logger()
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -52,7 +48,7 @@ async def lifespan(app: FastAPI):
     voicepack_count = await TTSModel.setup()
     # boundary = "█████╗"*9
     boundary = "░" * 24
-    startup_msg =f"""
+    startup_msg = f"""
 
 {boundary}
 

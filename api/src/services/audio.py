@@ -7,15 +7,19 @@ import numpy as np
 import soundfile as sf
 import scipy.io.wavfile as wavfile
 from loguru import logger
+
 from ..core.config import settings
+
 
 class AudioNormalizer:
     """Handles audio normalization state for a single stream"""
+
     def __init__(self):
         self.int16_max = np.iinfo(np.int16).max
         self.chunk_trim_ms = settings.gap_trim_ms
         self.sample_rate = 24000  # Sample rate of the audio
         self.samples_to_trim = int(self.chunk_trim_ms * self.sample_rate / 1000)
+
         self.samples_to_pad_start= int(50 * self.sample_rate / 1000)
         
     def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str, silence_threshold_db: int = -45) -> tuple[int, int]:
@@ -57,25 +61,28 @@ class AudioNormalizer:
         """Normalize audio data to int16 range and trim chunk boundaries"""
         # Convert to float32 if not already
         audio_float = audio_data.astype(np.float32)
-        
+
         # Normalize to [-1, 1] range first
         if np.max(np.abs(audio_float)) > 0:
             audio_float = audio_float / np.max(np.abs(audio_float))
-        
+
         # Trim end of non-final chunks to reduce gaps
         if not is_last_chunk and len(audio_float) > self.samples_to_trim:
+
             audio_float = audio_float[:-self.samples_to_trim]
             
         audio_int=(audio_float * self.int16_max).astype(np.int16)
 
         start_index,end_index=self.find_first_last_non_silent(audio_int,chunk)
- 
+
+
         # Scale to int16 range
         return audio_int[start_index:end_index]
 
+
 class AudioService:
     """Service for audio format conversions"""
-    
+
     # Default audio format settings balanced for speed and compression
     DEFAULT_SETTINGS = {
         "mp3": {
@@ -87,20 +94,22 @@ class AudioService:
         },
         "flac": {
             "compression_level": 0.0,  # Light compression, still fast
-        }
+        },
     }
-    
+
     @staticmethod
     def convert_audio(
-        audio_data: np.ndarray, 
-        sample_rate: int, 
-        output_format: str, 
+        audio_data: np.ndarray,
+        sample_rate: int,
+        output_format: str,
         is_first_chunk: bool = True,
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,
         format_settings: dict = None,
         stream: bool = True,
+
         chunk: str = ""
+
     ) -> bytes:
         """Convert audio data to specified format
 
@@ -130,6 +139,7 @@ class AudioService:
 
         try:
             # Always normalize audio to ensure proper amplitude scaling
+
             if stream:
                 if normalizer is None:
                     normalizer = AudioNormalizer()
@@ -137,44 +147,60 @@ class AudioService:
             else:
                 normalized_audio = audio_data
 
+
             if output_format == "pcm":
                 # Raw 16-bit PCM samples, no header
                 buffer.write(normalized_audio.tobytes())
             elif output_format == "wav":
-                # Always use soundfile for WAV to ensure proper headers and normalization
-                sf.write(buffer, normalized_audio, sample_rate, format="WAV", subtype='PCM_16')
+                # WAV format with headers
+                sf.write(
+                    buffer,
+                    normalized_audio,
+                    sample_rate,
+                    format="WAV",
+                    subtype="PCM_16",
+                )
             elif output_format == "mp3":
-                # Use format settings or defaults
+                # MP3 format with proper framing
                 settings = format_settings.get("mp3", {}) if format_settings else {}
                 settings = {**AudioService.DEFAULT_SETTINGS["mp3"], **settings}
                 sf.write(
-                    buffer, normalized_audio, 
-                    sample_rate, format="MP3",
-                    **settings
-                    )
-                
+                    buffer, normalized_audio, sample_rate, format="MP3", **settings
+                )
             elif output_format == "opus":
+                # Opus format in OGG container
                 settings = format_settings.get("opus", {}) if format_settings else {}
                 settings = {**AudioService.DEFAULT_SETTINGS["opus"], **settings}
-                sf.write(buffer, normalized_audio, sample_rate, format="OGG", 
-                        subtype="OPUS", **settings)
-                
+                sf.write(
+                    buffer,
+                    normalized_audio,
+                    sample_rate,
+                    format="OGG",
+                    subtype="OPUS",
+                    **settings,
+                )
             elif output_format == "flac":
+                # FLAC format with proper framing
                 if is_first_chunk:
                     logger.info("Starting FLAC stream...")
                 settings = format_settings.get("flac", {}) if format_settings else {}
                 settings = {**AudioService.DEFAULT_SETTINGS["flac"], **settings}
-                sf.write(buffer, normalized_audio, sample_rate, format="FLAC",
-                        subtype='PCM_16', **settings)
+                sf.write(
+                    buffer,
+                    normalized_audio,
+                    sample_rate,
+                    format="FLAC",
+                    subtype="PCM_16",
+                    **settings,
+                )
+            elif output_format == "aac":
+                raise ValueError(
+                    "Format aac not currently supported. Supported formats are: wav, mp3, opus, flac, pcm."
+                )
             else:
-                if output_format == "aac":
-                    raise ValueError(
-                        "Format aac not supported. Supported formats are: wav, mp3, opus, flac, pcm."
-                    )
-                else:
-                    raise ValueError(
-                        f"Format {output_format} not supported. Supported formats are: wav, mp3, opus, flac, pcm."
-                    )
+                raise ValueError(
+                    f"Format {output_format} not supported. Supported formats are: wav, mp3, opus, flac, pcm, aac."
+                )
 
             buffer.seek(0)
             return buffer.getvalue()

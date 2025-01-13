@@ -1,9 +1,9 @@
 import os
 import sys
 import shutil
-from unittest.mock import Mock, patch, MagicMock
-import numpy as np
+from unittest.mock import Mock, MagicMock, patch
 
+import numpy as np
 import pytest
 import aiofiles.threadpool
 
@@ -37,6 +37,7 @@ mock_torch = Mock()
 mock_torch.cuda = Mock()
 mock_torch.cuda.is_available = Mock(return_value=False)
 
+
 # Create a mock tensor class that supports basic operations
 class MockTensor:
     def __init__(self, data):
@@ -46,54 +47,57 @@ class MockTensor:
         elif isinstance(data, MockTensor):
             self.shape = data.shape
         else:
-            self.shape = getattr(data, 'shape', [1])
-        
+            self.shape = getattr(data, "shape", [1])
+
     def __getitem__(self, idx):
         if isinstance(self.data, (list, tuple)):
             if isinstance(idx, slice):
                 return MockTensor(self.data[idx])
             return self.data[idx]
         return self
-        
+
     def max(self):
         if isinstance(self.data, (list, tuple)):
             max_val = max(self.data)
             return MockTensor(max_val)
         return 5  # Default for testing
-        
+
     def item(self):
         if isinstance(self.data, (list, tuple)):
             return max(self.data)
         if isinstance(self.data, (int, float)):
             return self.data
         return 5  # Default for testing
-        
+
     def cuda(self):
         """Support cuda conversion"""
         return self
-        
+
     def any(self):
         if isinstance(self.data, (list, tuple)):
             return any(self.data)
         return False
-        
+
     def all(self):
         if isinstance(self.data, (list, tuple)):
             return all(self.data)
         return True
-        
+
     def unsqueeze(self, dim):
         return self
-        
+
     def expand(self, *args):
         return self
-        
+
     def type_as(self, other):
         return self
 
+
 # Add tensor operations to mock torch
 mock_torch.tensor = lambda x: MockTensor(x)
-mock_torch.zeros = lambda *args: MockTensor([0] * (args[0] if isinstance(args[0], int) else args[0][0]))
+mock_torch.zeros = lambda *args: MockTensor(
+    [0] * (args[0] if isinstance(args[0], int) else args[0][0])
+)
 mock_torch.arange = lambda x: MockTensor(list(range(x)))
 mock_torch.gt = lambda x, y: MockTensor([False] * x.shape[0])
 
@@ -173,11 +177,13 @@ def mock_tts_service(monkeypatch):
     mock_service = Mock()
     mock_service._get_voice_path.return_value = "/mock/path/voice.pt"
     mock_service._load_voice.return_value = np.zeros((1, 192))
-    
+
     # Mock TTSModel.generate_from_tokens since we call it directly
     mock_generate = Mock(return_value=np.zeros(48000))
-    monkeypatch.setattr("api.src.routers.text_processing.TTSModel.generate_from_tokens", mock_generate)
-    
+    monkeypatch.setattr(
+        "api.src.routers.development.TTSModel.generate_from_tokens", mock_generate
+    )
+
     return mock_service
 
 
@@ -186,5 +192,5 @@ def mock_audio_service(monkeypatch):
     """Mock AudioService"""
     mock_service = Mock()
     mock_service.convert_audio.return_value = b"mock audio data"
-    monkeypatch.setattr("api.src.routers.text_processing.AudioService", mock_service)
+    monkeypatch.setattr("api.src.routers.development.AudioService", mock_service)
     return mock_service

@@ -2,11 +2,13 @@ import os
 import threading
 from abc import ABC, abstractmethod
 from typing import List, Tuple
-import torch
+
 import numpy as np
+import torch
 from loguru import logger
 
 from ..core.config import settings
+
 
 class TTSBaseModel(ABC):
     _instance = None
@@ -26,7 +28,9 @@ class TTSBaseModel(ABC):
                     # Test CUDA device
                     test_tensor = torch.zeros(1).cuda()
                     logger.info("CUDA test successful")
-                    model_path = os.path.join(settings.model_dir, settings.pytorch_model_path)
+                    model_path = os.path.join(
+                        settings.model_dir, settings.pytorch_model_path
+                    )
                     cls._device = "cuda"
                 except Exception as e:
                     logger.error(f"CUDA test failed: {e}")
@@ -54,19 +58,35 @@ class TTSBaseModel(ABC):
                         voice_path = os.path.join(cls.VOICES_DIR, file)
                         if not os.path.exists(voice_path):
                             try:
-                                logger.info(f"Copying base voice {voice_name} to voices directory")
+                                logger.info(
+                                    f"Copying base voice {voice_name} to voices directory"
+                                )
                                 base_path = os.path.join(base_voices_dir, file)
-                                voicepack = torch.load(base_path, map_location=cls._device, weights_only=True)
+                                voicepack = torch.load(
+                                    base_path,
+                                    map_location=cls._device,
+                                    weights_only=True,
+                                )
                                 torch.save(voicepack, voice_path)
                             except Exception as e:
-                                logger.error(f"Error copying voice {voice_name}: {str(e)}")
+                                logger.error(
+                                    f"Error copying voice {voice_name}: {str(e)}"
+                                )
 
             # Count voices in directory
-            voice_count = len([f for f in os.listdir(cls.VOICES_DIR) if f.endswith(".pt")])
+            voice_count = len(
+                [f for f in os.listdir(cls.VOICES_DIR) if f.endswith(".pt")]
+            )
 
             # Now that model and voices are ready, do warmup
             try:
-                with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "core", "don_quixote.txt")) as f:
+                with open(
+                    os.path.join(
+                        os.path.dirname(os.path.dirname(__file__)),
+                        "core",
+                        "don_quixote.txt",
+                    )
+                ) as f:
                     warmup_text = f.read()
             except Exception as e:
                 logger.warning(f"Failed to load warmup text: {e}")
@@ -74,16 +94,19 @@ class TTSBaseModel(ABC):
 
             # Use warmup service after model is fully initialized
             from .warmup import WarmupService
+
             warmup = WarmupService()
-            
+
             # Load and warm up voices
             loaded_voices = warmup.load_voices()
             await warmup.warmup_voices(warmup_text, loaded_voices)
-            
+
             logger.info("Model warm-up complete")
 
             # Count voices in directory
-            voice_count = len([f for f in os.listdir(cls.VOICES_DIR) if f.endswith(".pt")])
+            voice_count = len(
+                [f for f in os.listdir(cls.VOICES_DIR) if f.endswith(".pt")]
+            )
             return voice_count
 
     @classmethod
@@ -96,11 +119,11 @@ class TTSBaseModel(ABC):
     @abstractmethod
     def process_text(cls, text: str, language: str) -> Tuple[str, List[int]]:
         """Process text into phonemes and tokens
-        
+
         Args:
             text: Input text
             language: Language code
-            
+
         Returns:
             tuple[str, list[int]]: Phonemes and token IDs
         """
@@ -108,15 +131,17 @@ class TTSBaseModel(ABC):
 
     @classmethod
     @abstractmethod
-    def generate_from_text(cls, text: str, voicepack: torch.Tensor, language: str, speed: float) -> Tuple[np.ndarray, str]:
+    def generate_from_text(
+        cls, text: str, voicepack: torch.Tensor, language: str, speed: float
+    ) -> Tuple[np.ndarray, str]:
         """Generate audio from text
-        
+
         Args:
             text: Input text
             voicepack: Voice tensor
             language: Language code
             speed: Speed factor
-            
+
         Returns:
             tuple[np.ndarray, str]: Generated audio samples and phonemes
         """
@@ -124,14 +149,16 @@ class TTSBaseModel(ABC):
 
     @classmethod
     @abstractmethod
-    def generate_from_tokens(cls, tokens: List[int], voicepack: torch.Tensor, speed: float) -> np.ndarray:
+    def generate_from_tokens(
+        cls, tokens: List[int], voicepack: torch.Tensor, speed: float
+    ) -> np.ndarray:
         """Generate audio from tokens
-        
+
         Args:
             tokens: Token IDs
             voicepack: Voice tensor
             speed: Speed factor
-            
+
         Returns:
             np.ndarray: Generated audio samples
         """

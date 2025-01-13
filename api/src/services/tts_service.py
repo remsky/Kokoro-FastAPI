@@ -1,5 +1,4 @@
 import io
-import aiofiles.os
 import os
 import re
 import time
@@ -8,13 +7,14 @@ from functools import lru_cache
 
 import numpy as np
 import torch
+import aiofiles.os
 import scipy.io.wavfile as wavfile
-from .text_processing import normalize_text, chunker
 from loguru import logger
 
-from ..core.config import settings
-from .tts_model import TTSModel
 from .audio import AudioService, AudioNormalizer
+from .tts_model import TTSModel
+from ..core.config import settings
+from .text_processing import chunker, normalize_text
 
 
 class TTSService:
@@ -26,7 +26,9 @@ class TTSService:
     @lru_cache(maxsize=3)  # Cache up to 3 most recently used voices
     def _load_voice(voice_path: str) -> torch.Tensor:
         """Load and cache a voice model"""
-        return torch.load(voice_path, map_location=TTSModel.get_device(), weights_only=True)
+        return torch.load(
+            voice_path, map_location=TTSModel.get_device(), weights_only=True
+        )
 
     def _get_voice_path(self, voice_name: str) -> Optional[str]:
         """Get the path to a voice file"""
@@ -37,7 +39,9 @@ class TTSService:
         self, text: str, voice: str, speed: float, stitch_long_output: bool = True
     ) -> Tuple[torch.Tensor, float]:
         """Generate complete audio and return with processing time"""
-        audio, processing_time = self._generate_audio_internal(text, voice, speed, stitch_long_output)
+        audio, processing_time = self._generate_audio_internal(
+            text, voice, speed, stitch_long_output
+        )
         return audio, processing_time
 
     def _generate_audio_internal(
@@ -74,7 +78,9 @@ class TTSService:
                         phonemes, tokens = TTSModel.process_text(chunk, voice[0])
                         chunks_data.append((chunk, tokens, index))
                     except Exception as e:
-                        logger.error(f"Failed to process chunk: '{chunk}'. Error: {str(e)}")
+                        logger.error(
+                            f"Failed to process chunk: '{chunk}'. Error: {str(e)}"
+                        )
                         continue
 
                 if not chunks_data:
@@ -84,21 +90,29 @@ class TTSService:
                 audio_chunks = []
                 for chunk, tokens, chunk_index in chunks_data:
                     try:
-                        chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
+                        chunk_audio = TTSModel.generate_from_tokens(
+                            tokens, voicepack, speed
+                        )
                         if chunk_audio is not None:
                             chunk_audio=stream_normalizer.normalize(chunk_audio,chunk,(chunk_index == len(chunks_data) - 1))
                             audio_chunks.append(chunk_audio)
                         else:
                             logger.error(f"No audio generated for chunk: '{chunk}'")
                     except Exception as e:
-                        logger.error(f"Failed to generate audio for chunk: '{chunk}'. Error: {str(e)}")
+                        logger.error(
+                            f"Failed to generate audio for chunk: '{chunk}'. Error: {str(e)}"
+                        )
                         continue
 
                 if not audio_chunks:
                     raise ValueError("No audio chunks were generated successfully")
 
                 # Concatenate all chunks
-                audio = np.concatenate(audio_chunks) if len(audio_chunks) > 1 else audio_chunks[0]
+                audio = (
+                    np.concatenate(audio_chunks)
+                    if len(audio_chunks) > 1
+                    else audio_chunks[0]
+                )
             else:
                 # Process single chunk
                 phonemes, tokens = TTSModel.process_text(text, voice[0])
@@ -112,14 +126,19 @@ class TTSService:
             raise
 
     async def generate_audio_stream(
-        self, text: str, voice: str, speed: float, output_format: str = "wav", silent=False
+        self,
+        text: str,
+        voice: str,
+        speed: float,
+        output_format: str = "wav",
+        silent=False,
     ):
         """Generate and yield audio chunks as they're generated for real-time streaming"""
         try:
             stream_start = time.time()
             # Create normalizer for consistent audio levels
             stream_normalizer = AudioNormalizer()
-            
+
             # Input validation and preprocessing
             if not text:
                 raise ValueError("Text is empty")
@@ -128,7 +147,9 @@ class TTSService:
             if not normalized:
                 raise ValueError("Text is empty after preprocessing")
             text = str(normalized)
-            logger.debug(f"Text preprocessing took: {(time.time() - preprocess_start)*1000:.1f}ms")
+            logger.debug(
+                f"Text preprocessing took: {(time.time() - preprocess_start)*1000:.1f}ms"
+            )
 
             # Voice validation and loading
             voice_start = time.time()
@@ -136,26 +157,30 @@ class TTSService:
             if not voice_path:
                 raise ValueError(f"Voice not found: {voice}")
             voicepack = self._load_voice(voice_path)
-            logger.debug(f"Voice loading took: {(time.time() - voice_start)*1000:.1f}ms")
+            logger.debug(
+                f"Voice loading took: {(time.time() - voice_start)*1000:.1f}ms"
+            )
 
             # Process chunks as they're generated
             is_first = True
             chunks_processed = 0
-            
+
             # Process chunks as they come from generator
             chunk_gen = chunker.split_text(text)
             current_chunk = next(chunk_gen, None)
-            
+
             while current_chunk is not None:
                 next_chunk = next(chunk_gen, None)  # Peek at next chunk
                 chunks_processed += 1
                 try:
                     # Process text and generate audio
                     phonemes, tokens = TTSModel.process_text(current_chunk, voice[0])
-                    chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
-                    
+                    chunk_audio = TTSModel.generate_from_tokens(
+                        tokens, voicepack, speed
+                    )
+
                     if chunk_audio is not None:
-                        # Convert chunk with proper header handling
+                        # Convert chunk with proper streaming header handling
                         chunk_bytes = AudioService.convert_audio(
                             chunk_audio,
                             24000,
@@ -164,18 +189,21 @@ class TTSService:
                             normalizer=stream_normalizer,
                             is_last_chunk=(next_chunk is None),  # Last if no next chunk
                             chunk=current_chunk
+                            stream=True  # Ensure proper streaming format handling
                         )
-                        
+
                         yield chunk_bytes
                         is_first = False
                     else:
                         logger.error(f"No audio generated for chunk: '{current_chunk}'")
 
                 except Exception as e:
-                    logger.error(f"Failed to generate audio for chunk: '{current_chunk}'. Error: {str(e)}")
-                
+                    logger.error(
+                        f"Failed to generate audio for chunk: '{current_chunk}'. Error: {str(e)}"
+                    )
+
                 current_chunk = next_chunk  # Move to next chunk
-                
+
         except Exception as e:
             logger.error(f"Error in audio generation stream: {str(e)}")
             raise
@@ -231,7 +259,7 @@ class TTSService:
             if not isinstance(e, (ValueError, RuntimeError)):
                 raise RuntimeError(f"Error combining voices: {str(e)}")
             raise
-        
+
     async def list_voices(self) -> List[str]:
         """List all available voices"""
         voices = []

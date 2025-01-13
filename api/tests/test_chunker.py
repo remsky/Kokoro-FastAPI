@@ -1,14 +1,16 @@
 """Tests for text chunking service"""
 
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from api.src.services.text_processing import chunker
 
 
 @pytest.fixture(autouse=True)
 def mock_settings():
     """Mock settings for all tests"""
-    with patch('api.src.services.text_processing.chunker.settings') as mock_settings:
+    with patch("api.src.services.text_processing.chunker.settings") as mock_settings:
         mock_settings.max_chunk_size = 300
         yield mock_settings
 
