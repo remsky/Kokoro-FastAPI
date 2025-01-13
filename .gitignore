@@ -1,28 +1,45 @@
+# Version control
+.git
 
-output/*
-output_audio/*
-ui/data/*
-
-*.db
+# Python
+__pycache__
 *.pyc
-*.pth
-
-Kokoro-82M/*
-__pycache__/
-.vscode/
-env/
+*.pyo
+*.pyd
 .Python
-
-
+*.py[cod]
+*$py.class
+.pytest_cache
 .coverage
+.coveragerc
 
-examples/assorted_checks/benchmarks/output_audio/*
-examples/assorted_checks/test_combinations/output/*
-examples/assorted_checks/test_openai/output/*
+# Environment
+# .env
+.venv
+env/
+venv/
+ENV/
 
-examples/assorted_checks/test_voices/output/*
-examples/assorted_checks/test_formats/output/*
-examples/assorted_checks/benchmarks/output_audio_stream/*
-ui/RepoScreenshot.png
-examples/assorted_checks/benchmarks/output_audio_stream_openai/*
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
 
+# Project specific
+examples/
+Kokoro-82M/
+ui/
+tests/
+*.md
+*.txt
+!requirements.txt
+
+# Docker
+Dockerfile*
+docker-compose*
+
+*.egg-info
+*.pt
+*.wav
+*.tar*

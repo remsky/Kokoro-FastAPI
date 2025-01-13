@@ -26,7 +26,7 @@ services:
       start_period: 1s
 
   kokoro-tts:
-    image: ghcr.io/remsky/kokoro-fastapi:latest-cpu
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
     # Uncomment below (and comment out above) to build from source instead of using the released image
     # build:
       # context: .
@@ -52,10 +52,10 @@ services:
 
   # Gradio UI service [Comment out everything below if you don't need it]
   gradio-ui:
-    image: ghcr.io/remsky/kokoro-fastapi:latest-ui
+    image: ghcr.io/remsky/kokoro-fastapi-ui:latest
     # Uncomment below (and comment out above) to build from source instead of using the released image
-    build:
-      context: ./ui
+    # build:
+    #   context: ./ui
     ports:
       - "7860:7860"
     volumes:

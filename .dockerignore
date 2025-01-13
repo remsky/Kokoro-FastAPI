@@ -1,6 +1,5 @@
 # Version control
 .git
-.gitignore
 
 # Python
 __pycache__
