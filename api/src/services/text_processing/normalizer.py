@@ -6,6 +6,7 @@ Converts them into a format suitable for text-to-speech processing.
 
 import re
 from functools import lru_cache
+import inflect
 
 # Constants
 VALID_TLDS = [
@@ -15,6 +16,26 @@ VALID_TLDS = [
     "in", "it", "jp", "mx", "nl", "ru", "uk", "us", "io"
 ]
 
+VALID_UNITS = {
+    "m":"meter", "cm":"centimeter", "mm":"millimeter", "km":"kilometer", "in":"inch", "ft":"foot", "yd":"yard", "mi":"mile",  # Length
+    "g":"gram", "kg":"kilogram", "mg":"miligram",      # Mass
+    "s":"second", "ms":"milisecond", "min":"minutes", "h":"hour", # Time
+    "l":"liter", "ml":"mililiter", "cl":"centiliter", "dl":"deciliter",  # Volume
+    "kph":"kilometer per hour", "mph":"mile per hour","mi/h":"mile per hour", "m/s":"meter per second", "km/h":"kilometer per hour", "mm/s":"milimeter per second","cm/s":"centimeter per second", "ft/s":"feet per second", # Speed
+    "°c":"degree celsius","c":"degree celsius", "°f":"degree fahrenheit","f":"degree fahrenheit", "k":"kelvin",     # Temperature
+    "pa":"pascal", "kpa":"kilopascal", "mpa":"megapascal", "atm":"atmosphere",  # Pressure
+    "hz":"hertz", "khz":"kilohertz", "mhz":"megahertz", "ghz":"gigahertz", # Frequency
+    "v":"volt", "kv":"kilovolt", "mv":"mergavolt",      # Voltage
+    "a":"amp", "ma":"megaamp", "ka":"kiloamp",      # Current
+    "w":"watt", "kw":"kilowatt", "mw":"megawatt",      # Power
+    "j":"joule", "kj":"kilojoule", "mj":"megajoule",      # Energy
+    "Ω":"ohm", "kΩ":"kiloohm", "mΩ":"megaohm",      # Resistance (Ohm)
+    "f":"farad", "µf":"microfarad", "nf":"nanofarad", "pf":"picofarad", # Capacitance
+    "b":"byte", "kb":"kilobyte", "mb":"megabyte", "gb":"gigabyte", "tb":"terabyte", "pb":"petabyte", # Data size
+    "kbps":"kilobyte per second","mbps":"megabyte per second","gbps":"gigabyte per second",
+    "px":"pixel"  # CSS units
+}
+
 # Pre-compiled regex patterns for performance
 EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b", re.IGNORECASE)
 URL_PATTERN = re.compile(
@@ -22,6 +43,9 @@ URL_PATTERN = re.compile(
     "|".join(VALID_TLDS) + "))+|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]+)?([/?][^\s]*)?",
     re.IGNORECASE
 )
+UNIT_PATTERN = re.compile(r"((?<!\w)([+-]?)(\d{1,3}(,\d{3})*|\d+)(\.\d+)?)\s*(" + "|".join(sorted(list(VALID_UNITS.keys()),reverse=True)) + r"""){1}(?=[!"#$%&'()*+,-./:;<=>?@\[\\\]^_`{\|}~ \n]{1})""",re.IGNORECASE)
+
+INFLECT_ENGINE=inflect.engine()
 
 def split_num(num: re.Match[str]) -> str:
     """Handle number splitting for various formats"""
@@ -122,6 +146,13 @@ def handle_url(u: re.Match[str]) -> str:
     # Clean up extra spaces
     return re.sub(r'\s+', ' ', url).strip()
 
+def handle_units(u: re.Match[str]) -> str:
+    unit=u.group(6).strip() 
+    if unit.lower() in VALID_UNITS:
+        unit=VALID_UNITS[unit.lower()].split(" ")
+        number=u.group(1).strip()
+        unit[0]=INFLECT_ENGINE.no(unit[0],number)
+    return " ".join(unit)
 
 def normalize_urls(text: str) -> str:
     """Pre-process URLs before other text normalization"""
@@ -135,18 +166,21 @@ def normalize_urls(text: str) -> str:
     
 def normalize_text(text: str) -> str:
     """Normalize text for TTS processing"""
+    # Pre-process numbers with units
+    text=UNIT_PATTERN.sub(handle_units,text)
+    
     # Pre-process URLs first
     text = normalize_urls(text)
-    
     # Replace quotes and brackets
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
     text = text.replace("«", chr(8220)).replace("»", chr(8221))
     text = text.replace(chr(8220), '"').replace(chr(8221), '"')
     text = text.replace("(", "«").replace(")", "»")
     
-    # Handle CJK punctuation
-    for a, b in zip("、。！，：；？", ",.!,:;?"):
+    # Handle CJK punctuation and some non standard chars
+    for a, b in zip("、。！，：；？–", ",.!,:;?-"):
         text = text.replace(a, b + " ")
+    
     
     # Clean up whitespace
     text = re.sub(r"[^\S \n]", " ", text)
@@ -188,5 +222,4 @@ def normalize_text(text: str) -> str:
         text
     )
     text = re.sub(r"(?i)(?<=[A-Z])\.(?=[A-Z])", "-", text)
-    
     return text.strip()

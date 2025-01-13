@@ -18,6 +18,7 @@ soundfile==0.13.0
 # Text processing
 phonemizer==3.3.0
 regex==2024.11.6
+inflect==7.5.0
 
 # Utilities
 aiofiles==24.1.0
