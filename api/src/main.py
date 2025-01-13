@@ -15,7 +15,7 @@ from .services.tts_model import TTSModel
 from .routers.development import router as dev_router
 from .services.tts_service import TTSService
 from .routers.openai_compatible import router as openai_router
-
+from .services.share_link import start_cloudflared
 
 def setup_logger():
     """Configure loguru logger with custom formatting"""
@@ -66,7 +66,8 @@ async def lifespan(app: FastAPI):
     startup_msg += f"\n{voicepack_count} voice packs loaded\n"
     startup_msg += f"\n{boundary}\n"
     logger.info(startup_msg)
-
+    if settings.public_api:
+        start_cloudflared(settings.port, settings.public_api_retries)
     yield
 
 

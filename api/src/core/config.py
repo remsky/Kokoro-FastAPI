@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     onnx_memory_pattern: bool = True  # Enable memory pattern optimization
     onnx_arena_extend_strategy: str = "kNextPowerOfTwo"  # Memory allocation strategy
 
+    #extra 
+    public_api: bool = False
+    public_api_retries: int = 3
     class Config:
         env_file = ".env"
 
