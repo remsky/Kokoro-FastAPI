@@ -1,0 +1,20 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile.cpu"
+  },
+  "deploy": {
+    "region": "europe-west4",
+    "runtime": "V2",
+    "numReplicas": 1,
+    "sleepApplication": false,
+    "multiRegionConfig": {
+      "europe-west4": {
+        "numReplicas": 1
+      }
+    },
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
