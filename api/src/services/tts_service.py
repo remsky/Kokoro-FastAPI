@@ -188,7 +188,7 @@ class TTSService:
                             is_first_chunk=is_first,
                             normalizer=stream_normalizer,
                             is_last_chunk=(next_chunk is None),  # Last if no next chunk
-                            chunk=current_chunk
+                            chunk=current_chunk,
                             stream=True  # Ensure proper streaming format handling
                         )
 
