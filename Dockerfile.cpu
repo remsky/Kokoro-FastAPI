@@ -1,45 +1,52 @@
+# -----------------------------------------------------
+# Dockerfile.cpu
+# -----------------------------------------------------
 FROM ubuntu:22.04
 
-# Install base system dependencies
+# 1. Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-pip \
     python3-dev \
     espeak-ng \
     git \
+    git-lfs \
     libsndfile1 \
     curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PyTorch CPU version and ONNX runtime
-RUN pip3 install --no-cache-dir torch==2.5.1 --extra-index-url https://download.pytorch.org/whl/cpu 
+# Initialize Git LFS so it’s ready for large files
+RUN git lfs install
 
-# Install all other dependencies from requirements.txt
+# 2. Install PyTorch CPU version
+RUN pip3 install --no-cache-dir torch==2.5.1 --extra-index-url https://download.pytorch.org/whl/cpu
+
+# 3. Install Python dependencies
 COPY requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Copy application code and model
+# 4. Copy your application code into /app
 COPY . /app/
-RUN git clone https://huggingface.co/hexgrad/Kokoro-82M /app/Kokoro-82M
 
-# Set working directory
+# 5. Download just the ONNX file (no git clone)
+RUN mkdir -p /app/Kokoro-82M && \
+    wget -O /app/Kokoro-82M/kokoro-v0_19.onnx \
+    https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v0_19.onnx
+
+# 6. Set working directory
 WORKDIR /app
 
-# Run with Python unbuffered output for live logging
+# Enable unbuffered Python logs
 ENV PYTHONUNBUFFERED=1
 
-# Create non-root user
-RUN useradd -m -u 1000 appuser
-
-# Create directories and set permissions
-RUN mkdir -p /app/Kokoro-82M && \
+# 7. Create a non-root user and fix permissions
+RUN useradd -m -u 1000 appuser && \
     chown -R appuser:appuser /app
 
-# Switch to non-root user
 USER appuser
 
-# Set Python path (app first for our imports, then model dir for model imports)
+# 8. Make sure Python can see both your code and model
 ENV PYTHONPATH=/app:/app/Kokoro-82M
 
-# Run FastAPI server with debug logging and reload
+# 9. Launch FastAPI on port 8880
 CMD ["uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8880", "--log-level", "debug"]
