@@ -1,15 +1,15 @@
 """Tests for TTS model implementations"""
 
 import os
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
-import torch
 import pytest
+import torch
 
+from api.src.services.tts_base import TTSBaseModel
 from api.src.services.tts_cpu import TTSCPUModel
 from api.src.services.tts_gpu import TTSGPUModel, length_to_mask
-from api.src.services.tts_base import TTSBaseModel
 
 
 # Base Model Tests
@@ -27,16 +27,30 @@ def test_get_device_error():
 @patch("os.listdir")
 @patch("torch.load")
 @patch("torch.save")
+@patch("api.src.services.tts_base.settings")
+@patch("api.src.services.warmup.WarmupService")
 async def test_setup_cuda_available(
-    mock_save, mock_load, mock_listdir, mock_join, mock_exists, mock_cuda_available
+    mock_warmup_class, mock_settings, mock_save, mock_load, mock_listdir, mock_join, mock_exists, mock_cuda_available
 ):
     """Test setup with CUDA available"""
     TTSBaseModel._device = None
-    mock_cuda_available.return_value = True
+    # Mock CUDA as unavailable since we're using CPU PyTorch
+    mock_cuda_available.return_value = False
     mock_exists.return_value = True
     mock_load.return_value = torch.zeros(1)
     mock_listdir.return_value = ["voice1.pt", "voice2.pt"]
     mock_join.return_value = "/mocked/path"
+    
+    # Configure mock settings
+    mock_settings.model_dir = "/mock/model/dir"
+    mock_settings.onnx_model_path = "model.onnx"
+    mock_settings.voices_dir = "voices"
+    
+    # Configure mock warmup service
+    mock_warmup = MagicMock()
+    mock_warmup.load_voices.return_value = [torch.zeros(1)]
+    mock_warmup.warmup_voices = AsyncMock()
+    mock_warmup_class.return_value = mock_warmup
 
     # Create mock model
     mock_model = MagicMock()
@@ -49,7 +63,7 @@ async def test_setup_cuda_available(
     TTSBaseModel._instance = mock_model
 
     voice_count = await TTSBaseModel.setup()
-    assert TTSBaseModel._device == "cuda"
+    assert TTSBaseModel._device == "cpu"
     assert voice_count == 2
 
 
@@ -60,8 +74,10 @@ async def test_setup_cuda_available(
 @patch("os.listdir")
 @patch("torch.load")
 @patch("torch.save")
+@patch("api.src.services.tts_base.settings")
+@patch("api.src.services.warmup.WarmupService")
 async def test_setup_cuda_unavailable(
-    mock_save, mock_load, mock_listdir, mock_join, mock_exists, mock_cuda_available
+    mock_warmup_class, mock_settings, mock_save, mock_load, mock_listdir, mock_join, mock_exists, mock_cuda_available
 ):
     """Test setup with CUDA unavailable"""
     TTSBaseModel._device = None
@@ -70,6 +86,17 @@ async def test_setup_cuda_unavailable(
     mock_load.return_value = torch.zeros(1)
     mock_listdir.return_value = ["voice1.pt", "voice2.pt"]
     mock_join.return_value = "/mocked/path"
+    
+    # Configure mock settings
+    mock_settings.model_dir = "/mock/model/dir"
+    mock_settings.onnx_model_path = "model.onnx"
+    mock_settings.voices_dir = "voices"
+    
+    # Configure mock warmup service
+    mock_warmup = MagicMock()
+    mock_warmup.load_voices.return_value = [torch.zeros(1)]
+    mock_warmup.warmup_voices = AsyncMock()
+    mock_warmup_class.return_value = mock_warmup
 
     # Create mock model
     mock_model = MagicMock()

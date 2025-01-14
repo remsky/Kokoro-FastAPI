@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from api.src.services.audio import AudioService, AudioNormalizer
+from api.src.services.audio import AudioNormalizer, AudioService
 
 
 @pytest.fixture(autouse=True)

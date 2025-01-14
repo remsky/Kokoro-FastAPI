@@ -6,7 +6,7 @@ import gradio as gr
 from . import api, files
 
 
-def setup_event_handlers(components: dict):
+def setup_event_handlers(components: dict, disable_local_saving: bool = False):
     """Set up all event handlers for the UI components."""
 
     def refresh_status():
@@ -58,27 +58,37 @@ def setup_event_handlers(components: dict):
 
     def handle_file_upload(file):
         if file is None:
-            return gr.update(choices=files.list_input_files())
+            return "" if disable_local_saving else [gr.update(choices=files.list_input_files())]
 
         try:
-            # Copy file to inputs directory
-            filename = os.path.basename(file.name)
-            target_path = os.path.join(files.INPUTS_DIR, filename)
+            # Read the file content
+            with open(file.name, 'r', encoding='utf-8') as f:
+                text_content = f.read()
 
-            # Handle duplicate filenames
-            base, ext = os.path.splitext(filename)
-            counter = 1
-            while os.path.exists(target_path):
-                new_name = f"{base}_{counter}{ext}"
-                target_path = os.path.join(files.INPUTS_DIR, new_name)
-                counter += 1
+            if disable_local_saving:
+                # When saving is disabled, put content directly in text input
+                # Normalize whitespace by replacing newlines with spaces
+                normalized_text = ' '.join(text_content.split())
+                return normalized_text
+            else:
+                # When saving is enabled, save file and update dropdown
+                filename = os.path.basename(file.name)
+                target_path = os.path.join(files.INPUTS_DIR, filename)
 
-            shutil.copy2(file.name, target_path)
+                # Handle duplicate filenames
+                base, ext = os.path.splitext(filename)
+                counter = 1
+                while os.path.exists(target_path):
+                    new_name = f"{base}_{counter}{ext}"
+                    target_path = os.path.join(files.INPUTS_DIR, new_name)
+                    counter += 1
+
+                shutil.copy2(file.name, target_path)
+                return [gr.update(choices=files.list_input_files())]
 
         except Exception as e:
-            print(f"Error uploading file: {e}")
-
-        return gr.update(choices=files.list_input_files())
+            print(f"Error handling file: {e}")
+            return "" if disable_local_saving else [gr.update(choices=files.list_input_files())]
 
     def generate_from_text(text, voice, format, speed):
         """Generate speech from direct text input"""
@@ -91,7 +101,10 @@ def setup_event_handlers(components: dict):
             gr.Warning("Please enter text in the input box")
             return [None, gr.update(choices=files.list_output_files())]
 
-        files.save_text(text)
+        # Only save text if local saving is enabled
+        if not disable_local_saving:
+            files.save_text(text)
+            
         result = api.text_to_speech(text, voice, format, speed)
         if result is None:
             gr.Warning("Failed to generate speech. Please try again.")
@@ -162,45 +175,7 @@ def setup_event_handlers(components: dict):
         outputs=[components["model"]["status_btn"], components["model"]["voice"]],
     )
 
-    components["input"]["file_select"].change(
-        fn=handle_file_select,
-        inputs=[components["input"]["file_select"]],
-        outputs=[components["input"]["file_preview"]],
-    )
-
-    components["input"]["file_upload"].upload(
-        fn=handle_file_upload,
-        inputs=[components["input"]["file_upload"]],
-        outputs=[components["input"]["file_select"]],
-    )
-
-    components["output"]["play_btn"].click(
-        fn=play_selected,
-        inputs=[components["output"]["output_files"]],
-        outputs=[components["output"]["selected_audio"]],
-    )
-
-    # Connect clear files button
-    components["input"]["clear_files"].click(
-        fn=clear_files,
-        inputs=[
-            components["model"]["voice"],
-            components["model"]["format"],
-            components["model"]["speed"],
-        ],
-        outputs=[
-            components["input"]["file_select"],
-            components["input"]["file_upload"],
-            components["input"]["file_preview"],
-            components["output"]["audio_output"],
-            components["output"]["output_files"],
-            components["model"]["voice"],
-            components["model"]["format"],
-            components["model"]["speed"],
-        ],
-    )
-
-    # Connect submit buttons for each tab
+    # Connect text submit button (always present)
     components["input"]["text_submit"].click(
         fn=generate_from_text,
         inputs=[
@@ -215,26 +190,70 @@ def setup_event_handlers(components: dict):
         ],
     )
 
-    # Connect clear outputs button
-    components["output"]["clear_outputs"].click(
-        fn=clear_outputs,
-        outputs=[
-            components["output"]["audio_output"],
-            components["output"]["output_files"],
-            components["output"]["selected_audio"],
-        ],
-    )
+    # Only connect file-related handlers if components exist
+    if components["input"]["file_select"] is not None:
+        components["input"]["file_select"].change(
+            fn=handle_file_select,
+            inputs=[components["input"]["file_select"]],
+            outputs=[components["input"]["file_preview"]],
+        )
 
-    components["input"]["file_submit"].click(
-        fn=generate_from_file,
-        inputs=[
-            components["input"]["file_select"],
-            components["model"]["voice"],
-            components["model"]["format"],
-            components["model"]["speed"],
-        ],
-        outputs=[
-            components["output"]["audio_output"],
-            components["output"]["output_files"],
-        ],
-    )
+    if components["input"]["file_upload"] is not None:
+        # File upload handler - output depends on disable_local_saving
+        components["input"]["file_upload"].upload(
+            fn=handle_file_upload,
+            inputs=[components["input"]["file_upload"]],
+            outputs=[components["input"]["text_input"] if disable_local_saving else components["input"]["file_select"]],
+        )
+
+    if components["output"]["play_btn"] is not None:
+        components["output"]["play_btn"].click(
+            fn=play_selected,
+            inputs=[components["output"]["output_files"]],
+            outputs=[components["output"]["selected_audio"]],
+        )
+
+    if components["input"]["clear_files"] is not None:
+        components["input"]["clear_files"].click(
+            fn=clear_files,
+            inputs=[
+                components["model"]["voice"],
+                components["model"]["format"],
+                components["model"]["speed"],
+            ],
+            outputs=[
+                components["input"]["file_select"],
+                components["input"]["file_upload"],
+                components["input"]["file_preview"],
+                components["output"]["audio_output"],
+                components["output"]["output_files"],
+                components["model"]["voice"],
+                components["model"]["format"],
+                components["model"]["speed"],
+            ],
+        )
+
+    if components["output"]["clear_outputs"] is not None:
+        components["output"]["clear_outputs"].click(
+            fn=clear_outputs,
+            outputs=[
+                components["output"]["audio_output"],
+                components["output"]["output_files"],
+                components["output"]["selected_audio"],
+            ],
+        )
+
+    if components["input"]["file_submit"] is not None:
+        components["input"]["file_submit"].click(
+            fn=generate_from_file,
+            inputs=[
+                components["input"]["file_select"],
+                components["model"]["voice"],
+                components["model"]["format"],
+                components["model"]["speed"],
+            ],
+            outputs=[
+                components["output"]["audio_output"],
+                components["output"]["output_files"],
+            ],
+        )

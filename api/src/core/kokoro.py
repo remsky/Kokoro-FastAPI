@@ -1,7 +1,7 @@
 import re
 
-import torch
 import phonemizer
+import torch
 
 
 def split_num(num):

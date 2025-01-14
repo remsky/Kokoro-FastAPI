@@ -36,8 +36,10 @@ def test_model_column_default_values():
     expected_choices = [(voice_id, voice_id) for voice_id in voice_ids]
     assert components["voice"].choices == expected_choices
     # Value is not converted to tuple format for the value property
-    assert components["voice"].value == voice_ids[0]
+    assert components["voice"].value == [voice_ids[0]]
     assert components["voice"].interactive is True
+    assert components["voice"].multiselect is True
+    assert components["voice"].label == "Voice(s)"
 
     # Test format dropdown
     # Gradio Dropdown converts choices to (value, label) tuples
@@ -54,7 +56,7 @@ def test_model_column_default_values():
 
 def test_model_column_no_voices():
     """Test model column creation with no voice IDs"""
-    _, components = create_model_column()
+    _, components = create_model_column([])
 
     assert components["voice"].choices == []
     assert components["voice"].value is None
@@ -96,7 +98,7 @@ def test_output_column_configuration():
 
     # Test output files dropdown
     assert components["output_files"].label == "Previous Outputs"
-    assert components["output_files"].allow_custom_value is False
+    assert components["output_files"].allow_custom_value is True
 
     # Test play button
     assert components["play_btn"].value == "▶️ Play Selected"

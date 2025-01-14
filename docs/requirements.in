@@ -9,7 +9,7 @@ sqlalchemy==2.0.27
 
 # ML/DL
 transformers==4.47.1
-numpy==2.2.1
+numpy>=1.26.0  # Version managed by PyTorch dependencies
 scipy==1.14.1
 onnxruntime==1.20.1
 
@@ -21,7 +21,7 @@ phonemizer==3.3.0
 regex==2024.11.6
 
 # Utilities
-aiofiles==24.1.0
+aiofiles==23.2.1  # Last version before Windows path handling changes
 tqdm==4.67.1
 requests==2.32.3
 munch==4.0.0

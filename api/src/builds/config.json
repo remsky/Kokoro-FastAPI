@@ -1,0 +1,26 @@
+{
+  "decoder": {
+    "type": "istftnet",
+    "upsample_kernel_sizes": [20, 12],
+    "upsample_rates": [10, 6],
+    "gen_istft_hop_size": 5,
+    "gen_istft_n_fft": 20,
+    "resblock_dilation_sizes": [
+      [1, 3, 5],
+      [1, 3, 5],
+      [1, 3, 5]
+    ],
+    "resblock_kernel_sizes": [3, 7, 11],
+    "upsample_initial_channel": 512
+  },
+  "dim_in": 64,
+  "dropout": 0.2,
+  "hidden_dim": 512,
+  "max_conv_dim": 512,
+  "max_dur": 50,
+  "multispeaker": true,
+  "n_layer": 3,
+  "n_mels": 80,
+  "n_token": 178,
+  "style_dim": 128
+}

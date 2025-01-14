@@ -2,19 +2,19 @@ import io
 import os
 import re
 import time
-from typing import List, Tuple, Optional
 from functools import lru_cache
+from typing import List, Optional, Tuple
 
-import numpy as np
-import torch
 import aiofiles.os
+import numpy as np
 import scipy.io.wavfile as wavfile
+import torch
 from loguru import logger
 
-from .audio import AudioService, AudioNormalizer
-from .tts_model import TTSModel
 from ..core.config import settings
+from .audio import AudioNormalizer, AudioService
 from .text_processing import chunker, normalize_text
+from .tts_model import TTSModel
 
 
 class TTSService:

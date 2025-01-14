@@ -4,8 +4,8 @@ from io import BytesIO
 from pydoc import text
 
 import numpy as np
-import soundfile as sf
 import scipy.io.wavfile as wavfile
+import soundfile as sf
 from loguru import logger
 
 from ..core.config import settings
@@ -60,13 +60,10 @@ class AudioNormalizer:
     def normalize(self, audio_data: np.ndarray, chunk:str, is_last_chunk: bool = False) -> np.ndarray:
         """Normalize audio data to int16 range and trim chunk boundaries"""
         # Convert to float32 if not already
+
         audio_float = audio_data.astype(np.float32)
-
-        # Normalize to [-1, 1] range first
-        if np.max(np.abs(audio_float)) > 0:
-            audio_float = audio_float / np.max(np.abs(audio_float))
-
-        # Trim end of non-final chunks to reduce gaps
+        
+        # Trim for non-final chunks
         if not is_last_chunk and len(audio_float) > self.samples_to_trim:
 
             audio_float = audio_float[:-self.samples_to_trim]
@@ -78,6 +75,7 @@ class AudioNormalizer:
 
         # Scale to int16 range
         return audio_int[start_index:end_index]
+
 
 
 class AudioService:

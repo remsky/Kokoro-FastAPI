@@ -2,44 +2,78 @@
 .git
 
 # Python
-__pycache__
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
 *.py[cod]
 *$py.class
+.Python
 .pytest_cache
 .coverage
 .coveragerc
 
+# Python package build artifacts
+*.egg-info/
+*.egg
+dist/
+build/
+
 # Environment
 # .env
-.venv
+.venv/
 env/
 venv/
 ENV/
 
 # IDE
-.idea
-.vscode
+.idea/
+.vscode/
 *.swp
 *.swo
 
 # Project specific
-examples/
+# Model files
+*.pt
+*.pth
+*.tar*
+
+# Voice files
+api/src/voices/af_bella.pt
+api/src/voices/af_nicole.pt
+api/src/voices/af_sarah.pt
+api/src/voices/af_sky.pt
+api/src/voices/af.pt
+api/src/voices/am_adam.pt
+api/src/voices/am_michael.pt
+api/src/voices/bf_emma.pt
+api/src/voices/bf_isabella.pt
+api/src/voices/bm_george.pt
+api/src/voices/bm_lewis.pt
+
+# Audio files
+examples/*.wav
+examples/*.pcm
+examples/*.mp3
+examples/*.flac
+examples/*.acc
+examples/*.ogg
+examples/speech.mp3
+examples/phoneme_examples/output/example_1.wav
+examples/phoneme_examples/output/example_2.wav
+examples/phoneme_examples/output/example_3.wav
+
+# Other project files
 Kokoro-82M/
-ui/
-tests/
-*.md
-*.txt
-!requirements.txt
+ui/data/
+EXTERNAL_UV_DOCUMENTATION*
 
 # Docker
 Dockerfile*
 docker-compose*
-
-*.egg-info
-*.pt
-*.wav
-*.tar*
+examples/assorted_checks/River_of_Teet_-_Sarah_Gailey.epub
+examples/ebook_test/chapter_to_audio.py
+examples/ebook_test/chapters_to_audio.py
+examples/ebook_test/parse_epub.py
+examples/ebook_test/River_of_Teet_-_Sarah_Gailey.epub
+examples/ebook_test/River_of_Teet_-_Sarah_Gailey.txt

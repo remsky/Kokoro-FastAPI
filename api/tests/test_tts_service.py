@@ -4,8 +4,8 @@ import os
 from unittest.mock import MagicMock, call, patch
 
 import numpy as np
-import torch
 import pytest
+import torch
 from onnxruntime import InferenceSession
 
 from api.src.core.config import settings

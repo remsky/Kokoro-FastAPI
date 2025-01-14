@@ -136,7 +136,7 @@ def test_interface_components_presence():
 
         required_components = {
             "Text to speak",
-            "Voice",
+            "Voice(s)",
             "Audio Format",
             "Speed",
             "Generated Speech",

@@ -1,11 +1,12 @@
 line-length = 88
 
+exclude = ["examples"]
+
 [lint]
 select = ["I"]
 
 [lint.isort]
 combine-as-imports = true
 force-wrap-aliases = true
-length-sort = true
 split-on-trailing-comma = true
 section-order = ["future", "standard-library", "third-party", "first-party", "local-folder"]

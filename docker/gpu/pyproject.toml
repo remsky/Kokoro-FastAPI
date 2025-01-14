@@ -1,0 +1,22 @@
+[project]
+name = "kokoro-fastapi-gpu"
+version = "0.1.0"
+description = "FastAPI TTS Service - GPU Version"
+readme = "../README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Core ML/DL for GPU
+    "torch==2.5.1+cu121",
+    "transformers==4.47.1",
+]
+
+[tool.uv.workspace]
+members = ["../shared"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cuda" }
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true

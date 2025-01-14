@@ -8,7 +8,7 @@ import requests
 import sounddevice as sd
 
 
-def play_streaming_tts(text: str, output_file: str = None, voice: str = "af"):
+def play_streaming_tts(text: str, output_file: str = None, voice: str = "af_sky"):
     """Stream TTS audio and play it back in real-time"""
 
     print("\nStarting TTS stream request...")

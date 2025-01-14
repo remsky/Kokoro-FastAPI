@@ -1,4 +1,5 @@
 import gradio as gr
+import os
 
 from . import api
 from .handlers import setup_event_handlers
@@ -9,6 +10,9 @@ def create_interface():
     """Create the main Gradio interface."""
     # Skip initial status check - let the timer handle it
     is_available, available_voices = False, []
+
+    # Check if local saving is disabled
+    disable_local_saving = os.getenv("DISABLE_LOCAL_SAVING", "false").lower() == "true"
 
     with gr.Blocks(title="Kokoro TTS Demo", theme=gr.themes.Monochrome()) as demo:
         gr.HTML(
@@ -22,11 +26,11 @@ def create_interface():
         # Main interface
         with gr.Row():
             # Create columns
-            input_col, input_components = create_input_column()
+            input_col, input_components = create_input_column(disable_local_saving)
             model_col, model_components = create_model_column(
                 available_voices
             )  # Pass initial voices
-            output_col, output_components = create_output_column()
+            output_col, output_components = create_output_column(disable_local_saving)
 
             # Collect all components
             components = {
@@ -36,7 +40,7 @@ def create_interface():
             }
 
             # Set up event handlers
-            setup_event_handlers(components)
+            setup_event_handlers(components, disable_local_saving)
 
         # Add periodic status check with Timer
         def update_status():

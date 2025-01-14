@@ -2,10 +2,10 @@
   <img src="githubbanner.png" alt="Kokoro TTS Banner">
 </p>
 
-# Kokoro TTS API
+# <sub><sub>_`FastKoko`_ </sub></sub>
 [![Tests](https://img.shields.io/badge/tests-117%20passed-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-75%25-darkgreen)]()
-[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
+[![Coverage](https://img.shields.io/badge/coverage-60%25-grey)]()
+[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero) [![Buy Me A Coffee](https://img.shields.io/badge/BMC-✨☕-gray?style=flat-square)](https://www.buymeacoffee.com/remsky)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - OpenAI-compatible Speech endpoint, with inline voice combination functionality
@@ -24,13 +24,30 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 The service can be accessed through either the API endpoints or the Gradio web interface.
 
 1. Install prerequisites:
-   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) + [Git](https://git-scm.com/downloads)
-   - Clone and start the service:
+   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+   - Clone the repository:
         ```bash
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
-        docker compose up --build
         ```
+
+2. Start the service:
+   
+   - Using Docker Compose (Full setup including UI):
+        ```bash
+        cd docker/gpu # OR 
+        # cd docker/cpu # Run this or the above
+        docker compose up --build 
+        ```
+   - OR running the API alone using Docker (model + voice packs baked in):
+        ```bash
+
+        docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU
+        docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest # Nvidia GPU
+        # Minified versions are available with `:latest-slim` tag, though it is a first test and may not be functional
+        ```
+        
+        
 2. Run locally as an OpenAI-Compatible Speech Endpoint
     ```python
     from openai import OpenAI
@@ -39,13 +56,14 @@ The service can be accessed through either the API endpoints or the Gradio web i
         api_key="not-needed"
         )
 
-    response = client.audio.speech.create(
+    with client.audio.speech.with_streaming_response.create(
         model="kokoro", 
         voice="af_sky+af_bella", #single or multiple voicepack combo
         input="Hello world!",
         response_format="mp3"
-    )
-    response.stream_to_file("output.mp3")
+    ) as response:
+        response.stream_to_file("output.mp3")
+    
     ```
 
     or visit http://localhost:7860
@@ -166,6 +184,21 @@ If you only want the API, just comment out everything in the docker-compose.yml 
 Currently, voices created via the API are accessible here, but voice combination/creation has not yet been added
 
 *Note: Recent updates for streaming could lead to temporary glitches. If so, pull from the most recent stable release v0.0.2 to restore*
+
+### Disabling Local Saving
+
+You can disable local saving of audio files and hide the file view in the UI by setting the `DISABLE_LOCAL_SAVING` environment variable to `true`. This is useful when running the service on a server where you don't want to store generated audio files locally.
+
+When using Docker Compose:
+```yaml
+environment:
+  - DISABLE_LOCAL_SAVING=true
+```
+
+When running the Docker image directly:
+```bash
+docker run -p 7860:7860 -e DISABLE_LOCAL_SAVING=true ghcr.io/remsky/kokoro-fastapi-ui:latest
+```
 </details>
 
 <details>
@@ -315,6 +348,74 @@ with open("speech.wav", "wb") as f:
 ```
 
 See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
+</details>
+
+## Known Issues
+
+<details>
+<summary>Versioning & Development</summary>
+
+I'm doing what I can to keep things stable, but we are on an early and rapid set of build cycles here.
+If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR. Will leave the branch up here for the last known stable points:
+
+`v0.0.5post1`
+
+Free and open source is a community effort, and I love working on this project, though there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
+
+  <a href="https://www.buymeacoffee.com/remsky" target="_blank">
+    <img 
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" 
+      alt="Buy Me A Coffee" 
+      style="height: 30px !important;width: 110px !important;"
+    >
+  </a>
+
+  
+</details>
+
+<details>
+<summary>Linux GPU Permissions</summary>
+
+Some Linux users may encounter GPU permission issues when running as non-root. 
+Can't guarantee anything, but here are some common solutions, consider your security requirements carefully
+
+### Option 1: Container Groups (Likely the best option)
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    group_add:
+      - "video"
+      - "render"
+```
+
+### Option 2: Host System Groups
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    user: "${UID}:${GID}"
+    group_add:
+      - "video"
+```
+Note: May require adding host user to groups: `sudo usermod -aG docker,video $USER` and system restart.
+
+### Option 3: Device Permissions (Use with caution)
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+```
+⚠️ Warning: Reduces system security. Use only in development environments.
+
+Prerequisites: NVIDIA GPU, drivers, and container toolkit must be properly configured.
+
+Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more detailed information
+
 </details>
 
 ## Model and License

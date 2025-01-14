@@ -1,0 +1,90 @@
+[project]
+name = "kokoro-fastapi"
+version = "0.1.0"
+description = "FastAPI TTS Service"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # Core dependencies
+    "fastapi==0.115.6",
+    "uvicorn==0.34.0",
+    "click>=8.0.0",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.0",
+    "python-dotenv==1.0.1",
+    "sqlalchemy==2.0.27",
+    # ML/DL Base
+    "numpy>=1.26.0",
+    "scipy==1.14.1",
+    "onnxruntime==1.20.1",
+    # Audio processing
+    "soundfile==0.13.0",
+    # Text processing
+    "phonemizer==3.3.0",
+    "regex==2024.11.6",
+    # Utilities
+    "aiofiles==23.2.1",
+    "tqdm==4.67.1",
+    "requests==2.32.3",
+    "munch==4.0.0",
+    "tiktoken==0.8.0",
+    "loguru==0.7.3",
+    "transformers==4.47.1",
+    "openai>=1.59.6",
+    "ebooklib>=0.18",
+    "html2text>=2024.2.26",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "torch==2.5.1+cu121",
+]
+cpu = [
+    "torch==2.5.1+cpu",
+]
+test = [
+    "pytest==8.0.0",
+    "pytest-cov==4.1.0",
+    "httpx==0.26.0",
+    "pytest-asyncio==0.23.5",
+    "gradio>=5",
+    "openai>=1.59.6",
+]
+
+[tool.uv]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "gpu" },
+    ],
+]
+
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cuda", extra = "gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = {"" = "api/src"}
+packages.find = {where = ["api/src"], namespaces = true}
+
+[tool.pytest.ini_options]
+testpaths = ["api/tests", "ui/tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc"
+asyncio_mode = "strict"

@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     output_dir: str = "output"
     output_dir_size_limit_mb: float = 500.0  # Maximum size of output directory in MB
     default_voice: str = "af"
-    model_dir: str = "/app/Kokoro-82M"  # Base directory for model files
+    model_dir: str = "/app/models"  # Base directory for model files
     pytorch_model_path: str = "kokoro-v0_19.pth"
     onnx_model_path: str = "kokoro-v0_19.onnx"
     voices_dir: str = "voices"
