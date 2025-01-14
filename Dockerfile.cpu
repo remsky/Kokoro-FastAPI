@@ -20,6 +20,7 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code and model
 COPY . /app/
+RUN git clone https://huggingface.co/hexgrad/Kokoro-82M /app/Kokoro-82M
 
 # Set working directory
 WORKDIR /app
