@@ -1,6 +1,5 @@
 import os
 import shutil
-
 import gradio as gr
 
 from . import api, files
@@ -97,11 +96,12 @@ def setup_event_handlers(components: dict):
             gr.Warning("Failed to generate speech. Please try again.")
             return [None, gr.update(choices=files.list_output_files())]
 
+        # Update list and select the newly generated file
+        output_files = files.list_output_files()
+        last_file = output_files[-1] if output_files else None
         return [
             result,
-            gr.update(
-                choices=files.list_output_files(), value=os.path.basename(result)
-            ),
+            gr.update(choices=output_files, value=last_file),
         ]
 
     def generate_from_file(selected_file, voice, format, speed):
@@ -121,16 +121,19 @@ def setup_event_handlers(components: dict):
             gr.Warning("Failed to generate speech. Please try again.")
             return [None, gr.update(choices=files.list_output_files())]
 
+        # Update list and select the newly generated file
+        output_files = files.list_output_files()
+        last_file = output_files[-1] if output_files else None
         return [
             result,
-            gr.update(
-                choices=files.list_output_files(), value=os.path.basename(result)
-            ),
+            gr.update(choices=output_files, value=last_file),
         ]
 
-    def play_selected(file_path):
-        if file_path and os.path.exists(file_path):
-            return gr.update(value=file_path, visible=True)
+    def play_selected(filename):
+        if filename:
+            file_path = os.path.join(files.OUTPUTS_DIR, filename)
+            if os.path.exists(file_path):
+                return gr.update(value=file_path, visible=True)
         return gr.update(visible=False)
 
     def clear_files(voice, format, speed):

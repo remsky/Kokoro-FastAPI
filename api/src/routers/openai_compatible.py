@@ -1,13 +1,12 @@
-from typing import List, Union
+from typing import List, Union, AsyncGenerator
 
 from loguru import logger
-from fastapi import Depends, Response, APIRouter, HTTPException
-from fastapi import Header
+from fastapi import Header, Depends, Response, APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from ..services.tts_service import TTSService
+
 from ..services.audio import AudioService
 from ..structures.schemas import OpenAISpeechRequest
-from typing import AsyncGenerator
+from ..services.tts_service import TTSService
 
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
@@ -20,7 +19,9 @@ def get_tts_service() -> TTSService:
     return TTSService()  # Initialize TTSService with default settings
 
 
-async def process_voices(voice_input: Union[str, List[str]], tts_service: TTSService) -> str:
+async def process_voices(
+    voice_input: Union[str, List[str]], tts_service: TTSService
+) -> str:
     """Process voice input into a combined voice, handling both string and list formats"""
     # Convert input to list of voices
     if isinstance(voice_input, str):
@@ -35,7 +36,9 @@ async def process_voices(voice_input: Union[str, List[str]], tts_service: TTSSer
     available_voices = await tts_service.list_voices()
     for voice in voices:
         if voice not in available_voices:
-            raise ValueError(f"Voice '{voice}' not found. Available voices: {', '.join(sorted(available_voices))}")
+            raise ValueError(
+                f"Voice '{voice}' not found. Available voices: {', '.join(sorted(available_voices))}"
+            )
 
     # If single voice, return it directly
     if len(voices) == 1:
@@ -45,21 +48,23 @@ async def process_voices(voice_input: Union[str, List[str]], tts_service: TTSSer
     return await tts_service.combine_voices(voices=voices)
 
 
-async def stream_audio_chunks(tts_service: TTSService, request: OpenAISpeechRequest) -> AsyncGenerator[bytes, None]:
+async def stream_audio_chunks(
+    tts_service: TTSService, request: OpenAISpeechRequest
+) -> AsyncGenerator[bytes, None]:
     """Stream audio chunks as they're generated"""
     voice_to_use = await process_voices(request.voice, tts_service)
     async for chunk in tts_service.generate_audio_stream(
         text=request.input,
         voice=voice_to_use,
         speed=request.speed,
-        output_format=request.response_format
+        output_format=request.response_format,
     ):
         yield chunk
 
 
 @router.post("/audio/speech")
 async def create_speech(
-    request: OpenAISpeechRequest, 
+    request: OpenAISpeechRequest,
     tts_service: TTSService = Depends(get_tts_service),
     x_raw_response: str = Header(None, alias="x-raw-response"),
 ):
@@ -88,6 +93,7 @@ async def create_speech(
                     "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
                     "X-Accel-Buffering": "no",  # Disable proxy buffering
                     "Cache-Control": "no-cache",  # Prevent caching
+                    "Transfer-Encoding": "chunked",  # Enable chunked transfer encoding
                 },
             )
         else:
@@ -101,11 +107,8 @@ async def create_speech(
 
             # Convert to requested format
             content = AudioService.convert_audio(
-                audio, 
-                24000, 
-                request.response_format,
-                is_first_chunk=True,
-                stream=False)
+                audio, 24000, request.response_format, is_first_chunk=True, stream=False
+            )
 
             return Response(
                 content=content,

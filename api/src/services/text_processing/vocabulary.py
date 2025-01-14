@@ -4,31 +4,34 @@ def get_vocab():
     _punctuation = ';:,.!?¡¿—…"«»"" '
     _letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
     _letters_ipa = "ɑɐɒæɓʙβɔɕçɗɖðʤəɘɚɛɜɝɞɟʄɡɠɢʛɦɧħɥʜɨɪʝɭɬɫɮʟɱɯɰŋɳɲɴøɵɸθœɶʘɹɺɾɻʀʁɽʂʃʈʧʉʊʋⱱʌɣɤʍχʎʏʑʐʒʔʡʕʢǀǁǂǃˈˌːˑʼʴʰʱʲʷˠˤ˞↓↑→↗↘'̩'ᵻ"
-    
+
     # Create vocabulary dictionary
     symbols = [_pad] + list(_punctuation) + list(_letters) + list(_letters_ipa)
     return {symbol: i for i, symbol in enumerate(symbols)}
 
+
 # Initialize vocabulary
 VOCAB = get_vocab()
 
+
 def tokenize(phonemes: str) -> list[int]:
     """Convert phonemes string to token IDs
-    
+
     Args:
         phonemes: String of phonemes to tokenize
-        
+
     Returns:
         List of token IDs
     """
     return [i for i in map(VOCAB.get, phonemes) if i is not None]
 
+
 def decode_tokens(tokens: list[int]) -> str:
     """Convert token IDs back to phonemes string
-    
+
     Args:
         tokens: List of token IDs
-        
+
     Returns:
         String of phonemes
     """

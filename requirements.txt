@@ -11,6 +11,7 @@ sqlalchemy==2.0.27
 transformers==4.47.1
 numpy==2.2.1
 scipy==1.14.1
+onnxruntime==1.20.1
 
 # Audio processing
 soundfile==0.13.0

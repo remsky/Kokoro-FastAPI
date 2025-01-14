@@ -1,3 +1,4 @@
+name: kokoro-fastapi
 services:
   model-fetcher:
     image: datamachines/git-lfs:latest
@@ -6,6 +7,8 @@ services:
     working_dir: /app/Kokoro-82M
     command: >
       sh -c "
+        mkdir -p /app/Kokoro-82M;
+        cd /app/Kokoro-82M;
         rm -f .git/index.lock;
         if [ -z \"$(ls -A .)\" ]; then
           git clone https://huggingface.co/hexgrad/Kokoro-82M .
@@ -26,11 +29,11 @@ services:
       start_period: 1s
 
   kokoro-tts:
-    image: ghcr.io/remsky/kokoro-fastapi:latest-cpu
-    # Uncomment below to build from source instead of using the released image
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile.cpu
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.0.5post1
+        # Uncomment below (and comment out above) to build from source instead of using the released image
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
     volumes:
       - ./api/src:/app/api/src
       - ./Kokoro-82M:/app/Kokoro-82M
@@ -46,16 +49,23 @@ services:
       - ONNX_MEMORY_PATTERN=true
       - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
       
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8880/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
     depends_on:
       model-fetcher:
         condition: service_healthy
 
+
   # Gradio UI service [Comment out everything below if you don't need it]
   gradio-ui:
-    image: ghcr.io/remsky/kokoro-fastapi:latest-ui
-    # Uncomment below to build from source instead of using the released image
+    image: ghcr.io/remsky/kokoro-fastapi-ui:v0.0.5post1
+    # Uncomment below (and comment out above) to build from source instead of using the released image
     # build:
-    #   context: ./ui
+      # context: ./ui
     ports:
       - "7860:7860"
     volumes:
@@ -63,3 +73,7 @@ services:
       - ./ui/app.py:/app/app.py  # Mount app.py for hot reload
     environment:
       - GRADIO_WATCH=True  # Enable hot reloading
+      - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
+    depends_on:
+      kokoro-tts:
+        condition: service_healthy

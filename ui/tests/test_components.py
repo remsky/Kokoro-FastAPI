@@ -54,7 +54,7 @@ def test_model_column_default_values():
 
 def test_model_column_no_voices():
     """Test model column creation with no voice IDs"""
-    _, components = create_model_column()
+    _, components = create_model_column([])
 
     assert components["voice"].choices == []
     assert components["voice"].value is None
@@ -96,7 +96,7 @@ def test_output_column_configuration():
 
     # Test output files dropdown
     assert components["output_files"].label == "Previous Outputs"
-    assert components["output_files"].allow_custom_value is False
+    assert components["output_files"].allow_custom_value is True
 
     # Test play button
     assert components["play_btn"].value == "▶️ Play Selected"

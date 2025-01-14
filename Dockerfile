@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     espeak-ng \
     git \
     libsndfile1 \
+    curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

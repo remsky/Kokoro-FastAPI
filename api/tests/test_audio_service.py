@@ -1,9 +1,19 @@
 """Tests for AudioService"""
 
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
-from api.src.services.audio import AudioService
+from api.src.services.audio import AudioService, AudioNormalizer
+
+
+@pytest.fixture(autouse=True)
+def mock_settings():
+    """Mock settings for all tests"""
+    with patch("api.src.services.audio.settings") as mock_settings:
+        mock_settings.gap_trim_ms = 250
+        yield mock_settings
 
 
 @pytest.fixture
@@ -53,7 +63,7 @@ def test_convert_to_aac_raises_error(sample_audio):
     audio_data, sample_rate = sample_audio
     with pytest.raises(
         ValueError,
-        match="Format aac not supported. Supported formats are: wav, mp3, opus, flac, pcm.",
+        match="Failed to convert audio to aac: Format aac not currently supported. Supported formats are: wav, mp3, opus, flac, pcm.",
     ):
         AudioService.convert_audio(audio_data, sample_rate, "aac")
 

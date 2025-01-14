@@ -12,12 +12,16 @@ def create_output_column() -> Tuple[gr.Column, dict]:
         audio_output = gr.Audio(label="Generated Speech", type="filepath")
 
         gr.Markdown("### Generated Files")
+        # Initialize dropdown with empty choices first
         output_files = gr.Dropdown(
             label="Previous Outputs",
-            choices=files.list_output_files(),
+            choices=[],
             value=None,
-            allow_custom_value=False,
+            allow_custom_value=True,
+            interactive=True,
         )
+        # Then update choices after component creation
+        output_files.choices = files.list_output_files()
 
         play_btn = gr.Button("▶️ Play Selected", size="sm")
 

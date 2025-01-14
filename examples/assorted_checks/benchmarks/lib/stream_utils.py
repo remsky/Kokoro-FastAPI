@@ -149,19 +149,19 @@ def run_benchmark(
             result["run_number"] = i + 1
 
             # Handle time to first audio
-            first_chunk = result.get('time_to_first_chunk')
+            first_chunk = result.get("time_to_first_chunk")
             print(
                 f"Time to First Audio: {f'{first_chunk:.3f}s' if first_chunk is not None else 'N/A'}"
             )
-            
+
             # Handle total time
-            total_time = result.get('total_time')
+            total_time = result.get("total_time")
             print(
                 f"Time to Save Complete: {f'{total_time:.3f}s' if total_time is not None else 'N/A'}"
             )
-            
+
             # Handle audio length
-            audio_length = result.get('audio_length')
+            audio_length = result.get("audio_length")
             print(
                 f"Audio length: {f'{audio_length:.3f}s' if audio_length is not None else 'N/A'}"
             )
@@ -191,10 +191,18 @@ def run_benchmark(
 
     # Print paths
     print("\nResults and plots saved to:")
-    print(f"- {os.path.join(output_data_dir, f'{prefix}first_token_benchmark{suffix}.json')}")
-    print(f"- {os.path.join(output_plots_dir, f'{prefix}first_token_latency{suffix}.png')}")
-    print(f"- {os.path.join(output_plots_dir, f'{prefix}total_time_latency{suffix}.png')}")
-    print(f"- {os.path.join(output_plots_dir, f'{prefix}first_token_timeline{suffix}.png')}")
+    print(
+        f"- {os.path.join(output_data_dir, f'{prefix}first_token_benchmark{suffix}.json')}"
+    )
+    print(
+        f"- {os.path.join(output_plots_dir, f'{prefix}first_token_latency{suffix}.png')}"
+    )
+    print(
+        f"- {os.path.join(output_plots_dir, f'{prefix}total_time_latency{suffix}.png')}"
+    )
+    print(
+        f"- {os.path.join(output_plots_dir, f'{prefix}first_token_timeline{suffix}.png')}"
+    )
 
     # Print silence check summary
     if silent_files:

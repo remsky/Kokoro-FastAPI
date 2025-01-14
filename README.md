@@ -3,18 +3,20 @@
 </p>
 
 # Kokoro TTS API
-[![Tests](https://img.shields.io/badge/tests-111%20passed-darkgreen)]()
+[![Tests](https://img.shields.io/badge/tests-117%20passed-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-75%25-darkgreen)]()
-[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
+[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero) [![Buy Me A Coffee](https://img.shields.io/badge/BMC-✨☕-gray?style=flat-square)](https://www.buymeacoffee.com/remsky)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - OpenAI-compatible Speech endpoint, with inline voice combination functionality
-- NVIDIA GPU accelerated inference (or CPU Onnx) option
+- NVIDIA GPU accelerated or CPU Onnx inference 
 - very fast generation time
-  -  35x+ real time speed via 4060Ti, ~300ms latency
-  -   5x+ real time spead via M3 Pro CPU, ~1000ms latency
+  - 100x+ real time speed via HF A100
+  - 35-50x+ real time speed via 4060Ti
+  - 5x+ real time speed via M3 Pro CPU
 - streaming support w/ variable chunking to control latency & artifacts
 - simple audio generation web ui utility
+- (new) phoneme endpoints for conversion and generation
 
 
 ## Quick Start
@@ -27,13 +29,14 @@ The service can be accessed through either the API endpoints or the Gradio web i
         ```bash
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
-        docker compose up --build
+        docker compose up --build # for GPU
+        #docker compose -f docker-compose.cpu.yml up --build # for CPU
         ```
 2. Run locally as an OpenAI-Compatible Speech Endpoint
     ```python
     from openai import OpenAI
     client = OpenAI(
-        base_url="http://localhost:8880",
+        base_url="http://localhost:8880/v1",
         api_key="not-needed"
         )
 
@@ -58,7 +61,7 @@ The service can be accessed through either the API endpoints or the Gradio web i
 ```python
 # Using OpenAI's Python library
 from openai import OpenAI
-client = OpenAI(base_url="http://localhost:8880", api_key="not-needed")
+client = OpenAI(base_url="http://localhost:8880/v1", api_key="not-needed")
 response = client.audio.speech.create(
     model="kokoro",  # Not used but required for compatibility, also accepts library defaults
     voice="af_bella+af_sky",
@@ -95,8 +98,8 @@ with open("output.mp3", "wb") as f:
 
 Quick tests (run from another terminal):
 ```bash
-python examples/test_openai_tts.py # Test OpenAI Compatibility
-python examples/test_all_voices.py # Test all available voices
+python examples/assorted_checks/test_openai/test_openai_tts.py # Test OpenAI Compatibility
+python examples/assorted_checks/test_voices/test_all_voices.py # Test all available voices
 ```
 </details>
 
@@ -229,8 +232,9 @@ for chunk in response.iter_content(chunk_size=1024):
 
 Key Streaming Metrics:
 - First token latency @ chunksize
-    - ~300ms (GPU) @ 400 
-    - ~3500ms (CPU) @ 200 
+    - ~300ms  (GPU) @ 400 
+    - ~3500ms (CPU) @ 200 (older i7)
+    - ~<1s    (CPU) @ 200 (M3 Pro)
 - Adjustable chunking settings for real-time playback 
 
 *Note: Artifacts in intonation can increase with smaller chunks*
@@ -275,6 +279,90 @@ docker compose -f docker-compose.cpu.yml up --build
 
 - Automatically splits and stitches at sentence boundaries 
 - Helps to reduce artifacts and allow long form processing as the base model is only currently configured for approximately 30s output 
+</details>
+
+<details>
+<summary>Phoneme & Token Routes</summary>
+
+Convert text to phonemes and/or generate audio directly from phonemes:
+```python
+import requests
+
+# Convert text to phonemes
+response = requests.post(
+    "http://localhost:8880/dev/phonemize",
+    json={
+        "text": "Hello world!",
+        "language": "a"  # "a" for American English
+    }
+)
+result = response.json()
+phonemes = result["phonemes"]  # Phoneme string e.g  ðɪs ɪz ˈoʊnli ɐ tˈɛst
+tokens = result["tokens"]      # Token IDs including start/end tokens 
+
+# Generate audio from phonemes
+response = requests.post(
+    "http://localhost:8880/dev/generate_from_phonemes",
+    json={
+        "phonemes": phonemes,
+        "voice": "af_bella",
+        "speed": 1.0
+    }
+)
+
+# Save WAV audio
+with open("speech.wav", "wb") as f:
+    f.write(response.content)
+```
+
+See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
+</details>
+
+## Known Issues
+
+<details>
+<summary>Linux GPU Permissions</summary>
+
+Some Linux users may encounter GPU permission issues when running as non-root. 
+Can't guarantee anything, but here are some common solutions, consider your security requirements carefully
+
+### Option 1: Container Groups (Likely the best option)
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    group_add:
+      - "video"
+      - "render"
+```
+
+### Option 2: Host System Groups
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    user: "${UID}:${GID}"
+    group_add:
+      - "video"
+```
+Note: May require adding host user to groups: `sudo usermod -aG docker,video $USER` and system restart.
+
+### Option 3: Device Permissions (Use with caution)
+```yaml
+services:
+  kokoro-tts:
+    # ... existing config ...
+    devices:
+      - /dev/nvidia0:/dev/nvidia0
+      - /dev/nvidiactl:/dev/nvidiactl
+      - /dev/nvidia-uvm:/dev/nvidia-uvm
+```
+⚠️ Warning: Reduces system security. Use only in development environments.
+
+Prerequisites: NVIDIA GPU, drivers, and container toolkit must be properly configured.
+
+Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more detailed information
+
 </details>
 
 ## Model and License

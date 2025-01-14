@@ -1,6 +1,4 @@
-
 #!/usr/bin/env rye run python
-
 import time
 from pathlib import Path
 
@@ -18,25 +16,29 @@ def main() -> None:
     # Create text-to-speech audio file
     with openai.audio.speech.with_streaming_response.create(
         model="kokoro",
-        voice="af",
+        voice="af_bella",
         input="the quick brown fox jumped over the lazy dogs",
     ) as response:
         response.stream_to_file(speech_file_path)
 
 
-
 def stream_to_speakers() -> None:
     import pyaudio
 
-    player_stream = pyaudio.PyAudio().open(format=pyaudio.paInt16, channels=1, rate=24000, output=True)
+    player_stream = pyaudio.PyAudio().open(
+        format=pyaudio.paInt16, channels=1, rate=24000, output=True
+    )
 
     start_time = time.time()
 
     with openai.audio.speech.with_streaming_response.create(
         model="kokoro",
-        voice="af_sky+af_bella+af_nicole+bm_george",
+        voice="af_bella",
         response_format="pcm",  # similar to WAV, but without a header chunk at the start.
-        input="""My dear sir, that is just where you are wrong. That is just where the whole world has gone wrong. We are always getting away from the present moment. Our mental existences, which are immaterial and have no dimensions, are passing along the Time-Dimension with a uniform velocity from the cradle to the grave. Just as we should travel down if we began our existence fifty miles above the earth’s surface""",
+        input="""I see skies of blue and clouds of white
+                The bright blessed days, the dark sacred nights
+                And I think to myself
+                What a wonderful world""",
     ) as response:
         print(f"Time to first byte: {int((time.time() - start_time) * 1000)}ms")
         for chunk in response.iter_bytes(chunk_size=1024):

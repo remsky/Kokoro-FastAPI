@@ -49,10 +49,10 @@ jobs:
           flavor: |
             suffix=-cpu
           tags: |
-            type=semver,pattern=v{{version}}-cpu
-            type=semver,pattern=v{{major}}.{{minor}}-cpu
-            type=semver,pattern=v{{major}}-cpu
-            type=raw,value=latest-cpu
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
+            type=raw,value=latest
 
       # Build and push GPU version
       - name: Build and push GPU Docker image
@@ -85,10 +85,10 @@ jobs:
           flavor: |
             suffix=-ui
           tags: |
-            type=semver,pattern=v{{version}}-ui
-            type=semver,pattern=v{{major}}.{{minor}}-ui
-            type=semver,pattern=v{{major}}-ui
-            type=raw,value=latest-ui
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}}
+            type=semver,pattern=v{{major}}
+            type=raw,value=latest
 
       # Build and push UI version
       - name: Build and push UI Docker image

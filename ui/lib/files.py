@@ -12,9 +12,9 @@ def list_input_files() -> List[str]:
 
 def list_output_files() -> List[str]:
     """List all output audio files."""
+    # Just return filenames since paths will be different inside/outside container
     return [
-        os.path.join(OUTPUTS_DIR, f)
-        for f in os.listdir(OUTPUTS_DIR)
+        f for f in os.listdir(OUTPUTS_DIR)
         if any(f.endswith(ext) for ext in AUDIO_FORMATS)
     ]
 

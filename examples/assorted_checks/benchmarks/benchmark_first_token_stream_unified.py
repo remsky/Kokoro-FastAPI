@@ -166,7 +166,7 @@ def measure_first_token_openai(
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    prefix='cpu'
+    prefix = "cpu"
     # Run requests benchmark
     print("\n=== Running Direct Requests Benchmark ===")
     run_benchmark(
@@ -176,7 +176,7 @@ def main():
         output_plots_dir=os.path.join(script_dir, "output_plots"),
         suffix="_stream",
         plot_title_suffix="(Streaming)",
-        prefix=prefix
+        prefix=prefix,
     )
     # Run OpenAI benchmark
     print("\n=== Running OpenAI Library Benchmark ===")
@@ -187,7 +187,7 @@ def main():
         output_plots_dir=os.path.join(script_dir, "output_plots"),
         suffix="_stream_openai",
         plot_title_suffix="(OpenAI Streaming)",
-        prefix=prefix
+        prefix=prefix,
     )
 
 
