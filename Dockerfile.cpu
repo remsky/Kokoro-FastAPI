@@ -28,10 +28,10 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # 4. Copy your application code into /app
 COPY . /app/
 
-# 5. Download just the ONNX file (no git clone)
-RUN mkdir -p /app/Kokoro-82M && \
-    wget -O /app/Kokoro-82M/kokoro-v0_19.onnx \
-    https://huggingface.co/hexgrad/Kokoro-82M/resolve/main/kokoro-v0_19.onnx
+# 5. Download the Kokoro-82M model from Hugging Face
+RUN git clone https://huggingface.co/hexgrad/Kokoro-82M /app/Kokoro-82M && \
+    cd /app/Kokoro-82M && \
+    git lfs pull
 
 # 6. Set working directory
 WORKDIR /app
