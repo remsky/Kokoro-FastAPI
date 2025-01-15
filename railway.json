@@ -5,16 +5,18 @@
     "dockerfilePath": "Dockerfile.cpu"
   },
   "deploy": {
-    "region": "europe-west4",
     "runtime": "V2",
-    "numReplicas": 1,
     "sleepApplication": false,
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 120,
+    "restartPolicyType": "ALWAYS",
     "multiRegionConfig": {
       "europe-west4": {
         "numReplicas": 1
+      },
+      "us-east1": {
+        "numReplicas": 1
       }
-    },
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
+    }
   }
 }
