@@ -2,6 +2,7 @@
 FastAPI OpenAI Compatible API
 """
 import sys
+import subprocess
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 import uvicorn
@@ -36,18 +37,35 @@ def setup_logger():
 # Configure logger
 setup_logger()
 
+async def check_espeak():
+    """Check if espeak is working by running a test command"""
+    try:
+        # Try to run espeak --version
+        result = subprocess.run(['espeak', '--version'], 
+                              capture_output=True, 
+                              text=True, 
+                              timeout=5)
+        return result.returncode == 0
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError) as e:
+        logger.error(f"eSpeak check failed: {str(e)}")
+        return False
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for model initialization"""
     # Initialize startup time tracking
     app.state.startup_time = datetime.now()
-    app.state.warmup_period = timedelta(seconds=180)  # Adjust based on your needs
-    app.state.espeak_error = False
+    app.state.warmup_period = timedelta(seconds=60)  # Adjust based on your needs
 
     logger.info("Loading TTS model and voice packs...")
     # Initialize the main model with warm-up
     voicepack_count = await TTSModel.setup()
-    # boundary = "█████╗"*9
+    
+    # Verify espeak is working
+    espeak_working = await check_espeak()
+    if not espeak_working:
+        logger.error("eSpeak not working during initialization")
+        
     boundary = "░" * 24
     startup_msg = f"""
 {boundary}
@@ -59,9 +77,9 @@ async def lifespan(app: FastAPI):
     ╩ ╩└─┘┴ ┴└─┘
 {boundary}
                 """
-    # TODO: Improve CPU warmup, threads, memory, etc
     startup_msg += f"\nModel warmed up on {TTSModel.get_device()}"
     startup_msg += f"\n{voicepack_count} voice packs loaded\n"
+    startup_msg += f"\neSpeak Status: {'Working' if espeak_working else 'Not Working'}\n"
     startup_msg += f"\n{boundary}\n"
     logger.info(startup_msg)
     yield
@@ -87,12 +105,11 @@ app.add_middleware(
 # Include routers
 app.include_router(openai_router, prefix="/v1")
 app.include_router(dev_router)  # New development endpoints
-# app.include_router(text_router)  # Deprecated but still live for backwards compatibility
 
 # Health check endpoint
 @app.get("/health")
 async def health_check():
-    """Health check that accounts for startup warmup and espeak errors"""
+    """Health check that actively verifies espeak functionality"""
     # Check if we're still in warmup period
     if not hasattr(app.state, "startup_time"):
         # If startup_time doesn't exist yet, we're still initializing
@@ -101,11 +118,15 @@ async def health_check():
     if datetime.now() - app.state.startup_time < app.state.warmup_period:
         return {"status": "healthy", "message": "warming up"}
     
-    # After warmup, check for espeak errors
-    if hasattr(app.state, "espeak_error") and app.state.espeak_error:
+    # Actively check if espeak is working
+    espeak_working = await check_espeak()
+    if not espeak_working:
         return JSONResponse(
             status_code=503,
-            content={"status": "unhealthy", "reason": "espeak error detected"}
+            content={
+                "status": "unhealthy", 
+                "reason": "espeak not working"
+            }
         )
     
     return {"status": "healthy"}
