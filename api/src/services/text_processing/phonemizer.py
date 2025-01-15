@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 
 import phonemizer
 from phonemizer.backend import EspeakBackend
-from phonemizer.backend.espeak.language import LanguageNotFound
+from phonemizer.backend import EspeakError
 from fastapi import Request
 from fastapi.applications import FastAPI
 
@@ -23,7 +23,7 @@ def check_espeak_installed():
                       stdout=subprocess.DEVNULL,
                       stderr=subprocess.DEVNULL)
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+    except (subprocess.CalledProcessError, FileNotFoundError, EspeakError) as e:
         # Set error state if espeak check fails
         if app:
             app.state.espeak_error = True
@@ -68,8 +68,11 @@ class EspeakBackend(PhonemizerBackend):
                 with_stress=True
             )
             self.language = language
-        except LanguageNotFound as e:
-            raise RuntimeError(f"Invalid language code: {language}") from e
+        except EspeakError as e:
+            # Set error state if espeak fails
+            if app:
+                app.state.espeak_error = True
+            raise RuntimeError(f"Espeak error: {str(e)}") from e
 
     def phonemize(self, text: str) -> str:
         """Convert text to phonemes using espeak
