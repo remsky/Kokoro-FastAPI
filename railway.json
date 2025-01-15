@@ -9,7 +9,7 @@
     "sleepApplication": false,
     "healthcheckPath": "/health",
     "healthcheckTimeout": 300,
-    "restartPolicyType": "ALWAYS",
+    "restartPolicyType": "ON_FAILURE",
     "multiRegionConfig": {
       "europe-west4": {
         "numReplicas": 1
