@@ -1,33 +1,9 @@
 import re
-import subprocess
 from abc import ABC, abstractmethod
 
 import phonemizer
-from phonemizer.backend import EspeakBackend
-from phonemizer.backend import EspeakError
-from fastapi import Request
-from fastapi.applications import FastAPI
 
 from .normalizer import normalize_text
-
-# Global app reference for error state
-app = None  # Will be set during FastAPI initialization
-
-
-def check_espeak_installed():
-    """Check if espeak is installed and available"""
-    try:
-        # Try running espeak with version flag
-        subprocess.run(['espeak', '--version'], 
-                      check=True,
-                      stdout=subprocess.DEVNULL,
-                      stderr=subprocess.DEVNULL)
-        return True
-    except (subprocess.CalledProcessError, FileNotFoundError, EspeakError) as e:
-        # Set error state if espeak check fails
-        if app:
-            app.state.espeak_error = True
-        return False
 
 
 class PhonemizerBackend(ABC):
@@ -54,25 +30,11 @@ class EspeakBackend(PhonemizerBackend):
 
         Args:
             language: Language code ('en-us' or 'en-gb')
-
-        Raises:
-            RuntimeError: If espeak is not installed
         """
-        if not check_espeak_installed():
-            raise RuntimeError("espeak not installed on your system")
-            
-        try:
-            self.backend = EspeakBackend(
-                language=language, 
-                preserve_punctuation=True, 
-                with_stress=True
-            )
-            self.language = language
-        except EspeakError as e:
-            # Set error state if espeak fails
-            if app:
-                app.state.espeak_error = True
-            raise RuntimeError(f"Espeak error: {str(e)}") from e
+        self.backend = phonemizer.backend.EspeakBackend(
+            language=language, preserve_punctuation=True, with_stress=True
+        )
+        self.language = language
 
     def phonemize(self, text: str) -> str:
         """Convert text to phonemes using espeak
