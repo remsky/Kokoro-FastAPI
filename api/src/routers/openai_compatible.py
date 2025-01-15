@@ -1,18 +1,31 @@
 from typing import List, Union, AsyncGenerator
 
 from loguru import logger
-from fastapi import Header, Depends, Response, APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import Header, Depends, Response, APIRouter, HTTPException, FastAPI
+from fastapi.responses import StreamingResponse, JSONResponse
 
 from ..services.audio import AudioService
 from ..structures.schemas import OpenAISpeechRequest
 from ..services.tts_service import TTSService
 
+# Create FastAPI app instance
+app = FastAPI()
+
+# Create router instance
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
     responses={404: {"description": "Not found"}},
 )
 
+@app.get("/health")
+async def health_check():
+    """Simple health check that returns 503 if there have been any recent espeak errors"""
+    if hasattr(app.state, "espeak_error") and app.state.espeak_error:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "reason": "espeak error detected"}
+        )
+    return {"status": "healthy"}
 
 def get_tts_service() -> TTSService:
     """Dependency to get TTSService instance with database session"""
@@ -83,41 +96,47 @@ async def create_speech(
             "pcm": "audio/pcm",
         }.get(request.response_format, f"audio/{request.response_format}")
 
-        # Check if streaming is requested (default for OpenAI client)
-        if request.stream:
-            # Stream audio chunks as they're generated
-            return StreamingResponse(
-                stream_audio_chunks(tts_service, request),
-                media_type=content_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
-                    "X-Accel-Buffering": "no",  # Disable proxy buffering
-                    "Cache-Control": "no-cache",  # Prevent caching
-                    "Transfer-Encoding": "chunked",  # Enable chunked transfer encoding
-                },
-            )
-        else:
-            # Generate complete audio
-            audio, _ = tts_service._generate_audio(
-                text=request.input,
-                voice=voice_to_use,
-                speed=request.speed,
-                stitch_long_output=True,
-            )
-
-            # Convert to requested format
-            content = AudioService.convert_audio(
-                audio, 24000, request.response_format, is_first_chunk=True, stream=False
-            )
-
-            return Response(
-                content=content,
-                media_type=content_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
-                    "Cache-Control": "no-cache",  # Prevent caching
-                },
-            )
+        try:
+            if request.stream:
+                return StreamingResponse(
+                    stream_audio_chunks(tts_service, request),
+                    media_type=content_type,
+                    headers={
+                        "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                        "X-Accel-Buffering": "no",
+                        "Cache-Control": "no-cache",
+                        "Transfer-Encoding": "chunked",
+                    },
+                )
+            else:
+                audio, _ = tts_service._generate_audio(
+                    text=request.input,
+                    voice=voice_to_use,
+                    speed=request.speed,
+                    stitch_long_output=True,
+                )
+                content = AudioService.convert_audio(
+                    audio, 24000, request.response_format, is_first_chunk=True, stream=False
+                )
+                return Response(
+                    content=content,
+                    media_type=content_type,
+                    headers={
+                        "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                        "Cache-Control": "no-cache",
+                    },
+                )
+                
+        except Exception as e:
+            if "espeak not installed" in str(e):
+                # Mark the application as having an espeak error
+                app.state.espeak_error = True
+                logger.error(f"eSpeak error detected: {str(e)}")
+                raise HTTPException(
+                    status_code=503,
+                    detail={"error": "Speech synthesis service unavailable", "message": str(e)}
+                )
+            raise  # Re-raise other exceptions
 
     except ValueError as e:
         logger.error(f"Invalid request: {str(e)}")
