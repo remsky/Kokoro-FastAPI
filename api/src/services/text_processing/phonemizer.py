@@ -1,9 +1,25 @@
 import re
+import subprocess
 from abc import ABC, abstractmethod
 
 import phonemizer
+from phonemizer.backend import EspeakBackend
+from phonemizer.backend.espeak.language import LanguageNotFound
 
 from .normalizer import normalize_text
+
+
+def check_espeak_installed():
+    """Check if espeak is installed and available"""
+    try:
+        # Try running espeak with version flag
+        subprocess.run(['espeak', '--version'], 
+                      check=True,
+                      stdout=subprocess.DEVNULL,
+                      stderr=subprocess.DEVNULL)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
 class PhonemizerBackend(ABC):
@@ -30,11 +46,22 @@ class EspeakBackend(PhonemizerBackend):
 
         Args:
             language: Language code ('en-us' or 'en-gb')
+
+        Raises:
+            RuntimeError: If espeak is not installed
         """
-        self.backend = phonemizer.backend.EspeakBackend(
-            language=language, preserve_punctuation=True, with_stress=True
-        )
-        self.language = language
+        if not check_espeak_installed():
+            raise RuntimeError("espeak not installed on your system")
+            
+        try:
+            self.backend = EspeakBackend(
+                language=language, 
+                preserve_punctuation=True, 
+                with_stress=True
+            )
+            self.language = language
+        except LanguageNotFound as e:
+            raise RuntimeError(f"Invalid language code: {language}") from e
 
     def phonemize(self, text: str) -> str:
         """Convert text to phonemes using espeak
