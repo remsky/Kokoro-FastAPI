@@ -5,8 +5,13 @@ from abc import ABC, abstractmethod
 import phonemizer
 from phonemizer.backend import EspeakBackend
 from phonemizer.backend.espeak.language import LanguageNotFound
+from fastapi import Request
+from fastapi.applications import FastAPI
 
 from .normalizer import normalize_text
+
+# Global app reference for error state
+app = None  # Will be set during FastAPI initialization
 
 
 def check_espeak_installed():
@@ -18,7 +23,10 @@ def check_espeak_installed():
                       stdout=subprocess.DEVNULL,
                       stderr=subprocess.DEVNULL)
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        # Set error state if espeak check fails
+        if app:
+            app.state.espeak_error = True
         return False
 
 

@@ -15,6 +15,7 @@ from .services.tts_model import TTSModel
 from .routers.development import router as dev_router
 from .services.tts_service import TTSService
 from .routers.openai_compatible import router as openai_router
+from ..services.text_processing.phonemizer import app as phonemizer_app
 
 def setup_logger():
     """Configure loguru logger with custom formatting"""
@@ -76,6 +77,9 @@ app = FastAPI(
     openapi_url="/openapi.json",  # Explicitly enable OpenAPI schema
 )
 
+# Share app instance with phonemizer
+phonemizer_app.app = app
+
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -102,7 +106,7 @@ async def health_check():
         return {"status": "healthy", "message": "warming up"}
     
     # After warmup, check espeak error flag
-    if app.state.espeak_error:
+    if hasattr(app.state, "espeak_error") and app.state.espeak_error:
         return JSONResponse(
             status_code=503,
             content={
