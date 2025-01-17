@@ -94,7 +94,7 @@ class TTSService:
                             tokens, voicepack, speed
                         )
                         if chunk_audio is not None:
-                            chunk_audio=stream_normalizer.normalize(chunk_audio,chunk,(chunk_index == len(chunks_data) - 1))
+                            chunk_audio=stream_normalizer.normalize(chunk_audio,chunk,speed,(chunk_index == len(chunks_data) - 1))
                             audio_chunks.append(chunk_audio)
                         else:
                             logger.error(f"No audio generated for chunk: '{chunk}'")
@@ -185,6 +185,7 @@ class TTSService:
                             chunk_audio,
                             24000,
                             output_format,
+                            speed,
                             is_first_chunk=is_first,
                             normalizer=stream_normalizer,
                             is_last_chunk=(next_chunk is None),  # Last if no next chunk

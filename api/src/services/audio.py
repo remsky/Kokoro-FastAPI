@@ -3,6 +3,7 @@
 from io import BytesIO
 from pydoc import text
 
+import math
 import numpy as np
 import scipy.io.wavfile as wavfile
 import soundfile as sf
@@ -22,7 +23,7 @@ class AudioNormalizer:
 
         self.samples_to_pad_start= int(50 * self.sample_rate / 1000)
         
-    def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str, silence_threshold_db: int = -45) -> tuple[int, int]:
+    def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str,speed: float, silence_threshold_db: int = -45) -> tuple[int, int]:
         """
         Finds the indices of the first and last non-silent samples in audio data.
         """
@@ -55,9 +56,9 @@ class AudioNormalizer:
         if non_silent_index_start == None or non_silent_index_end == None:
             return 0, len(audio_data)
 
-        return max(non_silent_index_start - self.samples_to_pad_start,0), min(non_silent_index_end + samples_to_pad_end,len(audio_data))
+        return max(non_silent_index_start - self.samples_to_pad_start,0), min(non_silent_index_end + math.ceil(samples_to_pad_end / speed),len(audio_data))
 
-    def normalize(self, audio_data: np.ndarray, chunk:str, is_last_chunk: bool = False) -> np.ndarray:
+    def normalize(self, audio_data: np.ndarray, chunk:str, speed:float, is_last_chunk: bool = False) -> np.ndarray:
         """Normalize audio data to int16 range and trim chunk boundaries"""
         # Convert to float32 if not already
 
@@ -70,7 +71,7 @@ class AudioNormalizer:
             
         audio_int=(audio_float * self.int16_max).astype(np.int16)
 
-        start_index,end_index=self.find_first_last_non_silent(audio_int,chunk)
+        start_index,end_index=self.find_first_last_non_silent(audio_int,chunk,speed)
 
 
         # Scale to int16 range
@@ -100,6 +101,7 @@ class AudioService:
         audio_data: np.ndarray,
         sample_rate: int,
         output_format: str,
+        speed: float,
         is_first_chunk: bool = True,
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,
@@ -141,7 +143,7 @@ class AudioService:
             if stream:
                 if normalizer is None:
                     normalizer = AudioNormalizer()
-                normalized_audio = normalizer.normalize(audio_data,chunk, is_last_chunk=is_last_chunk)
+                normalized_audio = normalizer.normalize(audio_data,chunk,speed, is_last_chunk=is_last_chunk)
             else:
                 normalized_audio = audio_data
 
