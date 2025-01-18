@@ -9,6 +9,9 @@ docker/
   ├── gpu/
   │   ├── pyproject.toml     # GPU deps (torch CUDA)
   │   └── requirements.lock  # GPU lockfile
+  ├── rocm/
+  │   ├── pyproject.toml     # ROCM deps (torch ROCM)
+  │   └── requirements.lock  # ROCM lockfile
   └── shared/
       └── pyproject.toml     # Common deps
 ```
@@ -24,6 +27,12 @@ uv pip compile pyproject.toml ../shared/pyproject.toml --output-file requirement
 ### GPU
 ```bash
 cd docker/gpu
+uv pip compile pyproject.toml ../shared/pyproject.toml --output-file requirements.lock
+```
+
+### ROCM
+```bash
+cd docker/rocm
 uv pip compile pyproject.toml ../shared/pyproject.toml --output-file requirements.lock
 ```
 
@@ -45,6 +54,16 @@ uv venv
 uv pip sync requirements.lock --extra-index-url https://download.pytorch.org/whl/cu121 --index-strategy unsafe-best-match
 ```
 
+### ROCM
+```bash
+cd docker/rocm
+uv venv
+source .venv/bin/activate
+# not tested on Windows
+#.venv\Scripts\activate  # Windows
+uv pip sync requirements.lock --extra-index-url https://download.pytorch.org/whl/rocm6.2
+```
+
 ### Run Server
 ```bash
 # From project root with venv active:
@@ -62,6 +81,12 @@ docker compose up
 ### GPU
 ```bash
 cd docker/gpu
+docker compose up
+```
+
+### ROCM
+```bash
+cd docker/rocm
 docker compose up
 ```
 
