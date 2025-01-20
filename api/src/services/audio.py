@@ -30,9 +30,11 @@ class AudioNormalizer:
 
 
         pad_multiplier=1
-        split_character=chunk.strip()[-1]
-        if split_character in settings.dynamic_gap_trim_padding_char_multiplier:
-            pad_multiplier=settings.dynamic_gap_trim_padding_char_multiplier[split_character]
+        split_character=chunk.strip()
+        if len(split_character) > 0:
+            split_character=split_character[-1]
+            if split_character in settings.dynamic_gap_trim_padding_char_multiplier:
+                pad_multiplier=settings.dynamic_gap_trim_padding_char_multiplier[split_character]
 
         if not is_last_chunk:
             samples_to_pad_end= max(int((settings.dynamic_gap_trim_padding_ms * self.sample_rate * pad_multiplier) / 1000) - self.samples_to_pad_start, 0)
@@ -103,7 +105,7 @@ class AudioService:
         audio_data: np.ndarray,
         sample_rate: int,
         output_format: str,
-        speed: float,
+        speed: float=1,
         is_first_chunk: bool = True,
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,

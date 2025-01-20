@@ -28,13 +28,13 @@ def speech_audio():
 
 def test_find_first_last_non_silent_all_silent(normalizer, silent_audio):
     """Test silence detection with completely silent audio"""
-    start, end = normalizer.find_first_last_non_silent(silent_audio,1)
+    start, end = normalizer.find_first_last_non_silent(silent_audio,"",1)
     assert start == 0
     assert end == len(silent_audio)
 
 def test_find_first_last_non_silent_with_speech(normalizer, speech_audio):
     """Test silence detection with audio containing speech"""
-    start, end = normalizer.find_first_last_non_silent(speech_audio,1)
+    start, end = normalizer.find_first_last_non_silent(speech_audio,"",1)
     
     # Should detect speech section with padding
     # Start should be before 0.25s (with 50ms padding)
