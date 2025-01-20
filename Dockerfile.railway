@@ -48,19 +48,15 @@ WORKDIR /app
 # 8. Copy dependency files
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
-# 9. Install dependencies (using uv) with a named cache
-#    This line requires BuildKit. The cache ID is prefixed with 'railway-'
-#    in case your environment enforces a specific naming convention.
-RUN --mount=type=cache,id=railway-uv-cache,target=/root/.cache/uv \
-    uv venv && \
+# 9. Install dependencies with uv (no BuildKit mount)
+RUN uv venv && \
     uv sync --extra cpu --no-install-project
 
 # 10. Copy project files
 COPY --chown=appuser:appuser api ./api
 
-# 11. Install project (again with a named cache)
-RUN --mount=type=cache,id=railway-uv-cache,target=/root/.cache/uv \
-    uv sync --extra cpu
+# 11. Install project (again, no mount)
+RUN uv sync --extra cpu
 
 # 12. Environment variables
 ENV PYTHONUNBUFFERED=1
