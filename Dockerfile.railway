@@ -42,27 +42,27 @@
     # 7. Switch back to /app
     WORKDIR /app
     
-    # 8. Copy dependency files and install them with uv
+    # 8. Copy dependency files
     COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
     
-    # Use uv to create a venv and sync the dependencies
-    # The --mount=type=cache lines just enable caching for faster installs
-    RUN --mount=type=cache,target=/root/.cache/uv \
+    # 9. Install dependencies with UV, using cache mounts
+    #    (requires DOCKER_BUILDKIT=1)
+    RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
         uv venv && \
         uv sync --extra cpu --no-install-project
     
-    # 9. Copy project files
+    # 10. Copy project files
     COPY --chown=appuser:appuser api ./api
     
-    RUN --mount=type=cache,target=/root/.cache/uv \
+    RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
         uv sync --extra cpu
     
-    # 10. Environment variables
+    # 11. Environment variables
     ENV PYTHONUNBUFFERED=1
     ENV PYTHONPATH=/app:/app/models
     ENV PATH="/app/.venv/bin:$PATH"
     ENV UV_LINK_MODE=copy
     
-    # 11. Run FastAPI
+    # 12. Run FastAPI
     CMD ["uv", "run", "python", "-m", "uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8880", "--log-level", "debug"]
     

@@ -8,7 +8,7 @@
     "runtime": "V2",
     "sleepApplication": false,
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 300,
+    "healthcheckTimeout": 180,
     "restartPolicyType": "ON_FAILURE",
     "multiRegionConfig": {
       "europe-west4": {

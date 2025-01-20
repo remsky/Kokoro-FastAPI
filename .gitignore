@@ -57,7 +57,6 @@ EXTERNAL_UV_DOCUMENTATION*
 app
 
 # Docker
-Dockerfile*
 docker-compose*
 examples/assorted_checks/River_of_Teet_-_Sarah_Gailey.epub
 examples/ebook_test/chapter_to_audio.py
