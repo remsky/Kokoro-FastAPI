@@ -3,9 +3,10 @@
 from io import BytesIO
 
 import numpy as np
-import soundfile as sf
 import scipy.io.wavfile as wavfile
+import soundfile as sf
 from loguru import logger
+from pydub import AudioSegment
 
 from ..core.config import settings
 
@@ -22,20 +23,19 @@ class AudioNormalizer:
     def normalize(
         self, audio_data: np.ndarray, is_last_chunk: bool = False
     ) -> np.ndarray:
-        """Normalize audio data to int16 range and trim chunk boundaries"""
-        # Convert to float32 if not already
+        """Convert audio data to int16 range and trim chunk boundaries"""
+        if len(audio_data) == 0:
+            raise ValueError("Audio data cannot be empty")
+            
+        # Simple float32 to int16 conversion
         audio_float = audio_data.astype(np.float32)
-
-        # Normalize to [-1, 1] range first
-        if np.max(np.abs(audio_float)) > 0:
-            audio_float = audio_float / np.max(np.abs(audio_float))
-
-        # Trim end of non-final chunks to reduce gaps
+        
+        # Trim for non-final chunks
         if not is_last_chunk and len(audio_float) > self.samples_to_trim:
-            audio_float = audio_float[: -self.samples_to_trim]
-
-        # Scale to int16 range
-        return (audio_float * self.int16_max).astype(np.int16)
+            audio_float = audio_float[:-self.samples_to_trim]
+        
+        # Direct scaling like the non-streaming version
+        return (audio_float * 32767).astype(np.int16)
 
 
 class AudioService:
@@ -52,6 +52,9 @@ class AudioService:
         },
         "flac": {
             "compression_level": 0.0,  # Light compression, still fast
+        },
+        "aac": {
+            "bitrate": "192k",  # Default AAC bitrate
         },
     }
 
@@ -145,9 +148,22 @@ class AudioService:
                     subtype="PCM_16",
                     **settings,
                 )
-            elif output_format == "aac":
-                raise ValueError(
-                    "Format aac not currently supported. Supported formats are: wav, mp3, opus, flac, pcm."
+            elif output_format == "aac":           
+                # Convert numpy array directly to AAC using pydub
+                audio_segment = AudioSegment(
+                    normalized_audio.tobytes(), 
+                    frame_rate=sample_rate,
+                    sample_width=normalized_audio.dtype.itemsize,
+                    channels=1 if len(normalized_audio.shape) == 1 else normalized_audio.shape[1]
+                )
+                
+                settings = format_settings.get("aac", {}) if format_settings else {}
+                settings = {**AudioService.DEFAULT_SETTINGS["aac"], **settings}
+                
+                audio_segment.export(
+                    buffer,
+                    format="adts",  # ADTS is a common AAC container format
+                    bitrate=settings["bitrate"]
                 )
             else:
                 raise ValueError(

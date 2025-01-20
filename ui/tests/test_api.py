@@ -106,24 +106,54 @@ def test_get_status_html_unavailable():
 
 def test_text_to_speech_api_params(mock_response, tmp_path):
     """Test correct API parameters are sent"""
-    with patch("requests.post") as mock_post, patch(
-        "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
-    ), patch("builtins.open", mock_open()):
-        mock_post.return_value = mock_response({})
-        api.text_to_speech("test text", "voice1", "mp3", 1.5)
+    test_cases = [
+        # Single voice as string
+        ("voice1", "voice1"),
+        # Multiple voices as list
+        (["voice1", "voice2"], "voice1+voice2"),
+        # Single voice as list
+        (["voice1"], "voice1"),
+    ]
 
-        mock_post.assert_called_once()
-        args, kwargs = mock_post.call_args
+    for input_voice, expected_voice in test_cases:
+        with patch("requests.post") as mock_post, patch(
+            "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
+        ), patch("builtins.open", mock_open()):
+            mock_post.return_value = mock_response({})
+            api.text_to_speech("test text", input_voice, "mp3", 1.5)
 
-        # Check request body
-        assert kwargs["json"] == {
-            "model": "kokoro",
-            "input": "test text",
-            "voice": "voice1",
-            "response_format": "mp3",
-            "speed": 1.5,
-        }
+            mock_post.assert_called_once()
+            args, kwargs = mock_post.call_args
 
-        # Check headers and timeout
-        assert kwargs["headers"] == {"Content-Type": "application/json"}
-        assert kwargs["timeout"] == 300
+            # Check request body
+            assert kwargs["json"] == {
+                "model": "kokoro",
+                "input": "test text",
+                "voice": expected_voice,
+                "response_format": "mp3",
+                "speed": 1.5,
+            }
+
+            # Check headers and timeout
+            assert kwargs["headers"] == {"Content-Type": "application/json"}
+            assert kwargs["timeout"] == 300
+
+
+def test_text_to_speech_output_filename(mock_response, tmp_path):
+    """Test output filename contains correct voice identifier"""
+    test_cases = [
+        # Single voice
+        ("voice1", lambda f: "voice-voice1" in f),
+        # Multiple voices
+        (["voice1", "voice2"], lambda f: "voice-voice1+voice2" in f),
+    ]
+
+    for input_voice, filename_check in test_cases:
+        with patch("requests.post", return_value=mock_response({})), patch(
+            "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
+        ), patch("builtins.open", mock_open()) as mock_file:
+            result = api.text_to_speech("test text", input_voice, "mp3", 1.0)
+
+            assert result is not None
+            assert filename_check(result), f"Expected voice pattern not found in filename: {result}"
+            mock_file.assert_called_once()

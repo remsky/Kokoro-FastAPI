@@ -36,15 +36,18 @@ def check_api_status() -> Tuple[bool, List[str]]:
 
 
 def text_to_speech(
-    text: str, voice_id: str, format: str, speed: float
+    text: str, voice_id: str | list, format: str, speed: float
 ) -> Optional[str]:
     """Generate speech from text using TTS API."""
     if not text.strip():
         return None
 
+    # Handle multiple voices
+    voice_str = voice_id if isinstance(voice_id, str) else "+".join(voice_id)
+
     # Create output filename
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_filename = f"output_{timestamp}_voice-{voice_id}_speed-{speed}.{format}"
+    output_filename = f"output_{timestamp}_voice-{voice_str}_speed-{speed}.{format}"
     output_path = os.path.join(OUTPUTS_DIR, output_filename)
 
     try:
@@ -53,7 +56,7 @@ def text_to_speech(
             json={
                 "model": "kokoro",
                 "input": text,
-                "voice": voice_id,
+                "voice": voice_str,
                 "response_format": format,
                 "speed": float(speed),
             },

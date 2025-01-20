@@ -2,37 +2,53 @@
   <img src="githubbanner.png" alt="Kokoro TTS Banner">
 </p>
 
-# Kokoro TTS API
+# <sub><sub>_`FastKoko`_ </sub></sub>
 [![Tests](https://img.shields.io/badge/tests-117%20passed-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-75%25-darkgreen)]()
-[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero) [![Buy Me A Coffee](https://img.shields.io/badge/BMC-✨☕-gray?style=flat-square)](https://www.buymeacoffee.com/remsky)
+[![Coverage](https://img.shields.io/badge/coverage-60%25-grey)]()
+[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-a67f113-blue)](https://huggingface.co/hexgrad/Kokoro-82M/tree/c3b0d86e2a980e027ef71c28819ea02e351c2667) [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - OpenAI-compatible Speech endpoint, with inline voice combination functionality
 - NVIDIA GPU accelerated or CPU Onnx inference 
 - very fast generation time
-  - 100x+ real time speed via HF A100
-  - 35-50x+ real time speed via 4060Ti
+  - 35x-100x+ real time speed via 4060Ti+
   - 5x+ real time speed via M3 Pro CPU
 - streaming support w/ variable chunking to control latency & artifacts
-- simple audio generation web ui utility
-- (new) phoneme endpoints for conversion and generation
-
+- phoneme, simple audio generation web ui utility
+- Runs on an 80mb-300mb model (CUDA container + 5gb on disk due to drivers)  
 
 ## Quick Start
 
 The service can be accessed through either the API endpoints or the Gradio web interface.
 
-1. Install prerequisites:
-   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) + [Git](https://git-scm.com/downloads)
-   - Clone and start the service:
+1. Install prerequisites, and start the service using Docker Compose (Full setup including UI):
+   - Install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+   - Clone the repository:
         ```bash
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
-        docker compose up --build # for GPU
-        #docker compose -f docker-compose.cpu.yml up --build # for CPU
+        
+        #   * Switch to stable branch if any issues *
+        git checkout v0.0.5post1-stable
+
+        cd docker/gpu # OR 
+        # cd docker/cpu # Run this or the above
+        docker compose up --build 
         ```
-2. Run locally as an OpenAI-Compatible Speech Endpoint
+        
+      Once started:
+     - The API will be available at http://localhost:8880
+     - The UI can be accessed at http://localhost:7860
+        
+  __Or__ running the API alone using Docker (model + voice packs baked in) (Most Recent):
+          
+  ```bash
+  docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:v0.1.0post1 # CPU 
+  docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:v0.1.0post1 # Nvidia GPU
+  ```
+        
+        
+4. Run locally as an OpenAI-Compatible Speech Endpoint
     ```python
     from openai import OpenAI
     client = OpenAI(
@@ -40,13 +56,14 @@ The service can be accessed through either the API endpoints or the Gradio web i
         api_key="not-needed"
         )
 
-    response = client.audio.speech.create(
+    with client.audio.speech.with_streaming_response.create(
         model="kokoro", 
         voice="af_sky+af_bella", #single or multiple voicepack combo
         input="Hello world!",
         response_format="mp3"
-    )
-    response.stream_to_file("output.mp3")
+    ) as response:
+        response.stream_to_file("output.mp3")
+    
     ```
 
     or visit http://localhost:7860
@@ -166,7 +183,33 @@ If you only want the API, just comment out everything in the docker-compose.yml 
 
 Currently, voices created via the API are accessible here, but voice combination/creation has not yet been added
 
-*Note: Recent updates for streaming could lead to temporary glitches. If so, pull from the most recent stable release v0.0.2 to restore*
+Running the UI Docker Service
+   - If you only want to run the Gradio web interface separately and connect it to an existing API service:
+      ```bash
+      docker run -p 7860:7860 \
+        -e API_HOST=<api-hostname-or-ip> \
+        -e API_PORT=8880 \
+        ghcr.io/remsky/kokoro-fastapi-ui:v0.1.0
+      ```
+
+     - Replace `<api-hostname-or-ip>` with:
+       - `kokoro-tts` if the UI container is running in the same Docker Compose setup.
+       - `localhost` if the API is running on your local machine.
+  
+### Disabling Local Saving
+
+You can disable local saving of audio files and hide the file view in the UI by setting the `DISABLE_LOCAL_SAVING` environment variable to `true`. This is useful when running the service on a server where you don't want to store generated audio files locally.
+
+When using Docker Compose:
+```yaml
+environment:
+  - DISABLE_LOCAL_SAVING=true
+```
+
+When running the Docker image directly:
+```bash
+docker run -p 7860:7860 -e DISABLE_LOCAL_SAVING=true ghcr.io/remsky/kokoro-fastapi-ui:latest
+```
 </details>
 
 <details>
@@ -319,6 +362,27 @@ See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
 </details>
 
 ## Known Issues
+
+<details>
+<summary>Versioning & Development</summary>
+
+I'm doing what I can to keep things stable, but we are on an early and rapid set of build cycles here.
+If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR. Will leave the branch up here for the last known stable points:
+
+`v0.0.5post1`
+
+Free and open source is a community effort, and I love working on this project, though there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
+
+  <a href="https://www.buymeacoffee.com/remsky" target="_blank">
+    <img 
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" 
+      alt="Buy Me A Coffee" 
+      style="height: 30px !important;width: 110px !important;"
+    >
+  </a>
+
+  
+</details>
 
 <details>
 <summary>Linux GPU Permissions</summary>

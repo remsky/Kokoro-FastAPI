@@ -1,21 +1,23 @@
-from typing import List, Union, AsyncGenerator
+from typing import AsyncGenerator, List, Union
 
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, Request
+from fastapi.responses import StreamingResponse
 from loguru import logger
-from fastapi import Header, Depends, Response, APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse, JSONResponse
 
 from ..services.audio import AudioService
-from ..structures.schemas import OpenAISpeechRequest
 from ..services.tts_service import TTSService
+from ..structures.schemas import OpenAISpeechRequest
 
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
     responses={404: {"description": "Not found"}},
 )
 
+
 def get_tts_service() -> TTSService:
     """Dependency to get TTSService instance with database session"""
     return TTSService()  # Initialize TTSService with default settings
+
 
 async def process_voices(
     voice_input: Union[str, List[str]], tts_service: TTSService
@@ -45,23 +47,37 @@ async def process_voices(
     # Otherwise combine voices
     return await tts_service.combine_voices(voices=voices)
 
+
 async def stream_audio_chunks(
-    tts_service: TTSService, request: OpenAISpeechRequest
+    tts_service: TTSService, 
+    request: OpenAISpeechRequest,
+    client_request: Request
 ) -> AsyncGenerator[bytes, None]:
-    """Stream audio chunks as they're generated"""
+    """Stream audio chunks as they're generated with client disconnect handling"""
     voice_to_use = await process_voices(request.voice, tts_service)
-    async for chunk in tts_service.generate_audio_stream(
-        text=request.input,
-        voice=voice_to_use,
-        speed=request.speed,
-        output_format=request.response_format,
-    ):
-        yield chunk
+    
+    try:
+        async for chunk in tts_service.generate_audio_stream(
+            text=request.input,
+            voice=voice_to_use,
+            speed=request.speed,
+            output_format=request.response_format,
+        ):
+            # Check if client is still connected
+            if await client_request.is_disconnected():
+                logger.info("Client disconnected, stopping audio generation")
+                break
+            yield chunk
+    except Exception as e:
+        logger.error(f"Error in audio streaming: {str(e)}")
+        # Let the exception propagate to trigger cleanup
+        raise
+
 
 @router.post("/audio/speech")
 async def create_speech(
     request: OpenAISpeechRequest,
-    req: Request,
+    client_request: Request,
     tts_service: TTSService = Depends(get_tts_service),
     x_raw_response: str = Header(None, alias="x-raw-response"),
 ):
@@ -80,53 +96,41 @@ async def create_speech(
             "pcm": "audio/pcm",
         }.get(request.response_format, f"audio/{request.response_format}")
 
-        try:
-            if request.stream:
-                return StreamingResponse(
-                    stream_audio_chunks(tts_service, request),
-                    media_type=content_type,
-                    headers={
-                        "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
-                        "X-Accel-Buffering": "no",  # Disable proxy buffering
-                        "Cache-Control": "no-cache",  # Prevent caching
-                        "Transfer-Encoding": "chunked",  # Enable chunked transfer encoding
-                    },
-                )
-            else:
-                audio, _ = tts_service._generate_audio(
-                    text=request.input,
-                    voice=voice_to_use,
-                    speed=request.speed,
-                    stitch_long_output=True,
-                )
+        # Check if streaming is requested (default for OpenAI client)
+        if request.stream:
+            # Stream audio chunks as they're generated
+            return StreamingResponse(
+                stream_audio_chunks(tts_service, request, client_request),
+                media_type=content_type,
+                headers={
+                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                    "X-Accel-Buffering": "no",  # Disable proxy buffering
+                    "Cache-Control": "no-cache",  # Prevent caching
+                    "Transfer-Encoding": "chunked",  # Enable chunked transfer encoding
+                },
+            )
+        else:
+            # Generate complete audio
+            audio, _ = tts_service._generate_audio(
+                text=request.input,
+                voice=voice_to_use,
+                speed=request.speed,
+                stitch_long_output=True,
+            )
 
-                content = AudioService.convert_audio(
-                    audio, 24000, request.response_format, is_first_chunk=True, stream=False
-                )
+            # Convert to requested format
+            content = AudioService.convert_audio(
+                audio, 24000, request.response_format, is_first_chunk=True, stream=False
+            )
 
-                return Response(
-                    content=content,
-                    media_type=content_type,
-                    headers={
-                        "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
-                        "Cache-Control": "no-cache",  # Prevent caching
-                    },
-                )
-
-        except Exception as e:
-            error_message = str(e).lower()
-            if "espeak not installed" in error_message or "failed to generate audio" in error_message:
-                # Mark the application as having an espeak error
-                req.app.state.espeak_error = True
-                logger.error(f"TTS service error detected: {str(e)}")
-                return JSONResponse(
-                    status_code=503,
-                    content={
-                        "error": "Speech synthesis service unavailable",
-                        "message": str(e)
-                    }
-                )
-            raise  # Re-raise other exceptions
+            return Response(
+                content=content,
+                media_type=content_type,
+                headers={
+                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                    "Cache-Control": "no-cache",  # Prevent caching
+                },
+            )
 
     except ValueError as e:
         logger.error(f"Invalid request: {str(e)}")
@@ -139,6 +143,7 @@ async def create_speech(
             status_code=500, detail={"error": "Server error", "message": str(e)}
         )
 
+
 @router.get("/audio/voices")
 async def list_voices(tts_service: TTSService = Depends(get_tts_service)):
     """List all available voices for text-to-speech"""
@@ -148,6 +153,7 @@ async def list_voices(tts_service: TTSService = Depends(get_tts_service)):
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/audio/voices/combine")
 async def combine_voices(

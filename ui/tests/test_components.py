@@ -36,8 +36,10 @@ def test_model_column_default_values():
     expected_choices = [(voice_id, voice_id) for voice_id in voice_ids]
     assert components["voice"].choices == expected_choices
     # Value is not converted to tuple format for the value property
-    assert components["voice"].value == voice_ids[0]
+    assert components["voice"].value == [voice_ids[0]]
     assert components["voice"].interactive is True
+    assert components["voice"].multiselect is True
+    assert components["voice"].label == "Voice(s)"
 
     # Test format dropdown
     # Gradio Dropdown converts choices to (value, label) tuples

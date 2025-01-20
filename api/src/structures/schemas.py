@@ -1,7 +1,7 @@
 from enum import Enum
-from typing import List, Union, Literal
+from typing import List, Literal, Union
 
-from pydantic import Field, BaseModel
+from pydantic import BaseModel, Field
 
 
 class VoiceCombineRequest(BaseModel):

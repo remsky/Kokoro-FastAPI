@@ -1,0 +1,39 @@
+name: kokoro-tts
+services:
+  kokoro-tts:
+    # image: ghcr.io/remsky/kokoro-fastapi-cpu:v0.1.0
+    build:
+      context: ../..
+      dockerfile: docker/cpu/Dockerfile
+    volumes:
+      - ../../api/src:/app/api/src
+      - ../../api/src/voices:/app/api/src/voices
+    ports:
+      - "8880:8880"
+    environment:
+      - PYTHONPATH=/app:/app/models
+      # ONNX Optimization Settings for vectorized operations
+      - ONNX_NUM_THREADS=8  # Maximize core usage for vectorized ops
+      - ONNX_INTER_OP_THREADS=4  # Higher inter-op for parallel matrix operations
+      - ONNX_EXECUTION_MODE=parallel
+      - ONNX_OPTIMIZATION_LEVEL=all
+      - ONNX_MEMORY_PATTERN=true
+      - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
+      
+  # Gradio UI service [Comment out everything below if you don't need it]
+  gradio-ui:
+    image: ghcr.io/remsky/kokoro-fastapi-ui:v0.1.0
+    # Uncomment below (and comment out above) to build from source instead of using the released image
+    build:
+      context: ../../ui
+    ports:
+      - "7860:7860"
+    volumes:
+      - ../../ui/data:/app/ui/data
+      - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
+    environment:
+      - GRADIO_WATCH=True  # Enable hot reloading
+      - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
+      - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
+      - API_HOST=kokoro-tts  # Set TTS service URL
+      - API_PORT=8880  # Set TTS service PORT

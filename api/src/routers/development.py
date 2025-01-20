@@ -1,18 +1,18 @@
 from typing import List
 
 import numpy as np
+from fastapi import APIRouter, Depends, HTTPException, Response
 from loguru import logger
-from fastapi import Depends, Response, APIRouter, HTTPException
 
 from ..services.audio import AudioService
+from ..services.text_processing import phonemize, tokenize
 from ..services.tts_model import TTSModel
 from ..services.tts_service import TTSService
 from ..structures.text_schemas import (
+    GenerateFromPhonemesRequest,
     PhonemeRequest,
     PhonemeResponse,
-    GenerateFromPhonemesRequest,
 )
-from ..services.text_processing import tokenize, phonemize
 
 router = APIRouter(tags=["text processing"])
 

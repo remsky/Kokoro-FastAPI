@@ -5,7 +5,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from api.src.services.audio import AudioService, AudioNormalizer
+from api.src.services.audio import AudioNormalizer, AudioService
 
 
 @pytest.fixture(autouse=True)
@@ -58,14 +58,14 @@ def test_convert_to_flac(sample_audio):
     assert len(result) > 0
 
 
-def test_convert_to_aac_raises_error(sample_audio):
-    """Test that converting to AAC raises an error"""
+def test_convert_to_aac(sample_audio):
+    """Test converting to AAC format"""
     audio_data, sample_rate = sample_audio
-    with pytest.raises(
-        ValueError,
-        match="Failed to convert audio to aac: Format aac not currently supported. Supported formats are: wav, mp3, opus, flac, pcm.",
-    ):
-        AudioService.convert_audio(audio_data, sample_rate, "aac")
+    result = AudioService.convert_audio(audio_data, sample_rate, "aac")
+    assert isinstance(result, bytes)
+    assert len(result) > 0
+    # AAC files typically start with an ADTS header
+    assert result.startswith(b'\xff\xf1') or result.startswith(b'\xff\xf9')
 
 
 def test_convert_to_pcm(sample_audio):

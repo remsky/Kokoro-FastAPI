@@ -20,10 +20,10 @@ def create_model_column(voice_ids: Optional[list] = None) -> Tuple[gr.Column, di
 
         voice_input = gr.Dropdown(
             choices=voice_ids,
-            label="Voice",
-            value=voice_ids[0] if voice_ids else None,  # Set default value to first item if available
+            label="Voice(s)",
+            value=voice_ids[0] if voice_ids else None,
             interactive=True,
-            allow_custom_value=True,  # Allow temporary values during updates
+            multiselect=True,
         )
         format_input = gr.Dropdown(
             choices=config.AUDIO_FORMATS, label="Audio Format", value="mp3"

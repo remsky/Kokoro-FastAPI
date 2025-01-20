@@ -4,9 +4,9 @@ from typing import List, Tuple
 import torch
 from loguru import logger
 
+from ..core.config import settings
 from .tts_model import TTSModel
 from .tts_service import TTSService
-from ..core.config import settings
 
 
 class WarmupService:

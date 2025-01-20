@@ -39,6 +39,9 @@ class TTSBaseModel(ABC):
                 cls._device = "cpu"
                 model_path = os.path.join(settings.model_dir, settings.onnx_model_path)
             logger.info(f"Initializing model on {cls._device}")
+            logger.info(f"Model dir: {settings.model_dir}")
+            logger.info(f"Model path: {model_path}")
+            logger.info(f"Files in model dir: {os.listdir(settings.model_dir)}")
 
             # Initialize model first
             model = cls.initialize(settings.model_dir, model_path=model_path)

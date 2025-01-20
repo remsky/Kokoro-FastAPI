@@ -7,8 +7,8 @@ import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 
-from .conftest import MockTTSModel
 from ..src.main import app
+from .conftest import MockTTSModel
 
 
 @pytest_asyncio.fixture

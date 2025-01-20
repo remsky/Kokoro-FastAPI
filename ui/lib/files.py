@@ -11,12 +11,14 @@ def list_input_files() -> List[str]:
 
 
 def list_output_files() -> List[str]:
-    """List all output audio files."""
-    # Just return filenames since paths will be different inside/outside container
-    return [
-        f for f in os.listdir(OUTPUTS_DIR)
+    """List all output audio files, sorted by most recent first."""
+    files = [
+        os.path.join(OUTPUTS_DIR, f)
+        for f in os.listdir(OUTPUTS_DIR)
         if any(f.endswith(ext) for ext in AUDIO_FORMATS)
     ]
+    # Sort files by modification time, most recent first
+    return sorted(files, key=os.path.getmtime, reverse=True)
 
 
 def read_text_file(filename: str) -> str:

@@ -1,6 +1,6 @@
 from .normalizer import normalize_text
 from .phonemizer import EspeakBackend, PhonemizerBackend, phonemize
-from .vocabulary import VOCAB, tokenize, decode_tokens
+from .vocabulary import VOCAB, decode_tokens, tokenize
 
 __all__ = [
     "normalize_text",

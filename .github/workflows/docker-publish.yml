@@ -1,7 +1,9 @@
-name: Docker Build and Publish
+name: Docker Build, Slim, and Publish
 
 on:
   push:
+    branches:
+      - master
     tags: [ 'v*.*.*' ]
   # Allow manual trigger from GitHub UI
   workflow_dispatch:
@@ -16,6 +18,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      actions: write
 
     steps:
       - name: Checkout repository
@@ -28,67 +31,90 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata for GPU image
-      - name: Extract metadata (tags, labels) for GPU Docker
-        id: meta-gpu
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
-            type=raw,value=latest
+      # Set up image names (converting to lowercase)
+      - name: Set image names
+        run: |
+          echo "GPU_IMAGE_NAME=${{ env.REGISTRY }}/$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')-gpu" >> $GITHUB_ENV
+          echo "CPU_IMAGE_NAME=${{ env.REGISTRY }}/$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')-cpu" >> $GITHUB_ENV
+          echo "UI_IMAGE_NAME=${{ env.REGISTRY }}/$(echo ${{ env.IMAGE_NAME }} | tr '[:upper:]' '[:lower:]')-ui" >> $GITHUB_ENV
 
-      # Extract metadata for CPU image
-      - name: Extract metadata (tags, labels) for CPU Docker
-        id: meta-cpu
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            suffix=-cpu
-          tags: |
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
-            type=raw,value=latest
-
-      # Build and push GPU version
-      - name: Build and push GPU Docker image
+      # Build GPU version
+      - name: Build GPU Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile
-          push: true
-          tags: ${{ steps.meta-gpu.outputs.tags }}
-          labels: ${{ steps.meta-gpu.outputs.labels }}
+          file: ./docker/gpu/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.GPU_IMAGE_NAME }}:v0.1.0
+          build-args: |
+            DOCKER_BUILDKIT=1
           platforms: linux/amd64
 
-      # Build and push CPU version
-      - name: Build and push CPU Docker image
+      # Slim GPU version
+      - name: Slim GPU Docker image
+        run: |
+          docker pull dslim/slim
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock dslim/slim build \
+            --target ${{ env.GPU_IMAGE_NAME }}:v0.1.0 \
+            --tag ${{ env.GPU_IMAGE_NAME }}:v0.1.0-slim \
+            --include-path=/app/models \
+            --include-path=/app/api/src/voices \
+            --include-path=/app/.venv \
+            --include-bin=/usr/local/cuda/lib64 \
+            --include-bin=/usr/lib/x86_64-linux-gnu/libcudart.so \
+            --include-bin=/usr/lib/x86_64-linux-gnu/libcuda.so \
+            --include-shell \
+            --include-exe=python3,python3.10,espeak-ng \
+            --exclude-mounts=false \
+            --http-probe=false
+
+      # Push GPU versions
+      - name: Push GPU Docker images
+        run: |
+          docker push ${{ env.GPU_IMAGE_NAME }}:v0.1.0
+          docker push ${{ env.GPU_IMAGE_NAME }}:v0.1.0-slim
+          docker tag ${{ env.GPU_IMAGE_NAME }}:v0.1.0 ${{ env.GPU_IMAGE_NAME }}:latest
+          docker tag ${{ env.GPU_IMAGE_NAME }}:v0.1.0-slim ${{ env.GPU_IMAGE_NAME }}:latest-slim
+          docker push ${{ env.GPU_IMAGE_NAME }}:latest
+          docker push ${{ env.GPU_IMAGE_NAME }}:latest-slim
+
+      # Build CPU version
+      - name: Build CPU Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./Dockerfile.cpu
-          push: true
-          tags: ${{ steps.meta-cpu.outputs.tags }}
-          labels: ${{ steps.meta-cpu.outputs.labels }}
+          file: ./docker/cpu/Dockerfile
+          push: false
+          load: true
+          tags: ${{ env.CPU_IMAGE_NAME }}:v0.1.0
+          build-args: |
+            DOCKER_BUILDKIT=1
           platforms: linux/amd64
 
-      # Extract metadata for UI image
-      - name: Extract metadata (tags, labels) for UI Docker
-        id: meta-ui
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            suffix=-ui
-          tags: |
-            type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
-            type=raw,value=latest
+      # Slim CPU version
+      - name: Slim CPU Docker image
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock dslim/slim build \
+            --target ${{ env.CPU_IMAGE_NAME }}:v0.1.0 \
+            --tag ${{ env.CPU_IMAGE_NAME }}:v0.1.0-slim \
+            --include-path=/app/models \
+            --include-path=/app/api/src/voices \
+            --include-path=/app/.venv \
+            --include-shell \
+            --include-exe=python3,python3.10,espeak-ng \
+            --exclude-mounts=false \
+            --http-probe=false
+
+      # Push CPU versions
+      - name: Push CPU Docker images
+        run: |
+          docker push ${{ env.CPU_IMAGE_NAME }}:v0.1.0
+          docker push ${{ env.CPU_IMAGE_NAME }}:v0.1.0-slim
+          docker tag ${{ env.CPU_IMAGE_NAME }}:v0.1.0 ${{ env.CPU_IMAGE_NAME }}:latest
+          docker tag ${{ env.CPU_IMAGE_NAME }}:v0.1.0-slim ${{ env.CPU_IMAGE_NAME }}:latest-slim
+          docker push ${{ env.CPU_IMAGE_NAME }}:latest
+          docker push ${{ env.CPU_IMAGE_NAME }}:latest-slim
 
       # Build and push UI version
       - name: Build and push UI Docker image
@@ -97,8 +123,11 @@ jobs:
           context: ./ui
           file: ./ui/Dockerfile
           push: true
-          tags: ${{ steps.meta-ui.outputs.tags }}
-          labels: ${{ steps.meta-ui.outputs.labels }}
+          tags: |
+            ${{ env.UI_IMAGE_NAME }}:v0.1.0
+            ${{ env.UI_IMAGE_NAME }}:latest
+          build-args: |
+            DOCKER_BUILDKIT=1
           platforms: linux/amd64
 
   create-release:
@@ -108,13 +137,16 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
+      packages: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        env:
+          IS_PRERELEASE: ${{ contains(github.ref, '-pre') }}
         with:
           generate_release_notes: true
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref, '-pre') }}
