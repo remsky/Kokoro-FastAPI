@@ -116,8 +116,8 @@ class TTSService:
             else:
                 # Process single chunk
                 phonemes, tokens = TTSModel.process_text(text, voice[0])
-                audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
-
+                chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
+                audio = stream_normalizer.normalize(chunk_audio,text,speed,True)
             processing_time = time.time() - start_time
             return audio, processing_time
 

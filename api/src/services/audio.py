@@ -23,7 +23,7 @@ class AudioNormalizer:
 
         self.samples_to_pad_start= int(50 * self.sample_rate / 1000)
         
-    def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str,speed: float, silence_threshold_db: int = -45) -> tuple[int, int]:
+    def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str,speed: float, silence_threshold_db: int = -45,is_last_chunk:bool=False) -> tuple[int, int]:
         """
         Finds the indices of the first and last non-silent samples in audio data.
         """
@@ -34,8 +34,10 @@ class AudioNormalizer:
         if split_character in settings.dynamic_gap_trim_padding_char_multiplier:
             pad_multiplier=settings.dynamic_gap_trim_padding_char_multiplier[split_character]
 
-        samples_to_pad_end= max(int((settings.dynamic_gap_trim_padding_ms * self.sample_rate * pad_multiplier) / 1000) - self.samples_to_pad_start, 0)
-
+        if not is_last_chunk:
+            samples_to_pad_end= max(int((settings.dynamic_gap_trim_padding_ms * self.sample_rate * pad_multiplier) / 1000) - self.samples_to_pad_start, 0)
+        else:
+            samples_to_pad_end=self.samples_to_pad_start
         # Convert dBFS threshold to amplitude
         amplitude_threshold = self.int16_max * (10 ** (silence_threshold_db / 20))
  
