@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 import phonemizer
 
 from .normalizer import normalize_text
-
+phonemizers = {}
 
 class PhonemizerBackend(ABC):
     """Abstract base class for phonemization backends"""
@@ -34,6 +34,7 @@ class EspeakBackend(PhonemizerBackend):
         self.backend = phonemizer.backend.EspeakBackend(
             language=language, preserve_punctuation=True, with_stress=True
         )
+
         self.language = language
 
     def phonemize(self, text: str) -> str:
@@ -91,8 +92,9 @@ def phonemize(text: str, language: str = "a", normalize: bool = True) -> str:
     Returns:
         Phonemized text
     """
+    global phonemizers
     if normalize:
         text = normalize_text(text)
-
-    phonemizer = create_phonemizer(language)
-    return phonemizer.phonemize(text)
+    if language not in phonemizers:
+        phonemizers[language]=create_phonemizer(language)
+    return phonemizers[language].phonemize(text)
