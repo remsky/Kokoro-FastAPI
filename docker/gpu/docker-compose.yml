@@ -5,8 +5,6 @@ services:
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile
-    volumes:
-      - ../../api:/app/api
     ports:
       - "8880:8880"
     environment:

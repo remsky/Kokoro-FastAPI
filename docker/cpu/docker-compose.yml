@@ -5,8 +5,7 @@ services:
     build:
       context: ../..
       dockerfile: docker/cpu/Dockerfile
-    volumes:
-      - ../../api:/app/api
+
     ports:
       - "8880:8880"
     environment:

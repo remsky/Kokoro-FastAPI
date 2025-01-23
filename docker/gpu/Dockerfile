@@ -39,6 +39,20 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
 
+# Download and extract models
+WORKDIR /app/api/src/models
+RUN curl -L -o model.tar.gz https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.0.1/kokoro-82m-pytorch.tar.gz && \
+    tar xzf model.tar.gz && \
+    rm model.tar.gz
+
+# Download and extract voice models
+WORKDIR /app/api/src/voices
+RUN curl -L -o voices.tar.gz https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.0.1/voice-models.tar.gz && \
+    tar xzf voices.tar.gz && \
+    rm voices.tar.gz
+
+WORKDIR /app
+
 # Install project with GPU extras
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --extra gpu
