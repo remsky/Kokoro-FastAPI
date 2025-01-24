@@ -2,7 +2,7 @@
 
 import gc
 from typing import Optional
-
+from typing import Union
 import numpy as np
 import torch
 from loguru import logger
@@ -43,7 +43,7 @@ def forward(
     ref_s: torch.Tensor,
     speed: float,
     stream: Optional[torch.cuda.Stream] = None
-) -> np.ndarray:
+) -> Union[np.ndarray,np.ndarray]:
     """Forward pass through model.
     
     Args:
@@ -110,8 +110,9 @@ def forward(
         # Ensure operation completion if using custom stream
         if stream:
             stream.synchronize()
-            
-        return output.squeeze().cpu().numpy()
+        output=output.squeeze().cpu().numpy()
+        pred_dur=pred_dur[0].cpu().numpy() 
+        return output,pred_dur * (len(output) / sum(pred_dur))
 
 
 def length_to_mask(lengths: torch.Tensor) -> torch.Tensor:
@@ -168,7 +169,7 @@ class PyTorchGPUBackend(BaseModelBackend):
         tokens: list[int],
         voice: torch.Tensor,
         speed: float = 1.0
-    ) -> np.ndarray:
+    ) -> Union[np.ndarray,np.ndarray]:
         """Generate audio using GPU model.
         
         Args:
@@ -177,7 +178,7 @@ class PyTorchGPUBackend(BaseModelBackend):
             speed: Speed multiplier
             
         Returns:
-            Generated audio samples
+            Generated audio samples and a array of phenome lengths (Padding phenomes are included)
             
         Raises:
             RuntimeError: If generation fails

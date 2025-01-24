@@ -175,8 +175,8 @@ class TTSService:
                         if not tokens:
                             return None
 
-                        # Generate audio
-                        chunk_audio = await self.model_manager.generate(
+                        # Generate audio and phenome duration
+                        chunk_audio,durations = await self.model_manager.generate(
                             tokens,
                             voice_tensor,
                             speed=speed

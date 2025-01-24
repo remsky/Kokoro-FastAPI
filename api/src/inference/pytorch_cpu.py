@@ -80,9 +80,9 @@ def forward(model: torch.nn.Module, tokens: list[int], ref_s: torch.Tensor, spee
 
         # Generate output
         output = model.decoder(asr, F0_pred, N_pred, s_ref)
-        result = output.squeeze().cpu().numpy()
-        
-        return result
+        output=output.squeeze().cpu().numpy()
+        pred_dur=pred_dur[0].cpu().numpy() 
+        return output,pred_dur * (len(output) / sum(pred_dur))
         
     finally:
         # Clean up largest tensors if they were created
