@@ -1,7 +1,9 @@
 """Audio conversion service"""
 
 from io import BytesIO
+from pydoc import text
 
+import math
 import numpy as np
 import scipy.io.wavfile as wavfile
 import soundfile as sf
@@ -20,22 +22,66 @@ class AudioNormalizer:
         self.sample_rate = 24000  # Sample rate of the audio
         self.samples_to_trim = int(self.chunk_trim_ms * self.sample_rate / 1000)
 
-    def normalize(
-        self, audio_data: np.ndarray, is_last_chunk: bool = False
-    ) -> np.ndarray:
-        """Convert audio data to int16 range and trim chunk boundaries"""
-        if len(audio_data) == 0:
-            raise ValueError("Audio data cannot be empty")
+        self.samples_to_pad_start= int(50 * self.sample_rate / 1000)
+        
+    def find_first_last_non_silent(self,audio_data: np.ndarray, chunk:str,speed: float, silence_threshold_db: int = -45,is_last_chunk:bool=False) -> tuple[int, int]:
+        """
+        Finds the indices of the first and last non-silent samples in audio data.
+        """
+
+
+        pad_multiplier=1
+        split_character=chunk.strip()
+        if len(split_character) > 0:
+            split_character=split_character[-1]
+            if split_character in settings.dynamic_gap_trim_padding_char_multiplier:
+                pad_multiplier=settings.dynamic_gap_trim_padding_char_multiplier[split_character]
+
+        if not is_last_chunk:
+            samples_to_pad_end= max(int((settings.dynamic_gap_trim_padding_ms * self.sample_rate * pad_multiplier) / 1000) - self.samples_to_pad_start, 0)
+        else:
+            samples_to_pad_end=self.samples_to_pad_start
+        # Convert dBFS threshold to amplitude
+        amplitude_threshold = self.int16_max * (10 ** (silence_threshold_db / 20))
+ 
+        # Find all samples above the silence threshold
+        non_silent_index_start, non_silent_index_end = None,None 
+        
+        for X in range(0,len(audio_data)):
+            if audio_data[X] > amplitude_threshold:
+                non_silent_index_start=X
+                break
             
-        # Simple float32 to int16 conversion
+        for X in range(len(audio_data) - 1, -1, -1):
+            if audio_data[X] > amplitude_threshold:
+                non_silent_index_end=X
+                break
+
+        # Handle the case where the entire audio is silent
+        if non_silent_index_start == None or non_silent_index_end == None:
+            return 0, len(audio_data)
+
+        return max(non_silent_index_start - self.samples_to_pad_start,0), min(non_silent_index_end + math.ceil(samples_to_pad_end / speed),len(audio_data))
+
+    def normalize(self, audio_data: np.ndarray, chunk:str, speed:float, is_last_chunk: bool = False) -> np.ndarray:
+        """Normalize audio data to int16 range and trim chunk boundaries"""
+        # Convert to float32 if not already
+
         audio_float = audio_data.astype(np.float32)
         
         # Trim for non-final chunks
         if not is_last_chunk and len(audio_float) > self.samples_to_trim:
+
             audio_float = audio_float[:-self.samples_to_trim]
-        
-        # Direct scaling like the non-streaming version
-        return (audio_float * 32767).astype(np.int16)
+            
+        audio_int=(audio_float * self.int16_max).astype(np.int16)
+
+        start_index,end_index=self.find_first_last_non_silent(audio_int,chunk,speed)
+
+
+        # Scale to int16 range
+        return audio_int[start_index:end_index]
+
 
 
 class AudioService:
@@ -63,11 +109,15 @@ class AudioService:
         audio_data: np.ndarray,
         sample_rate: int,
         output_format: str,
+        speed: float=1,
         is_first_chunk: bool = True,
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,
         format_settings: dict = None,
         stream: bool = True,
+
+        chunk: str = ""
+
     ) -> bytes:
         """Convert audio data to specified format
 
@@ -97,11 +147,14 @@ class AudioService:
 
         try:
             # Always normalize audio to ensure proper amplitude scaling
-            if normalizer is None:
-                normalizer = AudioNormalizer()
-            normalized_audio = normalizer.normalize(
-                audio_data, is_last_chunk=is_last_chunk
-            )
+
+            if stream:
+                if normalizer is None:
+                    normalizer = AudioNormalizer()
+                normalized_audio = normalizer.normalize(audio_data,chunk,speed, is_last_chunk=is_last_chunk)
+            else:
+                normalized_audio = audio_data
+
 
             if output_format == "pcm":
                 # Raw 16-bit PCM samples, no header

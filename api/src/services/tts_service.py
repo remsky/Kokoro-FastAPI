@@ -51,6 +51,8 @@ class TTSService:
         start_time = time.time()
 
         try:
+            stream_normalizer = AudioNormalizer()
+            
             # Normalize text once at the start
             if not text:
                 raise ValueError("Text is empty after preprocessing")
@@ -71,10 +73,10 @@ class TTSService:
             if stitch_long_output:
                 # Preprocess all chunks to phonemes/tokens
                 chunks_data = []
-                for chunk in chunker.split_text(text):
+                for index,chunk in enumerate(chunker.split_text(text)):
                     try:
                         phonemes, tokens = TTSModel.process_text(chunk, voice[0])
-                        chunks_data.append((chunk, tokens))
+                        chunks_data.append((chunk, tokens, index))
                     except Exception as e:
                         logger.error(
                             f"Failed to process chunk: '{chunk}'. Error: {str(e)}"
@@ -86,12 +88,13 @@ class TTSService:
 
                 # Generate audio for all chunks
                 audio_chunks = []
-                for chunk, tokens in chunks_data:
+                for chunk, tokens, chunk_index in chunks_data:
                     try:
                         chunk_audio = TTSModel.generate_from_tokens(
                             tokens, voicepack, speed
                         )
                         if chunk_audio is not None:
+                            chunk_audio=stream_normalizer.normalize(chunk_audio,chunk,speed,(chunk_index == len(chunks_data) - 1))
                             audio_chunks.append(chunk_audio)
                         else:
                             logger.error(f"No audio generated for chunk: '{chunk}'")
@@ -113,8 +116,8 @@ class TTSService:
             else:
                 # Process single chunk
                 phonemes, tokens = TTSModel.process_text(text, voice[0])
-                audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
-
+                chunk_audio = TTSModel.generate_from_tokens(tokens, voicepack, speed)
+                audio = stream_normalizer.normalize(chunk_audio,text,speed,True)
             processing_time = time.time() - start_time
             return audio, processing_time
 
@@ -182,9 +185,11 @@ class TTSService:
                             chunk_audio,
                             24000,
                             output_format,
+                            speed,
                             is_first_chunk=is_first,
                             normalizer=stream_normalizer,
                             is_last_chunk=(next_chunk is None),  # Last if no next chunk
+                            chunk=current_chunk,
                             stream=True  # Ensure proper streaming format handling
                         )
 
