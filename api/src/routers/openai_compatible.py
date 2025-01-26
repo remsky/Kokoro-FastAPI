@@ -2,7 +2,7 @@ import json
 import os
 from typing import AsyncGenerator, Dict, List, Union
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from loguru import logger
 
@@ -112,7 +112,17 @@ async def stream_audio_chunks(
     client_request: Request
 ) -> AsyncGenerator[bytes, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
-    voice_to_use = await process_voices(request.voice, tts_service)
+    # Check if 'request.voice' is a weighted formula (contains '*')
+    if '*' in request.voice:
+         # Weighted formula path
+        voice_to_use = await tts_service._voice_manager.create_weighted_voice(
+                formula=request.voice,
+                normalize=True
+            )
+      
+    else:
+        # Normal single or multi-voice path
+        voice_to_use = await process_voices(request.voice, tts_service)
     
     try:
         async for chunk in tts_service.generate_audio_stream(
@@ -159,10 +169,7 @@ async def create_speech(
         # Get global service instance
         tts_service = await get_tts_service()
         
-        # Process voice combination and validate
-        voice_to_use = await process_voices(request.voice, tts_service)
-
-        # Set content type based on format
+         # Set content type based on format
         content_type = {
             "mp3": "audio/mpeg",
             "opus": "audio/opus",
@@ -209,13 +216,27 @@ async def create_speech(
                 },
             )
         else:
-            # Generate complete audio using public interface
-            audio, _ = await tts_service.generate_audio(
-                text=request.input,
-                voice=voice_to_use,
-                speed=request.speed,
-                stitch_long_output=True
-            )
+                # Check if 'request.voice' is a weighted formula (contains '*')
+            if '*' in request.voice:
+                # Weighted formula path
+                print("Weighted formula path")
+                voice_to_use = await tts_service._voice_manager.create_weighted_voice(
+                    formula=request.voice,
+                    normalize=True
+                )
+                print(voice_to_use)
+            else:
+                # Normal single or multi-voice path
+                print("Normal single or multi-voice path")
+                # Otherwise, handle normal single or multi-voice logic
+                voice_to_use = await process_voices(request.voice, tts_service)
+                # Generate complete audio using public interface
+                audio, _ = await tts_service.generate_audio(
+                    text=request.input,
+                    voice=voice_to_use,
+                    speed=request.speed,
+                    stitch_long_output=True
+                )
 
             # Convert to requested format
             content = await AudioService.convert_audio(

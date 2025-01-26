@@ -31,7 +31,7 @@ def stream_to_speakers() -> None:
 
     with openai.audio.speech.with_streaming_response.create(
         model="kokoro",
-        voice="af_bella",
+        voice="0.100 * af + 0.300 * am_adam + 0.400 * am_michael + 0.100 * bf_emma + 0.100 * bm_lewis ",
         response_format="pcm",  # similar to WAV, but without a header chunk at the start.
         input="""I see skies of blue and clouds of white
                 The bright blessed days, the dark sacred nights

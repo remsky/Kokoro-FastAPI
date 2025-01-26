@@ -1,7 +1,6 @@
-name: kokoro-tts
+name: InstaVoice
 services:
-  kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.1.0
+ server1:
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile
@@ -19,23 +18,59 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
+              count: all
               capabilities: [gpu]
 
-  # # Gradio UI service
-  # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v0.1.0
-  #   # Uncomment below to build from source instead of using the released image
-  #   # build:
-  #     # context: ../../ui
-  #   ports:
-  #     - "7860:7860"
-  #   volumes:
-  #     - ../../ui/data:/app/ui/data
-  #     - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
-  #   environment:
-  #     - GRADIO_WATCH=1  # Enable hot reloading
-  #     - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
-  #     - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
-  #     - API_HOST=kokoro-tts  # Set TTS service URL
-  #     - API_PORT=8880  # Set TTS service PORT
+ server2:
+    build:
+      context: ../..
+      dockerfile: docker/gpu/Dockerfile
+    volumes:
+      - ../../api:/app/api
+    ports:
+      - "8880:8880"
+    environment:
+      - PYTHONPATH=/app:/app/api
+      - USE_GPU=true
+      - USE_ONNX=false
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+ server3:
+    build:
+      context: ../..
+      dockerfile: docker/gpu/Dockerfile
+    volumes:
+      - ../../api:/app/api
+    ports:
+      - "8880:8880"
+    environment:
+      - PYTHONPATH=/app:/app/api
+      - USE_GPU=true
+      - USE_ONNX=false
+      - PYTHONUNBUFFERED=1
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+ 
+nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80" # Expose port 80 on the host machine
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf # Load custom NGINX configuration
+    depends_on:
+      - server3
+      - server1
+      - server2

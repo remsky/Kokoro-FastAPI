@@ -182,6 +182,106 @@ class VoiceManager:
         except Exception:
             return False
 
+    async def create_weighted_voice(
+    self,
+    formula: str, 
+    normalize: bool = False,
+    device: str = "cpu",
+    ) -> str:
+        """
+        Parse the voice formula string (e.g. '0.3 * voiceA + 0.5 * voiceB')
+        and return a combined torch.Tensor representing the weighted sum
+        of the given voices.
+
+        Args:
+            formula: Weighted voice formula string.
+            voice_manager: A class that has a `load_voice(voice_name, device)` -> Tensor
+            device: 'cpu' or 'cuda' for the final tensor.
+            normalize: If True, divide the final result by the sum of the weights
+                    so the total "magnitude" remains consistent.
+
+        Returns:
+            A torch.Tensor containing the combined voice embedding.
+        """
+        pairs = self.parse_voice_formula(formula)  # [(weight, voiceName), (weight, voiceName), ...]
+        
+        # Validate the pairs
+        for weight, voice_name in pairs:
+            if weight <= 0:
+                raise ValueError(f"Invalid weight {weight} for voice {voice_name}.")
+
+        if not pairs:
+            raise ValueError("No valid weighted voices found in formula.")
+
+        # Keep track of total weight if we plan to normalize.
+        total_weight = 0.0
+        weighted_sum = None
+        combined_name = ""
+
+        for weight, voice_name in pairs:
+            # 1) Load each base voice from your manager/service
+            base_voice = await self.load_voice(voice_name, device=device)
+            
+            
+            # 3) Combine the base voices using the weights
+            if combined_name == "":
+                combined_name = voice_name
+            else:
+                combined_name += f"+{voice_name}"
+
+               
+        
+            
+            # 2) Multiply by weight and accumulate
+            if weighted_sum is None:
+                # Clone so we don't modify the base voice in memory
+                weighted_sum = base_voice.clone() * weight
+            else:
+                weighted_sum += (base_voice * weight)
+            
+            total_weight += weight
+
+        if weighted_sum is None:
+            raise ValueError("No voices were combined. Check the formula syntax.")
+
+        # Optional normalization
+        if normalize and total_weight != 0.0:
+            weighted_sum /= total_weight
+        
+        if settings.allow_local_voice_saving:
+            
+            # Save to disk
+            api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            voices_dir = os.path.join(api_dir, settings.voices_dir)
+            os.makedirs(voices_dir, exist_ok=True)
+            combined_path = os.path.join(voices_dir, f"{formula}.pt")
+            try:
+                torch.save(weighted_sum, combined_path)
+            except Exception as e:
+                logger.warning(f"Failed to save combined voice: {e}")
+                # Continue without saving - will be combined on-the-fly when needed
+
+        return combined_name
+        
+      
+    
+
+    def parse_voice_formula(self,formula: str) -> List[tuple[float, str]]:
+        """
+        Parse the voice formula string (e.g. '0.3 * voiceA + 0.5 * voiceB')
+        and return a list of (weight, voiceName) pairs.
+        Args:
+            formula: Weighted voice formula string.
+        Returns:
+            List of (weight, voiceName) pairs.
+        """
+        pairs = []
+        parts = formula.split('+')
+        for part in parts:
+            weight, voice_name = part.strip().split('*')
+            pairs.append((float(weight), voice_name.strip()))
+        return pairs
+
     @property
     def cache_info(self) -> Dict[str, int]:
         """Get cache statistics.
