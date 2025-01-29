@@ -53,9 +53,9 @@ The service can be accessed through either the API endpoints or the Gradio web i
         #   * Switch to stable branch if any issues *
         git checkout v0.0.5post1-stable
 
-        cd docker/gpu # OR 
-        # cd docker/cpu # Run this or the above
-        docker compose up --build 
+        docker compose up --build # for GPU
+        #docker compose -f docker-compose.cpu.yml up --build # for CPU
+        
         ```
         
       Once started:
