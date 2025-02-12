@@ -12,7 +12,9 @@ from ..core import paths
 from ..core.config import settings
 from ..core.model_config import model_config
 from .base import BaseModelBackend
+from misaki import espeak
 
+fallback=espeak.EspeakFallback(british=False)
 
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
