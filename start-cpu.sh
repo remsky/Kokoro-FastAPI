@@ -14,4 +14,4 @@ export WEB_PLAYER_PATH=$PROJECT_ROOT/web
 # Run FastAPI with CPU extras using uv run
 # Note: espeak may still require manual installation,
 uv pip install -e ".[cpu]"
-uv run uvicorn api.src.main:app --reload --host 0.0.0.0 --port 8880
+uv run uvicorn api.src.main:app --host 0.0.0.0 --port 8880

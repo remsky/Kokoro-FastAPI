@@ -13,4 +13,4 @@ export WEB_PLAYER_PATH=$PROJECT_ROOT/web
 
 # Run FastAPI with GPU extras using uv run
 uv pip install -e ".[gpu]"
-uv run uvicorn api.src.main:app --reload --host 0.0.0.0 --port 8880
+uv run uvicorn api.src.main:app --host 0.0.0.0 --port 8880
