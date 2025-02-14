@@ -12,8 +12,8 @@ from ..core import paths
 from ..core.config import settings
 from ..core.model_config import model_config
 from .base import BaseModelBackend
-
-
+from .base import AudioChunk
+from ..structures.schemas import WordTimestamp
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
 
@@ -181,7 +181,8 @@ class KokoroV1(BaseModelBackend):
         voice: Union[str, Tuple[str, Union[torch.Tensor, str]]],
         speed: float = 1.0,
         lang_code: Optional[str] = None,
-    ) -> AsyncGenerator[np.ndarray, None]:
+        return_timestamps: Optional[bool] = False,
+    ) -> AsyncGenerator[AudioChunk, None]:
         """Generate audio using model.
 
         Args:
@@ -249,7 +250,54 @@ class KokoroV1(BaseModelBackend):
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
-                    yield result.audio.numpy()
+                    word_timestamps=None
+                    if return_timestamps and hasattr(result, "tokens") and result.tokens:
+                        word_timestamps=[]
+                        current_offset=0.0
+                        logger.debug(
+                                    f"Processing chunk timestamps with {len(result.tokens)} tokens"
+                                )
+                        if result.pred_dur is not None:
+                            try:
+                                # Join timestamps for this chunk's tokens
+                                KPipeline.join_timestamps(
+                                    result.tokens, result.pred_dur
+                                )
+
+                                # Add timestamps with offset
+                                for token in result.tokens:
+                                    if not all(
+                                        hasattr(token, attr)
+                                        for attr in [
+                                            "text",
+                                            "start_ts",
+                                            "end_ts",
+                                        ]
+                                    ):
+                                        continue
+                                    if not token.text or not token.text.strip():
+                                        continue
+                                    
+                                    start_time = float(token.start_ts) + current_offset
+                                    end_time = float(token.end_ts) + current_offset
+                                    word_timestamps.append(
+                                        WordTimestamp(
+                                            word=str(token.text).strip(),
+                                            start_time=start_time,
+                                            end_time=end_time
+                                        )
+                                    )
+                                    logger.debug(
+                                        f"Added timestamp for word '{token.text}': {start_time:.3f}s - {end_time:.3f}s"
+                                    )
+
+                            except Exception as e:
+                                logger.error(
+                                    f"Failed to process timestamps for chunk: {e}"
+                                )
+                      
+                      
+                    yield AudioChunk(result.audio.numpy(),word_timestamps=word_timestamps)
                 else:
                     logger.warning("No audio in chunk")
 

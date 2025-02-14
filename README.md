@@ -348,7 +348,7 @@ Key Performance Metrics:
 <summary>GPU Vs. CPU</summary>
 
 ```bash
-# GPU: Requires NVIDIA GPU with CUDA 12.1 support (~35x-100x realtime speed)
+# GPU: Requires NVIDIA GPU with CUDA 12.8 support (~35x-100x realtime speed)
 cd docker/gpu
 docker compose up --build
 
@@ -373,9 +373,10 @@ The model is capable of processing up to a 510 phonemized token chunk at a time,
 <details>
 <summary>Timestamped Captions & Phonemes</summary>
 
-Generate audio with word-level timestamps:
+Generate audio with word-level timestamps without streaming:
 ```python
 import requests
+import base64
 import json
 
 response = requests.post(
@@ -385,19 +386,58 @@ response = requests.post(
         "input": "Hello world!",
         "voice": "af_bella",
         "speed": 1.0,
-        "response_format": "wav"
-    }
+        "response_format": "mp3",
+        "stream": False,
+    },
+    stream=False
 )
 
-# Get timestamps from header
-timestamps = json.loads(response.headers['X-Word-Timestamps'])
-print("Word-level timestamps:")
-for ts in timestamps:
-    print(f"{ts['word']}: {ts['start_time']:.3f}s - {ts['end_time']:.3f}s")
+with open("output.mp3","wb") as f:
 
-# Save audio
-with open("output.wav", "wb") as f:
-    f.write(response.content)
+    audio_json=json.loads(response.content)
+    
+    # Decode base 64 stream to bytes
+    chunk_audio=base64.b64decode(audio_json["audio"].encode("utf-8"))
+    
+    # Process streaming chunks
+    f.write(chunk_audio)
+    
+    # Print word level timestamps
+    print(audio_json["timestamps"])
+```
+
+Generate audio with word-level timestamps with streaming:
+```python
+import requests
+import base64
+import json
+
+response = requests.post(
+    "http://localhost:8880/dev/captioned_speech",
+    json={
+        "model": "kokoro",
+        "input": "Hello world!",
+        "voice": "af_bella",
+        "speed": 1.0,
+        "response_format": "mp3",
+        "stream": True,
+    },
+    stream=True
+)
+
+f=open("output.mp3","wb")
+for chunk in response.iter_lines(decode_unicode=True):
+    if chunk:
+        chunk_json=json.loads(chunk)
+        
+        # Decode base 64 stream to bytes
+        chunk_audio=base64.b64decode(chunk_json["audio"].encode("utf-8"))
+        
+        # Process streaming chunks
+        f.write(chunk_audio)
+        
+        # Print word level timestamps
+        print(chunk_json["timestamps"])
 ```
 </details>
 

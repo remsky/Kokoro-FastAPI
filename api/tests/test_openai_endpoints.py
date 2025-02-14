@@ -159,7 +159,7 @@ async def test_stream_audio_chunks_client_disconnect():
     )
 
     chunks = []
-    async for chunk in stream_audio_chunks(mock_service, request, mock_request):
+    async for chunk, _ in stream_audio_chunks(mock_service, request, mock_request):
         chunks.append(chunk)
 
     assert len(chunks) == 0  # Should stop immediately due to disconnect
