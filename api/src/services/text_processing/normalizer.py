@@ -7,6 +7,7 @@ Converts them into a format suitable for text-to-speech processing.
 import re
 from functools import lru_cache
 import inflect
+from numpy import number
 
 from ...structures.schemas import NormalizationOptions
 
@@ -87,6 +88,8 @@ URL_PATTERN = re.compile(
 
 UNIT_PATTERN = re.compile(r"((?<!\w)([+-]?)(\d{1,3}(,\d{3})*|\d+)(\.\d+)?)\s*(" + "|".join(sorted(list(VALID_UNITS.keys()),reverse=True)) + r"""){1}(?=[^\w\d]{1}|\b)""",re.IGNORECASE)
 
+TIME_PATTERN = re.compile(r"([0-9]{2} ?: ?[0-9]{2}( ?: ?[0-9]{2})?)( ?(pm|am)\b)?", re.IGNORECASE)
+
 INFLECT_ENGINE=inflect.engine()
 
 def split_num(num: re.Match[str]) -> str:
@@ -136,10 +139,10 @@ def handle_money(m: re.Match[str]) -> str:
     m = m.group()
     bill = "dollar" if m[0] == "$" else "pound"
     if m[-1].isalpha():
-        return f"{m[1:]} {bill}s"
+        return f"{INFLECT_ENGINE.number_to_words(m[1:])} {bill}s"
     elif "." not in m:
         s = "" if m[1:] == "1" else "s"
-        return f"{m[1:]} {bill}{s}"
+        return f"{INFLECT_ENGINE.number_to_words(m[1:])} {bill}{s}"
     b, c = m[1:].split(".")
     s = "" if b == "1" else "s"
     c = int(c.ljust(2, "0"))
@@ -148,7 +151,7 @@ def handle_money(m: re.Match[str]) -> str:
         if m[0] == "$"
         else ("penny" if c == 1 else "pence")
     )
-    return f"{b} {bill}{s} and {c} {coins}"
+    return f"{INFLECT_ENGINE.number_to_words(b)} {bill}{s} and {INFLECT_ENGINE.number_to_words(c)} {coins}"
 
 
 def handle_decimal(num: re.Match[str]) -> str:
@@ -214,6 +217,32 @@ def handle_url(u: re.Match[str]) -> str:
     # Clean up extra spaces
     return re.sub(r"\s+", " ", url).strip()
 
+def handle_phone_number(p: re.Match[str]) -> str:
+    p=list(p.groups())
+    
+    country_code=""
+    if p[0] is not None:
+        p[0]=p[0].replace("+","")
+        country_code += INFLECT_ENGINE.number_to_words(p[0])
+       
+    area_code=INFLECT_ENGINE.number_to_words(p[2].replace("(","").replace(")",""),group=1,comma="")
+    
+    telephone_prefix=INFLECT_ENGINE.number_to_words(p[3],group=1,comma="")
+    
+    line_number=INFLECT_ENGINE.number_to_words(p[4],group=1,comma="")
+    
+    return ",".join([country_code,area_code,telephone_prefix,line_number])
+
+def handle_time(t: re.Match[str]) -> str:
+    t=t.groups()
+    
+    numbers = " ".join([INFLECT_ENGINE.number_to_words(X.strip()) for X in t[0].split(":")])
+    
+    half=""
+    if t[2] is not None:
+        half=t[2].strip()
+        
+    return numbers + half
 
 def normalize_text(text: str,normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
@@ -233,6 +262,10 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     if normalization_options.optional_pluralization_normalization:
         text = re.sub(r"\(s\)","s",text)
     
+    # Replace phone numbers:
+    if normalization_options.phone_normalization:
+        text = re.sub(r"(\+?\d{1,2})?([ .-]?)(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})",handle_phone_number,text)
+    
     # Replace quotes and brackets
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
     text = text.replace("«", chr(8220)).replace("»", chr(8221))
@@ -242,6 +275,9 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     # Handle CJK punctuation and some non standard chars
     for a, b in zip("、。！，：；？–", ",.!,:;?-"):
         text = text.replace(a, b + " ")
+
+    # Handle simple time in the format of HH:MM:SS
+    text = TIME_PATTERN.sub(handle_time, text, )
 
     # Clean up whitespace
     text = re.sub(r"[^\S \n]", " ", text)
@@ -259,15 +295,16 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     text = re.sub(r"(?i)\b(y)eah?\b", r"\1e'a", text)
 
     # Handle numbers and money
-    text = re.sub(
-        r"\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)", split_num, text
-    )
-    
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    
     text = re.sub(
         r"(?i)[$£]\d+(?:\.\d+)?(?: hundred| thousand| (?:[bm]|tr)illion)*\b|[$£]\d+\.\d\d?\b",
         handle_money,
         text,
+    )
+    
+    text = re.sub(
+        r"\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)", split_num, text
     )
     
     text = re.sub(r"\d*\.\d+", handle_decimal, text)

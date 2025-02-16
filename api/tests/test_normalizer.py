@@ -88,4 +88,4 @@ def test_non_url_text():
     """Test that non-URL text is unaffected"""
     assert normalize_text("This is not.a.url text",normalization_options=NormalizationOptions()) == "This is not-a-url text"
     assert normalize_text("Hello, how are you today?",normalization_options=NormalizationOptions()) == "Hello, how are you today?"
-    assert normalize_text("It costs $50.",normalization_options=NormalizationOptions()) == "It costs 50 dollars."
+    assert normalize_text("It costs $50.",normalization_options=NormalizationOptions()) == "It costs fifty dollars."

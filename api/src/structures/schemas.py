@@ -43,6 +43,7 @@ class NormalizationOptions(BaseModel):
     url_normalization: bool = Field(default=True, description="Changes urls so they can be properly pronouced by kokoro")
     email_normalization: bool = Field(default=True, description="Changes emails so they can be properly pronouced by kokoro")
     optional_pluralization_normalization: bool = Field(default=True, description="Replaces (s) with s so some words get pronounced correctly")
+    phone_normalization: bool = Field(default=True, description="Changes phone numbers so they can be properly pronouced by kokoro")
     
 class OpenAISpeechRequest(BaseModel):
     """Request schema for OpenAI-compatible speech endpoint"""
