@@ -106,6 +106,7 @@ def get_sentence_info(text: str) -> List[Tuple[str, List[int], int]]:
 async def smart_split(
     text: str, 
     max_tokens: int = settings.absolute_max_tokens,
+    lang_code: str = "a",
     normalization_options: NormalizationOptions = NormalizationOptions()
 ) -> AsyncGenerator[Tuple[str, List[int]], None]:
     """Build optimal chunks targeting 300-400 tokens, never exceeding max_tokens."""
@@ -113,9 +114,12 @@ async def smart_split(
     chunk_count = 0
     logger.info(f"Starting smart split for {len(text)} chars")
 
-    # Normilize text
+    # Normalize text
     if settings.advanced_text_normalization and normalization_options.normalize:
-        text=normalize_text(text,normalization_options)
+        if lang_code in ["a","b","en-us","en-gb"]:
+            text=normalize_text(text,normalization_options)
+        else:
+            logger.info("Skipping text normalization as it is only supported for english")
 
     # Process all sentences
     sentences = get_sentence_info(text)

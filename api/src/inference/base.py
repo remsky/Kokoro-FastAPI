@@ -1,12 +1,34 @@
 """Base interface for Kokoro inference."""
 
 from abc import ABC, abstractmethod
-from typing import AsyncGenerator, Optional, Tuple, Union
+from typing import AsyncGenerator, Optional, Tuple, Union, List
 
 import numpy as np
 import torch
 
-
+class AudioChunk:
+    """Class for audio chunks returned by model backends"""
+    
+    def __init__(self,
+                 audio: np.ndarray,
+                 word_timestamps: Optional[List]=[],
+                 output: Optional[Union[bytes,np.ndarray]]=b""
+                 ):
+        self.audio=audio
+        self.word_timestamps=word_timestamps
+        self.output=output
+        
+    @staticmethod
+    def combine(audio_chunk_list: List):
+        output=AudioChunk(audio_chunk_list[0].audio,audio_chunk_list[0].word_timestamps)
+        
+        for audio_chunk in audio_chunk_list[1:]:
+            output.audio=np.concatenate((output.audio,audio_chunk.audio),dtype=np.int16)
+            if output.word_timestamps is not None:
+                output.word_timestamps+=audio_chunk.word_timestamps
+                
+        return output
+            
 class ModelBackend(ABC):
     """Abstract base class for model inference backend."""
 
@@ -28,7 +50,7 @@ class ModelBackend(ABC):
         text: str,
         voice: Union[str, Tuple[str, Union[torch.Tensor, str]]],
         speed: float = 1.0,
-    ) -> AsyncGenerator[np.ndarray, None]:
+    ) -> AsyncGenerator[AudioChunk, None]:
         """Generate audio from text.
 
         Args:

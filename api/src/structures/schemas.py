@@ -33,8 +33,9 @@ class WordTimestamp(BaseModel):
 class CaptionedSpeechResponse(BaseModel):
     """Response schema for captioned speech endpoint"""
 
-    audio: bytes = Field(..., description="The generated audio data")
-    words: List[WordTimestamp] = Field(..., description="Word-level timestamps")
+    audio: str = Field(..., description="The generated audio data encoded in base 64")
+    audio_format: str = Field(..., description="The format of the output audio")
+    timestamps: Optional[List[WordTimestamp]] = Field(..., description="Word-level timestamps")
 
 class NormalizationOptions(BaseModel):
     """Options for the normalization system"""
@@ -53,7 +54,7 @@ class OpenAISpeechRequest(BaseModel):
     )
     input: str = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af",
+        default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
@@ -97,7 +98,7 @@ class CaptionedSpeechRequest(BaseModel):
     )
     input: str = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af",
+        default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
@@ -110,11 +111,23 @@ class CaptionedSpeechRequest(BaseModel):
         le=4.0,
         description="The speed of the generated audio. Select a value from 0.25 to 4.0.",
     )
+    stream: bool = Field(
+        default=True,  # Default to streaming for OpenAI compatibility
+        description="If true (default), audio will be streamed as it's generated. Each chunk will be a complete sentence.",
+    )
     return_timestamps: bool = Field(
         default=True,
         description="If true (default), returns word-level timestamps in the response",
     )
+    return_download_link: bool = Field(
+        default=False,
+        description="If true, returns a download link in X-Download-Path header after streaming completes",
+    )
     lang_code: Optional[str] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
+    )
+    normalization_options: Optional[NormalizationOptions] = Field(
+        default= NormalizationOptions(),
+        description= "Options for the normalization system"
     )

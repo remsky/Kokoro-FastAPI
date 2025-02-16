@@ -56,7 +56,7 @@ def make_tts_request(
                 json={
                     "model": "kokoro",
                     "input": text,
-                    "voice": "af",
+                    "voice": "af_heart",
                     "response_format": "wav",
                     "stream": True,
                 },
@@ -77,7 +77,7 @@ def make_tts_request(
                 json={
                     "model": "kokoro",
                     "input": text,
-                    "voice": "af",
+                    "voice": "af_heart",
                     "response_format": "wav",
                     "stream": False,
                 },

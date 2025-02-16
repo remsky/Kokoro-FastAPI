@@ -23,7 +23,7 @@ def test_format(
 
     try:
         response = client.audio.speech.create(
-            model="tts-1", voice="af", input=text, response_format=format
+            model="tts-1", voice="af_heart", input=text, response_format=format
         )
 
         print("Got response, saving to file...")
@@ -43,7 +43,7 @@ def test_speed(speed: float):
     try:
         response = client.audio.speech.create(
             model="tts-1",
-            voice="af",
+            voice="af_heart",
             input="The quick brown fox jumped over the lazy dog.",
             response_format="wav",
             speed=speed,

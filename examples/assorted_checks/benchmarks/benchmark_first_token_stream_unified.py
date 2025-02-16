@@ -34,7 +34,7 @@ def measure_first_token_requests(
             json={
                 "model": "kokoro",
                 "input": text,
-                "voice": "af",
+                "voice": "af_heart",
                 "response_format": "pcm",
                 "stream": True,
             },
@@ -123,7 +123,7 @@ def measure_first_token_openai(
         # Make streaming request using OpenAI client
         with OPENAI_CLIENT.audio.speech.with_streaming_response.create(
             model="kokoro",
-            voice="af",
+            voice="af_heart",
             response_format="pcm",
             input=text,
         ) as response:

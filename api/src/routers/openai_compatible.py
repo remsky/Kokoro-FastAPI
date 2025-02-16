@@ -5,14 +5,19 @@ import json
 import os
 import re
 import tempfile
-from typing import AsyncGenerator, Dict, List, Union
+from typing import AsyncGenerator, Dict, List, Union, Tuple
+from urllib import response
+import numpy as np
 
 import aiofiles
+
+from structures.schemas import CaptionedSpeechRequest
 import torch
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
+from ..inference.base import AudioChunk
 from ..core.config import settings
 from ..services.audio import AudioService
 from ..services.tts_service import TTSService
@@ -126,21 +131,29 @@ async def process_voices(
 
 
 async def stream_audio_chunks(
-    tts_service: TTSService, request: OpenAISpeechRequest, client_request: Request
-) -> AsyncGenerator[bytes, None]:
+    tts_service: TTSService, request: Union[OpenAISpeechRequest,CaptionedSpeechRequest], client_request: Request
+) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
     voice_name = await process_voices(request.voice, tts_service)
 
+    unique_properties={
+        "return_timestamps":False
+    }
+    if hasattr(request, "return_timestamps"):
+        unique_properties["return_timestamps"]=request.return_timestamps
+    
     try:
         logger.info(f"Starting audio generation with lang_code: {request.lang_code}")
-        async for chunk in tts_service.generate_audio_stream(
+        async for chunk_data in tts_service.generate_audio_stream(
             text=request.input,
             voice=voice_name,
             speed=request.speed,
             output_format=request.response_format,
             lang_code=request.lang_code or settings.default_voice_code or voice_name[0].lower(),
-            normalization_options=request.normalization_options
+            normalization_options=request.normalization_options,
+            return_timestamps=unique_properties["return_timestamps"],
         ):
+
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
             if callable(is_disconnected):
@@ -148,7 +161,8 @@ async def stream_audio_chunks(
             if is_disconnected:
                 logger.info("Client disconnected, stopping audio generation")
                 break
-            yield chunk
+
+            yield chunk_data
     except Exception as e:
         logger.error(f"Error in audio streaming: {str(e)}")
         # Let the exception propagate to trigger cleanup
@@ -157,6 +171,7 @@ async def stream_audio_chunks(
 
 @router.post("/audio/speech")
 async def create_speech(
+    
     request: OpenAISpeechRequest,
     client_request: Request,
     x_raw_response: str = Header(None, alias="x-raw-response"),
@@ -218,10 +233,13 @@ async def create_speech(
                 async def dual_output():
                     try:
                         # Write chunks to temp file and stream
-                        async for chunk in generator:
-                            if chunk:  # Skip empty chunks
-                                await temp_writer.write(chunk)
-                                yield chunk
+                        async for chunk_data in generator:
+                            if chunk_data.output:  # Skip empty chunks
+                                await temp_writer.write(chunk_data.output)
+                                #if return_json:
+                                #    yield chunk, chunk_data
+                                #else:
+                                yield chunk_data.output
 
                         # Finalize the temp file
                         await temp_writer.finalize()
@@ -239,9 +257,19 @@ async def create_speech(
                     dual_output(), media_type=content_type, headers=headers
                 )
 
+            async def single_output():
+                try:
+                    # Stream chunks
+                    async for chunk_data in generator:
+                        if chunk_data.output:  # Skip empty chunks
+                            yield chunk_data.output
+                except Exception as e:
+                    logger.error(f"Error in single output streaming: {e}")
+                    raise
+                
             # Standard streaming without download link
             return StreamingResponse(
-                generator,
+                single_output(),
                 media_type=content_type,
                 headers={
                     "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
@@ -252,24 +280,33 @@ async def create_speech(
             )
         else:
             # Generate complete audio using public interface
-            audio, _ = await tts_service.generate_audio(
+            audio_data = await tts_service.generate_audio(
                 text=request.input,
                 voice=voice_name,
                 speed=request.speed,
+                normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
             )
 
-            # Convert to requested format with proper finalization
-            content = await AudioService.convert_audio(
-                audio,
+            audio_data = await AudioService.convert_audio(
+                audio_data,
                 24000,
                 request.response_format,
                 is_first_chunk=True,
+                is_last_chunk=False,
+            )
+            
+            # Convert to requested format with proper finalization
+            final = await AudioService.convert_audio(
+                AudioChunk(np.array([], dtype=np.int16)),
+                24000,
+                request.response_format,
+                is_first_chunk=False,
                 is_last_chunk=True,
             )
-
+            output=audio_data.output + final.output
             return Response(
-                content=content,
+                content=output,
                 media_type=content_type,
                 headers={
                     "Content-Disposition": f"attachment; filename=speech.{request.response_format}",

@@ -16,7 +16,7 @@ async def mock_model_manager():
 async def mock_voice_manager():
     """Mock voice manager for UI tests"""
     manager = AsyncMock()
-    manager.list_voices = AsyncMock(return_value=["af", "bm_lewis", "af_sarah"])
+    manager.list_voices = AsyncMock(return_value=["af_heart", "bm_lewis", "af_sarah"])
     return manager
 
 

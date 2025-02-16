@@ -1,6 +1,8 @@
 """Audio conversion service"""
 
 import struct
+import time
+from typing import Tuple
 from io import BytesIO
 
 import numpy as np
@@ -13,7 +15,7 @@ from torch import norm
 
 from ..core.config import settings
 from .streaming_audio_writer import StreamingAudioWriter
-
+from ..inference.base import AudioChunk
 
 class AudioNormalizer:
     """Handles audio normalization state for a single stream"""
@@ -55,7 +57,6 @@ class AudioNormalizer:
         non_silent_index_start, non_silent_index_end = None,None 
 
         for X in range(0,len(audio_data)):
-            #print(audio_data[X])
             if audio_data[X] > amplitude_threshold:
                 non_silent_index_start=X
                 break
@@ -71,7 +72,7 @@ class AudioNormalizer:
 
         return max(non_silent_index_start - self.samples_to_pad_start,0), min(non_silent_index_end + math.ceil(samples_to_pad_end / speed),len(audio_data))
 
-    async def normalize(self, audio_data: np.ndarray) -> np.ndarray:
+    def normalize(self, audio_data: np.ndarray) -> np.ndarray:
         """Convert audio data to int16 range
 
         Args:
@@ -79,12 +80,10 @@ class AudioNormalizer:
         Returns:
             Normalized audio data
         """
-        if len(audio_data) == 0:
-            raise ValueError("Empty audio data")
-
-        # Scale directly to int16 range with clipping
-        return np.clip(audio_data * 32767, -32768, 32767).astype(np.int16)
-
+        if audio_data.dtype != np.int16:
+            # Scale directly to int16 range with clipping
+            return np.clip(audio_data * 32767, -32768, 32767).astype(np.int16)
+        return audio_data
 
 class AudioService:
     """Service for audio format conversions with streaming support"""
@@ -113,7 +112,7 @@ class AudioService:
 
     @staticmethod
     async def convert_audio(
-        audio_data: np.ndarray,
+        audio_chunk: AudioChunk,
         sample_rate: int,
         output_format: str,
         speed: float = 1,
@@ -121,7 +120,7 @@ class AudioService:
         is_first_chunk: bool = True,
         is_last_chunk: bool = False,
         normalizer: AudioNormalizer = None,
-    ) -> bytes:
+    ) -> Tuple[AudioChunk]:
         """Convert audio data to specified format with streaming support
 
         Args:
@@ -137,6 +136,7 @@ class AudioService:
         Returns:
             Bytes of the converted audio chunk
         """
+
         try:
             # Validate format
             if output_format not in AudioService.SUPPORTED_FORMATS:
@@ -145,9 +145,9 @@ class AudioService:
             # Always normalize audio to ensure proper amplitude scaling
             if normalizer is None:
                 normalizer = AudioNormalizer()
-                
-            normalized_audio = await normalizer.normalize(audio_data)
-            normalized_audio = AudioService.trim_audio(normalized_audio,chunk_text,speed,is_last_chunk,normalizer)
+            
+            audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
+            audio_chunk = AudioService.trim_audio(audio_chunk,chunk_text,speed,is_last_chunk,normalizer)
             
             # Get or create format-specific writer
             writer_key = f"{output_format}_{sample_rate}"
@@ -156,18 +156,22 @@ class AudioService:
                     output_format, sample_rate
                 )
             writer = AudioService._writers[writer_key]
-
+            
             # Write audio data first
-            if len(normalized_audio) > 0:
-                chunk_data = writer.write_chunk(normalized_audio)
+            if len(audio_chunk.audio) > 0:
+                chunk_data = writer.write_chunk(audio_chunk.audio)
 
             # Then finalize if this is the last chunk
             if is_last_chunk:
                 final_data = writer.write_chunk(finalize=True)
                 del AudioService._writers[writer_key]
-                return final_data if final_data else b""
-
-            return chunk_data if chunk_data else b""
+                if final_data:
+                    audio_chunk.output=final_data
+                return audio_chunk
+            
+            if chunk_data:
+                    audio_chunk.output=chunk_data
+            return audio_chunk
 
         except Exception as e:
             logger.error(f"Error converting audio stream to {output_format}: {str(e)}")
@@ -175,7 +179,7 @@ class AudioService:
                 f"Failed to convert audio stream to {output_format}: {str(e)}"
             )
     @staticmethod
-    def trim_audio(audio_data: np.ndarray, chunk_text: str = "", speed: float = 1, is_last_chunk: bool = False, normalizer: AudioNormalizer = None) -> np.ndarray:
+    def trim_audio(audio_chunk: AudioChunk, chunk_text: str = "", speed: float = 1, is_last_chunk: bool = False, normalizer: AudioNormalizer = None) -> AudioChunk:
         """Trim silence from start and end
 
         Args:
@@ -191,10 +195,23 @@ class AudioService:
         if normalizer is None:
             normalizer = AudioNormalizer()
         
+        audio_chunk.audio=normalizer.normalize(audio_chunk.audio)
+        
+        trimed_samples=0
         # Trim start and end if enough samples
-        if len(audio_data) > (2 * normalizer.samples_to_trim):
-            audio_data = audio_data[normalizer.samples_to_trim : -normalizer.samples_to_trim]
+        if len(audio_chunk.audio) > (2 * normalizer.samples_to_trim):
+            audio_chunk.audio = audio_chunk.audio[normalizer.samples_to_trim : -normalizer.samples_to_trim]
+            trimed_samples+=normalizer.samples_to_trim
             
         # Find non silent portion and trim 
-        start_index,end_index=normalizer.find_first_last_non_silent(audio_data,chunk_text,speed,is_last_chunk=is_last_chunk)
-        return audio_data[start_index:end_index]
+        start_index,end_index=normalizer.find_first_last_non_silent(audio_chunk.audio,chunk_text,speed,is_last_chunk=is_last_chunk)
+        
+        audio_chunk.audio=audio_chunk.audio[start_index:end_index]
+        trimed_samples+=start_index
+        
+        if audio_chunk.word_timestamps is not None:
+            for timestamp in audio_chunk.word_timestamps:
+                timestamp.start_time-=trimed_samples / 24000
+                timestamp.end_time-=trimed_samples / 24000
+        return audio_chunk
+    

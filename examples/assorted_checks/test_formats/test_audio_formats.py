@@ -246,7 +246,7 @@ def main():
     output_dir.mkdir(exist_ok=True, parents=True)
 
     # First generate audio in each format using the API
-    voice = "af"  # Using default voice
+    voice = "af_heart"  # Using default voice
     formats = ["wav", "mp3", "opus", "flac", "pcm"]
     stats = []
 

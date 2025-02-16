@@ -2,6 +2,7 @@ import json
 from typing import Tuple, Optional, Dict, List
 from pathlib import Path
 
+import base64
 import requests
 
 # Get the directory this script is in
@@ -9,9 +10,9 @@ SCRIPT_DIR = Path(__file__).absolute().parent
 
 def generate_captioned_speech(
     text: str,
-    voice: str = "af_bella",
+    voice: str = "af_heart",
     speed: float = 1.0,
-    response_format: str = "wav"
+    response_format: str = "mp3"
 ) -> Tuple[Optional[bytes], Optional[List[Dict]]]:
     """Generate audio with word-level timestamps."""
     response = requests.post(
@@ -21,40 +22,31 @@ def generate_captioned_speech(
             "input": text,
             "voice": voice,
             "speed": speed,
-            "response_format": response_format
+            "response_format": response_format,
+            "stream": False
         }
     )
     
     print(f"Response status: {response.status_code}")
-    print(f"Response headers: {dict(response.headers)}")
     
     if response.status_code != 200:
         print(f"Error response: {response.text}")
         return None, None
         
     try:
-        # Get timestamps path from header
-        timestamps_filename = response.headers.get('X-Timestamps-Path')
-        if not timestamps_filename:
-            print("Error: No timestamps path in response headers")
-            return None, None
-
-        # Get timestamps from the path
-        timestamps_response = requests.get(f"http://localhost:8880/dev/timestamps/{timestamps_filename}")
-        if timestamps_response.status_code != 200:
-            print(f"Error getting timestamps: {timestamps_response.text}")
-            return None, None
-
-        word_timestamps = timestamps_response.json()
+        audio_json=json.loads(response.content)
+    
+        # Decode base 64 stream to bytes
+        chunk_audio=base64.b64decode(audio_json["audio"].encode("utf-8"))
         
-        # Get audio bytes from content
-        audio_bytes = response.content
-        
-        if not audio_bytes:
+        # Print word level timestamps
+        print(audio_json["timestamps"])
+
+        if not chunk_audio:
             print("Error: Empty audio content")
             return None, None
             
-        return audio_bytes, word_timestamps
+        return chunk_audio, audio_json["timestamps"]
     except json.JSONDecodeError as e:
         print(f"Error parsing timestamps: {e}")
         return None, None
