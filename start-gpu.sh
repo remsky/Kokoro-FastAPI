@@ -10,7 +10,9 @@ export PYTHONPATH=$PROJECT_ROOT:$PROJECT_ROOT/api
 export MODEL_DIR=src/models
 export VOICES_DIR=src/voices/v1_0
 export WEB_PLAYER_PATH=$PROJECT_ROOT/web
+
 export ESPEAK_DATA_PATH=/lib/x86_64-linux-gnu/espeak-ng-data
+#You can run `dpkg -L espeak-ng-data | grep /espeak-ng-data$` to get the path of your espeak-ng-data dir
 
 # Run FastAPI with GPU extras using uv run
 uv pip install -e ".[gpu]"
