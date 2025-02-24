@@ -1,6 +1,9 @@
 name: kokoro-tts-gpu
 services:
   kokoro-tts:
+    user: "${UID}:${GID}"
+    group_add:
+      - "video"
     # image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.0
     build:
       context: ../..

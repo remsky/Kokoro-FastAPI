@@ -1,7 +1,7 @@
-from collections.abc import AsyncIterable, Iterable
-
 import json
 import typing
+from collections.abc import AsyncIterable, Iterable
+
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 from starlette.concurrency import iterate_in_threadpool
