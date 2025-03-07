@@ -14,9 +14,6 @@ from .kokoro_v1 import KokoroV1
 class ModelManager:
     """Manages Kokoro V1 model loading and inference."""
 
-    # Singleton instance
-    _instance = None
-
     def __init__(self, config: Optional[ModelConfig] = None):
         """Initialize manager.
 
@@ -158,7 +155,7 @@ Model files not found! You need to download the Kokoro V1 model:
 
 
 async def get_manager(config: Optional[ModelConfig] = None) -> ModelManager:
-    """Get model manager instance.
+    """Create a new model manager instance.
 
     Args:
         config: Optional configuration override
@@ -166,6 +163,4 @@ async def get_manager(config: Optional[ModelConfig] = None) -> ModelManager:
     Returns:
         ModelManager instance
     """
-    if ModelManager._instance is None:
-        ModelManager._instance = ModelManager(config)
-    return ModelManager._instance
+    return ModelManager(config)
