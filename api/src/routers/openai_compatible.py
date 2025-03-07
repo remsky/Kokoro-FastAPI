@@ -5,7 +5,7 @@ import json
 import os
 import re
 import tempfile
-from typing import AsyncGenerator, Dict, List, Union, Tuple
+from typing import AsyncGenerator, Dict, List, Union, Tuple, Optional
 from urllib import response
 import numpy as np
 
@@ -19,6 +19,7 @@ from loguru import logger
 
 from ..inference.base import AudioChunk
 from ..core.config import settings
+from ..core.auth import verify_api_key
 from ..services.audio import AudioService
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
@@ -44,6 +45,7 @@ _openai_mappings = load_openai_mappings()
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
     responses={404: {"description": "Not found"}},
+    dependencies=[Depends(verify_api_key)],  # Apply authentication to all routes
 )
 
 # Global TTSService instance with lock
@@ -142,14 +144,25 @@ async def stream_audio_chunks(
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"]=request.return_timestamps
     
+    # Determine language code with proper fallback
+    lang_code = request.lang_code
+    if not lang_code:
+        # Use default_voice_code from settings if available
+        lang_code = settings.default_voice_code
+        # Otherwise, use first letter of voice name
+        if not lang_code and voice_name:
+            lang_code = voice_name[0].lower()
+    
+    # Log the language code being used
+    logger.info(f"Starting audio generation with lang_code: {lang_code}")
+    
     try:
-        logger.info(f"Starting audio generation with lang_code: {request.lang_code}")
         async for chunk_data in tts_service.generate_audio_stream(
             text=request.input,
             voice=voice_name,
             speed=request.speed,
             output_format=request.response_format,
-            lang_code=request.lang_code or settings.default_voice_code or voice_name[0].lower(),
+            lang_code=lang_code,
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
         ):
@@ -171,10 +184,10 @@ async def stream_audio_chunks(
 
 @router.post("/audio/speech")
 async def create_speech(
-    
     request: OpenAISpeechRequest,
     client_request: Request,
     x_raw_response: str = Header(None, alias="x-raw-response"),
+    api_key: Optional[str] = Depends(verify_api_key),
 ):
     """OpenAI-compatible endpoint for text-to-speech"""
     # Validate model before processing request
@@ -280,12 +293,25 @@ async def create_speech(
             )
         else:
             # Generate complete audio using public interface
+            
+            # Determine language code with proper fallback
+            lang_code = request.lang_code
+            if not lang_code:
+                # Use default_voice_code from settings if available
+                lang_code = settings.default_voice_code
+                # Otherwise, use first letter of voice name
+                if not lang_code and voice_name:
+                    lang_code = voice_name[0].lower()
+            
+            # Log the language code being used
+            logger.info(f"Starting audio generation with lang_code: {lang_code}")
+            
             audio_data = await tts_service.generate_audio(
                 text=request.input,
                 voice=voice_name,
                 speed=request.speed,
                 normalization_options=request.normalization_options,
-                lang_code=request.lang_code,
+                lang_code=lang_code,
             )
 
             audio_data = await AudioService.convert_audio(
@@ -351,7 +377,10 @@ async def create_speech(
 
 
 @router.get("/download/{filename}")
-async def download_audio_file(filename: str):
+async def download_audio_file(
+    filename: str,
+    api_key: Optional[str] = Depends(verify_api_key),
+):
     """Download a generated audio file from temp storage"""
     try:
         from ..core.paths import _find_file, get_content_type
@@ -387,7 +416,9 @@ async def download_audio_file(filename: str):
 
 
 @router.get("/models")
-async def list_models():
+async def list_models(
+    api_key: Optional[str] = Depends(verify_api_key),
+):
     """List all available models"""
     try:
         # Create standard model list
@@ -428,7 +459,10 @@ async def list_models():
         )
 
 @router.get("/models/{model}")
-async def retrieve_model(model: str):
+async def retrieve_model(
+    model: str,
+    api_key: Optional[str] = Depends(verify_api_key),
+):
     """Retrieve a specific model"""
     try:
         # Define available models
@@ -480,7 +514,9 @@ async def retrieve_model(model: str):
         )
 
 @router.get("/audio/voices")
-async def list_voices():
+async def list_voices(
+    api_key: Optional[str] = Depends(verify_api_key),
+):
     """List all available voices for text-to-speech"""
     try:
         tts_service = await get_tts_service()
@@ -499,7 +535,10 @@ async def list_voices():
 
 
 @router.post("/audio/voices/combine")
-async def combine_voices(request: Union[str, List[str]]):
+async def combine_voices(
+    request: Union[str, List[str]],
+    api_key: Optional[str] = Depends(verify_api_key),
+):
     """Combine multiple voices into a new voice and return the .pt file.
 
     Args:

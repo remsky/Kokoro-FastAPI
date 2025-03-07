@@ -27,7 +27,7 @@ class StreamingAudioWriter:
                 self.output_buffer = BytesIO()
                 self.container = av.open(self.output_buffer, mode="w", format=self.format)
                 self.stream = self.container.add_stream(codec_map[self.format],sample_rate=self.sample_rate,layout='mono' if self.channels == 1 else 'stereo')
-                self.stream.bit_rate = 128000
+                self.stream.bit_rate = 96000
         else:
             raise ValueError(f"Unsupported format: {format}")
 
@@ -43,34 +43,30 @@ class StreamingAudioWriter:
 
         if finalize:
             if self.format != "pcm":
-                packets = self.stream.encode(None)
-                for packet in packets:
+                # Flush encoder buffers
+                for packet in self.stream.encode(None):
                     self.container.mux(packet)
-                    
-                data=self.output_buffer.getvalue()
                 self.container.close()
+                data = self.output_buffer.getvalue()
+                self.output_buffer.seek(0)
+                self.output_buffer.truncate(0)
                 return data
+            return b""
 
         if audio_data is None or len(audio_data) == 0:
             return b""
 
         if self.format == "pcm":
-            # Write raw bytes
             return audio_data.tobytes()
         else:
             frame = av.AudioFrame.from_ndarray(audio_data.reshape(1, -1), format='s16', layout='mono' if self.channels == 1 else 'stereo')
-            frame.sample_rate=self.sample_rate
-
-            
+            frame.sample_rate = self.sample_rate
             frame.pts = self.pts
             self.pts += frame.samples
             
-            packets = self.stream.encode(frame)
-            for packet in packets:
+            for packet in self.stream.encode(frame):
                 self.container.mux(packet)
             
-            data = self.output_buffer.getvalue()
-            self.output_buffer.seek(0)
-            self.output_buffer.truncate(0)
-            return data 
+            # 仅返回空字节，保持容器开放
+            return b""
 

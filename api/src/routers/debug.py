@@ -143,6 +143,38 @@ async def get_system_info():
     }
 
 
+@router.get("/debug/config")
+async def get_config_info():
+    """Get information about the current configuration."""
+    from ..core.config import settings
+    from ..inference.kokoro_v1 import LANG_CODES
+    
+    # Get the default voice code
+    default_voice_code = settings.default_voice_code
+    if default_voice_code == "null":
+        default_voice_code = None
+    
+    # Get the first letter of the default voice
+    default_voice_first_letter = settings.default_voice[0].lower() if settings.default_voice else None
+    
+    # Determine the effective language code
+    effective_lang_code = default_voice_code or default_voice_first_letter
+    
+    # Check if the effective language code is valid
+    is_valid_lang_code = effective_lang_code in LANG_CODES if effective_lang_code else False
+    
+    return {
+        "default_voice": settings.default_voice,
+        "default_voice_code": default_voice_code,
+        "default_voice_first_letter": default_voice_first_letter,
+        "effective_lang_code": effective_lang_code,
+        "is_valid_lang_code": is_valid_lang_code,
+        "available_lang_codes": LANG_CODES,
+        "auth_enabled": settings.enable_auth,
+        "api_keys_configured": len(settings.api_keys) > 0 if settings.api_keys else False,
+    }
+
+
 @router.get("/debug/session_pools")
 async def get_session_pool_info():
     """Get information about ONNX session pools."""

@@ -124,6 +124,47 @@ with client.audio.speech.with_streaming_response.create(
   <img src="assets/webui-screenshot.png" width="42%" alt="Web UI Screenshot" style="border: 2px solid #333; padding: 10px;">
 </div>
 
+<details>
+<summary>API Authentication</summary>
+
+The API supports OpenAI-compatible API key authentication. This feature is disabled by default but can be enabled through environment variables.
+
+To enable authentication:
+
+1. Create a `.env` file in the project root (or copy from `.env.example`)
+2. Set the following variables:
+   ```
+   ENABLE_AUTH=True
+   API_KEYS=["sk-kokoro-your-api-key-1", "sk-kokoro-your-api-key-2"]
+   ```
+
+When authentication is enabled, all OpenAI-compatible endpoints will require an API key to be provided in the `Authorization` header. The API supports both `Bearer sk-kokoro-xxx` and `sk-kokoro-xxx` formats.
+
+Example usage with authentication:
+```bash
+# Using curl
+curl -X POST "http://localhost:8880/v1/audio/speech" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer sk-kokoro-your-api-key" \
+  -d '{"model":"kokoro", "input":"Hello world", "voice":"af_heart"}'
+
+# Using Python with OpenAI client
+from openai import OpenAI
+
+client = OpenAI(
+    api_key="sk-kokoro-your-api-key",
+    base_url="http://localhost:8880/v1"
+)
+
+response = client.audio.speech.create(
+    model="kokoro",
+    voice="af_heart",
+    input="Hello world"
+)
+```
+
+</details>
+
 </details>
 
 
