@@ -23,9 +23,14 @@ class AudioChunk:
         output=AudioChunk(audio_chunk_list[0].audio,audio_chunk_list[0].word_timestamps)
         
         for audio_chunk in audio_chunk_list[1:]:
-            output.audio=np.concatenate((output.audio,audio_chunk.audio),dtype=np.int16)
+            output.audio=np.concatenate((output.audio, audio_chunk.audio))
             if output.word_timestamps is not None:
                 output.word_timestamps+=audio_chunk.word_timestamps
+        
+        # 从float32转换为int16，使用音频的方式
+        if output.audio.dtype == np.float32:
+            output.audio = (output.audio * 32767).astype(np.int16)
+
                 
         return output
             
