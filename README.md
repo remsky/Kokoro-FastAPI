@@ -63,6 +63,11 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.2  #NV
         # or cd docker/cpu  # For CPU support
         docker compose up --build
 
+        # *Note for Apple Silicon (M1/M2) users:
+        # The current GPU build relies on CUDA, which is not supported on Apple Silicon.  
+        # If you are on an M1/M2/M3 Mac, please use the `docker/cpu` setup.  
+        # MPS (Apple’s GPU acceleration) support is planned but not yet available.
+
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
 
