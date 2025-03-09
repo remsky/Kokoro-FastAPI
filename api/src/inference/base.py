@@ -27,7 +27,7 @@ class AudioChunk:
             if output.word_timestamps is not None:
                 output.word_timestamps+=audio_chunk.word_timestamps
         
-        # 从float32转换为int16，使用音频的方式
+        # Convert audio data from float32 to int16 format.
         if output.audio.dtype == np.float32:
             output.audio = (output.audio * 32767).astype(np.int16)
 

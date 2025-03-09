@@ -145,7 +145,7 @@ Example usage with authentication:
 # Using curl
 curl -X POST "http://localhost:8880/v1/audio/speech" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-kokoro-your-api-key" \
+  -H "Authorization: Bearer sk-kokoro-your-api-key-1" \
   -d '{"model":"kokoro", "input":"Hello world", "voice":"af_heart"}'
 
 # Using Python with OpenAI client

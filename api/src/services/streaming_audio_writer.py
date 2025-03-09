@@ -67,6 +67,6 @@ class StreamingAudioWriter:
             for packet in self.stream.encode(frame):
                 self.container.mux(packet)
             
-            # 仅返回空字节，保持容器开放
+            # Only return a null byte and keep the container running.
             return b""
 
