@@ -47,7 +47,7 @@ setup_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for model initialization"""
-    from .inference.model_manager import get_manager
+    from .inference.instance_pool import InstancePool
     from .inference.voice_manager import get_manager as get_voice_manager
     from .services.temp_manager import cleanup_temp_files
 
@@ -57,14 +57,17 @@ async def lifespan(app: FastAPI):
     logger.info("Loading TTS model and voice packs...")
 
     try:
-        # Initialize managers
-        model_manager = await get_manager()
+        # Initialize voice manager
         voice_manager = await get_voice_manager()
-
-        # Initialize model with warmup and get status
-        device, model, voicepack_count = await model_manager.initialize_with_warmup(
-            voice_manager
-        )
+        
+        # Initialize instance pool
+        instance_pool = await InstancePool.get_instance()
+        
+        # Get first instance for status info
+        first_instance = instance_pool.instances[0]
+        device = f"cuda:{first_instance.device_id}"
+        model = first_instance.manager.current_backend
+        instance_count = len(instance_pool.instances)
 
     except Exception as e:
         logger.error(f"Failed to initialize model: {e}")
@@ -85,8 +88,14 @@ async def lifespan(app: FastAPI):
 {boundary}
                 """
     startup_msg += f"\nModel warmed up on {device}: {model}"
-    startup_msg += f"CUDA: {torch.cuda.is_available()}"
-    startup_msg += f"\n{voicepack_count} voice packs loaded"
+    startup_msg += f"\nCUDA: {torch.cuda.is_available()}"
+    startup_msg += f"\nRunning {instance_count} instances on GPU {settings.gpu_device}"
+    startup_msg += f"\nMax concurrent requests: {settings.max_concurrent}"
+    startup_msg += f"\nRequest queue size: {settings.request_queue_size}"
+    
+    # Add language code info
+    lang_code_info = settings.default_voice_code or f"auto (from voice name: {settings.default_voice[0].lower()})"
+    startup_msg += f"\nDefault language code: {lang_code_info}"
 
     # Add web player info if enabled
     if settings.enable_web_player:
@@ -140,7 +149,14 @@ async def health_check():
 @app.get("/v1/test")
 async def test_endpoint():
     """Test endpoint to verify routing"""
-    return {"status": "ok"}
+    from .core.config import settings
+    
+    # Include authentication status in response
+    return {
+        "status": "ok",
+        "auth_enabled": settings.enable_auth,
+        "api_keys_configured": len(settings.api_keys) > 0 if settings.api_keys else False
+    }
 
 
 if __name__ == "__main__":

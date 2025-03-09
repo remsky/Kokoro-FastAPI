@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from typing import Optional, List, Dict, Union
 
 
 class Settings(BaseSettings):
@@ -9,11 +10,22 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8880
 
+    # GPU and Concurrency Settings
+    gpu_device: int = 0  # The GPU device ID to use
+    instances_per_gpu: int = 4  # Number of instances to run on each GPU
+    max_concurrent: int = instances_per_gpu  # Maximum number of concurrent model instances
+    request_queue_size: int = 100  # Maximum size of request queue
+    request_timeout: int = 30  # Request timeout in seconds
+
+    # Authentication Settings
+    enable_auth: bool = False  # Whether to enable API key authentication
+    api_keys: list[str] = []  # List of valid API keys
+
     # Application Settings
     output_dir: str = "output"
     output_dir_size_limit_mb: float = 500.0  # Maximum size of output directory in MB
     default_voice: str = "af_heart"
-    default_voice_code: str | None = None  # If set, overrides the first letter of voice name, though api call param still takes precedence
+    default_voice_code: Optional[str] = None  # If set, overrides the first letter of voice name, though api call param still takes precedence
     use_gpu: bool = True  # Whether to use GPU acceleration if available
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
@@ -49,6 +61,12 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
+    def model_post_init(self, __context):
+        """Post-initialization processing to handle special values"""
+        # Convert string "null" to None for default_voice_code
+        if self.default_voice_code == "null":
+            self.default_voice_code = None
 
 
 settings = Settings()
