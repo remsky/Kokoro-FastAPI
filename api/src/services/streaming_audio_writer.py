@@ -64,9 +64,14 @@ class StreamingAudioWriter:
             frame.pts = self.pts
             self.pts += frame.samples
             
+            encoded_data = b""
             for packet in self.stream.encode(frame):
                 self.container.mux(packet)
+                # Get the encoded data from the buffer
+                encoded_data = self.output_buffer.getvalue()
+                # Clear the buffer for next write
+                self.output_buffer.seek(0)
+                self.output_buffer.truncate(0)
             
-            # Only return a null byte and keep the container running.
-            return b""
+            return encoded_data
 

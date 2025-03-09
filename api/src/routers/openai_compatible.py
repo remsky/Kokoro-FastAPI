@@ -166,7 +166,6 @@ async def stream_audio_chunks(
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
         ):
-
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
             if callable(is_disconnected):
@@ -174,7 +173,7 @@ async def stream_audio_chunks(
             if is_disconnected:
                 logger.info("Client disconnected, stopping audio generation")
                 break
-
+            
             yield chunk_data
     except Exception as e:
         logger.error(f"Error in audio streaming: {str(e)}")
@@ -273,9 +272,21 @@ async def create_speech(
             async def single_output():
                 try:
                     # Stream chunks
+                    is_first_chunk=True
                     async for chunk_data in generator:
-                        if chunk_data.output:  # Skip empty chunks
-                            yield chunk_data.output
+                        if chunk_data.audio is not None and len(chunk_data.audio) > 0:  # Skip empty chunks
+                            # Convert to requested format with proper encoding
+                            encoded_chunk = await AudioService.convert_audio(
+                                chunk_data,
+                                24000,
+                                request.response_format,
+                                is_first_chunk=is_first_chunk,
+                                is_last_chunk=False,
+                                trim_audio=False
+                            )
+                            if encoded_chunk.output:
+                                yield encoded_chunk.output
+                            is_first_chunk=False
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
                     raise
