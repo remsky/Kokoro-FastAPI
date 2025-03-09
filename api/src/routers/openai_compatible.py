@@ -144,25 +144,13 @@ async def stream_audio_chunks(
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"]=request.return_timestamps
     
-    # Determine language code with proper fallback
-    lang_code = request.lang_code
-    if not lang_code:
-        # Use default_voice_code from settings if available
-        lang_code = settings.default_voice_code
-        # Otherwise, use first letter of voice name
-        if not lang_code and voice_name:
-            lang_code = voice_name[0].lower()
-    
-    # Log the language code being used
-    logger.info(f"Starting audio generation with lang_code: {lang_code}")
-    
     try:
         async for chunk_data in tts_service.generate_audio_stream(
             text=request.input,
             voice=voice_name,
             speed=request.speed,
             output_format=request.response_format,
-            lang_code=lang_code,
+            lang_code=request.lang_code,
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
         ):
@@ -214,6 +202,17 @@ async def create_speech(
             "wav": "audio/wav",
             "pcm": "audio/pcm",
         }.get(request.response_format, f"audio/{request.response_format}")
+
+        # Determine language code with proper fallback
+        if not request.lang_code:
+            # Use default_voice_code from settings if available
+            request.lang_code = settings.default_voice_code
+            # Otherwise, use first letter of voice name
+            if not request.lang_code and voice_name:
+                request.lang_code = voice_name[0].lower()
+
+        # Log the language code being used
+        logger.info(f"Starting audio generation with lang_code: {request.lang_code}")
 
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
@@ -304,25 +303,14 @@ async def create_speech(
             )
         else:
             # Generate complete audio using public interface
-            
-            # Determine language code with proper fallback
-            lang_code = request.lang_code
-            if not lang_code:
-                # Use default_voice_code from settings if available
-                lang_code = settings.default_voice_code
-                # Otherwise, use first letter of voice name
-                if not lang_code and voice_name:
-                    lang_code = voice_name[0].lower()
-            
-            # Log the language code being used
-            logger.info(f"Starting audio generation with lang_code: {lang_code}")
+
             
             audio_data = await tts_service.generate_audio(
                 text=request.input,
                 voice=voice_name,
                 speed=request.speed,
                 normalization_options=request.normalization_options,
-                lang_code=lang_code,
+                lang_code=request.lang_code,
             )
 
             audio_data = await AudioService.convert_audio(
