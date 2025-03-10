@@ -21,7 +21,7 @@ class KokoroV1(BaseModelBackend):
         """Initialize backend with environment-based configuration."""
         super().__init__()
         # Strictly respect settings.use_gpu
-        self._device = "cuda" if settings.use_gpu else "cpu"
+        self._device = settings.get_device()
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
 
@@ -48,9 +48,14 @@ class KokoroV1(BaseModelBackend):
 
             # Load model and let KModel handle device mapping
             self._model = KModel(config=config_path, model=model_path).eval()
-            # Move to CUDA if needed
-            if self._device == "cuda":
+            # For MPS, manually move ISTFT layers to CPU while keeping rest on MPS
+            if self._device == "mps":
+                logger.info("Moving model to MPS device with CPU fallback for unsupported operations")
+                self._model = self._model.to(torch.device("mps"))
+            elif self._device == "cuda":
                 self._model = self._model.cuda()
+            else:
+                self._model = self._model.cpu()
 
         except FileNotFoundError as e:
             raise e
@@ -277,7 +282,7 @@ class KokoroV1(BaseModelBackend):
                                         continue
                                     if not token.text or not token.text.strip():
                                         continue
-                                    
+
                                     start_time = float(token.start_ts) + current_offset
                                     end_time = float(token.end_ts) + current_offset
                                     word_timestamps.append(
@@ -295,8 +300,8 @@ class KokoroV1(BaseModelBackend):
                                 logger.error(
                                     f"Failed to process timestamps for chunk: {e}"
                                 )
-                      
-                      
+
+
                     yield AudioChunk(result.audio.numpy(),word_timestamps=word_timestamps)
                 else:
                     logger.warning("No audio in chunk")
@@ -318,6 +323,7 @@ class KokoroV1(BaseModelBackend):
         if self._device == "cuda":
             memory_gb = torch.cuda.memory_allocated() / 1e9
             return memory_gb > model_config.pytorch_gpu.memory_threshold
+        # MPS doesn't provide memory management APIs
         return False
 
     def _clear_memory(self) -> None:
@@ -325,6 +331,10 @@ class KokoroV1(BaseModelBackend):
         if self._device == "cuda":
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+        elif self._device == "mps":
+            # Empty cache if available (future-proofing)
+            if hasattr(torch.mps, 'empty_cache'):
+                torch.mps.empty_cache()
 
     def unload(self) -> None:
         """Unload model and free resources."""
