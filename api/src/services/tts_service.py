@@ -4,7 +4,7 @@ import asyncio
 import os
 import tempfile
 import time
-from typing import AsyncGenerator, List, Optional, Tuple, Union
+from typing import AsyncGenerator, List, Optional, Tuple, Union, Dict
 
 from ..inference.base import AudioChunk
 import numpy as np
@@ -20,6 +20,8 @@ from .audio import AudioNormalizer, AudioService
 from .text_processing import tokenize
 from .text_processing.text_processor import process_text_chunk, smart_split
 from ..structures.schemas import NormalizationOptions
+from ..core import paths
+from ..inference.instance_pool import InstancePool
 
 class TTSService:
     """Text-to-speech service."""
@@ -27,19 +29,29 @@ class TTSService:
     # Limit concurrent chunk processing
     _chunk_semaphore = asyncio.Semaphore(4)
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self):
         """Initialize service."""
-        self.output_dir = output_dir
         self.model_manager = None
-        self._voice_manager = None
+        self.voice_manager = None
+        self.instance_pool = None
 
     @classmethod
-    async def create(cls, output_dir: str = None) -> "TTSService":
+    async def create(cls) -> "TTSService":
         """Create and initialize TTSService instance."""
-        service = cls(output_dir)
-        service.model_manager = await get_model_manager()
-        service._voice_manager = await get_voice_manager()
+        service = cls()
+        await service.initialize()
         return service
+
+    async def initialize(self) -> None:
+        """Initialize service components."""
+        # Initialize model manager
+        self.model_manager = await get_model_manager()
+        
+        # Initialize voice manager
+        self.voice_manager = await get_voice_manager()
+        
+        # Initialize instance pool
+        self.instance_pool = await InstancePool.get_instance()
 
     async def _process_chunk(
         self,
@@ -122,7 +134,7 @@ class TTSService:
                 else:
 
                     # For legacy backends, load voice tensor
-                    voice_tensor = await self._voice_manager.load_voice(
+                    voice_tensor = await self.voice_manager.load_voice(
                         voice_name, device=backend.device
                     )
                     chunk_data = await self.model_manager.generate(
@@ -205,7 +217,7 @@ class TTSService:
                 # Load and combine voices
                 voice_tensors = []
                 for v, w in zip(voice_parts, weights):
-                    path = await self._voice_manager.get_voice_path(v)
+                    path = await self.voice_manager.get_voice_path(v)
                     if not path:
                         raise RuntimeError(f"Voice not found: {v}")
                     logger.debug(f"Loading voice tensor from: {path}")
@@ -229,7 +241,7 @@ class TTSService:
                 # Single voice
                 if "(" in voice and ")" in voice:
                     voice = voice.split("(")[0].strip()
-                path = await self._voice_manager.get_voice_path(voice)
+                path = await self.voice_manager.get_voice_path(voice)
                 if not path:
                     raise RuntimeError(f"Voice not found: {voice}")
                 logger.debug(f"Using single voice path: {path}")
@@ -243,20 +255,27 @@ class TTSService:
         text: str,
         voice: str,
         speed: float = 1.0,
-        output_format: str = "wav",
+        output_format: str = "mp3",
         lang_code: Optional[str] = None,
-        normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
-        return_timestamps: Optional[bool] = False,
+        normalization_options: Optional[Dict] = None,
+        return_timestamps: bool = False,
     ) -> AsyncGenerator[AudioChunk, None]:
-        """Generate and stream audio chunks."""
-        stream_normalizer = AudioNormalizer()
-        chunk_index = 0
-        current_offset=0.0
-        try:
-            # Get backend
-            backend = self.model_manager.get_backend()
+        """Generate audio stream from text.
 
-            # Get voice path, handling combined voices
+        Args:
+            text: Input text
+            voice: Voice name
+            speed: Speech speed multiplier
+            output_format: Output audio format
+            lang_code: Language code for text processing
+            normalization_options: Text normalization options
+            return_timestamps: Whether to return timestamps
+
+        Yields:
+            Audio chunks
+        """
+        try:
+            # Get voice path
             voice_name, voice_path = await self._get_voice_path(voice)
             logger.debug(f"Using voice path: {voice_path}")
 
@@ -266,70 +285,16 @@ class TTSService:
                 f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
             )
             
+            # Process request through instance pool
+            chunks = await self.instance_pool.process_request(text, (voice_name, voice_path), speed)
             
-            # Process text in chunks with smart splitting
-            async for chunk_text, tokens in smart_split(text,lang_code=lang_code,normalization_options=normalization_options):
-                try:
-                    # Process audio for chunk
-                    async for chunk_data in self._process_chunk(
-                        chunk_text,  # Pass text for Kokoro V1
-                        tokens,  # Pass tokens for legacy backends
-                        voice_name,  # Pass voice name
-                        voice_path,  # Pass voice path
-                        speed,
-                        output_format,
-                        is_first=(chunk_index == 0),
-                        is_last=False,  # We'll update the last chunk later
-                        normalizer=stream_normalizer,
-                        lang_code=pipeline_lang_code,  # Pass lang_code
-                        return_timestamps=return_timestamps,
-                    ):
-                        if chunk_data.word_timestamps is not None:
-                            for timestamp in chunk_data.word_timestamps:
-                                timestamp.start_time+=current_offset
-                                timestamp.end_time+=current_offset
-                        
-                        current_offset+=len(chunk_data.audio) / 24000
-                        
-                        if chunk_data.output is not None:
-                            yield chunk_data
-                            
-                        else:
-                            logger.warning(
-                                f"No audio generated for chunk: '{chunk_text[:100]}...'"
-                            )
-                        chunk_index += 1
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
-                    )
-                    continue
-
-            # Only finalize if we successfully processed at least one chunk
-            if chunk_index > 0:
-                try:
-                    # Empty tokens list to finalize audio
-                    async for chunk_data in self._process_chunk(
-                        "",  # Empty text
-                        [],  # Empty tokens
-                        voice_name,
-                        voice_path,
-                        speed,
-                        output_format,
-                        is_first=False,
-                        is_last=True,  # Signal this is the last chunk
-                        normalizer=stream_normalizer,
-                        lang_code=pipeline_lang_code,  # Pass lang_code
-                    ):
-                        if chunk_data.output is not None:
-                            yield chunk_data
-                except Exception as e:
-                    logger.error(f"Failed to finalize audio stream: {str(e)}")
+            # Yield chunks
+            for chunk in chunks:
+                yield chunk
 
         except Exception as e:
-            logger.error(f"Error in phoneme audio generation: {str(e)}")
-            raise e
-        
+            logger.error(f"Error generating audio: {e}")
+            raise
 
     async def generate_audio(
         self,
@@ -362,11 +327,11 @@ class TTSService:
         Returns:
             Combined voice tensor
         """
-        return await self._voice_manager.combine_voices(voices)
+        return await self.voice_manager.combine_voices(voices)
 
     async def list_voices(self) -> List[str]:
         """List available voices."""
-        return await self._voice_manager.list_voices()
+        return await paths.list_voices()
 
     async def generate_from_phonemes(
         self,
