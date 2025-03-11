@@ -286,7 +286,7 @@ class TTSService:
             )
             
             # Process request through instance pool
-            chunks = await self.instance_pool.process_request(text, (voice_name, voice_path))
+            chunks = await self.instance_pool.process_request(text, (voice_name, voice_path), speed)
             
             # Yield chunks
             for chunk in chunks:

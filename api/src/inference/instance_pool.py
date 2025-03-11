@@ -107,6 +107,7 @@ class InstancePool:
                 # Get request from queue
                 request = await self.request_queue.get()
                 text, voice_info = request["text"], request["voice_info"]
+                speed = request.get("speed", 1.0)  # Get speed with default 1.0
                 future = request["future"]
                 
                 # Get available instance
@@ -124,7 +125,7 @@ class InstancePool:
                 try:
                     # Process request
                     result = []
-                    async for chunk in instance.manager.generate(text, voice_info):
+                    async for chunk in instance.manager.generate(text, voice_info, speed=speed):
                         result.append(chunk)
                     future.set_result(result)
                 except Exception as e:
@@ -140,7 +141,7 @@ class InstancePool:
                 logger.error(f"Error processing request: {e}")
                 await asyncio.sleep(1)
     
-    async def process_request(self, text: str, voice_info: tuple) -> List[Any]:
+    async def process_request(self, text: str, voice_info: tuple, speed: float = 1.0) -> List[Any]:
         """Submit request to queue and wait for result."""
         # Create future to get result
         future = asyncio.Future()
@@ -149,6 +150,7 @@ class InstancePool:
         request = {
             "text": text,
             "voice_info": voice_info,
+            "speed": speed,
             "future": future
         }
         
