@@ -85,7 +85,12 @@ async def lifespan(app: FastAPI):
 {boundary}
                 """
     startup_msg += f"\nModel warmed up on {device}: {model}"
-    startup_msg += f"CUDA: {torch.cuda.is_available()}"
+    if device == "mps":
+        startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
+    elif device == "cuda":
+        startup_msg += f"\nCUDA: {torch.cuda.is_available()}"
+    else:
+        startup_msg += "\nRunning on CPU"
     startup_msg += f"\n{voicepack_count} voice packs loaded"
 
     # Add web player info if enabled

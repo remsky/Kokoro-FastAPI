@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+import torch
 
 
 class Settings(BaseSettings):
@@ -15,6 +16,7 @@ class Settings(BaseSettings):
     default_voice: str = "af_heart"
     default_voice_code: str | None = None  # If set, overrides the first letter of voice name, though api call param still takes precedence
     use_gpu: bool = True  # Whether to use GPU acceleration if available
+    device_type: str | None = None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
@@ -50,6 +52,22 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
+    def get_device(self) -> str:
+        """Get the appropriate device based on settings and availability"""
+        if not self.use_gpu:
+            return "cpu"
+
+        if self.device_type:
+            return self.device_type
+
+        # Auto-detect device
+        if torch.backends.mps.is_available():
+            return "mps"
+        elif torch.cuda.is_available():
+            return "cuda"
+        return "cpu"
+
 
 
 settings = Settings()
