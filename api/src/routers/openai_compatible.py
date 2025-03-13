@@ -282,6 +282,11 @@ async def create_speech(
                 },
             )
         else:
+            headers = {
+                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
+                    "Cache-Control": "no-cache",  # Prevent caching
+                }
+
             # Generate complete audio using public interface
             audio_data = await tts_service.generate_audio(
                 text=request.input,
@@ -309,13 +314,38 @@ async def create_speech(
                 is_last_chunk=True,
             )
             output=audio_data.output + final.output
+
+            if request.return_download_link:
+                from ..services.temp_manager import TempFileWriter
+                # Use download_format if specified, otherwise use response_format
+                output_format = request.download_format or request.response_format
+                temp_writer = TempFileWriter(output_format)
+                await temp_writer.__aenter__()  # Initialize temp file
+
+                # Get download path immediately after temp file creation
+                download_path = temp_writer.download_path
+                headers["X-Download-Path"] = download_path
+
+                try:
+                    # Write chunks to temp file
+                    logger.info("Writing chunks to tempory file for download")
+                    await temp_writer.write(output)
+                    # Finalize the temp file
+                    await temp_writer.finalize()
+
+                except Exception as e:
+                    logger.error(f"Error in dual output: {e}")
+                    await temp_writer.__aexit__(type(e), e, e.__traceback__)
+                    raise
+                finally:
+                    # Ensure temp writer is closed
+                    if not temp_writer._finalized:
+                        await temp_writer.__aexit__(None, None, None)
+
             return Response(
                 content=output,
                 media_type=content_type,
-                headers={
-                    "Content-Disposition": f"attachment; filename=speech.{request.response_format}",
-                    "Cache-Control": "no-cache",  # Prevent caching
-                },
+                headers=headers,
             )
 
     except ValueError as e:
