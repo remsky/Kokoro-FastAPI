@@ -91,9 +91,17 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.2  #NV
         Run the [model download script](https://github.com/remsky/Kokoro-FastAPI/blob/master/docker/scripts/download_model.py) if you haven't already
      
         Start directly via UV (with hot-reload)
+        
+        Linux and macOS
         ```bash
         ./start-cpu.sh OR
         ./start-gpu.sh 
+        ```
+
+        Windows
+        ```powershell
+        .\start-cpu.ps1 OR
+        .\start-gpu.ps1 
         ```
 
 </details>
