@@ -47,7 +47,7 @@ class KokoroV1(BaseModelBackend):
             logger.info(f"Model path: {model_path}")
 
             # Load model and let KModel handle device mapping
-            self._model = KModel(config=config_path, model=model_path).eval()
+            self._model = KModel(config=config_path, model=model_path, repo_id=settings.repo_id).eval()
             # Move to CUDA if needed
             if self._device == "cuda":
                 self._model = self._model.cuda()
@@ -56,6 +56,9 @@ class KokoroV1(BaseModelBackend):
             raise e
         except Exception as e:
             raise RuntimeError(f"Failed to load Kokoro model: {e}")
+
+    def en_callable(self, text):
+        return next(self._pipelines['a'](text)).phonemes
 
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create pipeline for language code.
@@ -69,10 +72,19 @@ class KokoroV1(BaseModelBackend):
         if not self._model:
             raise RuntimeError("Model not loaded")
 
+        # When Chinese is mixed with English, it should be done like this.
+        if 'a' not in self._pipelines and lang_code == 'z':
+            lang_en = 'a'
+            logger.info(f"Creating new pipeline for language code: {lang_en}")
+            self._pipelines[lang_en] = KPipeline(
+                lang_code=lang_en, model=False, repo_id=settings.repo_id
+            )
+
         if lang_code not in self._pipelines:
             logger.info(f"Creating new pipeline for language code: {lang_code}")
             self._pipelines[lang_code] = KPipeline(
-                lang_code=lang_code, model=self._model, device=self._device
+                lang_code=lang_code, model=self._model, device=self._device, repo_id=settings.repo_id,
+                en_callable=self.en_callable
             )
         return self._pipelines[lang_code]
 
