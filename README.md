@@ -516,7 +516,36 @@ Monitor system state and resource usage with these endpoints:
 Useful for debugging resource exhaustion or performance issues.
 </details>
 
-## Known Issues
+## Known Issues & Troubleshooting
+
+<details>
+<summary>Missing words & Missing some timestamps</summary>
+
+The api will automaticly do text normalization on input text which may incorrectly remove or change some phrases. This can be disabled by adding `"normalization_options":{"normalize": false}` to your request json:
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8880/v1/audio/speech",
+    json={
+        "input": "Hello world!",
+        "voice": "af_heart",
+        "response_format": "pcm",
+        "normalization_options":
+        {
+            "normalize": False
+        }
+    },
+    stream=True
+)
+
+for chunk in response.iter_content(chunk_size=1024):
+    if chunk:
+        # Process streaming chunks
+        pass
+```
+  
+</details>
 
 <details>
 <summary>Versioning & Development</summary>

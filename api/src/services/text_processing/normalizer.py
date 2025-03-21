@@ -8,8 +8,10 @@ import re
 from functools import lru_cache
 import inflect
 from numpy import number
-
+from torch import mul
 from ...structures.schemas import NormalizationOptions
+
+from text_to_num import text2num
 
 # Constants
 VALID_TLDS = [
@@ -134,25 +136,35 @@ def handle_units(u: re.Match[str]) -> str:
         unit[0]=INFLECT_ENGINE.no(unit[0],number)
     return " ".join(unit)
 
+def conditional_int(number: float, threshold: float = 0.00001):
+    if abs(round(number) - number) < threshold:
+        return int(round(number))
+    return number
+
 def handle_money(m: re.Match[str]) -> str:
     """Convert money expressions to spoken form"""
-    m = m.group()
-    bill = "dollar" if m[0] == "$" else "pound"
-    if m[-1].isalpha():
-        return f"{INFLECT_ENGINE.number_to_words(m[1:])} {bill}s"
-    elif "." not in m:
-        s = "" if m[1:] == "1" else "s"
-        return f"{INFLECT_ENGINE.number_to_words(m[1:])} {bill}{s}"
-    b, c = m[1:].split(".")
-    s = "" if b == "1" else "s"
-    c = int(c.ljust(2, "0"))
-    coins = (
-        f"cent{'' if c == 1 else 's'}"
-        if m[0] == "$"
-        else ("penny" if c == 1 else "pence")
-    )
-    return f"{INFLECT_ENGINE.number_to_words(b)} {bill}{s} and {INFLECT_ENGINE.number_to_words(c)} {coins}"
 
+    bill = "dollar" if m.group(2) == "$" else "pound"
+    coin = "cent" if m.group(2) == "$" else "pence"
+    number = m.group(3)
+
+    multiplier = m.group(4)
+    try:
+        number = float(number)
+    except:
+        return m.group()
+    
+    if m.group(1) == "-":
+        number *= -1
+
+    if number % 1 == 0 or multiplier != "":
+        text_number = f"{INFLECT_ENGINE.number_to_words(conditional_int(number))}{multiplier} {INFLECT_ENGINE.plural(bill, count=number)}"
+    else:
+        sub_number = int(str(number).split(".")[-1].ljust(2, "0"))
+
+        text_number = f"{INFLECT_ENGINE.number_to_words(int(round(number)))} {INFLECT_ENGINE.plural(bill, count=number)} and {INFLECT_ENGINE.number_to_words(sub_number)} {INFLECT_ENGINE.plural(coin, count=sub_number)}"
+
+    return text_number
 
 def handle_decimal(num: re.Match[str]) -> str:
     """Convert decimal numbers to spoken form"""
@@ -297,7 +309,7 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
     
     text = re.sub(
-        r"(?i)[$£]\d+(?:\.\d+)?(?: hundred| thousand| (?:[bm]|tr)illion)*\b|[$£]\d+\.\d\d?\b",
+        r"(?i)(-?)([$£])(\d+(?:\.\d+)?)((?: hundred| thousand| (?:[bm]|tr|quadr)illion)*)\b",
         handle_money,
         text,
     )

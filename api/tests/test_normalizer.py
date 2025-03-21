@@ -83,7 +83,12 @@ def test_url_email_addresses():
         == "Send to test dot user at site dot com"
     )
 
-
+def test_money():
+    """Test that money text is normalized correctly"""
+    assert normalize_text("He lost $5.3 thousand.",normalization_options=NormalizationOptions()) == "He lost five point three thousand dollars."
+    assert normalize_text("To put it weirdly -$6.9 million",normalization_options=NormalizationOptions()) == "To put it weirdly minus six point nine million dollars"
+    assert normalize_text("It costs $50.3.",normalization_options=NormalizationOptions()) == "It costs fifty dollars and thirty cents."
+ 
 def test_non_url_text():
     """Test that non-URL text is unaffected"""
     assert normalize_text("This is not.a.url text",normalization_options=NormalizationOptions()) == "This is not-a-url text"

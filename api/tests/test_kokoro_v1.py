@@ -23,19 +23,18 @@ def test_initial_state(kokoro_backend):
 
 
 @patch("torch.cuda.is_available", return_value=True)
-@patch("torch.cuda.memory_allocated")
+@patch("torch.cuda.memory_allocated", return_value=5e9)
 def test_memory_management(mock_memory, mock_cuda, kokoro_backend):
     """Test GPU memory management functions."""
-    # Mock GPU memory usage
-    mock_memory.return_value = 5e9  # 5GB
+    # Patch backend so it thinks we have cuda
+    with patch.object(kokoro_backend, "_device", "cuda"):
+        # Test memory check
+        with patch("api.src.inference.kokoro_v1.model_config") as mock_config:
+            mock_config.pytorch_gpu.memory_threshold = 4
+            assert kokoro_backend._check_memory() == True
 
-    # Test memory check
-    with patch("api.src.inference.kokoro_v1.model_config") as mock_config:
-        mock_config.pytorch_gpu.memory_threshold = 4
-        assert kokoro_backend._check_memory() == True
-
-        mock_config.pytorch_gpu.memory_threshold = 6
-        assert kokoro_backend._check_memory() == False
+            mock_config.pytorch_gpu.memory_threshold = 6
+            assert kokoro_backend._check_memory() == False
 
 
 @patch("torch.cuda.empty_cache")

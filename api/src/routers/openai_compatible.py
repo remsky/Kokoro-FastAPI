@@ -125,20 +125,18 @@ async def process_and_validate_voices(voice_input: Union[str, List[str]], tts_se
 async def stream_audio_chunks(tts_service: TTSService, request: Union[OpenAISpeechRequest, CaptionedSpeechRequest], client_request: Request, writer: StreamingAudioWriter) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
     voice_name = await process_and_validate_voices(request.voice, tts_service)
-
     unique_properties = {"return_timestamps": False}
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"] = request.return_timestamps
 
     try:
-        logger.info(f"Starting audio generation with lang_code: {request.lang_code}")
         async for chunk_data in tts_service.generate_audio_stream(
             text=request.input,
             voice=voice_name,
             writer=writer,
             speed=request.speed,
             output_format=request.response_format,
-            lang_code=request.lang_code or settings.default_voice_code or voice_name[0].lower(),
+            lang_code=request.lang_code,
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
         ):
