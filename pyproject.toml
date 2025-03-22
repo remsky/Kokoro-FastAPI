@@ -32,7 +32,7 @@ dependencies = [
     "mutagen>=1.47.0",
     "psutil>=6.1.1",
     "kokoro @ git+https://github.com/hexgrad/kokoro.git@31a2b6337b8c1b1418ef68c48142328f640da938",
-    'misaki[en,ja,ko,zh] @ git+https://github.com/hexgrad/misaki.git@ebc76c21b66c5fc4866ed0ec234047177b396170',
+    'misaki[en,ja,ko,zh]',
     "spacy==3.7.2",
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
     "inflect>=7.5.0",
