@@ -1,0 +1,56 @@
+# Follow the official NVIDIA GPU Operator documentation
+#   to install the GPU operator with these settings:
+#     https://docs.nvidia.com/datacenter/cloud-native/gpu-operator/latest/getting-started.html
+#
+# This example is for a Nvidia T4 16gb GPU node pool with only 1 GPU on each node on Azure AKS.
+# It uses time-slicing to share the a and claim to the system that 1 GPU is 4 GPUs.
+# So each pod has access to a smaller gpu with 4gb of memory.
+#
+devicePlugin: # Remove this if you dont want to use time-slicing
+  config:
+    create: true
+    name: "time-slicing-config"
+    default: "any"
+    data:
+      any: |-
+        version: v1
+        flags:
+          migStrategy: none
+        sharing:
+          timeSlicing:
+            resources:
+            - name: nvidia.com/gpu
+              replicas: 4
+
+daemonsets:
+  tolerations:
+    - key: "sku"
+      operator: Equal
+      value: "gpu"
+      effect: NoSchedule
+    - key: "kubernetes.azure.com/scalesetpriority"
+      operator: Equal
+      value: "spot"
+      effect: NoSchedule
+
+node-feature-discovery:
+  master:
+    tolerations:
+      - key: "sku"
+        operator: Equal
+        value: "gpu"
+        effect: NoSchedule
+      - key: "kubernetes.azure.com/scalesetpriority"
+        operator: Equal
+        value: "spot"
+        effect: NoSchedule
+  worker:
+    tolerations:
+      - key: "sku"
+        operator: Equal
+        value: "gpu"
+        effect: NoSchedule
+      - key: "kubernetes.azure.com/scalesetpriority"
+        operator: Equal
+        value: "spot"
+        effect: NoSchedule

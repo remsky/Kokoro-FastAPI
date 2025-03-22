@@ -20,7 +20,7 @@ spec:
       labels:
         {{- include "kokoro-fastapi.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.images.imagePullSecrets }}
+      {{- with .Values.kokoroTTS.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -49,10 +49,16 @@ spec:
             httpGet:
               path: /health
               port: kokoro-tts-http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
           readinessProbe:
             httpGet:
               path: /health
               port: kokoro-tts-http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
           resources:
             {{- toYaml .Values.kokoroTTS.resources | nindent 12 }}
           volumeMounts: []
