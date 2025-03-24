@@ -4,6 +4,8 @@ import os
 from typing import AsyncGenerator, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from api.src.services.streaming_audio_writer import StreamingAudioWriter
+
 from api.src.inference.base import AudioChunk
 import numpy as np
 import pytest
@@ -159,9 +161,13 @@ async def test_stream_audio_chunks_client_disconnect():
         speed=1.0,
     )
 
+    writer = StreamingAudioWriter("mp3", 24000)
+
     chunks = []
-    async for chunk in stream_audio_chunks(mock_service, request, mock_request):
+    async for chunk in stream_audio_chunks(mock_service, request, mock_request, writer):
         chunks.append(chunk)
+
+    writer.close()
 
     assert len(chunks) == 0  # Should stop immediately due to disconnect
 
@@ -483,7 +489,11 @@ async def test_streaming_initialization_error():
         speed=1.0,
     )
 
+    writer = StreamingAudioWriter("mp3", 24000)
+
     with pytest.raises(RuntimeError) as exc:
-        async for _ in stream_audio_chunks(mock_service, request, MagicMock()):
+        async for _ in stream_audio_chunks(mock_service, request, MagicMock(), writer):
             pass
+
+    writer.close()
     assert "Failed to initialize stream" in str(exc.value)

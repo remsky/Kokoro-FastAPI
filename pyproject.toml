@@ -37,7 +37,7 @@ dependencies = [
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
     "inflect>=7.5.0",
     "phonemizer-fork>=3.3.2",
-    "av>=14.1.0",
+    "av>=14.2.0",
 ]
 
 [project.optional-dependencies]
@@ -52,10 +52,10 @@ cpu = [
     "torch==2.6.0",
 ]
 test = [
-    "pytest==8.0.0",
-    "pytest-cov==4.1.0",
+    "pytest==8.3.5",
+    "pytest-cov==6.0.0",
     "httpx==0.26.0",
-    "pytest-asyncio==0.23.5",
+    "pytest-asyncio==0.25.3",
     "openai>=1.59.6",
     "tomli>=2.0.1",
 ]
@@ -106,5 +106,5 @@ packages.find = {where = ["api/src"], namespaces = true}
 [tool.pytest.ini_options]
 testpaths = ["api/tests", "ui/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc"
-asyncio_mode = "strict"
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace" 
+asyncio_mode = "auto"
