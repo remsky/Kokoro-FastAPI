@@ -22,7 +22,7 @@ class StreamingAudioWriter:
 
         codec_map = {"wav":"pcm_s16le","mp3":"mp3","opus":"libopus","flac":"flac", "aac":"aac"}
         # Format-specific setup
-        if self.format in ["wav", "opus","flac","mp3","aac","pcm"]:
+        if self.format in ["wav","flac","mp3","pcm","aac","opus"]:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
                 self.container = av.open(self.output_buffer, mode="w", format=self.format)
@@ -30,6 +30,13 @@ class StreamingAudioWriter:
                 self.stream.bit_rate = 128000
         else:
             raise ValueError(f"Unsupported format: {format}")
+
+    def close(self):
+        if hasattr(self, "container"):
+            self.container.close()
+
+        if hasattr(self, "output_buffer"):
+            self.output_buffer.close()
 
     def write_chunk(
         self, audio_data: Optional[np.ndarray] = None, finalize: bool = False
@@ -48,7 +55,7 @@ class StreamingAudioWriter:
                     self.container.mux(packet)
                     
                 data=self.output_buffer.getvalue()
-                self.container.close()
+                self.close()
                 return data
 
         if audio_data is None or len(audio_data) == 0:
