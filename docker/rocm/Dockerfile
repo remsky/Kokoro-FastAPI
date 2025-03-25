@@ -27,7 +27,12 @@ WORKDIR /app
 COPY pyproject.toml ./pyproject.toml
 
 # Install dependencies
-RUN pip3 install -e .
+ENV CAUSAL_CONV1D_FORCE_BUILD=TRUE \
+    HIP_ARCHITECTURES=gfx1100
+
+RUN pip3 install --upgrade pip && \
+    pip3 install --no-build-isolation "causal_conv1d@git+https://github.com/Dao-AILab/causal-conv1d.git" && \
+    pip3 install -e .
 
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
