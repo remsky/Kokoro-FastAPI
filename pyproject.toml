@@ -38,6 +38,7 @@ dependencies = [
     "inflect>=7.5.0",
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
+    "text2num>=2.5.1",
 ]
 
 [project.optional-dependencies]

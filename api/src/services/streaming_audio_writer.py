@@ -25,7 +25,7 @@ class StreamingAudioWriter:
         if self.format in ["wav","flac","mp3","pcm","aac","opus"]:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
-                self.container = av.open(self.output_buffer, mode="w", format=self.format)
+                self.container = av.open(self.output_buffer, mode="w", format=self.format if self.format != "aac" else "adts")
                 self.stream = self.container.add_stream(codec_map[self.format],sample_rate=self.sample_rate,layout='mono' if self.channels == 1 else 'stereo')
                 self.stream.bit_rate = 128000
         else:

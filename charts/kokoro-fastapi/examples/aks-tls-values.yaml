@@ -1,0 +1,54 @@
+# Tested on
+# - Azure AKS with GPU node pool with Nvidia GPU operator
+# - This setup uses 1 ingress and load balances between 2 replicas, enabling simultaneous requests
+# 
+# Azure CLI command to create a GPU node pool:
+# az aks nodepool add \
+#   --resource-group $AZ_RESOURCE_GROUP \
+#   --cluster-name $CLUSTER_NAME \
+#   --name t4gpus \
+#   --node-vm-size Standard_NC4as_T4_v3 \
+#   --node-count 2 \
+#   --enable-cluster-autoscaler \
+#   --min-count 1 \
+#   --max-count 2 \
+#   --priority Spot \
+#   --eviction-policy Delete \
+#   --spot-max-price -1 \
+#   --node-taints "sku=gpu:NoSchedule,kubernetes.azure.com/scalesetpriority=spot:NoSchedule" \
+#   --skip-gpu-driver-install
+
+kokoroTTS:
+  replicaCount: 8
+  port: 8880
+  tag: v0.2.0
+  pullPolicy: IfNotPresent
+
+# Azure specific settings for spot t4 GPU nodes with Nvidia GPU operator
+tolerations:
+  - key: "kubernetes.azure.com/scalesetpriority"
+    operator: Equal
+    value: "spot"
+    effect: NoSchedule
+  - key: "sku"
+    operator: Equal
+    value: "gpu"
+    effect: NoSchedule
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations:
+    # Requires cert-manager and external-dns to be in the cluster for TLS and DNS
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    external-dns.alpha.kubernetes.io/hostname: your-external-dns-enabled-hostname
+    external-dns.alpha.kubernetes.io/cloudflare-proxied: "false"
+  hosts:
+    - host: your-external-dns-enabled-hostname
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: kokoro-fastapi-tls
+      hosts:
+        - your-external-dns-enabled-hostname

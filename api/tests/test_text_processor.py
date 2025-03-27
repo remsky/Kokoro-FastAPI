@@ -34,7 +34,7 @@ def test_process_text_chunk_phonemes():
 def test_get_sentence_info():
     """Test sentence splitting and info extraction."""
     text = "This is sentence one. This is sentence two! What about three?"
-    results = get_sentence_info(text)
+    results = get_sentence_info(text, {})
 
     assert len(results) == 3
     for sentence, tokens, count in results:
@@ -44,6 +44,19 @@ def test_get_sentence_info():
         assert count == len(tokens)
         assert count > 0
 
+def test_get_sentence_info_phenomoes():
+    """Test sentence splitting and info extraction."""
+    text = "This is sentence one. This is </|custom_phonemes_0|/> two! What about three?"
+    results = get_sentence_info(text, {"</|custom_phonemes_0|/>": r"sˈɛntᵊns"})
+
+    assert len(results) == 3
+    assert "sˈɛntᵊns" in results[1][0]
+    for sentence, tokens, count in results:
+        assert isinstance(sentence, str)
+        assert isinstance(tokens, list)
+        assert isinstance(count, int)
+        assert count == len(tokens)
+        assert count > 0
 
 @pytest.mark.asyncio
 async def test_smart_split_short_text():

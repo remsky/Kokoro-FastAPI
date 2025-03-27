@@ -11,5 +11,5 @@ spec:
     - name: wget
       image: busybox
       command: ['wget']
-      args: ['{{ include "kokoro-fastapi.fullname" . }}:{{ .Values.service.port }}']
+      args: ['{{ include "kokoro-fastapi.fullname" . }}:{{ .Values.kokoroTTS.port }}']
   restartPolicy: Never
