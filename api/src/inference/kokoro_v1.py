@@ -276,7 +276,9 @@ class KokoroV1(BaseModelBackend):
                                         ]
                                     ):
                                         continue
-                                    if not token.text or not token.text.strip():
+
+                                    # token.start_ts may be None
+                                    if not token.text or not token.text.strip() or token.start_ts is None or token.end_ts is None:
                                         continue
 
                                     start_time = float(token.start_ts) + current_offset
