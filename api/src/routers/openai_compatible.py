@@ -215,6 +215,10 @@ async def create_speech(
                     "Transfer-Encoding": "chunked",
                     "X-Download-Path": download_path,
                 }
+                
+                # Add header to indicate if temp file writing is available
+                if temp_writer._write_error:
+                    headers["X-Download-Status"] = "unavailable"
 
                 # Create async generator for streaming
                 async def dual_output():
