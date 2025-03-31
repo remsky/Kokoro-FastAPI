@@ -31,7 +31,7 @@ dependencies = [
     "matplotlib>=3.10.0",
     "mutagen>=1.47.0",
     "psutil>=6.1.1",
-    "kokoro @ git+https://github.com/kprinssu/kokoro.git@casual-conv1d",
+    "kokoro @ git+https://github.com/hexgrad/kokoro.git@31a2b6337b8c1b1418ef68c48142328f640da938",
     'misaki[en,ja,ko,zh]',
     "spacy==3.7.2",
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
@@ -107,5 +107,5 @@ packages.find = {where = ["api/src"], namespaces = true}
 [tool.pytest.ini_options]
 testpaths = ["api/tests", "ui/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace" 
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace"
 asyncio_mode = "auto"
