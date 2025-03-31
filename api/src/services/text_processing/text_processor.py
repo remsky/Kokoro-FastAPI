@@ -88,7 +88,7 @@ def process_text(text: str, language: str = "a") -> List[int]:
     return process_text_chunk(text, language)
 
 
-def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[Tuple[str, List[int], int]]:
+def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str], lang_code: str = "a") -> List[Tuple[str, List[int], int]]:
     """Process all sentences and return info."""
     sentences = re.split(r"([.!?;:])(?=\s|$)", text)
     phoneme_length, min_value = len(custom_phenomes_list), 0
@@ -109,7 +109,7 @@ def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[T
             continue
 
         full = sentence + punct
-        tokens = process_text_chunk(full)
+        tokens = process_text_chunk(full, language = lang_code)
         results.append((full, tokens, len(tokens)))
 
     return results
@@ -134,15 +134,14 @@ async def smart_split(
 
     # Normalize text
     if settings.advanced_text_normalization and normalization_options.normalize:
-        print(lang_code)
         if lang_code in ["a","b","en-us","en-gb"]:
             text = CUSTOM_PHONEMES.sub(lambda s: handle_custom_phonemes(s, custom_phoneme_list), text)
-            text=normalize_text(text,normalization_options)
+            text = normalize_text(text,normalization_options, lang_code= lang_code)
         else:
             logger.info("Skipping text normalization as it is only supported for english")
 
     # Process all sentences
-    sentences = get_sentence_info(text, custom_phoneme_list)
+    sentences = get_sentence_info(text, custom_phoneme_list, lang_code=lang_code)
 
     current_chunk = []
     current_tokens = []
@@ -178,7 +177,7 @@ async def smart_split(
 
                 full_clause = clause + comma
                 
-                tokens = process_text_chunk(full_clause)
+                tokens = process_text_chunk(full_clause, language = lang_code)
                 count = len(tokens)
 
                 # If adding clause keeps us under max and not optimal yet

@@ -95,9 +95,8 @@ TIME_PATTERN = re.compile(r"([0-9]{1,2} ?: ?[0-9]{2}( ?: ?[0-9]{2})?)( ?(pm|am)\
 
 INFLECT_ENGINE=inflect.engine()
 
-g2p =  en.G2P(trf=False, british=False, fallback=None)
-
-def sound_like(text: str, sound_like: str) -> str:
+def sound_like(text: str, sound_like: str, lang_code: str) -> str:
+    from .phonemizer import phonemize
     """
     Convert a string into a sound-alike format
 
@@ -105,10 +104,10 @@ def sound_like(text: str, sound_like: str) -> str:
     - Original Input Text: '[Misaki](/misˈɑki/) is a G2P engine designed for [Kokoro](/kˈOkəɹO/) models.'
     - Text For Timestamps: 'Misaki is a G2P engine designed for Kokoro models.'
     """
-    phonemes, _ = g2p(sound_like)
+    phonemes = phonemize(sound_like, language = lang_code, normalize = False)
     return f"[{text}](/{phonemes}/)"
 
-def split_num(num: re.Match[str]) -> str:
+def split_num(num: re.Match[str], lang_code) -> str:
     """Handle number splitting for various formats"""
     num = num.group()
     if "." in num:
@@ -116,10 +115,10 @@ def split_num(num: re.Match[str]) -> str:
     elif ":" in num:
         h, m = [int(n) for n in num.split(":")]
         if m == 0:
-            return f"{h} o'clock"
+            return sound_like(num, f"{h} o'clock")
         elif m < 10:
-            return f"{h} oh {m}"
-        return f"{h} {m}"
+            return sound_like(num, f"{h} oh {m}")
+        return sound_like(num, f"{h} {m}", lang_code)
     year = int(num[:4])
     if year < 1100 or year % 1000 < 10:
         return num
@@ -127,12 +126,12 @@ def split_num(num: re.Match[str]) -> str:
     s = "s" if num.endswith("s") else ""
     if 100 <= year % 1000 <= 999:
         if right == 0:
-            return f"{left} hundred{s}"
+            return sound_like(num, f"{left} hundred{s}", lang_code)
         elif right < 10:
-            return f"{left} oh {right}{s}"
-    return sound_like(num, f"{left} {right}{s}")
+            return sound_like(num, f"{left} oh {right}{s}", lang_code)
+    return sound_like(num, f"{left} {right}{s}", lang_code)
 
-def handle_units(u: re.Match[str]) -> str:
+def handle_units(u: re.Match[str], lang_code) -> str:
     """Converts units to their full form"""
     unit_string=u.group(6).strip() 
     unit=unit_string
@@ -148,14 +147,14 @@ def handle_units(u: re.Match[str]) -> str:
             
         number=u.group(1).strip()
         unit[0]=INFLECT_ENGINE.no(unit[0],number)
-    return sound_like(u.group(), " ".join(unit))
+    return sound_like(u.group(), " ".join(unit), lang_code)
 
 def conditional_int(number: float, threshold: float = 0.00001):
     if abs(round(number) - number) < threshold:
         return int(round(number))
     return number
 
-def handle_money(m: re.Match[str]) -> str:
+def handle_money(m: re.Match[str], lang_code) -> str:
     """Convert money expressions to spoken form"""
 
     bill = "dollar" if m.group(2) == "$" else "pound"
@@ -178,7 +177,7 @@ def handle_money(m: re.Match[str]) -> str:
 
         text_number = f"{INFLECT_ENGINE.number_to_words(int(round(number)))} {INFLECT_ENGINE.plural(bill, count=number)} and {INFLECT_ENGINE.number_to_words(sub_number)} {INFLECT_ENGINE.plural(coin, count=sub_number)}"
 
-    return sound_like(m.group(), text_number)
+    return sound_like(m.group(), text_number, lang_code)
 
 def handle_decimal(num: re.Match[str]) -> str:
     """Convert decimal numbers to spoken form"""
@@ -186,18 +185,18 @@ def handle_decimal(num: re.Match[str]) -> str:
     return sound_like(num.group(), " point ".join([a, " ".join(b)]))
 
 
-def handle_email(m: re.Match[str]) -> str:
+def handle_email(m: re.Match[str], lang_code) -> str:
     """Convert email addresses into speakable format"""
     email = m.group(0)
     parts = email.split("@")
     if len(parts) == 2:
         user, domain = parts
         domain = domain.replace(".", " dot ")
-        return sound_like(email, f"{user} at {domain}")
+        return sound_like(email, f"{user} at {domain}", lang_code)
     return email
 
 
-def handle_url(u: re.Match[str]) -> str:
+def handle_url(u: re.Match[str], lang_code: str) -> str:
     """Make URLs speakable by converting special characters to spoken words"""
     if not u:
         return ""
@@ -241,9 +240,9 @@ def handle_url(u: re.Match[str]) -> str:
     url = url.replace("/", " slash ")  # Handle any remaining slashes
 
     # Clean up extra spaces
-    return sound_like(u.group(), re.sub(r"\s+", " ", url).strip())
+    return sound_like(u.group(), re.sub(r"\s+", " ", url).strip(), lang_code)
 
-def handle_phone_number(p: re.Match[str]) -> str:
+def handle_phone_number(p: re.Match[str], lang_code: str) -> str:
     g=list(p.groups())
     
     country_code=""
@@ -257,9 +256,9 @@ def handle_phone_number(p: re.Match[str]) -> str:
     
     line_number=INFLECT_ENGINE.number_to_words(g[4],group=1,comma="")
     
-    return sound_like(p.group(), ",".join([country_code,area_code,telephone_prefix,line_number]))
+    return sound_like(p.group(), ",".join([country_code,area_code,telephone_prefix,line_number]), lang_code)
 
-def handle_time(t: re.Match[str]) -> str:
+def handle_time(t: re.Match[str], lang_code: str) -> str:
     g = t.groups()
     
     numbers = " ".join([INFLECT_ENGINE.number_to_words(X.strip()) for X in g[0].split(":")])
@@ -268,21 +267,21 @@ def handle_time(t: re.Match[str]) -> str:
     if g[2] is not None:
         half=g[2].strip()
         
-    return sound_like(t.group(), numbers + half)
+    return sound_like(t.group(), numbers + half, lang_code)
 
-def normalize_text(text: str,normalization_options: NormalizationOptions) -> str:
+def normalize_text(text: str,normalization_options: NormalizationOptions, lang_code = "a") -> str:
     """Normalize text for TTS processing"""
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
-        text = EMAIL_PATTERN.sub(handle_email, text)
+        text = EMAIL_PATTERN.sub(lambda g: handle_email(g, lang_code = lang_code), text)
 
     # Handle URLs if enabled
     if normalization_options.url_normalization:
-        text = URL_PATTERN.sub(handle_url, text)
+        text = URL_PATTERN.sub(lambda g: handle_url(g, lang_code = lang_code), text)
 
     # Pre-process numbers with units if enabled
     if normalization_options.unit_normalization:
-        text=UNIT_PATTERN.sub(handle_units,text)
+        text=UNIT_PATTERN.sub(lambda g: handle_units(g, lang_code = lang_code),text)
     
     # Replace optional pluralization
     if normalization_options.optional_pluralization_normalization:
@@ -290,7 +289,7 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     
     # Replace phone numbers:
     if normalization_options.phone_normalization:
-        text = re.sub(r"(\+?\d{1,2})?([ .-]?)(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})",handle_phone_number,text)
+        text = re.sub(r"(\+?\d{1,2})?([ .-]?)(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})",lambda g: handle_phone_number(g, lang_code = lang_code),text)
     
     # Replace quotes and brackets
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
@@ -302,7 +301,7 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
         text = text.replace(a, b + " ")
 
     # Handle simple time in the format of HH:MM:SS
-    text = TIME_PATTERN.sub(handle_time, text, )
+    text = TIME_PATTERN.sub(lambda g: handle_time(g, lang_code = lang_code), text, )
 
     # Clean up whitespace
     text = re.sub(r"[^\S \n]", " ", text)
@@ -324,15 +323,15 @@ def normalize_text(text: str,normalization_options: NormalizationOptions) -> str
     
     text = re.sub(
         r"(?i)(-?)([$£])(\d+(?:\.\d+)?)((?: hundred| thousand| (?:[bm]|tr|quadr)illion)*)\b",
-        handle_money,
+        lambda g: handle_money(g, lang_code = lang_code),
         text,
     )
     
     text = re.sub(
-        r"\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)", split_num, text
+        r"\d*\.\d+|\b\d{4}s?\b|(?<!:)\b(?:[1-9]|1[0-2]):[0-5]\d\b(?!:)", lambda g: split_num(g, lang_code = lang_code), text
     )
     
-    text = re.sub(r"\d*\.\d+", handle_decimal, text)
+    text = re.sub(r"\d*\.\d+", lambda g: handle_decimal(g, lang_code = lang_code), text)
 
     # Handle various formatting
     text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
