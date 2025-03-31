@@ -55,6 +55,7 @@ VALID_TLDS = [
     "uk",
     "us",
     "io",
+    "co"
 ]
 
 VALID_UNITS = {
