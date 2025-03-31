@@ -1,44 +1,33 @@
-name: kokoro-tts
 services:
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-rocm:v0.1.0
-    build:
-      context: ../..
-      dockerfile: docker/rocm/Dockerfile
-    volumes:
-      - ../../api/src:/app/api/src  # Mount src for development
-      - ../../api/src/voices:/app/api/src/voices  # Mount voices for persistence
-    ports:
-      - "8880:8880"
-    environment:
-      - PYTHONPATH=/app:/app/models
-      - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-      # This suppresses excessive warning logs. Probably not a good idea to suppress, but no other solution found
-      # (see https://github.com/ROCm/MIOpen/issues/2981)
-      - MIOPEN_LOG_LEVEL=3
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    security_opt:
-      - seccomp=unconfined
-    group_add:
-      - video
-    ipc: host
-
-  # Gradio UI service
-  gradio-ui:
-    image: ghcr.io/remsky/kokoro-fastapi-ui:v0.1.0
-    # Uncomment below to build from source instead of using the released image
-    # build:
-      # context: ../../ui
-    ports:
-      - "7860:7860"
-    volumes:
-      - ../../ui/data:/app/ui/data
-      - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
-    environment:
-      - GRADIO_WATCH=1  # Enable hot reloading
-      - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
-      - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
-      - API_HOST=kokoro-tts  # Set TTS service URL
-      - API_PORT=8880  # Set TTS service PORT
+      image: kprinssu/kokoro-fastapi:rocm
+      devices:
+        - /dev/dri
+        - /dev/kfd
+      security_opt:
+        - seccomp:unconfined
+      cap_add:
+        - SYS_PTRACE
+      restart: 'always'
+      volumes:
+        - ./kokoro-tts/config:/root/.config/miopen
+        - ./kokoro-tts/cache:/root/.cache/miopen
+      ports:
+        - 8880:8880
+      environment:
+        - USE_GPU=true
+        - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+        # IMPORTANT: ROCm's MIOpen librar will be slow if it has to figure out the optimal kernel shapes for each model
+        # See documentation on performancing tuning: https://github.com/ROCm/MIOpen/blob/develop/docs/conceptual/tuningdb.rst
+        # The volumes above cache the MIOpen shape files and user database for subsequent runs
+        #
+        # Steps:
+        # 1. Run Kokoro once with the following environment variables set:
+        #      - MIOPEN_ENABLE_LOGGING=1
+        #      - MIOPEN_ENABLE_LOGGING_CMD=1
+        #      - MIOPEN_LOG_LEVEL=6
+        # 2. Generate various recordings using sample data (e.g. first couple paragraphs of Dracula); this will be slow
+        # 3. Comment out the previously set environment variables
+        # 4. Add the following environment variables to enable caching of model shapes:
+        #       - MIOPEN_ENABLE_LOGGING=0- MIOPEN_FIND_MODE=2
+        # 5. Restart the container and run Kokoro again, it should be much faster
