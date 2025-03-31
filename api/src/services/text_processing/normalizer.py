@@ -180,13 +180,13 @@ def handle_money(m: re.Match[str], lang_code) -> str:
 
     return sound_like(m.group(), text_number, lang_code)
 
-def handle_decimal(num: re.Match[str]) -> str:
+def handle_decimal(num: re.Match[str], lang_code: str) -> str:
     """Convert decimal numbers to spoken form"""
     a, b = num.group().split(".")
-    return sound_like(num.group(), " point ".join([a, " ".join(b)]))
+    return sound_like(num.group(), " point ".join([a, " ".join(b)]), lang_code= lang_code)
 
 
-def handle_email(m: re.Match[str], lang_code) -> str:
+def handle_email(m: re.Match[str], lang_code: str) -> str:
     """Convert email addresses into speakable format"""
     email = m.group(0)
     parts = email.split("@")
