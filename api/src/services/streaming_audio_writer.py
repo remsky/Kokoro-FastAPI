@@ -50,11 +50,15 @@ class StreamingAudioWriter:
 
         if finalize:
             if self.format != "pcm":
-                packets = self.stream.encode(None)
-                for packet in packets:
-                    self.container.mux(packet)
-                    
-                data=self.output_buffer.getvalue()
+                # Properly finalize the container
+                if hasattr(self, 'stream') and self.stream:
+                    packets = self.stream.encode(None)
+                    for packet in packets:
+                        self.container.mux(packet)
+                    # Important: Call close() on the container
+                    self.container.close()
+
+                data = self.output_buffer.getvalue() if hasattr(self, 'output_buffer') else b''
                 self.close()
                 return data
 
@@ -64,20 +68,33 @@ class StreamingAudioWriter:
         if self.format == "pcm":
             # Write raw bytes
             return audio_data.tobytes()
+        elif self.format == "mp3":
+            # For MP3, we need to handle streaming differently
+            frame = av.AudioFrame.from_ndarray(audio_data.reshape(1, -1), format='s16', layout='mono' if self.channels == 1 else 'stereo')
+            frame.sample_rate = self.sample_rate
+            frame.pts = self.pts
+            self.pts += frame.samples
+
+            packets = self.stream.encode(frame)
+            for packet in packets:
+                self.container.mux(packet)
+
+            # For MP3, just return an empty byte string to indicate processing occurred
+            # The complete MP3 file will be returned during finalization
+            return b''
         else:
             frame = av.AudioFrame.from_ndarray(audio_data.reshape(1, -1), format='s16', layout='mono' if self.channels == 1 else 'stereo')
             frame.sample_rate=self.sample_rate
 
-            
+
             frame.pts = self.pts
             self.pts += frame.samples
-            
+
             packets = self.stream.encode(frame)
             for packet in packets:
                 self.container.mux(packet)
-            
+
             data = self.output_buffer.getvalue()
             self.output_buffer.seek(0)
             self.output_buffer.truncate(0)
-            return data 
-
+            return data
