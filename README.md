@@ -340,12 +340,12 @@ Key Streaming Metrics:
 <summary>Custom Phonemes and Silence Tags</summary>
 
 - Custom Phoneme: `[<text>](/phoneme/)`
-- Silence Tag: `[silent](/duration/)`
+- Silence Tag: `[silent <duration>]`
 
 Example:
 
 ```text
-I [live](/lɪv/) in a city.  [silent](/3s/) Many concerts are broadcast [live](/lˈIv/).
+I [live](/lɪv/) in a city.  [silent 3s] Many concerts are broadcast [live](/lˈIv/).
 ```
 
 </details>
