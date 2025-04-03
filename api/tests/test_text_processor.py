@@ -58,6 +58,20 @@ def test_get_sentence_info_phenomoes():
         assert count == len(tokens)
         assert count > 0
 
+def test_get_sentence_info_silence_tags():
+    """Test sentence splitting and info extraction with silence tags."""
+    text = "This is a test sentence, [silent](/1s/) with silence for one second."
+    results = get_sentence_info(text, {})
+
+    assert len(results) == 3
+    assert results[1][0] == "[silent](/1s/)"
+    for sentence, tokens, count in results:
+        assert isinstance(sentence, str)
+        assert isinstance(tokens, list)
+        assert isinstance(count, int)
+        assert count == len(tokens)
+        assert count >= 0
+
 @pytest.mark.asyncio
 async def test_smart_split_short_text():
     """Test smart splitting with text under max tokens."""
@@ -99,3 +113,17 @@ async def test_smart_split_with_punctuation():
 
     # Verify punctuation is preserved
     assert all(any(p in chunk for p in "!?;:.") for chunk in chunks)
+
+@pytest.mark.asyncio
+async def test_smart_split_with_silence_tags():
+    """Test smart splitting handles silence tags correctly."""
+    text = "This is a test sentence, [silent](/1s/) with silence for one second."
+
+    chunks = []
+    async for chunk_text, chunk_tokens in smart_split(text):
+        chunks.append(chunk_text)
+    
+    assert len(chunks) == 3
+    assert chunks[0] == "This is a test sentence, "
+    assert chunks[1] == "[silent](/1s/)"
+    assert chunks[2] == " with silence for one second."

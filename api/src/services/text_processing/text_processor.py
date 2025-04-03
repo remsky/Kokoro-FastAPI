@@ -14,6 +14,8 @@ from ...structures.schemas import NormalizationOptions
 
 # Pre-compiled regex patterns for performance
 CUSTOM_PHONEMES = re.compile(r"(\[([^\]]|\n)*?\])(\(\/([^\/)]|\n)*?\/\))")
+# Matching: [silent](/1s/), [silent](/0.5s/), [silent](/.5s/)
+CUSTOM_PHONEME_SILENCE_TAG = re.compile(r"\[silent\]\(\/(\d*\.?\d+)s\/\)")
 
 def process_text_chunk(
     text: str, language: str = "a", skip_phonemize: bool = False
@@ -89,7 +91,14 @@ def process_text(text: str, language: str = "a") -> List[int]:
 
 
 def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[Tuple[str, List[int], int]]:
-    """Process all sentences and return info."""
+    """
+    Process all sentences and return info.
+
+    Possible List Values:
+    - (sentence, tokens, token_count)
+    - (silence_tag, [], 0)
+    """
+
     sentences = re.split(r"([.!?;:])(?=\s|$)", text)
     phoneme_length, min_value = len(custom_phenomes_list), 0
     
@@ -102,6 +111,19 @@ def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[T
                 sentence = sentence.replace(current_id, custom_phenomes_list.pop(current_id))
                 min_value += 1
                 
+        # Handle silence tags
+        # Eg: "This is a test sentence, [silent](/1s/) with silence for one second."
+        while match := CUSTOM_PHONEME_SILENCE_TAG.search(sentence):
+            match_prefix = sentence[:match.start()] # `This is a test sentence, `
+            match_text = match.group(0)             # `[silent](/1s/)`
+            match_suffix = sentence[match.end():]   # ` with silence for one second.`
+            if match_prefix.strip():
+                tokens = process_text_chunk(match_prefix.strip())
+                results.append((match_prefix, tokens, len(tokens)))
+
+            # Insert silence tag with empty tokens
+            results.append((match_text, [], 0))
+            sentence = match_suffix 
             
         punct = sentences[i + 1] if i + 1 < len(sentences) else ""
 
@@ -149,6 +171,25 @@ async def smart_split(
     current_count = 0
 
     for sentence, tokens, count in sentences:
+        # Handle silence tags
+        if CUSTOM_PHONEME_SILENCE_TAG.match(sentence):
+            # Yield any existing chunk if present.
+            if current_chunk:
+                chunk_text = " ".join(current_chunk)
+                chunk_count += 1
+                logger.debug(
+                    f"Yielding chunk {chunk_count} before silence tag: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
+                )
+                yield chunk_text, current_tokens
+                current_chunk = []
+                current_tokens = []
+                current_count = 0
+            
+            # Silent tags is not sent to Kokoro, we we don't increment `chunk_count`
+            logger.debug(f"Yielding silence tag: '{sentence}'")
+            yield sentence, []
+            continue
+
         # Handle sentences that exceed max tokens
         if count > max_tokens:
             # Yield current chunk if any
