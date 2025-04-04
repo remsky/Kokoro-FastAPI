@@ -100,16 +100,14 @@ def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[T
     """
 
     sentences = re.split(r"([.!?;:])(?=\s|$)", text)
-    phoneme_length, min_value = len(custom_phenomes_list), 0
     
     results = []
     for i in range(0, len(sentences), 2):
         sentence = sentences[i].strip()
-        for replaced in range(min_value, phoneme_length):
-            current_id = f"</|custom_phonemes_{replaced}|/>"
-            if current_id in sentence:
-                sentence = sentence.replace(current_id, custom_phenomes_list.pop(current_id))
-                min_value += 1
+        for key in list(custom_phenomes_list.keys()):
+            if key in sentence:
+                sentence = sentence.replace(key, custom_phenomes_list[key])
+                del custom_phenomes_list[key]
                 
         # Handle silence tags
         # Eg: "This is a test sentence, [silent](/1s/) with silence for one second."
