@@ -116,6 +116,7 @@ class AudioService:
         speed: float = 1,
         chunk_text: str = "",
         is_last_chunk: bool = False,
+        is_silent_chunk: bool = False,
         trim_audio: bool = True,
         normalizer: AudioNormalizer = None,
     ) -> AudioChunk:
@@ -128,6 +129,7 @@ class AudioService:
             speed: The speaking speed of the voice
             chunk_text: The text sent to the model to generate the resulting speech
             is_last_chunk: Whether this is the last chunk
+            is_silent_chunk: Whether this chunk is a silent tag (e.g., [Silent](0.5s))
             trim_audio: Whether audio should be trimmed
             normalizer: Optional AudioNormalizer instance for consistent normalization
 
@@ -146,7 +148,7 @@ class AudioService:
             
             audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
             
-            if trim_audio == True:
+            if trim_audio == True and not is_silent_chunk:
                 audio_chunk = AudioService.trim_audio(audio_chunk,chunk_text,speed,is_last_chunk,normalizer)
             
             # Write audio data first
