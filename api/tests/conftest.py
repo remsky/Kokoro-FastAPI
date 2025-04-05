@@ -69,4 +69,3 @@ async def tts_service(mock_model_manager, mock_voice_manager):
 def test_voice():
     """Return a test voice name."""
     return "voice1"
-

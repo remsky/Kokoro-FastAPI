@@ -1,8 +1,10 @@
-import requests
 import base64
 import json
+
 import pydub
-text="""Delving into the Abyss: A Deeper Exploration of Meaning in 5 Seconds of Summer's "Jet Black Heart"
+import requests
+
+text = """Delving into the Abyss: A Deeper Exploration of Meaning in 5 Seconds of Summer's "Jet Black Heart"
 
 5 Seconds of Summer, initially perceived as purveyors of upbeat, radio-friendly pop-punk, embarked on a significant artistic evolution with their album Sounds Good Feels Good. Among its tracks, "Jet Black Heart" stands out as a powerful testament to this shift, moving beyond catchy melodies and embracing a darker, more emotionally complex sound. Released in 2015, the song transcends the typical themes of youthful exuberance and romantic angst, instead plunging into the depths of personal turmoil and the corrosive effects of inner darkness on interpersonal relationships. "Jet Black Heart" is not merely a song about heartbreak; it is a raw and vulnerable exploration of internal struggle, self-destructive patterns, and the precarious flicker of hope that persists even in the face of profound emotional chaos. Through potent metaphors, starkly honest lyrics, and a sonic landscape that mirrors its thematic weight, the song offers a profound meditation on the human condition, grappling with the shadows that reside within us all and their far-reaching consequences.
 
@@ -23,7 +25,7 @@ In conclusion, "Jet Black Heart" by 5 Seconds of Summer is far more than a typic
 5 Seconds of Summer, initially perceived as purveyors of upbeat, radio-friendly pop-punk, embarked on a significant artistic evolution with their album Sounds Good Feels Good. Among its tracks, "Jet Black Heart" stands out as a powerful testament to this shift, moving beyond catchy melodies and embracing a darker, more emotionally complex sound. Released in 2015, the song transcends the typical themes of youthful exuberance and romantic angst, instead plunging into the depths of personal turmoil and the corrosive effects of inner darkness on interpersonal relationships. "Jet Black Heart" is not merely a song about heartbreak; it is a raw and vulnerable exploration of internal struggle, self-destructive patterns, and the precarious flicker of hope that persists even in the face of profound emotional chaos."""
 
 
-Type="wav"
+Type = "wav"
 response = requests.post(
     "http://localhost:8880/dev/captioned_speech",
     json={
@@ -34,30 +36,34 @@ response = requests.post(
         "response_format": Type,
         "stream": True,
     },
-    stream=True
+    stream=True,
 )
 
-f=open(f"outputstream.{Type}","wb")
+f = open(f"outputstream.{Type}", "wb")
 for chunk in response.iter_lines(decode_unicode=True):
     if chunk:
-        temp_json=json.loads(chunk)
+        temp_json = json.loads(chunk)
         if temp_json["timestamps"] != []:
-            chunk_json=temp_json
-            
+            chunk_json = temp_json
+
         # Decode base 64 stream to bytes
-        chunk_audio=base64.b64decode(temp_json["audio"].encode("utf-8"))
-        
+        chunk_audio = base64.b64decode(temp_json["audio"].encode("utf-8"))
+
         # Process streaming chunks
         f.write(chunk_audio)
-        
+
         # Print word level timestamps
-last_chunks={"start_time":chunk_json["timestamps"][-10]["start_time"],"end_time":chunk_json["timestamps"][-3]["end_time"],"word":" ".join([X["word"] for X in chunk_json["timestamps"][-10:-3]])}
+last_chunks = {
+    "start_time": chunk_json["timestamps"][-10]["start_time"],
+    "end_time": chunk_json["timestamps"][-3]["end_time"],
+    "word": " ".join([X["word"] for X in chunk_json["timestamps"][-10:-3]]),
+}
 
 print(f"CUTTING TO {last_chunks['word']}")
 
-audioseg=pydub.AudioSegment.from_file(f"outputstream.{Type}",format=Type)
-audioseg=audioseg[last_chunks["start_time"]*1000:last_chunks["end_time"] * 1000]
-audioseg.export(f"outputstreamcut.{Type}",format=Type)
+audioseg = pydub.AudioSegment.from_file(f"outputstream.{Type}", format=Type)
+audioseg = audioseg[last_chunks["start_time"] * 1000 : last_chunks["end_time"] * 1000]
+audioseg.export(f"outputstreamcut.{Type}", format=Type)
 
 
 """

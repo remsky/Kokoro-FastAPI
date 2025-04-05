@@ -1,9 +1,9 @@
 import gradio as gr
 import pytest
 
-from ui.lib.config import AUDIO_FORMATS
 from ui.lib.components.model import create_model_column
 from ui.lib.components.output import create_output_column
+from ui.lib.config import AUDIO_FORMATS
 
 
 def test_create_model_column_structure():

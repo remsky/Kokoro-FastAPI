@@ -123,7 +123,7 @@ def main():
     with open(wells_path, "r", encoding="utf-8") as f:
         full_text = f.read()
         # Take first few paragraphs
-        text = " ".join(full_text.split("\n\n")[:2])
+        text = " ".join(full_text.split("\n\n")[1:3])
 
     print("\nStarting TTS stream playback...")
     print(f"Text length: {len(text)} characters")

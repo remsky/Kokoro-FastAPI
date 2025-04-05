@@ -1,6 +1,7 @@
-from text_to_num import text2num
 import re
+
 import inflect
+from text_to_num import text2num
 from torch import mul
 
 INFLECT_ENGINE = inflect.engine()
@@ -10,6 +11,7 @@ def conditional_int(number: float, threshold: float = 0.00001):
     if abs(round(number) - number) < threshold:
         return int(round(number))
     return number
+
 
 def handle_money(m: re.Match[str]) -> str:
     """Convert money expressions to spoken form"""
@@ -23,7 +25,7 @@ def handle_money(m: re.Match[str]) -> str:
         number = float(number)
     except:
         return m.group()
-    
+
     if m.group(1) == "-":
         number *= -1
 

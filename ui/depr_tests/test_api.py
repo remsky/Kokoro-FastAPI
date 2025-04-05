@@ -1,4 +1,4 @@
-from unittest.mock import patch, mock_open
+from unittest.mock import mock_open, patch
 
 import pytest
 import requests
@@ -59,9 +59,11 @@ def test_check_api_status_connection_error():
 
 def test_text_to_speech_success(mock_response, tmp_path):
     """Test successful speech generation"""
-    with patch("requests.post", return_value=mock_response({})), patch(
-        "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
-    ), patch("builtins.open", mock_open()) as mock_file:
+    with (
+        patch("requests.post", return_value=mock_response({})),
+        patch("ui.lib.api.OUTPUTS_DIR", str(tmp_path)),
+        patch("builtins.open", mock_open()) as mock_file,
+    ):
         result = api.text_to_speech("test text", "voice1", "mp3", 1.0)
 
         assert result is not None
@@ -116,9 +118,11 @@ def test_text_to_speech_api_params(mock_response, tmp_path):
     ]
 
     for input_voice, expected_voice in test_cases:
-        with patch("requests.post") as mock_post, patch(
-            "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
-        ), patch("builtins.open", mock_open()):
+        with (
+            patch("requests.post") as mock_post,
+            patch("ui.lib.api.OUTPUTS_DIR", str(tmp_path)),
+            patch("builtins.open", mock_open()),
+        ):
             mock_post.return_value = mock_response({})
             api.text_to_speech("test text", input_voice, "mp3", 1.5)
 
@@ -149,11 +153,15 @@ def test_text_to_speech_output_filename(mock_response, tmp_path):
     ]
 
     for input_voice, filename_check in test_cases:
-        with patch("requests.post", return_value=mock_response({})), patch(
-            "ui.lib.api.OUTPUTS_DIR", str(tmp_path)
-        ), patch("builtins.open", mock_open()) as mock_file:
+        with (
+            patch("requests.post", return_value=mock_response({})),
+            patch("ui.lib.api.OUTPUTS_DIR", str(tmp_path)),
+            patch("builtins.open", mock_open()) as mock_file,
+        ):
             result = api.text_to_speech("test text", input_voice, "mp3", 1.0)
 
             assert result is not None
-            assert filename_check(result), f"Expected voice pattern not found in filename: {result}"
+            assert filename_check(result), (
+                f"Expected voice pattern not found in filename: {result}"
+            )
             mock_file.assert_called_once()

@@ -58,17 +58,21 @@ def setup_event_handlers(components: dict, disable_local_saving: bool = False):
 
     def handle_file_upload(file):
         if file is None:
-            return "" if disable_local_saving else [gr.update(choices=files.list_input_files())]
+            return (
+                ""
+                if disable_local_saving
+                else [gr.update(choices=files.list_input_files())]
+            )
 
         try:
             # Read the file content
-            with open(file.name, 'r', encoding='utf-8') as f:
+            with open(file.name, "r", encoding="utf-8") as f:
                 text_content = f.read()
 
             if disable_local_saving:
                 # When saving is disabled, put content directly in text input
                 # Normalize whitespace by replacing newlines with spaces
-                normalized_text = ' '.join(text_content.split())
+                normalized_text = " ".join(text_content.split())
                 return normalized_text
             else:
                 # When saving is enabled, save file and update dropdown
@@ -88,7 +92,11 @@ def setup_event_handlers(components: dict, disable_local_saving: bool = False):
 
         except Exception as e:
             print(f"Error handling file: {e}")
-            return "" if disable_local_saving else [gr.update(choices=files.list_input_files())]
+            return (
+                ""
+                if disable_local_saving
+                else [gr.update(choices=files.list_input_files())]
+            )
 
     def generate_from_text(text, voice, format, speed):
         """Generate speech from direct text input"""
@@ -104,7 +112,7 @@ def setup_event_handlers(components: dict, disable_local_saving: bool = False):
         # Only save text if local saving is enabled
         if not disable_local_saving:
             files.save_text(text)
-            
+
         result = api.text_to_speech(text, voice, format, speed)
         if result is None:
             gr.Warning("Failed to generate speech. Please try again.")
@@ -203,7 +211,11 @@ def setup_event_handlers(components: dict, disable_local_saving: bool = False):
         components["input"]["file_upload"].upload(
             fn=handle_file_upload,
             inputs=[components["input"]["file_upload"]],
-            outputs=[components["input"]["text_input"] if disable_local_saving else components["input"]["file_select"]],
+            outputs=[
+                components["input"]["text_input"]
+                if disable_local_saving
+                else components["input"]["file_select"]
+            ],
         )
 
     if components["output"]["play_btn"] is not None:

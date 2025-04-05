@@ -8,7 +8,6 @@ import time
 from typing import AsyncGenerator, List, Optional, Tuple, Union
 
 import numpy as np
-from .streaming_audio_writer import StreamingAudioWriter
 import torch
 from kokoro import KPipeline
 from loguru import logger
@@ -20,6 +19,7 @@ from ..inference.model_manager import get_manager as get_model_manager
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions
 from .audio import AudioNormalizer, AudioService
+from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
 from .text_processing.text_processor import process_text_chunk, smart_split
 
@@ -69,7 +69,9 @@ class TTSService:
                         yield AudioChunk(np.array([], dtype=np.int16), output=b"")
                         return
                     chunk_data = await AudioService.convert_audio(
-                        AudioChunk(np.array([], dtype=np.float32)),  # Dummy data for type checking
+                        AudioChunk(
+                            np.array([], dtype=np.float32)
+                        ),  # Dummy data for type checking
                         output_format,
                         writer,
                         speed,
@@ -114,13 +116,22 @@ class TTSService:
                             except Exception as e:
                                 logger.error(f"Failed to convert audio: {str(e)}")
                         else:
-                            chunk_data = AudioService.trim_audio(chunk_data, chunk_text, speed, is_last, normalizer)
+                            chunk_data = AudioService.trim_audio(
+                                chunk_data, chunk_text, speed, is_last, normalizer
+                            )
                             yield chunk_data
                         chunk_index += 1
                 else:
                     # For legacy backends, load voice tensor
-                    voice_tensor = await self._voice_manager.load_voice(voice_name, device=backend.device)
-                    chunk_data = await self.model_manager.generate(tokens, voice_tensor, speed=speed, return_timestamps=return_timestamps)
+                    voice_tensor = await self._voice_manager.load_voice(
+                        voice_name, device=backend.device
+                    )
+                    chunk_data = await self.model_manager.generate(
+                        tokens,
+                        voice_tensor,
+                        speed=speed,
+                        return_timestamps=return_timestamps,
+                    )
 
                     if chunk_data.audio is None:
                         logger.error("Model generated None for audio chunk")
@@ -146,7 +157,9 @@ class TTSService:
                         except Exception as e:
                             logger.error(f"Failed to convert audio: {str(e)}")
                     else:
-                        trimmed = AudioService.trim_audio(chunk_data, chunk_text, speed, is_last, normalizer)
+                        trimmed = AudioService.trim_audio(
+                            chunk_data, chunk_text, speed, is_last, normalizer
+                        )
                         yield trimmed
             except Exception as e:
                 logger.error(f"Failed to process tokens: {str(e)}")
@@ -178,7 +191,9 @@ class TTSService:
             # If it is only once voice there is no point in loading it up, doing nothing with it, then saving it
             if len(split_voice) == 1:
                 # Since its a single voice the only time that the weight would matter is if voice_weight_normalization is off
-                if ("(" not in voice and ")" not in voice) or settings.voice_weight_normalization == True:
+                if (
+                    "(" not in voice and ")" not in voice
+                ) or settings.voice_weight_normalization == True:
                     path = await self._voice_manager.get_voice_path(voice)
                     if not path:
                         raise RuntimeError(f"Voice not found: {voice}")
@@ -206,13 +221,19 @@ class TTSService:
 
             # Load the first voice as the starting point for voices to be combined onto
             path = await self._voice_manager.get_voice_path(split_voice[0][0])
-            combined_tensor = await self._load_voice_from_path(path, split_voice[0][1] / total_weight)
+            combined_tensor = await self._load_voice_from_path(
+                path, split_voice[0][1] / total_weight
+            )
 
             # Loop through each + or - in split_voice so they can be applied to combined voice
             for operation_index in range(1, len(split_voice) - 1, 2):
                 # Get the voice path of the voice 1 index ahead of the operator
-                path = await self._voice_manager.get_voice_path(split_voice[operation_index + 1][0])
-                voice_tensor = await self._load_voice_from_path(path, split_voice[operation_index + 1][1] / total_weight)
+                path = await self._voice_manager.get_voice_path(
+                    split_voice[operation_index + 1][0]
+                )
+                voice_tensor = await self._load_voice_from_path(
+                    path, split_voice[operation_index + 1][1] / total_weight
+                )
 
                 # Either add or subtract the voice from the current combined voice
                 if split_voice[operation_index] == "+":
@@ -255,10 +276,16 @@ class TTSService:
 
             # Use provided lang_code or determine from voice name
             pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-            logger.info(f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream")
+            logger.info(
+                f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
+            )
 
             # Process text in chunks with smart splitting
-            async for chunk_text, tokens in smart_split(text, lang_code=pipeline_lang_code, normalization_options=normalization_options):
+            async for chunk_text, tokens in smart_split(
+                text,
+                lang_code=pipeline_lang_code,
+                normalization_options=normalization_options,
+            ):
                 try:
                     # Process audio for chunk
                     async for chunk_data in self._process_chunk(
@@ -286,10 +313,14 @@ class TTSService:
                             yield chunk_data
 
                         else:
-                            logger.warning(f"No audio generated for chunk: '{chunk_text[:100]}...'")
+                            logger.warning(
+                                f"No audio generated for chunk: '{chunk_text[:100]}...'"
+                            )
                         chunk_index += 1
                 except Exception as e:
-                    logger.error(f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}")
+                    logger.error(
+                        f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
+                    )
                     continue
 
             # Only finalize if we successfully processed at least one chunk
@@ -332,7 +363,16 @@ class TTSService:
         audio_data_chunks = []
 
         try:
-            async for audio_stream_data in self.generate_audio_stream(text, voice, writer, speed=speed, normalization_options=normalization_options, return_timestamps=return_timestamps, lang_code=lang_code, output_format=None):
+            async for audio_stream_data in self.generate_audio_stream(
+                text,
+                voice,
+                writer,
+                speed=speed,
+                normalization_options=normalization_options,
+                return_timestamps=return_timestamps,
+                lang_code=lang_code,
+                output_format=None,
+            ):
                 if len(audio_stream_data.audio) > 0:
                     audio_data_chunks.append(audio_stream_data)
 
@@ -384,11 +424,15 @@ class TTSService:
                 result = None
                 # Use provided lang_code or determine from voice name
                 pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-                logger.info(f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline")
+                logger.info(
+                    f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
+                )
 
                 try:
                     # Use backend's pipeline management
-                    for r in backend._get_pipeline(pipeline_lang_code).generate_from_tokens(
+                    for r in backend._get_pipeline(
+                        pipeline_lang_code
+                    ).generate_from_tokens(
                         tokens=phonemes,  # Pass raw phonemes string
                         voice=voice_path,
                         speed=speed,
@@ -406,7 +450,9 @@ class TTSService:
                 processing_time = time.time() - start_time
                 return result.audio.numpy(), processing_time
             else:
-                raise ValueError("Phoneme generation only supported with Kokoro V1 backend")
+                raise ValueError(
+                    "Phoneme generation only supported with Kokoro V1 backend"
+                )
 
         except Exception as e:
             logger.error(f"Error in phoneme audio generation: {str(e)}")

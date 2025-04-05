@@ -2,6 +2,37 @@
 
 Notable changes to this project will be documented in this file.
 
+## [v0.3.0] - 2025-04-04
+### Added
+- Apple Silicon (MPS) acceleration support for macOS users.
+- Voice subtraction capability for creating unique voice effects.
+- Windows PowerShell start scripts (`start-cpu.ps1`, `start-gpu.ps1`).
+- Automatic model downloading integrated into all start scripts.
+- Example Helm chart values for Azure AKS and Nvidia GPU Operator deployments.
+- `CONTRIBUTING.md` guidelines for developers.
+
+### Changed
+- Version bump of underlying Kokoro and Misaki libraries
+- Default API port reverted to 8880.
+- Docker containers now run as a non-root user for enhanced security.
+- Improved text normalization for numbers, currency, and time formats.
+- Updated and improved Helm chart configurations and documentation.
+- Enhanced temporary file management with better error tracking.
+- Web UI dependencies (Siriwave) are now served locally.
+- Standardized environment variable handling across shell/PowerShell scripts.
+
+### Fixed
+- Corrected an issue preventing download links from being returned when `streaming=false`.
+- Resolved errors in Windows PowerShell scripts related to virtual environment activation order.
+- Addressed potential segfaults during inference.
+- Fixed various Helm chart issues related to health checks, ingress, and default values.
+- Corrected audio quality degradation caused by incorrect bitrate settings in some cases.
+- Ensured custom phonemes provided in input text are preserved.
+- Fixed a 'MediaSource' error affecting playback stability in the web player.
+
+### Removed
+- Obsolete GitHub Actions build workflow, build and publish now occurs on merge to `Release` branch
+
 ## [v0.2.0post1] - 2025-02-07
 - Fix: Building Kokoro from source with adjustments, to avoid CUDA lock 
 - Fixed ARM64 compatibility on Spacy dep to avoid emulation slowdown

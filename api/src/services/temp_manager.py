@@ -110,7 +110,7 @@ class TempFileWriter:
             # Set a placeholder path so the API can still function
             self.temp_path = f"unavailable_{self.format}"
             self.download_path = f"/download/{self.temp_path}"
-            
+
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -131,11 +131,11 @@ class TempFileWriter:
         """
         if self._finalized:
             raise RuntimeError("Cannot write to finalized temp file")
-            
+
         # Skip writing if we've already encountered an error
         if self._write_error or not self.temp_file:
             return
-            
+
         try:
             await self.temp_file.write(chunk)
             await self.temp_file.flush()
@@ -157,7 +157,7 @@ class TempFileWriter:
         if self._write_error or not self.temp_file:
             self._finalized = True
             return self.download_path
-            
+
         try:
             await self.temp_file.close()
             self._finalized = True

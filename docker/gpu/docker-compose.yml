@@ -1,7 +1,7 @@
 name: kokoro-tts-gpu
 services:
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.0
+    # image: ghcr.io/remsky/kokoro-fastapi-gpu:v${VERSION}
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile
@@ -24,7 +24,7 @@ services:
 
   # # Gradio UI service
   # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v0.2.0
+  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
   #   # Uncomment below to build from source instead of using the released image
   #   # build:
   #     # context: ../../ui

@@ -11,9 +11,10 @@ from loguru import logger
 from ..core import paths
 from ..core.config import settings
 from ..core.model_config import model_config
-from .base import BaseModelBackend
-from .base import AudioChunk
 from ..structures.schemas import WordTimestamp
+from .base import AudioChunk, BaseModelBackend
+
+
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
 
@@ -50,7 +51,9 @@ class KokoroV1(BaseModelBackend):
             self._model = KModel(config=config_path, model=model_path).eval()
             # For MPS, manually move ISTFT layers to CPU while keeping rest on MPS
             if self._device == "mps":
-                logger.info("Moving model to MPS device with CPU fallback for unsupported operations")
+                logger.info(
+                    "Moving model to MPS device with CPU fallback for unsupported operations"
+                )
                 self._model = self._model.to(torch.device("mps"))
             elif self._device == "cuda":
                 self._model = self._model.cuda()
@@ -145,11 +148,11 @@ class KokoroV1(BaseModelBackend):
             voice_path = temp_path
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
-            if lang_code: # api is given priority
+            if lang_code:  # api is given priority
                 pipeline_lang_code = lang_code
-            elif settings.default_voice_code: # settings is next priority
+            elif settings.default_voice_code:  # settings is next priority
                 pipeline_lang_code = settings.default_voice_code
-            else: # voice name is default/fallback
+            else:  # voice name is default/fallback
                 pipeline_lang_code = voice_name[0].lower()
 
             pipeline = self._get_pipeline(pipeline_lang_code)
@@ -244,7 +247,15 @@ class KokoroV1(BaseModelBackend):
             voice_path = temp_path
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
-            pipeline_lang_code = lang_code if lang_code else (settings.default_voice_code if settings.default_voice_code else voice_name[0].lower())
+            pipeline_lang_code = (
+                lang_code
+                if lang_code
+                else (
+                    settings.default_voice_code
+                    if settings.default_voice_code
+                    else voice_name[0].lower()
+                )
+            )
             pipeline = self._get_pipeline(pipeline_lang_code)
 
             logger.debug(
@@ -255,16 +266,19 @@ class KokoroV1(BaseModelBackend):
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
-                    word_timestamps=None
-                    if return_timestamps and hasattr(result, "tokens") and result.tokens:
-                        word_timestamps=[]
-                        current_offset=0.0
+                    word_timestamps = None
+                    if (
+                        return_timestamps
+                        and hasattr(result, "tokens")
+                        and result.tokens
+                    ):
+                        word_timestamps = []
+                        current_offset = 0.0
                         logger.debug(
-                                    f"Processing chunk timestamps with {len(result.tokens)} tokens"
-                                )
+                            f"Processing chunk timestamps with {len(result.tokens)} tokens"
+                        )
                         if result.pred_dur is not None:
                             try:
-
                                 # Add timestamps with offset
                                 for token in result.tokens:
                                     if not all(
@@ -285,7 +299,7 @@ class KokoroV1(BaseModelBackend):
                                         WordTimestamp(
                                             word=str(token.text).strip(),
                                             start_time=start_time,
-                                            end_time=end_time
+                                            end_time=end_time,
                                         )
                                     )
                                     logger.debug(
@@ -297,8 +311,9 @@ class KokoroV1(BaseModelBackend):
                                     f"Failed to process timestamps for chunk: {e}"
                                 )
 
-
-                    yield AudioChunk(result.audio.numpy(),word_timestamps=word_timestamps)
+                    yield AudioChunk(
+                        result.audio.numpy(), word_timestamps=word_timestamps
+                    )
                 else:
                     logger.warning("No audio in chunk")
 
@@ -329,7 +344,7 @@ class KokoroV1(BaseModelBackend):
             torch.cuda.synchronize()
         elif self._device == "mps":
             # Empty cache if available (future-proofing)
-            if hasattr(torch.mps, 'empty_cache'):
+            if hasattr(torch.mps, "empty_cache"):
                 torch.mps.empty_cache()
 
     def unload(self) -> None:
