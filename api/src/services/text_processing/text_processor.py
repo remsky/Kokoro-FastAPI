@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import AsyncGenerator, Dict, List, Tuple
+from typing import AsyncGenerator, Dict, List, Tuple, Optional # Add Optional import
 
 from loguru import logger
 
@@ -14,6 +14,8 @@ from .vocabulary import tokenize
 
 # Pre-compiled regex patterns for performance
 CUSTOM_PHONEMES = re.compile(r"(\[([^\]]|\n)*?\])(\(\/([^\/)]|\n)*?\/\))")
+# Pattern to find pause tags like [pause:0.5s]
+PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 
 
 def process_text_chunk(
@@ -42,7 +44,8 @@ def process_text_chunk(
         t1 = time.time()
 
         t0 = time.time()
-        phonemes = phonemize(text, language, normalize=False)  # Already normalized
+        # Normalize step is usually done before smart_split, but phonemize itself might do basic norm
+        phonemes = phonemize(text, language, normalize=False)
         t1 = time.time()
 
         t0 = time.time()
@@ -51,7 +54,7 @@ def process_text_chunk(
 
     total_time = time.time() - start_time
     logger.debug(
-        f"Total processing took {total_time * 1000:.2f}ms for chunk: '{text[:50]}{'...' if len(text) > 50 else ''}'"
+        f"Tokenization took {total_time * 1000:.2f}ms for chunk: '{text[:50]}{'...' if len(text) > 50 else ''}'"
     )
 
     return tokens
@@ -90,36 +93,61 @@ def process_text(text: str, language: str = "a") -> List[int]:
 def get_sentence_info(
     text: str, custom_phenomes_list: Dict[str, str]
 ) -> List[Tuple[str, List[int], int]]:
-    """Process all sentences and return info."""
-    sentences = re.split(r"([.!?;:])(?=\s|$)", text)
-    phoneme_length, min_value = len(custom_phenomes_list), 0
+    """Process all sentences and return info, preserving trailing newlines."""
+    # Split by sentence-ending punctuation, keeping the punctuation
+    sentences_parts = re.split(r'([.!?]+|\n+)', text)
+    sentences = []
+    current_sentence = ""
+    for part in sentences_parts:
+        if not part:
+            continue
+        current_sentence += part
+        # If the part ends with sentence punctuation or newline, consider it a sentence end
+        if re.search(r'[.!?\n]$', part):
+            sentences.append(current_sentence)
+            current_sentence = ""
+    if current_sentence: # Add any remaining part
+        sentences.append(current_sentence)
+
+
+    phoneme_length = len(custom_phenomes_list)
+    restored_phoneme_keys = list(custom_phenomes_list.keys()) # Keys to restore
 
     results = []
-    for i in range(0, len(sentences), 2):
-        sentence = sentences[i].strip()
-        for replaced in range(min_value, phoneme_length):
-            current_id = f"</|custom_phonemes_{replaced}|/>"
-            if current_id in sentence:
-                sentence = sentence.replace(
-                    current_id, custom_phenomes_list.pop(current_id)
-                )
-                min_value += 1
+    for original_sentence in sentences:
+        sentence_text_part = original_sentence.rstrip('\n') # Text without trailing newline for processing
+        trailing_newlines = original_sentence[len(sentence_text_part):] # Capture trailing newlines
 
-        punct = sentences[i + 1] if i + 1 < len(sentences) else ""
-
-        if not sentence:
+        if not sentence_text_part.strip(): # Skip empty or whitespace-only sentences
+            if trailing_newlines: # If only newlines, represent as empty text with newline marker
+                 results.append(("\n", [], 0)) # Store newline marker, no tokens
             continue
 
-        full = sentence + punct
-        tokens = process_text_chunk(full)
-        results.append((full, tokens, len(tokens)))
+        # Restore custom phonemes for this sentence *before* tokenization
+        sentence_to_tokenize = sentence_text_part
+        restored_count = 0
+        # Iterate through *all* possible phoneme IDs that might be in this sentence
+        for ph_id in restored_phoneme_keys:
+            if ph_id in sentence_to_tokenize:
+                sentence_to_tokenize = sentence_to_tokenize.replace(ph_id, custom_phenomes_list[ph_id])
+                restored_count+=1
+        if restored_count > 0:
+             logger.debug(f"Restored {restored_count} custom phonemes for tokenization in: '{sentence_text_part[:30]}...'")
+
+
+        # Tokenize the text part (without trailing newlines)
+        tokens = process_text_chunk(sentence_to_tokenize)
+
+        # Store the original sentence text (including trailing newlines) along with tokens
+        results.append((original_sentence, tokens, len(tokens)))
 
     return results
 
 
 def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> str:
     latest_id = f"</|custom_phonemes_{len(phenomes_list)}|/>"
-    phenomes_list[latest_id] = s.group(0).strip()
+    phenomes_list[latest_id] = s.group(0).strip() # Store the full original tag [phoneme](/ipa/)
+    logger.debug(f"Replacing custom phoneme {phenomes_list[latest_id]} with ID {latest_id}")
     return latest_id
 
 
@@ -128,149 +156,152 @@ async def smart_split(
     max_tokens: int = settings.absolute_max_tokens,
     lang_code: str = "a",
     normalization_options: NormalizationOptions = NormalizationOptions(),
-) -> AsyncGenerator[Tuple[str, List[int]], None]:
-    """Build optimal chunks targeting 300-400 tokens, never exceeding max_tokens."""
+) -> AsyncGenerator[Tuple[str, List[int], Optional[float]], None]:
+    """Build optimal chunks targeting token limits, handling pause tags and newlines.
+
+    Yields:
+        Tuple of (text_chunk, tokens, pause_duration_s).
+        If pause_duration_s is not None, it's a pause chunk with empty text/tokens.
+        Otherwise, it's a text chunk. text_chunk may end with '\n'.
+    """
     start_time = time.time()
     chunk_count = 0
-    logger.info(f"Starting smart split for {len(text)} chars")
+    logger.info(f"Starting smart split for {len(text)} chars, max_tokens={max_tokens}")
 
     custom_phoneme_list = {}
 
-    # Normalize text
+    # 1. Temporarily replace custom phonemes like [word](/ipa/) with unique IDs
+    text_with_ids = CUSTOM_PHONEMES.sub(
+        lambda s: handle_custom_phonemes(s, custom_phoneme_list), text
+    )
+    if custom_phoneme_list:
+        logger.debug(f"Found custom phonemes: {custom_phoneme_list}")
+
+
+    # 2. Normalize the text *with IDs* if required
+    normalized_text = text_with_ids
     if settings.advanced_text_normalization and normalization_options.normalize:
-        print(lang_code)
         if lang_code in ["a", "b", "en-us", "en-gb"]:
-            text = CUSTOM_PHONEMES.sub(
-                lambda s: handle_custom_phonemes(s, custom_phoneme_list), text
-            )
-            text = normalize_text(text, normalization_options)
+            normalized_text = normalize_text(normalized_text, normalization_options)
+            logger.debug("Applied text normalization.")
         else:
             logger.info(
                 "Skipping text normalization as it is only supported for english"
             )
 
-    # Process all sentences
-    sentences = get_sentence_info(text, custom_phoneme_list)
+    # 3. Split the normalized text by pause tags
+    parts = PAUSE_TAG_PATTERN.split(normalized_text)
+    logger.debug(f"Split into {len(parts)} parts by pause tags.")
 
-    current_chunk = []
-    current_tokens = []
-    current_count = 0
 
-    for sentence, tokens, count in sentences:
-        # Handle sentences that exceed max tokens
-        if count > max_tokens:
-            # Yield current chunk if any
-            if current_chunk:
-                chunk_text = " ".join(current_chunk)
-                chunk_count += 1
-                logger.debug(
-                    f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
-                )
-                yield chunk_text, current_tokens
-                current_chunk = []
-                current_tokens = []
-                current_count = 0
+    part_idx = 0
+    while part_idx < len(parts):
+        text_part = parts[part_idx] # This part contains text and custom phoneme IDs
+        part_idx += 1
 
-            # Split long sentence on commas
-            clauses = re.split(r"([,])", sentence)
-            clause_chunk = []
-            clause_tokens = []
-            clause_count = 0
+        if text_part:
+            # Process this text part using sentence splitting
+            # We pass the text_part *with IDs* to get_sentence_info
+            # get_sentence_info will handle restoring phonemes just before tokenization
+            sentences = get_sentence_info(text_part, custom_phoneme_list)
 
-            for j in range(0, len(clauses), 2):
-                clause = clauses[j].strip()
-                comma = clauses[j + 1] if j + 1 < len(clauses) else ""
+            current_chunk_texts = [] # Store original sentence texts for the current chunk
+            current_chunk_tokens = []
+            current_token_count = 0
 
-                if not clause:
-                    continue
+            for sentence_text, sentence_tokens, sentence_token_count in sentences:
+                 # --- Chunking Logic ---
 
-                full_clause = clause + comma
-
-                tokens = process_text_chunk(full_clause)
-                count = len(tokens)
-
-                # If adding clause keeps us under max and not optimal yet
-                if (
-                    clause_count + count <= max_tokens
-                    and clause_count + count <= settings.target_max_tokens
-                ):
-                    clause_chunk.append(full_clause)
-                    clause_tokens.extend(tokens)
-                    clause_count += count
-                else:
-                    # Yield clause chunk if we have one
-                    if clause_chunk:
-                        chunk_text = " ".join(clause_chunk)
+                # Condition 1: Current sentence alone exceeds max tokens
+                if sentence_token_count > max_tokens:
+                    logger.warning(f"Single sentence exceeds max_tokens ({sentence_token_count} > {max_tokens}): '{sentence_text[:50]}...'")
+                    # Yield any existing chunk first
+                    if current_chunk_texts:
+                        chunk_text_joined = " ".join(current_chunk_texts) # Join original texts
                         chunk_count += 1
-                        logger.debug(
-                            f"Yielding clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({clause_count} tokens)"
-                        )
-                        yield chunk_text, clause_tokens
-                    clause_chunk = [full_clause]
-                    clause_tokens = tokens
-                    clause_count = count
+                        logger.info(f"Yielding text chunk {chunk_count} (before oversized sentence): '{chunk_text_joined[:50]}...' ({current_token_count} tokens)")
+                        yield chunk_text_joined, current_chunk_tokens, None
+                        current_chunk_texts = []
+                        current_chunk_tokens = []
+                        current_token_count = 0
 
-            # Don't forget last clause chunk
-            if clause_chunk:
-                chunk_text = " ".join(clause_chunk)
+                    # Yield the oversized sentence as its own chunk
+                    # Restore phonemes before yielding the text
+                    text_to_yield = sentence_text
+                    for p_id, p_val in custom_phoneme_list.items():
+                         if p_id in text_to_yield:
+                              text_to_yield = text_to_yield.replace(p_id, p_val)
+
+                    chunk_count += 1
+                    logger.info(f"Yielding oversized text chunk {chunk_count}: '{text_to_yield[:50]}...' ({sentence_token_count} tokens)")
+                    yield text_to_yield, sentence_tokens, None
+                    continue # Move to the next sentence
+
+                # Condition 2: Adding the current sentence would exceed max_tokens
+                elif current_token_count + sentence_token_count > max_tokens:
+                    # Yield the current chunk first
+                    if current_chunk_texts:
+                        chunk_text_joined = " ".join(current_chunk_texts) # Join original texts
+                        chunk_count += 1
+                        logger.info(f"Yielding text chunk {chunk_count} (max_tokens limit): '{chunk_text_joined[:50]}...' ({current_token_count} tokens)")
+                        yield chunk_text_joined, current_chunk_tokens, None
+                    # Start a new chunk with the current sentence
+                    current_chunk_texts = [sentence_text]
+                    current_chunk_tokens = sentence_tokens
+                    current_token_count = sentence_token_count
+
+                # Condition 3: Adding exceeds target_max_tokens when already above target_min_tokens
+                elif (current_token_count >= settings.target_min_tokens and
+                      current_token_count + sentence_token_count > settings.target_max_tokens):
+                    # Yield the current chunk
+                    chunk_text_joined = " ".join(current_chunk_texts) # Join original texts
+                    chunk_count += 1
+                    logger.info(f"Yielding text chunk {chunk_count} (target_max limit): '{chunk_text_joined[:50]}...' ({current_token_count} tokens)")
+                    yield chunk_text_joined, current_chunk_tokens, None
+                    # Start a new chunk
+                    current_chunk_texts = [sentence_text]
+                    current_chunk_tokens = sentence_tokens
+                    current_token_count = sentence_token_count
+
+                # Condition 4: Add sentence to current chunk (fits within max_tokens and either below target_max or below target_min)
+                else:
+                    current_chunk_texts.append(sentence_text)
+                    current_chunk_tokens.extend(sentence_tokens)
+                    current_token_count += sentence_token_count
+
+            # --- End of sentence loop for this text part ---
+
+            # Yield any remaining accumulated chunk for this text part
+            if current_chunk_texts:
+                chunk_text_joined = " ".join(current_chunk_texts) # Join original texts
+                # Restore phonemes before yielding
+                text_to_yield = chunk_text_joined
+                for p_id, p_val in custom_phoneme_list.items():
+                     if p_id in text_to_yield:
+                          text_to_yield = text_to_yield.replace(p_id, p_val)
+
                 chunk_count += 1
-                logger.debug(
-                    f"Yielding final clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({clause_count} tokens)"
-                )
-                yield chunk_text, clause_tokens
+                logger.info(f"Yielding final text chunk {chunk_count} for part: '{text_to_yield[:50]}...' ({current_token_count} tokens)")
+                yield text_to_yield, current_chunk_tokens, None
 
-        # Regular sentence handling
-        elif (
-            current_count >= settings.target_min_tokens
-            and current_count + count > settings.target_max_tokens
-        ):
-            # If we have a good sized chunk and adding next sentence exceeds target,
-            # yield current chunk and start new one
-            chunk_text = " ".join(current_chunk)
-            chunk_count += 1
-            logger.info(
-                f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
-            )
-            yield chunk_text, current_tokens
-            current_chunk = [sentence]
-            current_tokens = tokens
-            current_count = count
-        elif current_count + count <= settings.target_max_tokens:
-            # Keep building chunk while under target max
-            current_chunk.append(sentence)
-            current_tokens.extend(tokens)
-            current_count += count
-        elif (
-            current_count + count <= max_tokens
-            and current_count < settings.target_min_tokens
-        ):
-            # Only exceed target max if we haven't reached minimum size yet
-            current_chunk.append(sentence)
-            current_tokens.extend(tokens)
-            current_count += count
-        else:
-            # Yield current chunk and start new one
-            if current_chunk:
-                chunk_text = " ".join(current_chunk)
-                chunk_count += 1
-                logger.info(
-                    f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
-                )
-                yield chunk_text, current_tokens
-            current_chunk = [sentence]
-            current_tokens = tokens
-            current_count = count
 
-    # Don't forget the last chunk
-    if current_chunk:
-        chunk_text = " ".join(current_chunk)
-        chunk_count += 1
-        logger.info(
-            f"Yielding final chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
-        )
-        yield chunk_text, current_tokens
+        # Check if the next part is a pause duration
+        if part_idx < len(parts):
+            duration_str = parts[part_idx]
+            part_idx += 1 # Move past the duration string
+            try:
+                duration = float(duration_str)
+                if duration > 0:
+                    chunk_count += 1
+                    logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")
+                    yield "", [], duration  # Yield pause chunk
+            except (ValueError, TypeError):
+                 logger.warning(f"Could not parse pause duration: {duration_str}")
+                 # If parsing fails, potentially treat the duration_str as text?
+                 # For now, just log a warning and skip.
+
 
     total_time = time.time() - start_time
     logger.info(
-        f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks"
+        f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )
