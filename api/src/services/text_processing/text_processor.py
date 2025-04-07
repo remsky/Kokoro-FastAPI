@@ -110,8 +110,17 @@ def get_sentence_info(
         if not sentence:
             continue
 
-        full = sentence + punct
-        tokens = process_text_chunk(full)
+        # Check if the original text segment ended with newline(s) before punctuation
+        original_segment = sentences[i]
+        trailing_newlines = ""
+        match = re.search(r"(\n+)$", original_segment)
+        if match:
+            trailing_newlines = match.group(1)
+
+        full = sentence + punct + trailing_newlines # Append trailing newlines
+        # Tokenize without the trailing newlines for accurate TTS processing
+        tokens = process_text_chunk(sentence + punct)
+        # Store the full text including newlines for later check
         results.append((full, tokens, len(tokens)))
 
     return results
@@ -161,28 +170,35 @@ async def smart_split(
         if count > max_tokens:
             # Yield current chunk if any
             if current_chunk:
-                chunk_text = " ".join(current_chunk)
+                # Join with space, but preserve original trailing newline of the last sentence if present
+                last_sentence_original = current_chunk[-1]
+                chunk_text_joined = " ".join(current_chunk)
+                if last_sentence_original.endswith("\n"):
+                     chunk_text_joined += "\n" # Preserve the newline marker
+
                 chunk_count += 1
                 logger.debug(
-                    f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
+                    f"Yielding text chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({current_count} tokens)"
                 )
-                yield chunk_text, current_tokens
+                yield chunk_text_joined, current_tokens, None # Pass the text with potential trailing newline
                 current_chunk = []
                 current_tokens = []
                 current_count = 0
 
-            # Split long sentence on commas
-            clauses = re.split(r"([,])", sentence)
-            clause_chunk = []
+            # Split long sentence on commas (simple approach)
+            # Keep original sentence text ('sentence' now includes potential trailing newline)
+            clauses = re.split(r"([,])", sentence.rstrip('\n')) # Split text part only
+            trailing_newline_in_sentence = "\n" if sentence.endswith("\n") else ""
+            clause_chunk = [] # Stores original clause text including potential trailing newline
             clause_tokens = []
             clause_count = 0
 
             for j in range(0, len(clauses), 2):
-                clause = clauses[j].strip()
+                # clause = clauses[j].strip() # Don't strip here to preserve internal structure
+                clause = clauses[j]
                 comma = clauses[j + 1] if j + 1 < len(clauses) else ""
 
-                if not clause:
-                    continue
+                if not clause.strip(): # Check if clause is just whitespace
 
                 full_clause = clause + comma
 
@@ -200,75 +216,93 @@ async def smart_split(
                 else:
                     # Yield clause chunk if we have one
                     if clause_chunk:
-                        chunk_text = " ".join(clause_chunk)
+                        # Join with space, preserve last clause's potential trailing newline
+                        last_clause_original = clause_chunk[-1]
+                        chunk_text_joined = " ".join(clause_chunk)
+                        if last_clause_original.endswith("\n"):
+                            chunk_text_joined += "\n"
+
                         chunk_count += 1
                         logger.debug(
-                            f"Yielding clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({clause_count} tokens)"
+                            f"Yielding clause chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({clause_count} tokens)"
                         )
-                        yield chunk_text, clause_tokens
-                    clause_chunk = [full_clause]
-                    clause_tokens = tokens
-                    clause_count = count
+                        yield chunk_text_joined, clause_tokens, None
+                    # Start new clause chunk with original text
+                    clause_chunk = [full_clause + (trailing_newline_in_sentence if j == len(clauses) - 2 else "")]
+                    clause_tokens = clause_token_list
+                    clause_count = clause_token_count
 
-            # Don't forget last clause chunk
-            if clause_chunk:
-                chunk_text = " ".join(clause_chunk)
-                chunk_count += 1
-                logger.debug(
-                    f"Yielding final clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({clause_count} tokens)"
-                )
-                yield chunk_text, clause_tokens
+                # Don't forget last clause chunk
+                if clause_chunk:
+                    # Join with space, preserve last clause's potential trailing newline
+                    last_clause_original = clause_chunk[-1]
+                    chunk_text_joined = " ".join(clause_chunk)
+                    # The trailing newline logic was added when creating the chunk above
+                    #if last_clause_original.endswith("\n"):
+                    #     chunk_text_joined += "\n"
 
-        # Regular sentence handling
-        elif (
+                    chunk_count += 1
+                    logger.debug(
+                        f"Yielding final clause chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({clause_count} tokens)"
+                    )
+                    yield chunk_text_joined, clause_tokens, None
             current_count >= settings.target_min_tokens
             and current_count + count > settings.target_max_tokens
         ):
             # If we have a good sized chunk and adding next sentence exceeds target,
-            # yield current chunk and start new one
-            chunk_text = " ".join(current_chunk)
+            # Yield current chunk and start new one
+            last_sentence_original = current_chunk[-1]
+            chunk_text_joined = " ".join(current_chunk)
+            if last_sentence_original.endswith("\n"):
+                chunk_text_joined += "\n"
             chunk_count += 1
             logger.info(
-                f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
+                f"Yielding text chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({current_count} tokens)"
             )
-            yield chunk_text, current_tokens
-            current_chunk = [sentence]
+            yield chunk_text_joined, current_tokens, None
+            current_chunk = [sentence] # sentence includes potential trailing newline
             current_tokens = tokens
             current_count = count
         elif current_count + count <= settings.target_max_tokens:
-            # Keep building chunk while under target max
-            current_chunk.append(sentence)
+            # Keep building chunk
+            current_chunk.append(sentence) # sentence includes potential trailing newline
             current_tokens.extend(tokens)
             current_count += count
         elif (
             current_count + count <= max_tokens
             and current_count < settings.target_min_tokens
         ):
-            # Only exceed target max if we haven't reached minimum size yet
-            current_chunk.append(sentence)
+             # Exceed target max only if below min size
+            current_chunk.append(sentence) # sentence includes potential trailing newline
             current_tokens.extend(tokens)
             current_count += count
         else:
             # Yield current chunk and start new one
             if current_chunk:
-                chunk_text = " ".join(current_chunk)
+                last_sentence_original = current_chunk[-1]
+                chunk_text_joined = " ".join(current_chunk)
+                if last_sentence_original.endswith("\n"):
+                    chunk_text_joined += "\n"
                 chunk_count += 1
                 logger.info(
-                    f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
+                    f"Yielding text chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({current_count} tokens)"
                 )
-                yield chunk_text, current_tokens
-            current_chunk = [sentence]
+                yield chunk_text_joined, current_tokens, None
+            current_chunk = [sentence] # sentence includes potential trailing newline
             current_tokens = tokens
             current_count = count
 
-    # Don't forget the last chunk
+    # Yield any remaining text chunk
     if current_chunk:
-        chunk_text = " ".join(current_chunk)
+        last_sentence_original = current_chunk[-1]
+        chunk_text_joined = " ".join(current_chunk)
+        if last_sentence_original.endswith("\n"):
+            chunk_text_joined += "\n"
         chunk_count += 1
         logger.info(
-            f"Yielding final chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(text) > 50 else ''}' ({current_count} tokens)"
+            f"Yielding final text chunk {chunk_count}: '{chunk_text_joined[:50]}{'...' if len(chunk_text_joined) > 50 else ''}' ({current_count} tokens)"
         )
-        yield chunk_text, current_tokens
+        yield chunk_text_joined, current_tokens, None
 
     total_time = time.time() - start_time
     logger.info(

@@ -280,18 +280,56 @@ class TTSService:
                 f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
             )
 
-            # Process text in chunks with smart splitting
-            async for chunk_text, tokens in smart_split(
+            # Process text in chunks with smart splitting, handling pauses
+            async for chunk_text, tokens, pause_duration_s in smart_split(
                 text,
                 lang_code=pipeline_lang_code,
                 normalization_options=normalization_options,
             ):
-                try:
-                    # Process audio for chunk
-                    async for chunk_data in self._process_chunk(
-                        chunk_text,  # Pass text for Kokoro V1
-                        tokens,  # Pass tokens for legacy backends
-                        voice_name,  # Pass voice name
+                if pause_duration_s is not None and pause_duration_s > 0:
+                    # --- Handle Pause Chunk ---
+                    try:
+                        logger.debug(f"Generating {pause_duration_s}s silence chunk")
+                        silence_samples = int(pause_duration_s * settings.sample_rate)
+                        # Use float32 zeros as AudioService will normalize later
+                        silence_audio = np.zeros(silence_samples, dtype=np.float32)
+                        pause_chunk = AudioChunk(audio=silence_audio, word_timestamps=[]) # Empty timestamps for silence
+
+                        # Convert silence chunk to the target format using AudioService
+                        if output_format:
+                            formatted_pause_chunk = await AudioService.convert_audio(
+                                pause_chunk,
+                                output_format,
+                                writer,
+                                speed=1.0, # Speed doesn't affect silence
+                                chunk_text="", # No text for silence
+                                is_last_chunk=False, # Not the final chunk
+                                trim_audio=False, # Don't trim silence
+                                normalizer=stream_normalizer,
+                            )
+                            if formatted_pause_chunk.output:
+                                yield formatted_pause_chunk
+                        else:
+                             # If no output format (raw audio), yield the raw chunk
+                             # Ensure normalization happens if needed (AudioService handles this)
+                             pause_chunk.audio = stream_normalizer.normalize(pause_chunk.audio)
+                             yield pause_chunk # Yield raw silence chunk
+
+                        # Update offset based on silence duration
+                        current_offset += pause_duration_s
+                        chunk_index += 1
+
+                    except Exception as e:
+                        logger.error(f"Failed to process pause chunk: {str(e)}")
+                        continue
+                elif tokens or chunk_text:
+                    # --- Handle Text Chunk ---
+                    try:
+                        # Process audio for the text chunk
+                        async for chunk_data in self._process_chunk(
+                            chunk_text,  # Pass text for Kokoro V1
+                            tokens,  # Pass tokens for legacy backends
+                            voice_name,  # Pass voice name
                         voice_path,  # Pass voice path
                         speed,
                         writer,
@@ -307,19 +345,48 @@ class TTSService:
                                 timestamp.start_time += current_offset
                                 timestamp.end_time += current_offset
 
-                        current_offset += len(chunk_data.audio) / 24000
-
-                        if chunk_data.output is not None:
-                            yield chunk_data
-
                         else:
-                            logger.warning(
-                                f"No audio generated for chunk: '{chunk_text[:100]}...'"
-                            )
+                             # If no output format (raw audio), yield the raw chunk
+                             # Ensure normalization happens if needed (AudioService handles this)
+                             pause_chunk.audio = stream_normalizer.normalize(pause_chunk.audio)
+                             if len(pause_chunk.audio) > 0: # Only yield if silence is not zero length
+                                yield pause_chunk # Yield raw silence chunk
+
+                        # Update offset based on silence duration
+                                f"No audio generated for chunk: '{chunk_text.strip()[:100]}...'"
                         chunk_index += 1
-                except Exception as e:
+                        # --- Add pause after newline ---
+                        # Check the original chunk_text passed from smart_split for trailing newline
+                        if chunk_text.endswith('\n'):
+                            newline_pause_s = 0.5
+                            try:
+                                logger.debug(f"Adding {newline_pause_s}s pause after newline.")
+                                silence_samples = int(newline_pause_s * settings.sample_rate)
+                                silence_audio = np.zeros(silence_samples, dtype=np.float32)
+                                pause_chunk = AudioChunk(audio=silence_audio, word_timestamps=[])
+
+                                if output_format:
+                                    formatted_pause_chunk = await AudioService.convert_audio(
+                                        pause_chunk, output_format, writer, speed=1.0, chunk_text="",
+                                        is_last_chunk=False, trim_audio=False, normalizer=stream_normalizer,
+                                    )
+                                    if formatted_pause_chunk.output:
+                                        yield formatted_pause_chunk
+                                else:
+                                    pause_chunk.audio = stream_normalizer.normalize(pause_chunk.audio)
+                                    if len(pause_chunk.audio) > 0:
+                                        yield pause_chunk
+
+                                current_offset += newline_pause_s # Add newline pause to offset
+
+                            except Exception as pause_e:
+                                 logger.error(f"Failed to process newline pause chunk: {str(pause_e)}")
+                        # -------------------------------
+
+
+                    except Exception as e:
                     logger.error(
-                        f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
+                        f"Failed to process audio for chunk: '{chunk_text.strip()[:100]}...'. Error: {str(e)}"
                     )
                     continue
 
@@ -374,7 +441,18 @@ class TTSService:
                 output_format=None,
             ):
                 if len(audio_stream_data.audio) > 0:
-                    audio_data_chunks.append(audio_stream_data)
+                    # Ensure we only append chunks with actual audio data
+                    # Raw silence chunks generated for pauses will have audio data (zeros)
+                    # Formatted silence chunks might have empty audio but non-empty output
+                    if len(audio_stream_data.audio) > 0 or (output_format and audio_stream_data.output):
+                        audio_data_chunks.append(audio_stream_data)
+
+            if not audio_data_chunks:
+                 # Handle cases where only pauses were present or generation failed
+                 logger.warning("No valid audio chunks generated.")
+                 # Return an empty AudioChunk or raise an error? Returning empty for now.
+                 return AudioChunk(audio=np.array([], dtype=np.int16), word_timestamps=[])
+
 
             combined_audio_data = AudioChunk.combine(audio_data_chunks)
             return combined_audio_data
