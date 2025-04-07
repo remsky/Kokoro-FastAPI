@@ -5,9 +5,11 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from api.src.services.audio import AudioNormalizer, AudioService
 from api.src.inference.base import AudioChunk
+from api.src.services.audio import AudioNormalizer, AudioService
 from api.src.services.streaming_audio_writer import StreamingAudioWriter
+
+
 @pytest.fixture(autouse=True)
 def mock_settings():
     """Mock settings for all tests"""
@@ -64,7 +66,9 @@ async def test_convert_to_mp3(sample_audio):
     assert isinstance(audio_chunk, AudioChunk)
     assert len(audio_chunk.output) > 0
     # Check MP3 header (ID3 or MPEG frame sync)
-    assert audio_chunk.output.startswith(b"ID3") or audio_chunk.output.startswith(b"\xff\xfb")
+    assert audio_chunk.output.startswith(b"ID3") or audio_chunk.output.startswith(
+        b"\xff\xfb"
+    )
 
 
 @pytest.mark.asyncio
@@ -76,7 +80,7 @@ async def test_convert_to_opus(sample_audio):
     writer = StreamingAudioWriter("opus", sample_rate=24000)
 
     audio_chunk = await AudioService.convert_audio(
-        AudioChunk(audio_data), "opus",writer
+        AudioChunk(audio_data), "opus", writer
     )
 
     writer.close()
@@ -120,12 +124,14 @@ async def test_convert_to_aac(sample_audio):
     )
 
     writer.close()
-    
+
     assert isinstance(audio_chunk.output, bytes)
     assert isinstance(audio_chunk, AudioChunk)
     assert len(audio_chunk.output) > 0
     # Check ADTS header (AAC)
-    assert audio_chunk.output.startswith(b"\xff\xf0") or audio_chunk.output.startswith(b"\xff\xf1")
+    assert audio_chunk.output.startswith(b"\xff\xf0") or audio_chunk.output.startswith(
+        b"\xff\xf1"
+    )
 
 
 @pytest.mark.asyncio
@@ -150,7 +156,7 @@ async def test_convert_to_pcm(sample_audio):
 @pytest.mark.asyncio
 async def test_convert_to_invalid_format_raises_error(sample_audio):
     """Test that converting to an invalid format raises an error"""
-    #audio_data, sample_rate = sample_audio
+    # audio_data, sample_rate = sample_audio
     with pytest.raises(ValueError, match="Unsupported format: invalid"):
         writer = StreamingAudioWriter("invalid", sample_rate=24000)
 
@@ -212,7 +218,6 @@ async def test_different_sample_rates(sample_audio):
     sample_rates = [8000, 16000, 44100, 48000]
 
     for rate in sample_rates:
-
         writer = StreamingAudioWriter("wav", sample_rate=rate)
 
         audio_chunk = await AudioService.convert_audio(

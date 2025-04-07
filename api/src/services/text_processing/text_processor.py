@@ -7,15 +7,16 @@ from typing import AsyncGenerator, Dict, List, Tuple
 from loguru import logger
 
 from ...core.config import settings
+from ...structures.schemas import NormalizationOptions
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
-from ...structures.schemas import NormalizationOptions
 
 # Pre-compiled regex patterns for performance
 CUSTOM_PHONEMES = re.compile(r"(\[([^\]]|\n)*?\])(\(\/([^\/)]|\n)*?\/\))")
 # Matching: [silent 1s], [silent 0.5s], [silent .5s]
 SILENCE_TAG = re.compile(r"\[silent (\d*\.?\d+)s\]")
+
 
 def process_text_chunk(
     text: str, language: str = "a", skip_phonemize: bool = False
@@ -31,7 +32,7 @@ def process_text_chunk(
         List of token IDs
     """
     start_time = time.time()
-    
+
     if skip_phonemize:
         # Input is already phonemes, just tokenize
         t0 = time.time()
@@ -43,9 +44,7 @@ def process_text_chunk(
         t1 = time.time()
 
         t0 = time.time()
-        phonemes = phonemize(
-            text, language, normalize=False
-        )  # Already normalized
+        phonemes = phonemize(text, language, normalize=False)  # Already normalized
         t1 = time.time()
 
         t0 = time.time()
@@ -88,7 +87,6 @@ def process_text(text: str, language: str = "a") -> List[int]:
         return []
 
     return process_text_chunk(text, language)
-
 
 def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[Tuple[str, List[int], int]]:
     """
@@ -134,6 +132,7 @@ def get_sentence_info(text: str, custom_phenomes_list: Dict[str, str]) -> List[T
 
     return results
 
+
 def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str,str]) -> str:
     """
     Replace [text](/phonemes/) with a <|custom_phonemes_X|/> tag to avoid being normalized.
@@ -143,11 +142,12 @@ def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str,str]) -> st
     phenomes_list[latest_id] = s.group(0).strip()
     return latest_id
 
+
 async def smart_split(
-    text: str, 
+    text: str,
     max_tokens: int = settings.absolute_max_tokens,
     lang_code: str = "a",
-    normalization_options: NormalizationOptions = NormalizationOptions()
+    normalization_options: NormalizationOptions = NormalizationOptions(),
 ) -> AsyncGenerator[Tuple[str, List[int]], None]:
     """Build optimal chunks targeting 300-400 tokens, never exceeding max_tokens."""
     start_time = time.time()
@@ -162,9 +162,11 @@ async def smart_split(
     if settings.advanced_text_normalization and normalization_options.normalize:
         if lang_code in ["a","b","en-us","en-gb"]:
             text = CUSTOM_PHONEMES.sub(lambda s: handle_custom_phonemes(s, custom_phoneme_list), text)
-            text=normalize_text(text,normalization_options)
+            text = normalize_text(text,normalization_options)
         else:
-            logger.info("Skipping text normalization as it is only supported for english")
+            logger.info(
+                "Skipping text normalization as it is only supported for english"
+            )
 
     # Process all sentences
     sentences = get_sentence_info(text, custom_phoneme_list)
@@ -221,7 +223,7 @@ async def smart_split(
                     continue
 
                 full_clause = clause + comma
-                
+
                 tokens = process_text_chunk(full_clause)
                 count = len(tokens)
 

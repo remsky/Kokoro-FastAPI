@@ -1,9 +1,10 @@
-import gradio as gr
 import os
 
+import gradio as gr
+
 from . import api
-from .handlers import setup_event_handlers
 from .components import create_input_column, create_model_column, create_output_column
+from .handlers import setup_event_handlers
 
 
 def create_interface():

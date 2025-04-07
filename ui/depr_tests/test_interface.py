@@ -62,8 +62,9 @@ def test_interface_html_links():
 def test_update_status_available(mock_timer):
     """Test status update when service is available"""
     voices = ["voice1", "voice2"]
-    with patch("ui.lib.api.check_api_status", return_value=(True, voices)), patch(
-        "gradio.Timer", return_value=mock_timer
+    with (
+        patch("ui.lib.api.check_api_status", return_value=(True, voices)),
+        patch("gradio.Timer", return_value=mock_timer),
     ):
         demo = create_interface()
 
@@ -81,8 +82,9 @@ def test_update_status_available(mock_timer):
 
 def test_update_status_unavailable(mock_timer):
     """Test status update when service is unavailable"""
-    with patch("ui.lib.api.check_api_status", return_value=(False, [])), patch(
-        "gradio.Timer", return_value=mock_timer
+    with (
+        patch("ui.lib.api.check_api_status", return_value=(False, [])),
+        patch("gradio.Timer", return_value=mock_timer),
     ):
         demo = create_interface()
         update_fn = mock_timer.events[0].fn
@@ -97,9 +99,10 @@ def test_update_status_unavailable(mock_timer):
 
 def test_update_status_error(mock_timer):
     """Test status update when an error occurs"""
-    with patch(
-        "ui.lib.api.check_api_status", side_effect=Exception("Test error")
-    ), patch("gradio.Timer", return_value=mock_timer):
+    with (
+        patch("ui.lib.api.check_api_status", side_effect=Exception("Test error")),
+        patch("gradio.Timer", return_value=mock_timer),
+    ):
         demo = create_interface()
         update_fn = mock_timer.events[0].fn
 
@@ -113,8 +116,9 @@ def test_update_status_error(mock_timer):
 
 def test_timer_configuration(mock_timer):
     """Test timer configuration"""
-    with patch("ui.lib.api.check_api_status", return_value=(False, [])), patch(
-        "gradio.Timer", return_value=mock_timer
+    with (
+        patch("ui.lib.api.check_api_status", return_value=(False, [])),
+        patch("gradio.Timer", return_value=mock_timer),
     ):
         demo = create_interface()
 

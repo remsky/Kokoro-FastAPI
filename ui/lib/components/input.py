@@ -11,12 +11,10 @@ def create_input_column(disable_local_saving: bool = False) -> Tuple[gr.Column, 
         text_input = gr.Textbox(
             label="Text to speak", placeholder="Enter text here...", lines=4
         )
-        
+
         # Always show file upload but handle differently based on disable_local_saving
-        file_upload = gr.File(
-            label="Upload Text File (.txt)", file_types=[".txt"]
-        )
-        
+        file_upload = gr.File(label="Upload Text File (.txt)", file_types=[".txt"])
+
         if not disable_local_saving:
             # Show full interface with tabs when saving is enabled
             with gr.Tabs() as tabs:
@@ -24,7 +22,9 @@ def create_input_column(disable_local_saving: bool = False) -> Tuple[gr.Column, 
                 tabs.selected = 0
                 # Direct Input Tab
                 with gr.TabItem("Direct Input"):
-                    text_submit_direct = gr.Button("Generate Speech", variant="primary", size="lg")
+                    text_submit_direct = gr.Button(
+                        "Generate Speech", variant="primary", size="lg"
+                    )
 
                 # File Input Tab
                 with gr.TabItem("From File"):
@@ -48,7 +48,9 @@ def create_input_column(disable_local_saving: bool = False) -> Tuple[gr.Column, 
                         )
         else:
             # Just show the generate button when saving is disabled
-            text_submit_direct = gr.Button("Generate Speech", variant="primary", size="lg")
+            text_submit_direct = gr.Button(
+                "Generate Speech", variant="primary", size="lg"
+            )
             tabs = None
             input_files_list = None
             file_preview = None

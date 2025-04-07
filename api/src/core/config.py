@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
 import torch
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -14,9 +14,13 @@ class Settings(BaseSettings):
     output_dir: str = "output"
     output_dir_size_limit_mb: float = 500.0  # Maximum size of output directory in MB
     default_voice: str = "af_heart"
-    default_voice_code: str | None = None  # If set, overrides the first letter of voice name, though api call param still takes precedence
+    default_voice_code: str | None = (
+        None  # If set, overrides the first letter of voice name, though api call param still takes precedence
+    )
     use_gpu: bool = True  # Whether to use GPU acceleration if available
-    device_type: str | None = None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
+    device_type: str | None = (
+        None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
+    )
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
@@ -31,12 +35,21 @@ class Settings(BaseSettings):
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk
     absolute_max_tokens: int = 450  # Absolute maximum tokens per chunk
-    advanced_text_normalization: bool = True # Preproesses the text before misiki
-    voice_weight_normalization: bool = True # Normalize the voice weights so they add up to 1
+    advanced_text_normalization: bool = True  # Preproesses the text before misiki
+    voice_weight_normalization: bool = (
+        True  # Normalize the voice weights so they add up to 1
+    )
 
-    gap_trim_ms: int = 1  # Base amount to trim from streaming chunk ends in milliseconds
-    dynamic_gap_trim_padding_ms: int = 410 # Padding to add to dynamic gap trim
-    dynamic_gap_trim_padding_char_multiplier: dict[str,float] = {".":1,"!":0.9,"?":1,",":0.8}
+    gap_trim_ms: int = (
+        1  # Base amount to trim from streaming chunk ends in milliseconds
+    )
+    dynamic_gap_trim_padding_ms: int = 410  # Padding to add to dynamic gap trim
+    dynamic_gap_trim_padding_char_multiplier: dict[str, float] = {
+        ".": 1,
+        "!": 0.9,
+        "?": 1,
+        ",": 0.8,
+    }
 
     # Web Player Settings
     enable_web_player: bool = True  # Whether to serve the web player UI
@@ -67,7 +80,6 @@ class Settings(BaseSettings):
         elif torch.cuda.is_available():
             return "cuda"
         return "cpu"
-
 
 
 settings = Settings()

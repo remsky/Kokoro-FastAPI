@@ -44,9 +44,12 @@ def test_get_sentence_info():
         assert count == len(tokens)
         assert count > 0
 
+
 def test_get_sentence_info_phenomoes():
     """Test sentence splitting and info extraction."""
-    text = "This is sentence one. This is </|custom_phonemes_0|/> two! What about three?"
+    text = (
+        "This is sentence one. This is </|custom_phonemes_0|/> two! What about three?"
+    )
     results = get_sentence_info(text, {"</|custom_phonemes_0|/>": r"sˈɛntᵊns"})
 
     assert len(results) == 3
@@ -58,13 +61,14 @@ def test_get_sentence_info_phenomoes():
         assert count == len(tokens)
         assert count > 0
 
+
 def test_get_sentence_info_silence_tags():
     """Test sentence splitting and info extraction with silence tags."""
-    text = "This is a test sentence, [silent](/1s/) with silence for one second."
+    text = "This is a test sentence, [silent 1s] with silence for one second."
     results = get_sentence_info(text, {})
 
     assert len(results) == 3
-    assert results[1][0] == "[silent](/1s/)"
+    assert results[1][0] == "[silent 1s]"
     for sentence, tokens, count in results:
         assert isinstance(sentence, str)
         assert isinstance(tokens, list)

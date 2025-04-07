@@ -3,12 +3,12 @@
 </p>
 
 # <sub><sub>_`FastKoko`_ </sub></sub>
-[![Tests](https://img.shields.io/badge/tests-69%20passed-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]()
+[![Tests](https://img.shields.io/badge/tests-69-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-54%25-tan)]()
 [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
 
-[![Kokoro](https://img.shields.io/badge/kokoro-v0.7.9::31a2b63-BB5420)](https://github.com/hexgrad/kokoro)
-[![Misaki](https://img.shields.io/badge/misaki-v0.7.9::ebc76c2-B8860B)](https://github.com/hexgrad/misaki)
+[![Kokoro](https://img.shields.io/badge/kokoro-0.9.2-BB5420)](https://github.com/hexgrad/kokoro)
+[![Misaki](https://img.shields.io/badge/misaki-0.9.3-B8860B)](https://github.com/hexgrad/misaki)
 
 [![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6)
 
@@ -24,10 +24,6 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 ### Integration Guides
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Setup-Kubernetes) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-DigitalOcean) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-SillyTavern)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-OpenWebUi)
-
-
-
-
 ## Get Started
 
 <details>
@@ -38,11 +34,12 @@ Pre built images are available to run, with arm/multi-arch support, and baked in
 Refer to the core/config.py file for a full list of variables which can be managed via the environment
 
 ```bash
-# the `latest` tag can be used, but should not be considered stable as it may include `nightly` branch builds
-# it may have some bonus features however, and feedback/testing is welcome
+# the `latest` tag can be used, though it may have some unexpected bonus features which impact stability.
+ Named versions should be pinned for your regular usage.
+ Feedback/testing is always welcome
 
-docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:v0.2.2 # CPU, or:
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.2  #NVIDIA GPU
+docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU, or:
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NVIDIA GPU
 ```
 
 
@@ -66,7 +63,7 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:v0.2.2  #NV
         # *Note for Apple Silicon (M1/M2) users:
         # The current GPU build relies on CUDA, which is not supported on Apple Silicon.  
         # If you are on an M1/M2/M3 Mac, please use the `docker/cpu` setup.  
-        # MPS (Apple’s GPU acceleration) support is planned but not yet available.
+        # MPS (Apple's GPU acceleration) support is planned but not yet available.
 
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
@@ -139,8 +136,8 @@ with client.audio.speech.with_streaming_response.create(
 
 </details>
 
-
 ## Features 
+
 <details>
 <summary>OpenAI-Compatible Speech Endpoint</summary>
 
@@ -564,13 +561,15 @@ for chunk in response.iter_content(chunk_size=1024):
 <details>
 <summary>Versioning & Development</summary>
 
-I'm doing what I can to keep things stable, but we are on an early and rapid set of build cycles here.
-If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR. Will leave the branch up here for the last known stable points:
+**Branching Strategy:**
+*   **`release` branch:** Contains the latest stable build, recommended for production use. Docker images tagged with specific versions (e.g., `v0.3.0`) are built from this branch.
+*   **`master` branch:** Used for active development. It may contain experimental features, ongoing changes, or fixes not yet in a stable release. Use this branch if you want the absolute latest code, but be aware it might be less stable. The `latest` Docker tag often points to builds from this branch.
 
-`v0.1.4`
-`v0.0.5post1`
+Note: This is a *development* focused project at its core. 
 
-Free and open source is a community effort, and I love working on this project, though there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
+If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR.
+
+Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
 
   <a href="https://www.buymeacoffee.com/remsky" target="_blank">
     <img 

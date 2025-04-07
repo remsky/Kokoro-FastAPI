@@ -15,8 +15,9 @@ def mock_dirs(tmp_path):
     inputs_dir.mkdir()
     outputs_dir.mkdir()
 
-    with patch("ui.lib.files.INPUTS_DIR", str(inputs_dir)), patch(
-        "ui.lib.files.OUTPUTS_DIR", str(outputs_dir)
+    with (
+        patch("ui.lib.files.INPUTS_DIR", str(inputs_dir)),
+        patch("ui.lib.files.OUTPUTS_DIR", str(outputs_dir)),
     ):
         yield inputs_dir, outputs_dir
 

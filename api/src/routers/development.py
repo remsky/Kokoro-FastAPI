@@ -156,6 +156,7 @@ async def generate_from_phonemes(
             },
         )
 
+
 @router.post("/dev/captioned_speech")
 async def create_captioned_speech(
     request: CaptionedSpeechRequest,
@@ -184,7 +185,9 @@ async def create_captioned_speech(
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
             # Create generator but don't start it yet
-            generator = stream_audio_chunks(tts_service, request, client_request, writer)
+            generator = stream_audio_chunks(
+                tts_service, request, client_request, writer
+            )
 
             # If download link requested, wrap generator with temp file writer
             if request.return_download_link:
@@ -211,21 +214,32 @@ async def create_captioned_speech(
                         # Write chunks to temp file and stream
                         async for chunk_data in generator:
                             # The timestamp acumulator is only used when word level time stamps are generated but no audio is returned.
-                            timestamp_acumulator=[]
-                            
+                            timestamp_acumulator = []
+
                             if chunk_data.output:  # Skip empty chunks
                                 await temp_writer.write(chunk_data.output)
-                                base64_chunk= base64.b64encode(chunk_data.output).decode("utf-8")
-                                
+                                base64_chunk = base64.b64encode(
+                                    chunk_data.output
+                                ).decode("utf-8")
+
                                 # Add any chunks that may be in the acumulator into the return word_timestamps
-                                chunk_data.word_timestamps=timestamp_acumulator + chunk_data.word_timestamps
-                                timestamp_acumulator=[]
-                            
-                                yield CaptionedSpeechResponse(audio=base64_chunk,audio_format=content_type,timestamps=chunk_data.word_timestamps)
+                                chunk_data.word_timestamps = (
+                                    timestamp_acumulator + chunk_data.word_timestamps
+                                )
+                                timestamp_acumulator = []
+
+                                yield CaptionedSpeechResponse(
+                                    audio=base64_chunk,
+                                    audio_format=content_type,
+                                    timestamps=chunk_data.word_timestamps,
+                                )
                             else:
-                                if chunk_data.word_timestamps is not None and len(chunk_data.word_timestamps) > 0:
-                                    timestamp_acumulator+=chunk_data.word_timestamps
-                                
+                                if (
+                                    chunk_data.word_timestamps is not None
+                                    and len(chunk_data.word_timestamps) > 0
+                                ):
+                                    timestamp_acumulator += chunk_data.word_timestamps
+
                         # Finalize the temp file
                         await temp_writer.finalize()
                     except Exception as e:
@@ -246,26 +260,37 @@ async def create_captioned_speech(
             async def single_output():
                 try:
                     # The timestamp acumulator is only used when word level time stamps are generated but no audio is returned.
-                    timestamp_acumulator=[]
-                    
+                    timestamp_acumulator = []
+
                     # Stream chunks
                     async for chunk_data in generator:
                         if chunk_data.output:  # Skip empty chunks
                             # Encode the chunk bytes into base 64
-                            base64_chunk= base64.b64encode(chunk_data.output).decode("utf-8")
-                            
+                            base64_chunk = base64.b64encode(chunk_data.output).decode(
+                                "utf-8"
+                            )
+
                             # Add any chunks that may be in the acumulator into the return word_timestamps
                             if chunk_data.word_timestamps != None:
-                                chunk_data.word_timestamps = timestamp_acumulator + chunk_data.word_timestamps
+                                chunk_data.word_timestamps = (
+                                    timestamp_acumulator + chunk_data.word_timestamps
+                                )
                             else:
                                 chunk_data.word_timestamps = []
-                            timestamp_acumulator=[]
-                            
-                            yield CaptionedSpeechResponse(audio=base64_chunk,audio_format=content_type,timestamps=chunk_data.word_timestamps)
+                            timestamp_acumulator = []
+
+                            yield CaptionedSpeechResponse(
+                                audio=base64_chunk,
+                                audio_format=content_type,
+                                timestamps=chunk_data.word_timestamps,
+                            )
                         else:
-                            if chunk_data.word_timestamps is not None and len(chunk_data.word_timestamps) > 0:
-                                timestamp_acumulator+=chunk_data.word_timestamps
-                                
+                            if (
+                                chunk_data.word_timestamps is not None
+                                and len(chunk_data.word_timestamps) > 0
+                            ):
+                                timestamp_acumulator += chunk_data.word_timestamps
+
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
                     writer.close()
@@ -293,7 +318,7 @@ async def create_captioned_speech(
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
             )
-            
+
             audio_data = await AudioService.convert_audio(
                 audio_data,
                 request.response_format,
@@ -301,7 +326,7 @@ async def create_captioned_speech(
                 is_last_chunk=False,
                 trim_audio=False,
             )
-            
+
             # Convert to requested format with proper finalization
             final = await AudioService.convert_audio(
                 AudioChunk(np.array([], dtype=np.int16)),
@@ -309,11 +334,15 @@ async def create_captioned_speech(
                 writer,
                 is_last_chunk=True,
             )
-            output=audio_data.output + final.output
-            
-            base64_output= base64.b64encode(output).decode("utf-8")
-            
-            content=CaptionedSpeechResponse(audio=base64_output,audio_format=content_type,timestamps=audio_data.word_timestamps).model_dump()
+            output = audio_data.output + final.output
+
+            base64_output = base64.b64encode(output).decode("utf-8")
+
+            content = CaptionedSpeechResponse(
+                audio=base64_output,
+                audio_format=content_type,
+                timestamps=audio_data.word_timestamps,
+            ).model_dump()
 
             writer.close()
 
