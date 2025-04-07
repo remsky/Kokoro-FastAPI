@@ -31,7 +31,7 @@ USER appuser
 WORKDIR /app
 
 # Copy dependency files
-COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
+COPY --chown=appuser:appuser pyproject-runpod.toml ./pyproject.toml
 
 ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
   PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \

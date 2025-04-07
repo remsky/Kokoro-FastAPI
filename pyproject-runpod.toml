@@ -42,7 +42,7 @@ dependencies = [
   "text2num>=2.5.1",
   "inflect>=7.5.0",
   "phonemizer-fork>=3.3.2",
-  "runpod==1.7.7",
+  "runpod==1.7.8",
 ]
 
 [project.optional-dependencies]
