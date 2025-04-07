@@ -33,10 +33,11 @@ class StreamingAudioWriter:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
                 container_options = {}
-                # Try disabling ID3 tags for MP3, as they might cause the 'junk' reported by ffmpeg
+                # Try disabling ID3 tags and Xing VBR header for MP3
                 if self.format == 'mp3':
-                    container_options = {'id3v2_version': '0'} # Disable ID3v2 tags
-                    logger.debug("Disabling ID3v2 tags for MP3 encoding.")
+                    # Disable ID3v2 tags AND Xing VBR header
+                    container_options = {'id3v2_version': '0', 'write_xing': '0'}
+                    logger.debug("Disabling ID3v2 tags and Xing VBR header for MP3 encoding.")
 
                 self.container = av.open(
                     self.output_buffer,
@@ -74,12 +75,18 @@ class StreamingAudioWriter:
 
         if finalize:
             if self.format != "pcm":
+                # Flush stream encoder
                 packets = self.stream.encode(None)
                 for packet in packets:
                     self.container.mux(packet)
 
+                # Explicitly flush the container to ensure all data is written to the buffer
+                self.container.flush()
+                logger.debug("Flushed PyAV container.")
+
+                # Get the final bytes from the buffer
                 data = self.output_buffer.getvalue()
-                self.close()
+                self.close() # Close container and buffer
                 return data
 
         if audio_data is None or len(audio_data) == 0:
