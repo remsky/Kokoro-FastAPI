@@ -80,11 +80,11 @@ class StreamingAudioWriter:
                 for packet in packets:
                     self.container.mux(packet)
 
-                # Explicitly flush the container to ensure all data is written to the buffer
-                self.container.flush()
-                logger.debug("Flushed PyAV container.")
+                # Closing the container handles writing the trailer and finalizing the file.
+                # No explicit flush method is available or needed here.
+                logger.debug("Muxed final packets.")
 
-                # Get the final bytes from the buffer
+                # Get the final bytes from the buffer *before* closing it
                 data = self.output_buffer.getvalue()
                 self.close() # Close container and buffer
                 return data
