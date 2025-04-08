@@ -33,11 +33,11 @@ class StreamingAudioWriter:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
                 container_options = {}
-                # Try disabling ID3 tags and Xing VBR header for MP3
+                # Try disabling Xing VBR header for MP3
                 if self.format == 'mp3':
-                    # Disable ID3v2 tags AND Xing VBR header
-                    container_options = {'id3v2_version': '0', 'write_xing': '0'}
-                    logger.debug("Disabling ID3v2 tags and Xing VBR header for MP3 encoding.")
+                    # Disable Xing VBR header
+                    container_options = {'write_xing': '0'}
+                    logger.debug("Disabling Xing VBR header for MP3 encoding.")
 
                 self.container = av.open(
                     self.output_buffer,
