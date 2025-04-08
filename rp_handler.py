@@ -10,7 +10,7 @@ import numpy as np
 from api.src.services.tts_service import TTSService
 from api.src.services.streaming_audio_writer import StreamingAudioWriter
 from api.src.routers.openai_compatible import (
-    get_tts_service as api_get_tts_service,
+    get_tts_service as api_get_tts_service, # Keep original function for potential reuse/consistency
     process_and_validate_voices,
     load_openai_mappings,
 )
@@ -18,35 +18,54 @@ from api.src.inference.base import AudioChunk
 from api.src.structures.schemas import NormalizationOptions # Import normalization options
 from api.src.core.config import settings # Import settings for lang_code logic
 
-# Load OpenAI mappings (remains the same)
+# Load OpenAI mappings
 openai_mappings = load_openai_mappings()
 
-# Global service instance (remains the same)
+# Global service instance
 tts_service = None
 _init_lock = None
 
 async def get_tts_service():
-    """Get or initialize the TTS service instance."""
+    """Get or initialize the TTS service instance, ensuring the backend is warmed up."""
     global tts_service, _init_lock
     if _init_lock is None:
         _init_lock = asyncio.Lock()
 
     if tts_service is None:
         async with _init_lock:
+            # Double-check pattern
             if tts_service is None:
+                temp_service = None # Use a temporary variable
                 try:
                     logger.info("Initializing TTS service for RunPod handler...")
-                    # Use the imported function which handles initialization and warmup
-                    tts_service = await api_get_tts_service()
-                    # Verify it's ready
-                    if tts_service.model_manager is None or tts_service._voice_manager is None:
-                         raise RuntimeError("TTS service backend not initialized after get_tts_service call")
-                    await tts_service.list_voices() # Test call
-                    logger.info("TTS service initialized successfully for RunPod handler.")
+                    # Create the service instance first
+                    # Note: TTSService.create() gets managers but doesn't init the backend
+                    temp_service = await TTSService.create()
+
+                    if temp_service.model_manager is None or temp_service._voice_manager is None:
+                        raise RuntimeError("TTS service managers not initialized by create()")
+
+                    logger.info("Warming up TTS model...")
+                    # Explicitly initialize and warm up the model manager's backend
+                    device, model_name, voice_count = await temp_service.model_manager.initialize_with_warmup(
+                        temp_service._voice_manager
+                    )
+                    logger.info(f"Model '{model_name}' warmed up on {device} with {voice_count} voices.")
+
+                    # Assign to global variable only after successful warmup
+                    tts_service = temp_service
+                    logger.info("TTS service initialized and warmed up successfully for RunPod handler.")
+
                 except Exception as e:
-                    logger.error(f"Failed to initialize TTS service: {e}", exc_info=True)
-                    tts_service = None # Reset on failure
+                    logger.error(f"Failed to initialize and warm up TTS service: {e}", exc_info=True)
+                    # Ensure tts_service remains None if initialization failed
+                    tts_service = None
                     raise RuntimeError(f"Failed to initialize TTS service: {str(e)}")
+    # Check if the backend is actually loaded after potential initialization
+    if tts_service and tts_service.model_manager.get_backend() is None:
+         logger.error("TTS Service exists but backend is still None after initialization attempt.")
+         raise RuntimeError("Backend failed to initialize properly.")
+
     return tts_service
 
 
@@ -94,7 +113,7 @@ async def handler(event):
 
         # --- Initialization & Processing ---
         yield {"status": "initializing", "progress": 10, "message": "Initializing TTS service..."}
-        service = await get_tts_service() # Ensures service is initialized
+        service = await get_tts_service() # Ensures service is initialized AND warmed up
 
         yield {"status": "processing", "progress": 25, "message": "Processing voice..."}
         # Use the imported voice processing function
@@ -160,12 +179,12 @@ async def handler(event):
         generation_time = time.time() - start_generation_time
         handler_time = time.time() - start_handler_time
 
-        if not has_yielded_audio:
+        if not has_yielded_audio and len(text.strip()) > 0 : # Check if input text was actually present
              logger.warning(f"No audio data was yielded for the request. Input text: '{text[:100]}...'")
              yield {
                  "status": "error",
                  "error": "generation_failed",
-                 "message": "Audio generation completed but produced no output data."
+                 "message": "Audio generation completed but produced no output data. Please check logs."
              }
              return # Stop processing if no audio was generated
 
