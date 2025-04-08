@@ -285,15 +285,11 @@ class TTSService:
             backend = self.model_manager.get_backend()
 
             # Get voice path, handling combined voices
-            # voice_name will be the potentially complex combined name string
             voice_name, voice_path = await self._get_voices_path(voice)
-            logger.debug(f"Using voice path for '{voice_name}': {voice_path}")
+            logger.debug(f"Using voice path: {voice_path}")
 
-            # Determine language code
-            # Use provided lang_code, fallback to settings override, then first letter of first base voice
-            first_base_voice_match = re.match(r"([a-zA-Z0-9_]+)", voice)
-            first_base_voice = first_base_voice_match.group(1) if first_base_voice_match else "a" # Default 'a'
-            pipeline_lang_code = lang_code if lang_code else (settings.default_voice_code if settings.default_voice_code else first_base_voice[:1].lower())
+            # Use provided lang_code or determine from voice name
+            pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
             logger.info(
                 f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
             )
