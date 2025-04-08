@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import AsyncGenerator, Dict, List, Tuple, Optional # Add Optional import
+from typing import AsyncGenerator, Dict, List, Tuple, Optional
 
 from loguru import logger
 
