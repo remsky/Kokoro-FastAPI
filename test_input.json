@@ -5,6 +5,7 @@
     "model": "kokoro",
     "speed": 1.0,
     "response_format": "mp3",
-    "lang_code": "en"
+    "lang_code": "en",
+    "stream": false
   }
 }
