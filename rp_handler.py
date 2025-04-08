@@ -5,7 +5,7 @@ from loguru import logger
 import time
 import re
 import numpy as np
-
+import base64
 # Import necessary functions and classes from the API source
 from api.src.services.tts_service import TTSService
 from api.src.services.streaming_audio_writer import StreamingAudioWriter
@@ -161,10 +161,13 @@ async def handler(event):
                 chunk_size = len(audio_chunk.output)
                 total_size += chunk_size
 
+                # *** FIX: Base64 encode the audio bytes ***
+                encoded_audio_data = base64.b64encode(audio_chunk.output).decode('utf-8')
+                
                 yield {
                     "status": "audio_chunk",
                     "chunk_index": chunk_count,
-                    "audio_data": audio_chunk.output, # Yield the formatted bytes
+                    "audio_data": encoded_audio_data, # Yield the formatted bytes
                     "chunk_size": chunk_size
                 }
                 # Optional progress update
