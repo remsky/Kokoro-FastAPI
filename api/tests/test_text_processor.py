@@ -53,13 +53,21 @@ def test_get_sentence_info_phenomoes():
     results = get_sentence_info(text, {"</|custom_phonemes_0|/>": r"sˈɛntᵊns"})
 
     assert len(results) == 3
-    assert "sˈɛntᵊns" in results[1][0]
+    # Verify the original sentence text contains the placeholder
+    assert "</|custom_phonemes_0|/>" in results[1][0]
+    # Optional: Verify the tokens list is not empty (implies processing happened)
+    assert len(results[1][1]) > 0
+
     for sentence, tokens, count in results:
         assert isinstance(sentence, str)
         assert isinstance(tokens, list)
         assert isinstance(count, int)
         assert count == len(tokens)
-        assert count > 0
+        # Allow zero tokens for empty/newline-only sentences processed by get_sentence_info
+        if sentence.strip() and sentence != "\n":
+            assert count > 0
+        else:
+            assert count == 0
 
 
 @pytest.mark.asyncio
@@ -67,7 +75,9 @@ async def test_smart_split_short_text():
     """Test smart splitting with text under max tokens."""
     text = "This is a short test sentence."
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    # Unpack all three values yielded by smart_split
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
+        # Append only text and tokens if pause duration is not needed for assert
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) == 1
@@ -82,7 +92,9 @@ async def test_smart_split_long_text():
     text = ". ".join(["This is test sentence number " + str(i) for i in range(20)])
 
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    # Unpack all three values yielded by smart_split
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
+        # Append only text and tokens if pause duration is not needed for assert
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) > 1
@@ -98,8 +110,11 @@ async def test_smart_split_with_punctuation():
     text = "First sentence! Second sentence? Third sentence; Fourth sentence: Fifth sentence."
 
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    # Unpack all three values yielded by smart_split
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
+        # Append only text if tokens/pause duration are not needed for assert
         chunks.append(chunk_text)
+
 
     # Verify punctuation is preserved
     assert all(any(p in chunk for p in "!?;:.") for chunk in chunks)

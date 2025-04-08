@@ -32,19 +32,29 @@ class StreamingAudioWriter:
         if self.format in ["wav", "flac", "mp3", "pcm", "aac", "opus"]:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
+                container_options = {}
+                # Try disabling Xing VBR header for MP3
+                if self.format == 'mp3':
+                    # Disable Xing VBR header
+                    container_options = {'write_xing': '0'}
+                    logger.debug("Disabling Xing VBR header for MP3 encoding.")
+
                 self.container = av.open(
                     self.output_buffer,
                     mode="w",
                     format=self.format if self.format != "aac" else "adts",
+                    options=container_options # Pass options here
                 )
                 self.stream = self.container.add_stream(
                     codec_map[self.format],
-                    sample_rate=self.sample_rate,
+                    rate=self.sample_rate, # Correct parameter name is 'rate'
                     layout="mono" if self.channels == 1 else "stereo",
                 )
-                self.stream.bit_rate = 128000
+                 # Set bit_rate only for codecs where it's applicable and useful
+                if self.format in ['mp3', 'aac', 'opus']:
+                     self.stream.bit_rate = 128000 # Example bitrate, can be configured
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {self.format}") # Use self.format here
 
     def close(self):
         if hasattr(self, "container"):

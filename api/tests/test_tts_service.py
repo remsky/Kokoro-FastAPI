@@ -84,8 +84,12 @@ async def test_get_voice_path_single():
 async def test_get_voice_path_combined():
     """Test getting path for combined voices."""
     model_manager = AsyncMock()
+    model_manager.get_backend.return_value = MagicMock()
+
     voice_manager = AsyncMock()
     voice_manager.get_voice_path.return_value = "/path/to/voice.pt"
+    # Ensure list_voices returns the expected list within this fixture
+    voice_manager.list_voices.return_value = ["voice1", "voice2"]
 
     with (
         patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
