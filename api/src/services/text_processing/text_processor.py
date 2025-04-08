@@ -93,52 +93,63 @@ def process_text(text: str, language: str = "a") -> List[int]:
 def get_sentence_info(
     text: str, custom_phenomes_list: Dict[str, str]
 ) -> List[Tuple[str, List[int], int]]:
-    """Process all sentences and return info, preserving trailing newlines."""
-    # Split by sentence-ending punctuation, keeping the punctuation
-    sentences_parts = re.split(r'([.!?]+|\n+)', text)
-    sentences = []
-    current_sentence = ""
-    for part in sentences_parts:
-        if not part:
-            continue
-        current_sentence += part
-        # If the part ends with sentence punctuation or newline, consider it a sentence end
-        if re.search(r'[.!?\n]$', part):
-            sentences.append(current_sentence)
-            current_sentence = ""
-    if current_sentence: # Add any remaining part
-        sentences.append(current_sentence)
+    """
+    Processes all sentences and returns info, preserving trailing newlines.
 
+    Args:
+        text: The input text.
+        custom_phenomes_list: A dictionary mapping custom phoneme IDs to their original IPA string representations.
 
-    phoneme_length = len(custom_phenomes_list)
-    restored_phoneme_keys = list(custom_phenomes_list.keys()) # Keys to restore
+    Returns:
+        A list of tuples, where each tuple contains: (original sentence text, list of tokens, token count).
+    """
+    # 1. Use regex to split sentences, keeping delimiters (.!?) and newlines (\n)
+    #    Pattern explanation:
+    #    [^.!?\n]+     : Match one or more characters that are not delimiters/newlines (sentence body)
+    #    (?:[.!?]+|\n+)? : Optionally match one or more sentence-ending punctuation marks OR one or more newlines
+    #    |             : OR
+    #    \n+           : Match one or more newlines (handles cases of pure newlines)
+    sentences = re.findall(r'[^.!?\n]+(?:[.!?]+|\n+)?|\n+', text)
 
+    restored_phoneme_keys = list(custom_phenomes_list.keys()) # List of phoneme IDs to restore
     results = []
+
     for original_sentence in sentences:
-        sentence_text_part = original_sentence.rstrip('\n') # Text without trailing newline for processing
-        trailing_newlines = original_sentence[len(sentence_text_part):] # Capture trailing newlines
+        # 2. Separate the sentence text content from trailing newlines
+        sentence_text_part = original_sentence.rstrip('\n')
+        # trailing_newlines = original_sentence[len(sentence_text_part):] # No longer need to store trailing newlines separately, as original_sentence contains them
 
-        if not sentence_text_part.strip(): # Skip empty or whitespace-only sentences
-            if trailing_newlines: # If only newlines, represent as empty text with newline marker
-                 results.append(("\n", [], 0)) # Store newline marker, no tokens
-            continue
+        # 3. Handle pure newlines or "sentences" containing only whitespace
+        if not sentence_text_part.strip():
+            # If the original sentence consists of newline(s), represent it as a special newline marker
+            if '\n' in original_sentence:
+                 results.append(("\n", [], 0)) # Use "\n" to represent pure newline/blank lines, with empty tokens
+            continue # Skip completely empty or whitespace-only sentence parts
 
-        # Restore custom phonemes for this sentence *before* tokenization
+        # 4. Before tokenization, restore custom phonemes in the sentence text part
         sentence_to_tokenize = sentence_text_part
         restored_count = 0
-        # Iterate through *all* possible phoneme IDs that might be in this sentence
-        for ph_id in restored_phoneme_keys:
-            if ph_id in sentence_to_tokenize:
-                sentence_to_tokenize = sentence_to_tokenize.replace(ph_id, custom_phenomes_list[ph_id])
-                restored_count+=1
-        if restored_count > 0:
-             logger.debug(f"Restored {restored_count} custom phonemes for tokenization in: '{sentence_text_part[:30]}...'")
+        if custom_phenomes_list: # Only attempt restoration if the list is not empty
+            for ph_id in restored_phoneme_keys:
+                if ph_id in sentence_to_tokenize:
+                    # Note: The value replaced here should be the phoneme string itself, not the original tag "[word](/ipa/)"
+                    # Assume custom_phenomes_list stores {id: ipa_phoneme_string}
+                    # If it stores the original tag, the logic in handle_custom_phonemes needs adjustment
+                    # Assume the value in custom_phenomes_list is a phoneme string ready for tokenization
+                    sentence_to_tokenize = sentence_to_tokenize.replace(ph_id, custom_phenomes_list[ph_id])
+                    restored_count += 1
+            if restored_count > 0:
+                logger.debug(f"Restored {restored_count} custom phonemes for tokenization in: '{sentence_text_part[:30]}...'")
 
+        # 5. Tokenize the text part after restoring phonemes
+        # Note: process_text_chunk should be able to handle strings containing actual phoneme symbols
+        try:
+            tokens = process_text_chunk(sentence_to_tokenize)
+        except Exception as e:
+             logger.error(f"Tokenization failed for sentence part '{sentence_to_tokenize[:50]}...': {e}")
+             tokens = [] # Return empty list on error
 
-        # Tokenize the text part (without trailing newlines)
-        tokens = process_text_chunk(sentence_to_tokenize)
-
-        # Store the original sentence text (including trailing newlines) along with tokens
+        # 6. Store the result: Use original_sentence which includes trailing newlines
         results.append((original_sentence, tokens, len(tokens)))
 
     return results
