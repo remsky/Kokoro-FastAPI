@@ -19,7 +19,7 @@ def test_initial_state(kokoro_backend):
     assert kokoro_backend._model is None
     assert kokoro_backend._pipelines == {}  # Now using dict of pipelines
     # Device should be set based on settings
-    assert kokoro_backend.device in ["cuda", "cpu"]
+    assert kokoro_backend.device in ["cuda", "cpu", "mps"]
 
 
 @patch("torch.cuda.is_available", return_value=True)

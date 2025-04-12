@@ -21,7 +21,7 @@ from ..structures.schemas import NormalizationOptions
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
-from .text_processing.text_processor import process_text_chunk, smart_split
+from .text_processing.text_processor import SILENCE_TAG, smart_split
 
 
 class TTSService:
@@ -62,6 +62,25 @@ class TTSService:
         """Process tokens into audio."""
         async with self._chunk_semaphore:
             try:
+                # Handle silence tags, eg: `[silent 0.5s]`
+                if match := SILENCE_TAG.match(chunk_text):
+                    silence_duration = float(match.group(1))
+                    silence_audio = np.zeros(int(silence_duration * 24000), dtype=np.int16)
+                    if not output_format:
+                        yield AudioChunk(silence_audio, output=b"")
+                        return
+                    chunk_data = await AudioService.convert_audio(
+                        AudioChunk(silence_audio),
+                        output_format,
+                        writer,
+                        speed,
+                        chunk_text,
+                        normalizer=normalizer,
+                        is_silent_chunk=True,
+                    )
+                    yield chunk_data
+                    return
+
                 # Handle stream finalization
                 if is_last:
                     # Skip format conversion for raw audio mode
@@ -70,7 +89,7 @@ class TTSService:
                         return
                     chunk_data = await AudioService.convert_audio(
                         AudioChunk(
-                            np.array([], dtype=np.float32)
+                            np.array([], dtype=np.int16)
                         ),  # Dummy data for type checking
                         output_format,
                         writer,
