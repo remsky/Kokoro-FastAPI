@@ -156,7 +156,7 @@ class AudioService:
             speed: The speaking speed of the voice
             chunk_text: The text sent to the model to generate the resulting speech
             is_last_chunk: Whether this is the last chunk
-            is_silent_chunk: Whether this chunk is a silent tag (e.g., [Silent](0.5s))
+            is_silent_chunk: Whether this chunk is a silent tag. e.g. [Silent 0.5s]
             trim_audio: Whether audio should be trimmed
             normalizer: Optional AudioNormalizer instance for consistent normalization
 

@@ -121,7 +121,7 @@ async def test_smart_split_with_punctuation():
 @pytest.mark.asyncio
 async def test_smart_split_with_silence_tags():
     """Test smart splitting handles silence tags correctly."""
-    text = "This is a test sentence, [silent](/1s/) with silence for one second."
+    text = "This is a test sentence, [silent 1s] with silence for one second."
 
     chunks = []
     async for chunk_text, chunk_tokens in smart_split(text):
@@ -129,5 +129,5 @@ async def test_smart_split_with_silence_tags():
     
     assert len(chunks) == 3
     assert chunks[0] == "This is a test sentence, "
-    assert chunks[1] == "[silent](/1s/)"
+    assert chunks[1] == "[silent 1s]"
     assert chunks[2] == " with silence for one second."

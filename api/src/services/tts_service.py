@@ -62,7 +62,7 @@ class TTSService:
         """Process tokens into audio."""
         async with self._chunk_semaphore:
             try:
-                # Handle silence tags, eg: `[silent](0.5s)`
+                # Handle silence tags, eg: `[silent 0.5s]`
                 if match := SILENCE_TAG.match(chunk_text):
                     silence_duration = float(match.group(1))
                     silence_audio = np.zeros(int(silence_duration * 24000), dtype=np.int16)
