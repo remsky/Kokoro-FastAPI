@@ -65,7 +65,7 @@ class TTSService:
                 # Handle silence tags, eg: `[silent](0.5s)`
                 if match := SILENCE_TAG.match(chunk_text):
                     silence_duration = float(match.group(1))
-                    silence_audio = np.zeros(int(silence_duration * 24000), dtype=np.float32)
+                    silence_audio = np.zeros(int(silence_duration * 24000), dtype=np.int16)
                     if not output_format:
                         yield AudioChunk(silence_audio, output=b"")
                         return
@@ -89,7 +89,7 @@ class TTSService:
                         return
                     chunk_data = await AudioService.convert_audio(
                         AudioChunk(
-                            np.array([], dtype=np.float32)
+                            np.array([], dtype=np.int16)
                         ),  # Dummy data for type checking
                         output_format,
                         writer,
