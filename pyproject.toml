@@ -14,7 +14,7 @@ dependencies = [
     "python-dotenv==1.0.1",
     "sqlalchemy==2.0.27",
     # ML/DL Base
-    "numpy>=1.26.0",
+    "numpy==1.26.4",
     "scipy==1.14.1",
     # Audio processing
     "soundfile==0.13.0",
@@ -47,8 +47,10 @@ gpu = [
     "torch==2.6.0+cu124",
 ]
 rocm = [
-    "torch==2.5.1+rocm6.2",
-    "pytorch-triton-rocm==3.1.0",
+    "torch @ https://repo.radeon.com/rocm/manylinux/rocm-rel-6.4/torch-2.6.0%2Brocm6.4.0.git2fb0ac2b-cp310-cp310-linux_x86_64.whl",
+    "pytorch-triton-rocm @ https://repo.radeon.com/rocm/manylinux/rocm-rel-6.4/pytorch_triton_rocm-3.2.0%2Brocm6.4.0.git6da9e660-cp310-cp310-linux_x86_64.whl",
+    "torchvision @ https://repo.radeon.com/rocm/manylinux/rocm-rel-6.4/torchvision-0.21.0%2Brocm6.4.0.git4040d51f-cp310-cp310-linux_x86_64.whl",
+    "torchaudio @ https://repo.radeon.com/rocm/manylinux/rocm-rel-6.4/torchaudio-2.6.0%2Brocm6.4.0.gitd8831425-cp310-cp310-linux_x86_64.whl",
 ]
 cpu = [
     "torch==2.6.0",
@@ -75,11 +77,6 @@ conflicts = [
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
     { index = "pytorch-cuda", extra = "gpu" },
-    { index = "pytorch-rocm", extra = "rocm" },
-]
-# uv would not install torch for rocm6.2 without this explicit transient dependency
-pytorch-triton-rocm = [
-    { index = "pytorch-rocm", extra = "rocm" },
 ]
 
 [[tool.uv.index]]
@@ -90,11 +87,6 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cuda"
 url = "https://download.pytorch.org/whl/cu124"
-explicit = true
-
-[[tool.uv.index]]
-name = "pytorch-rocm"
-url = "https://download.pytorch.org/whl/rocm6.2"
 explicit = true
 
 [build-system]

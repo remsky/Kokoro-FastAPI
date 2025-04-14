@@ -23,15 +23,30 @@ RUN apt-get update && apt upgrade -y && apt-get install -y --no-install-recommen
 RUN  mkdir -p /app/api/src/models/v1_0
 WORKDIR /app
 
+# Install UV using the installer script
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ && \
+    mv /root/.local/bin/uvx /usr/local/bin/
+
+# Create non-root user and set up directories and permissions
+RUN useradd -m -u 1001 appuser && \
+    mkdir -p /app/api/src/models/v1_0 && \
+    chown -R appuser:appuser /app
+
+USER appuser
+WORKDIR /app
+
 # Copy dependency files
-COPY pyproject.toml ./pyproject.toml
+COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
-# Install dependencies
-ENV CAUSAL_CONV1D_FORCE_BUILD=TRUE \
-    HIP_ARCHITECTURES=gfx1100
+ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
+    PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
+    ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
 
-RUN pip3 install --upgrade pip && \
-    pip3 install -e .
+# Install dependencies with GPU extras (using cache mounts)
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv --python 3.10 && \
+    uv sync --extra rocm
 
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
@@ -39,16 +54,19 @@ COPY --chown=appuser:appuser web ./web
 COPY --chown=appuser:appuser docker/scripts/ ./
 RUN chmod +x ./entrypoint.sh
 
-# Set environment variables
+# Set all environment variables in one go
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
-    USE_GPU=true \
-    DOWNLOAD_MODEL=true
+    PATH="/app/.venv/bin:$PATH" \
+    UV_LINK_MODE=copy \
+    USE_GPU=true
 
+ENV DOWNLOAD_MODEL=true
 # Download model if enabled
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     python download_model.py --output api/src/models/v1_0; \
     fi
 
+ENV DEVICE="gpu"
 # Run FastAPI server through entrypoint.sh
-CMD ["python3", "-m", "uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8880", "--log-level", "debug"]
+CMD ["./entrypoint.sh"]
