@@ -1,13 +1,16 @@
 name: kokoro-tts-gpu
 services:
   kokoro-tts:
+    image: kokoro-tts-gpu-kokoro-tts:latest
     # image: ghcr.io/remsky/kokoro-fastapi-gpu:v${VERSION}
-    build:
-      context: ../..
-      dockerfile: docker/gpu/Dockerfile
+    # build:
+    #   context: ../..
+    #   dockerfile: docker/gpu/Dockerfile
     volumes:
       - ../../api:/app/api
-    user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
+    user: "${UID}:${GID}"  # Ensure container runs as UID 1001 (appuser)
+    group_add:
+      - "video"
     ports:
       - "8880:8880"
     environment:
@@ -26,8 +29,8 @@ services:
   # gradio-ui:
   #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
   #   # Uncomment below to build from source instead of using the released image
-  #   # build:
-  #     # context: ../../ui
+  #   build:
+  #     context: ../../ui
   #   ports:
   #     - "7860:7860"
   #   volumes:
