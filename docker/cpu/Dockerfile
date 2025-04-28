@@ -30,6 +30,10 @@ WORKDIR /app
 # Copy dependency files
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
+# Install Rust (required to build sudachipy and pyopenjtalk-plus)
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/home/appuser/.cargo/bin:$PATH"
+
 # Install dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.10 && \
