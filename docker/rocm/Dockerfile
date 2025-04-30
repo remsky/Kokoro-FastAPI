@@ -1,4 +1,4 @@
-FROM rocm/pytorch:rocm6.3.4_ubuntu22.04_py3.10_pytorch_release_2.4.0
+FROM rocm/dev-ubuntu-24.04:6.4
 ENV DEBIAN_FRONTEND=noninteractive \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
