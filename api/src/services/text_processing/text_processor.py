@@ -186,7 +186,11 @@ async def smart_split(
         and normalization_options.normalize
         and lang_code in ["a", "b", "en-us", "en-gb"] # Normalization only for English
     )
-    use_ids = apply_normalization # Only use IDs if we are normalizing
+    # Allow ID replacement to be controlled independently, but default to following normalization
+    use_ids = (
+        (settings.enable_custom_phoneme_ids if hasattr(settings, 'enable_custom_phoneme_ids') else apply_normalization)
+        and apply_normalization  # Still require normalization to be enabled
+    )
     logger.debug(f"Normalization active: {apply_normalization}. Using ID replacement: {use_ids}")
 
     custom_phoneme_map = {} # Map ID -> Original Tag OR empty if use_ids is False

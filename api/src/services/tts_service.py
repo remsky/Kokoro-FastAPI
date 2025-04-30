@@ -91,16 +91,11 @@ class TTSService:
                 backend = self.model_manager.get_backend()
 
                 # Generate audio using pre-warmed model
-
-                # Restore custom phonemes if backend needs it (like KokoroV1)
                 if isinstance(backend, KokoroV1):
-                     # Find phoneme markers in this specific chunk_text and restore
-                     # (This assumes smart_split yielded text with markers) - let's refine smart_split yield
-                     # For now, assume chunk_text is ready for the model (phonemes restored by smart_split)
-                     pass
-
-
-                if isinstance(backend, KokoroV1):
+                    # TODO: In the future, we may need to restore custom phonemes here
+                    # This would involve finding phoneme markers in chunk_text and restoring them
+                    # Currently, we assume smart_split has already handled this
+                    
                     internal_chunk_index = 0
                     async for chunk_data in self.model_manager.generate(
                         chunk_text,
@@ -132,7 +127,7 @@ class TTSService:
                             yield chunk_data
                         internal_chunk_index += 1
                     if internal_chunk_index == 0:
-                         logger.warning(f"Model generation yielded no audio chunks for: '{text_for_model[:50]}...'")
+                         logger.warning(f"Model generation yielded no audio chunks for: '{chunk_text[:50]}...'")
 
                 else:
                     # For legacy backends, load voice tensor
