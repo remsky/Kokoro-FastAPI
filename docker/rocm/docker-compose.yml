@@ -23,17 +23,16 @@ services:
       environment:
         - USE_GPU=true
         - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-        # IMPORTANT: ROCm's MIOpen librar will be slow if it has to figure out the optimal kernel shapes for each model
+        # IMPORTANT: ROCm's MIOpen libray will be slow if it has to figure out the optimal kernel shapes for each model
         # See documentation on performancing tuning: https://github.com/ROCm/MIOpen/blob/develop/docs/conceptual/tuningdb.rst
         # The volumes above cache the MIOpen shape files and user database for subsequent runs
         #
         # Steps:
         # 1. Run Kokoro once with the following environment variables set:
-        #      - MIOPEN_ENABLE_LOGGING=1
-        #      - MIOPEN_ENABLE_LOGGING_CMD=1
-        #      - MIOPEN_LOG_LEVEL=6
+        #      - MIOPEN_FIND_MODE=3
+        #      - MIOPEN_FIND_ENFORCE=3
         # 2. Generate various recordings using sample data (e.g. first couple paragraphs of Dracula); this will be slow
-        # 3. Comment out the previously set environment variables
+        # 3. Comment out/remove the previously set environment variables
         # 4. Add the following environment variables to enable caching of model shapes:
-        #       - MIOPEN_ENABLE_LOGGING=0- MIOPEN_FIND_MODE=2
+        #       - MIOPEN_FIND_MODE=2
         # 5. Restart the container and run Kokoro again, it should be much faster
