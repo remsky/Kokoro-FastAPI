@@ -1,0 +1,11 @@
+{
+  "input": {
+    "input": "DictoGo is a powerful tool designed for English learners, combining an advanced dictionary with efficient learning methods to help you quickly improve your English skills.",
+    "voice": "af_alloy",
+    "model": "kokoro",
+    "speed": 1.0,
+    "response_format": "mp3",
+    "lang_code": "en",
+    "stream": false
+  }
+}

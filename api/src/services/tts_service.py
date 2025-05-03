@@ -449,13 +449,17 @@ class TTSService:
         audio_data_chunks = []
 
         try:
+            # Pass a dummy writer if none provided, as generate_audio_stream requires one
+            # Although in raw mode (output_format=None), it shouldn't be heavily used for formatting
+            internal_writer = writer if writer else StreamingAudioWriter(format='wav', sample_rate=settings.sample_rate)
+
             async for audio_stream_data in self.generate_audio_stream(
                 text,
                 voice,
                 writer,
                 speed=speed,
                 normalization_options=normalization_options,
-                return_timestamps=return_timestamps,
+                return_timestamps=return_timestamps, # Pass this down
                 lang_code=lang_code,
                 output_format=None,
             ):

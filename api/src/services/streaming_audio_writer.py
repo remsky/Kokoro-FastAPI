@@ -75,12 +75,18 @@ class StreamingAudioWriter:
 
         if finalize:
             if self.format != "pcm":
+                # Flush stream encoder
                 packets = self.stream.encode(None)
                 for packet in packets:
                     self.container.mux(packet)
 
+                # Closing the container handles writing the trailer and finalizing the file.
+                # No explicit flush method is available or needed here.
+                logger.debug("Muxed final packets.")
+
+                # Get the final bytes from the buffer *before* closing it
                 data = self.output_buffer.getvalue()
-                self.close()
+                self.close() # Close container and buffer
                 return data
 
         if audio_data is None or len(audio_data) == 0:
