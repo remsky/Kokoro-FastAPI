@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     max_temp_dir_age_hours: int = 1  # Remove temp files older than 1 hour
     max_temp_dir_count: int = 3  # Maximum number of temp files to keep
 
+    # New configuration
+    enable_custom_phoneme_ids: bool = True  # Whether to enable custom phoneme IDs
+
     class Config:
         env_file = ".env"
 

@@ -1,0 +1,91 @@
+[project]
+name = "kokoro-fastapi"
+version = "0.3.0"
+description = "FastAPI TTS Service"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  # Core dependencies
+  "fastapi==0.115.6",
+  "uvicorn==0.34.0",
+  "click>=8.0.0",
+  "pydantic==2.10.4",
+  "pydantic-settings==2.7.0",
+  "python-dotenv==1.0.1",
+  "sqlalchemy==2.0.27",
+  # ML/DL Base
+  "numpy>=1.26.0",
+  "scipy==1.14.1",
+  # Audio processing
+  "soundfile==0.13.0",
+  "regex==2024.11.6",
+  # Utilities
+  "aiofiles==23.2.1",
+  "tqdm==4.67.1",
+  "requests==2.32.3",
+  "munch==4.0.0",
+  "tiktoken==0.8.0",
+  "loguru==0.7.3",
+  "openai>=1.59.6",
+  "pydub>=0.25.1",
+  "matplotlib>=3.10.0",
+  "mutagen>=1.47.0",
+  "psutil>=6.1.1",
+  "espeakng-loader==0.2.4",
+  "kokoro==0.9.2",
+  "misaki[en,ja,ko,zh]==0.9.3",
+  "spacy==3.8.5",
+  "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+  "inflect>=7.5.0",
+  "phonemizer-fork>=3.3.2",
+  "av>=14.2.0",
+  "text2num>=2.5.1",
+  "inflect>=7.5.0",
+  "phonemizer-fork>=3.3.2",
+  "runpod==1.7.8",
+]
+
+[project.optional-dependencies]
+gpu = ["torch==2.6.0+cu124"]
+cpu = ["torch==2.6.0"]
+test = [
+  "pytest==8.3.5",
+  "pytest-cov==6.0.0",
+  "httpx==0.26.0",
+  "pytest-asyncio==0.25.3",
+  "tomli>=2.0.1",
+  "jinja2>=3.1.6",
+]
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "cpu" },
+  { index = "pytorch-cuda", extra = "gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cuda"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "api/src" }
+packages.find = { where = ["api/src"], namespaces = true }
+
+[tool.pytest.ini_options]
+testpaths = ["api/tests", "ui/tests"]
+python_files = ["test_*.py"]
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace"
+asyncio_mode = "auto"

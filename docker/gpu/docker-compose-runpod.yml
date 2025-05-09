@@ -1,14 +1,13 @@
-name: kokoro-tts-gpu
+name: kokoro-tts-gpu-runpod
 services:
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-gpu:v${VERSION}
+    image: kokoro-tts-gpu-runpod:latest
     build:
       context: ../..
-      dockerfile: docker/gpu/Dockerfile
+      dockerfile: docker/gpu/Dockerfile.runpod
     volumes:
       - ../../api:/app/api
-    user: "1001:1001" # Ensure container runs as UID 1001 (appuser)
-    restart: always
+    user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
     ports:
       - "8880:8880"
     environment:

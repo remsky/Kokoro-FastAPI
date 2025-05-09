@@ -65,7 +65,8 @@ async def test_convert_to_mp3(sample_audio):
     assert isinstance(audio_chunk.output, bytes)
     assert isinstance(audio_chunk, AudioChunk)
     assert len(audio_chunk.output) > 0
-    # Check MP3 header (ID3 or MPEG frame sync)
+    # Check MP3 header (ID3 or a common MPEG frame sync pattern)
+    # MPEG frame sync starts with 11 bits set to 1 (0xFFF)
     assert audio_chunk.output.startswith(b"ID3") or audio_chunk.output.startswith(
         b"\xff\xfb"
     )
