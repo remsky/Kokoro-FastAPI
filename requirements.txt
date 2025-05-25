@@ -1,3 +1,5 @@
 fastapi
 uvicorn[standard]
 torch
+numpy
+loguru
