@@ -3,3 +3,6 @@ uvicorn[standard]
 torch
 numpy
 loguru
+pydantic-settings
+aiofiles
+python-multipart
