@@ -6,3 +6,4 @@ loguru
 pydantic-settings
 aiofiles
 python-multipart
+psutil
