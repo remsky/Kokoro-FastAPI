@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     permissions:
       packages: write
       contents: read
@@ -22,10 +23,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set lowercase repo owner
+        run: echo "REPO_OWNER_LC=${GITHUB_REPOSITORY_OWNER,,}" >> $GITHUB_ENV
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository_owner.toLower() }}/kokoro-fastapi:fix-timestamps
-
+          tags: ghcr.io/${{ env.REPO_OWNER_LC }}/kokoro-fastapi:fix-timestamps
