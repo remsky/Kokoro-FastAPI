@@ -11,3 +11,4 @@ kokoro
 scipy
 soundfile
 pydub
+av
