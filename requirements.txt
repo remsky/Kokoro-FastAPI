@@ -8,3 +8,4 @@ aiofiles
 python-multipart
 psutil
 kokoro
+scipy
