@@ -9,3 +9,4 @@ python-multipart
 psutil
 kokoro
 scipy
+soundfile
