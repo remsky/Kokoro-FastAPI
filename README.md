@@ -333,6 +333,20 @@ Key Streaming Metrics:
 *Note: Artifacts in intonation can increase with smaller chunks*
 </details>
 
+<details>
+<summary>Custom Phonemes and Silence Tags</summary>
+
+- Custom Phoneme: `[<text>](/phoneme/)`
+- Silence Tag: `[silent <duration>]`
+
+Example:
+
+```text
+I [live](/lɪv/) in a city.  [silent 3s] Many concerts are broadcast [live](/lˈIv/).
+```
+
+</details>
+
 ## Processing Details
 <details>
 <summary>Performance Benchmarks</summary>
