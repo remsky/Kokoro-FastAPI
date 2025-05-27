@@ -1,7 +1,11 @@
 FROM python:3.10-slim
 
-# Instala dependências de sistema necessárias para scipy, soundfile, pydub, av, etc.
-RUN apt-get update && apt-get install -y \
+# Evita prompts de timezone e configura instalação silenciosa
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Instala dependências do sistema para scipy, soundfile, pydub, av, etc.
+RUN apt-get update --fix-missing && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     ffmpeg \
     libavdevice-dev \
@@ -13,14 +17,15 @@ RUN apt-get update && apt-get install -y \
     libavresample-dev \
     libsndfile1 \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY requirements.txt .
 
-# Instala as libs Python com cache desativado
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY . .
