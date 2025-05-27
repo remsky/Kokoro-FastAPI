@@ -1,26 +1,30 @@
 FROM python:3.10-slim
 
-# Instala libs de sistema necessárias para soundfile, pydub e av (PyAV)
+# Instala dependências de sistema necessárias para scipy, soundfile, pydub, av, etc.
 RUN apt-get update && apt-get install -y \
-    libsndfile1 \
+    build-essential \
     ffmpeg \
-    libavcodec-dev \
+    libavdevice-dev \
+    libavfilter-dev \
     libavformat-dev \
+    libavcodec-dev \
+    libavutil-dev \
     libswscale-dev \
+    libavresample-dev \
+    libsndfile1 \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Define o diretório de trabalho no container
 WORKDIR /app
 
-# Copia e instala as dependências do projeto
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante da aplicação
+# Instala as libs Python com cache desativado
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
 COPY . .
 
-# Expõe a porta da aplicação
 EXPOSE 8000
 
-# Comando de execução padrão
 CMD ["uvicorn", "api.src.main:app", "--host", "0.0.0.0", "--port", "8000"]
