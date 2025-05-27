@@ -13,3 +13,4 @@ soundfile
 pydub
 av
 inflect
+text_to_num
