@@ -1,25 +1,24 @@
 FROM python:3.10-slim
 
-# Evita prompts de timezone e configura instalação silenciosa
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Instala dependências do sistema para scipy, soundfile, pydub, av, etc.
-RUN apt-get update --fix-missing && \
+# Corrige problemas de DNS, repositórios e dependências do sistema
+RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    build-essential \
-    ffmpeg \
-    libavdevice-dev \
-    libavfilter-dev \
-    libavformat-dev \
-    libavcodec-dev \
-    libavutil-dev \
-    libswscale-dev \
-    libavresample-dev \
-    libsndfile1 \
-    git \
-    ca-certificates \
-    && apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+        build-essential \
+        ffmpeg \
+        libavformat-dev \
+        libavcodec-dev \
+        libavutil-dev \
+        libswscale-dev \
+        libavdevice-dev \
+        libavfilter-dev \
+        libavresample-dev \
+        libsndfile1 \
+        git \
+        ca-certificates \
+        pkg-config \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
