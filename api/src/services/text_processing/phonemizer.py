@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import phonemizer
 
 from .normalizer import normalize_text
+from ...structures.schemas import NormalizationOptions
 
 phonemizers = {}
 
@@ -95,8 +96,20 @@ def phonemize(text: str, language: str = "a", normalize: bool = True) -> str:
         Phonemized text
     """
     global phonemizers
+    
+    # Strip input text first to remove problematic leading/trailing spaces
+    text = text.strip()
+    
     if normalize:
-        text = normalize_text(text)
+        # Create default normalization options and normalize text
+        normalization_options = NormalizationOptions()
+        text = normalize_text(text, normalization_options)
+        # Strip again after normalization
+        text = text.strip()
+    
     if language not in phonemizers:
         phonemizers[language] = create_phonemizer(language)
-    return phonemizers[language].phonemize(text)
+    
+    result = phonemizers[language].phonemize(text)
+    # Final strip to ensure no leading/trailing spaces in phonemes
+    return result.strip()

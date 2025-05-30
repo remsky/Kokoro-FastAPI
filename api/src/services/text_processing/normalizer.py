@@ -391,6 +391,7 @@ def handle_time(t: re.Match[str]) -> str:
 
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
+    
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
@@ -415,7 +416,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
             text,
         )
 
-    # Replace quotes and brackets
+    # Replace quotes and brackets (additional cleanup)
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
     text = text.replace("«", chr(8220)).replace("»", chr(8221))
     text = text.replace(chr(8220), '"').replace(chr(8221), '"')
@@ -434,6 +435,27 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"[^\S \n]", " ", text)
     text = re.sub(r"  +", " ", text)
     text = re.sub(r"(?<=\n) +(?=\n)", "", text)
+
+    # Handle special characters that might cause audio artifacts first
+    # Replace newlines with spaces (or pauses if needed)
+    text = text.replace('\n', ' ')
+    text = text.replace('\r', ' ')
+    
+    # Handle other problematic symbols
+    text = text.replace('~', '')    # Remove tilde
+    text = text.replace('@', ' at ')  # At symbol
+    text = text.replace('#', ' number ')  # Hash/pound
+    text = text.replace('$', ' dollar ')  # Dollar sign (if not handled by money pattern)
+    text = text.replace('%', ' percent ')  # Percent sign
+    text = text.replace('^', '')    # Caret
+    text = text.replace('&', ' and ')  # Ampersand
+    text = text.replace('*', '')    # Asterisk
+    text = text.replace('_', ' ')   # Underscore to space
+    text = text.replace('|', ' ')   # Pipe to space
+    text = text.replace('\\', ' ')  # Backslash to space
+    text = text.replace('/', ' slash ')   # Forward slash to space (unless in URLs)
+    text = text.replace('=', ' equals ')  # Equals sign
+    text = text.replace('+', ' plus ')    # Plus sign
 
     # Handle titles and abbreviations
     text = re.sub(r"\bD[Rr]\.(?= [A-Z])", "Doctor", text)

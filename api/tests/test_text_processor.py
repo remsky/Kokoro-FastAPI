@@ -67,7 +67,7 @@ async def test_smart_split_short_text():
     """Test smart splitting with text under max tokens."""
     text = "This is a short test sentence."
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) == 1
@@ -82,7 +82,7 @@ async def test_smart_split_long_text():
     text = ". ".join(["This is test sentence number " + str(i) for i in range(20)])
 
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) > 1
@@ -98,11 +98,12 @@ async def test_smart_split_with_punctuation():
     text = "First sentence! Second sentence? Third sentence; Fourth sentence: Fifth sentence."
 
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text):
+    async for chunk_text, chunk_tokens, _ in smart_split(text):
         chunks.append(chunk_text)
 
     # Verify punctuation is preserved
     assert all(any(p in chunk for p in "!?;:.") for chunk in chunks)
+
 
 def test_process_text_chunk_chinese_phonemes():
     """Test processing with Chinese pinyin phonemes."""
@@ -125,12 +126,13 @@ def test_get_sentence_info_chinese():
         assert count == len(tokens)
         assert count > 0
 
+
 @pytest.mark.asyncio
 async def test_smart_split_chinese_short():
     """Test Chinese smart splitting with short text."""
     text = "这是一句话。"
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text, lang_code="z"):
+    async for chunk_text, chunk_tokens, _ in smart_split(text, lang_code="z"):
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) == 1
@@ -144,7 +146,7 @@ async def test_smart_split_chinese_long():
     text = "。".join([f"测试句子 {i}" for i in range(20)])
     
     chunks = []
-    async for chunk_text, chunk_tokens in smart_split(text, lang_code="z"):
+    async for chunk_text, chunk_tokens, _ in smart_split(text, lang_code="z"):
         chunks.append((chunk_text, chunk_tokens))
 
     assert len(chunks) > 1
@@ -160,8 +162,36 @@ async def test_smart_split_chinese_punctuation():
     text = "第一句！第二问？第三句；第四句：第五句。"
     
     chunks = []
-    async for chunk_text, _ in smart_split(text, lang_code="z"):
+    async for chunk_text, _, _ in smart_split(text, lang_code="z"):
         chunks.append(chunk_text)
 
     # Verify Chinese punctuation is preserved
     assert all(any(p in chunk for p in "！？；：。") for chunk in chunks)
+
+
+@pytest.mark.asyncio
+async def test_smart_split_with_pause():
+    """Test smart splitting with pause tags."""
+    text = "Hello world [pause:2.5s] How are you?"
+    
+    chunks = []
+    async for chunk_text, chunk_tokens, pause_duration in smart_split(text):
+        chunks.append((chunk_text, chunk_tokens, pause_duration))
+    
+    # Should have 3 chunks: text, pause, text
+    assert len(chunks) == 3
+    
+    # First chunk: text
+    assert chunks[0][2] is None  # No pause
+    assert "Hello world" in chunks[0][0]
+    assert len(chunks[0][1]) > 0
+    
+    # Second chunk: pause
+    assert chunks[1][2] == 2.5  # 2.5 second pause
+    assert chunks[1][0] == ""  # Empty text
+    assert len(chunks[1][1]) == 0  # No tokens
+    
+    # Third chunk: text
+    assert chunks[2][2] is None  # No pause
+    assert "How are you?" in chunks[2][0]
+    assert len(chunks[2][1]) > 0
