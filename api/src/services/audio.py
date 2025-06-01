@@ -80,12 +80,12 @@ class AudioNormalizer:
         non_silent_index_start, non_silent_index_end = None, None
 
         for X in range(0, len(audio_data)):
-            if audio_data[X] > amplitude_threshold:
+            if abs(audio_data[X]) > amplitude_threshold:
                 non_silent_index_start = X
                 break
 
         for X in range(len(audio_data) - 1, -1, -1):
-            if audio_data[X] > amplitude_threshold:
+            if abs(audio_data[X]) > amplitude_threshold:
                 non_silent_index_end = X
                 break
 

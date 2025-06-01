@@ -23,6 +23,8 @@ def tokenize(phonemes: str) -> list[int]:
     Returns:
         List of token IDs
     """
+    # Strip phonemes to remove leading/trailing spaces that could cause artifacts
+    phonemes = phonemes.strip()
     return [i for i in map(VOCAB.get, phonemes) if i is not None]
 
 

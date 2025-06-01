@@ -280,48 +280,88 @@ class TTSService:
                 f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
             )
 
-            # Process text in chunks with smart splitting
-            async for chunk_text, tokens in smart_split(
+            # Process text in chunks with smart splitting, handling pause tags
+            async for chunk_text, tokens, pause_duration_s in smart_split(
                 text,
                 lang_code=pipeline_lang_code,
                 normalization_options=normalization_options,
             ):
-                try:
-                    # Process audio for chunk
-                    async for chunk_data in self._process_chunk(
-                        chunk_text,  # Pass text for Kokoro V1
-                        tokens,  # Pass tokens for legacy backends
-                        voice_name,  # Pass voice name
-                        voice_path,  # Pass voice path
-                        speed,
-                        writer,
-                        output_format,
-                        is_first=(chunk_index == 0),
-                        is_last=False,  # We'll update the last chunk later
-                        normalizer=stream_normalizer,
-                        lang_code=pipeline_lang_code,  # Pass lang_code
-                        return_timestamps=return_timestamps,
-                    ):
-                        if chunk_data.word_timestamps is not None:
-                            for timestamp in chunk_data.word_timestamps:
-                                timestamp.start_time += current_offset
-                                timestamp.end_time += current_offset
+                if pause_duration_s is not None and pause_duration_s > 0:
+                    # --- Handle Pause Chunk ---
+                    try:
+                        logger.debug(f"Generating {pause_duration_s}s silence chunk")
+                        silence_samples = int(pause_duration_s * 24000)  # 24kHz sample rate
+                        # Create proper silence as int16 zeros to avoid normalization artifacts
+                        silence_audio = np.zeros(silence_samples, dtype=np.int16)
+                        pause_chunk = AudioChunk(audio=silence_audio, word_timestamps=[])  # Empty timestamps for silence
 
-                        current_offset += len(chunk_data.audio) / 24000
-
-                        if chunk_data.output is not None:
-                            yield chunk_data
-
-                        else:
-                            logger.warning(
-                                f"No audio generated for chunk: '{chunk_text[:100]}...'"
+                        # Format and yield the silence chunk
+                        if output_format:
+                            formatted_pause_chunk = await AudioService.convert_audio(
+                                pause_chunk, output_format, writer, speed=speed, chunk_text="",
+                                is_last_chunk=False, trim_audio=False, normalizer=stream_normalizer,
                             )
-                        chunk_index += 1
-                except Exception as e:
-                    logger.error(
-                        f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
-                    )
-                    continue
+                            if formatted_pause_chunk.output:
+                                yield formatted_pause_chunk
+                        else:  # Raw audio mode
+                            # For raw audio mode, silence is already in the correct format (int16)
+                            # Skip normalization to avoid any potential artifacts
+                            if len(pause_chunk.audio) > 0:
+                                yield pause_chunk
+
+                        # Update offset based on silence duration
+                        current_offset += pause_duration_s
+                        chunk_index += 1  # Count pause as a yielded chunk
+
+                    except Exception as e:
+                        logger.error(f"Failed to process pause chunk: {str(e)}")
+                        continue
+
+                elif tokens or chunk_text.strip():  # Process if there are tokens OR non-whitespace text
+                    # --- Handle Text Chunk ---
+                    try:
+                        # Process audio for chunk
+                        async for chunk_data in self._process_chunk(
+                            chunk_text,  # Pass text for Kokoro V1
+                            tokens,  # Pass tokens for legacy backends
+                            voice_name,  # Pass voice name
+                            voice_path,  # Pass voice path
+                            speed,
+                            writer,
+                            output_format,
+                            is_first=(chunk_index == 0),
+                            is_last=False,  # We'll update the last chunk later
+                            normalizer=stream_normalizer,
+                            lang_code=pipeline_lang_code,  # Pass lang_code
+                            return_timestamps=return_timestamps,
+                        ):
+                            if chunk_data.word_timestamps is not None:
+                                for timestamp in chunk_data.word_timestamps:
+                                    timestamp.start_time += current_offset
+                                    timestamp.end_time += current_offset
+
+                            # Update offset based on the actual duration of the generated audio chunk
+                            chunk_duration = 0
+                            if chunk_data.audio is not None and len(chunk_data.audio) > 0:
+                                chunk_duration = len(chunk_data.audio) / 24000
+                                current_offset += chunk_duration
+
+                            # Yield the processed chunk (either formatted or raw)
+                            if chunk_data.output is not None:
+                                yield chunk_data
+                            elif chunk_data.audio is not None and len(chunk_data.audio) > 0:
+                                yield chunk_data
+                            else:
+                                logger.warning(
+                                    f"No audio generated for chunk: '{chunk_text[:100]}...'"
+                                )
+
+                        chunk_index += 1  # Increment chunk index after processing text
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
+                        )
+                        continue
 
             # Only finalize if we successfully processed at least one chunk
             if chunk_index > 0:

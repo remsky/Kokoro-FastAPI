@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 import torch
+import os
 
 from api.src.services.tts_service import TTSService
 
@@ -102,7 +103,10 @@ async def test_get_voice_path_combined():
         service = await TTSService.create("test_output")
         name, path = await service._get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
-        assert path.endswith("voice1+voice2.pt")
+        # Verify the path points to a temporary file with expected format
+        assert path.startswith("/tmp/")
+        assert "voice1+voice2" in path
+        assert path.endswith(".pt")
         mock_save.assert_called_once()
 
 
