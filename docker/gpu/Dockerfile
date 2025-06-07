@@ -45,7 +45,7 @@ CMD ["./entrypoint.sh"]
 # If you want to test the docker image locally, run this from the project root:
 #   docker build -f docker\gpu\Dockerfile -t kokoro .
 # Run it with:
-#   docker run -p 8880:8880 --name kokoro kokoro --gpus all
+#   docker run -p 8880:8880 --name kokoro kokoro
 #
 # You can log into the container with
 #   docker exec -it kokoro /bin/bash
