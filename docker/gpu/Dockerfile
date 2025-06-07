@@ -44,7 +44,7 @@ CMD ["./entrypoint.sh"]
 
 # If you want to test the docker image locally, run this from the project root:
 #   docker build -f docker\gpu\Dockerfile -t kokoro .
-# Run it with
+# Run it with:
 #   docker run -p 8880:8880 --name kokoro kokoro --gpus all
 #
 # You can log into the container with
@@ -52,8 +52,8 @@ CMD ["./entrypoint.sh"]
 #
 # Other commands:
 # 1. Stop and remove container
-# docker stop kokoro
-# docker container remove kokoro
-# 2. List and remove images
-# docker images
-# docker image remove kokoro
+#    docker container remove kokoro
+#
+# 2. List or remove images
+#    docker images
+#    docker image remove kokoro
