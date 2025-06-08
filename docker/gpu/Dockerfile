@@ -43,17 +43,22 @@ CMD ["./entrypoint.sh"]
 
 
 # If you want to test the docker image locally, run this from the project root:
-#   docker build -f docker\gpu\Dockerfile -t kokoro .
+#   docker build -f docker\gpu\Dockerfile -t evie/kokorotts .
 # Run it with:
-#   docker run -p 8880:8880 --name kokoro kokoro
+#   docker run -p 8880:8880 --name evie/kokorotts evie/kokorotts
 #
 # You can log into the container with
-#   docker exec -it kokoro /bin/bash
+#   docker exec -it evie/kokorotts /bin/bash
 #
 # Other commands:
 # 1. Stop and remove container
-#    docker container remove kokoro
+#    docker container remove evie/kokorotts
 #
 # 2. List or remove images
 #    docker images
-#    docker image remove kokoro
+#    docker image remove evie/kokorotts
+#
+# See docs for pushing to ECR
+#   https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html
+# This is my private repo:
+#   https://eu-west-1.console.aws.amazon.com/ecr/private-registry/repositories?region=eu-west-1
