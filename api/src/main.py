@@ -49,22 +49,13 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for model initialization"""
     from .inference.model_manager import get_manager
     from .inference.voice_manager import get_manager as get_voice_manager
-    from .services.temp_manager import cleanup_temp_files
-
-    # Clean old temp files on startup
-    await cleanup_temp_files()
 
     logger.info("Loading TTS model and voice packs...")
 
     try:
-        # Initialize managers
         model_manager = await get_manager()
-        voice_manager = await get_voice_manager()
-
-        # Initialize model with warmup and get status
-        device, model, voicepack_count = await model_manager.initialize_with_warmup(
-            voice_manager
-        )
+        await get_voice_manager()
+        device = await model_manager.load_voices()
 
     except Exception as e:
         logger.error(f"Failed to initialize model: {e}")
@@ -84,14 +75,13 @@ async def lifespan(app: FastAPI):
 
 {boundary}
                 """
-    startup_msg += f"\nModel warmed up on {device}: {model}"
+    startup_msg += f"\nModel loaded on {device}"
     if device == "mps":
         startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
     elif device == "cuda":
-        startup_msg += f"\nCUDA: {torch.cuda.is_available()}"
+        startup_msg += f"\nCUDA available: {torch.cuda.is_available()}"
     else:
         startup_msg += "\nRunning on CPU"
-    startup_msg += f"\n{voicepack_count} voice packs loaded"
 
     # Add web player info if enabled
     if settings.enable_web_player:
@@ -149,4 +139,4 @@ async def test_endpoint():
 
 
 if __name__ == "__main__":
-    uvicorn.run("api.src.main:app", host=settings.host, port=settings.port, reload=True)
+    uvicorn.run("api.src.main:app", host=settings.host, port=settings.port)
