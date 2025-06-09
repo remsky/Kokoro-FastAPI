@@ -45,14 +45,14 @@ CMD ["./entrypoint.sh"]
 # If you want to test the docker image locally, run this from the project root:
 #   docker build -f docker\gpu\Dockerfile -t evie/kokorotts .
 # Run it with:
-#   docker run -p 8880:8880 --name evie/kokorotts evie/kokorotts
+#   docker run -p 8880:8880 --name kokorotts evie/kokorotts
 #
 # You can log into the container with
-#   docker exec -it evie/kokorotts /bin/bash
+#   docker exec -it kokorotts /bin/bash
 #
 # Other commands:
 # 1. Stop and remove container
-#    docker container remove evie/kokorotts
+#    docker container remove kokorotts
 #
 # 2. List or remove images
 #    docker images
@@ -62,3 +62,13 @@ CMD ["./entrypoint.sh"]
 #   https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html
 # This is my private repo:
 #   https://eu-west-1.console.aws.amazon.com/ecr/private-registry/repositories?region=eu-west-1
+# I can get the dodcker push / pull commands from there.
+#
+# SSH keys for logging into EC2 containers:
+#   https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#KeyPairs:
+#
+# aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 678811077621.dkr.ecr.eu-west-1.amazonaws.com
+# docker build -f docker\gpu\Dockerfile -t evie/kokorotts .
+# docker tag evie/kokorotts:latest 678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts:latest
+# docker push 678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts:latest
+# docker run --gpus all -p 8880:8880 --name kokorotts  678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts 

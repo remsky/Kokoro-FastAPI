@@ -2,10 +2,8 @@
 FastAPI OpenAI Compatible API
 """
 
-import os
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import torch
 import uvicorn
@@ -55,7 +53,7 @@ async def lifespan(app: FastAPI):
     try:
         model_manager = await get_manager()
         await get_voice_manager()
-        device = await model_manager.load_voices()
+        device = await model_manager.initialize()
 
     except Exception as e:
         logger.error(f"Failed to initialize model: {e}")
@@ -63,7 +61,6 @@ async def lifespan(app: FastAPI):
 
     boundary = "░" * 2 * 12
     startup_msg = f"""
-
 {boundary}
 
     ╔═╗┌─┐┌─┐┌┬┐
@@ -74,7 +71,8 @@ async def lifespan(app: FastAPI):
     ╩ ╩└─┘┴ ┴└─┘
 
 {boundary}
-                """
+"""
+
     startup_msg += f"\nModel loaded on {device}"
     if device == "mps":
         startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
@@ -83,16 +81,11 @@ async def lifespan(app: FastAPI):
     else:
         startup_msg += "\nRunning on CPU"
 
-    # Add web player info if enabled
     if settings.enable_web_player:
-        startup_msg += (
-            f"\n\nBeta Web Player: http://{settings.host}:{settings.port}/web/"
-        )
-        startup_msg += f"\nor http://localhost:{settings.port}/web/"
+        startup_msg += f"\nWeb UI: or http://localhost:{settings.port}/web/"
     else:
-        startup_msg += "\n\nWeb Player: disabled"
+        startup_msg += "\n\nWeb UI disabled."
 
-    startup_msg += f"\n{boundary}\n"
     logger.info(startup_msg)
 
     yield
