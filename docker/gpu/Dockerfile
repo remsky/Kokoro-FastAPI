@@ -1,3 +1,4 @@
+#Updating CUDA to 12.4 to support older drivers and cards.
 FROM --platform=$BUILDPLATFORM nvidia/cuda:12.4.1-cudnn-runtime-ubuntu22.04
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
