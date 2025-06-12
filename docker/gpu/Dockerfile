@@ -41,6 +41,7 @@ CMD ["./entrypoint.sh"]
 
 
 # If you want to test the docker image locally, with GPU support, use Podman.
+# See ionstructions fro enabling CUDA on Podman: https://podman-desktop.io/docs/podman/gpu
 # Use these commands from the project root:
 #   podman build -f docker\gpu\Dockerfile -t evie/kokorotts .
 # Run it with:
