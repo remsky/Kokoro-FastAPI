@@ -16,9 +16,7 @@ RUN apt-get update -y && \
 USER appuser
 WORKDIR /app
 
-ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
-    PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
     PATH="/app/.venv/bin:$PATH" \
     UV_LINK_MODE=copy \
@@ -26,15 +24,15 @@ ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
     DEVICE="gpu"
 
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
-COPY --chown=appuser:appuser api ./api
-COPY --chown=appuser:appuser web ./web
-COPY --chown=appuser:appuser docker/scripts/ ./
-RUN chmod +x ./entrypoint.sh
-    
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.10 && \
     uv sync --extra gpu && \
-    uv cache clean && \
+    uv cache clean
+
+COPY --chown=appuser:appuser api ./api
+COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser docker/scripts/ ./
+RUN chmod +x ./entrypoint.sh && \
     python download_model.py --output api/src/models/v1_0
 
 # Run FastAPI server through entrypoint.sh
@@ -67,8 +65,9 @@ CMD ["./entrypoint.sh"]
 # SSH keys for logging into EC2 containers:
 #   https://eu-west-1.console.aws.amazon.com/ec2/home?region=eu-west-1#KeyPairs:
 #
-# aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 678811077621.dkr.ecr.eu-west-1.amazonaws.com
 # docker build -f docker\gpu\Dockerfile -t evie/kokorotts .
+# aws ecr get-login-password --region eu-west-1 | docker login --username AWS --password-stdin 678811077621.dkr.ecr.eu-west-1.amazonaws.com
 # docker tag evie/kokorotts:latest 678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts:latest
 # docker push 678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts:latest
 # docker run --gpus all -p 8880:8880 --name kokorotts  678811077621.dkr.ecr.eu-west-1.amazonaws.com/evie/kokorotts 
+# oe use swarm as explained here: https://blog.container-solutions.com/rolling-updates-with-docker-swarm

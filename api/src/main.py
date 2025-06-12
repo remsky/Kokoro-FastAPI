@@ -59,21 +59,15 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize model: {e}")
         raise
 
-    boundary = "░" * 2 * 12
     startup_msg = f"""
-{boundary}
-
     ╔═╗┌─┐┌─┐┌┬┐
     ╠╣ ├─┤└─┐ │ 
     ╚  ┴ ┴└─┘ ┴
     ╦╔═┌─┐┬┌─┌─┐
     ╠╩╗│ │├┴┐│ │
     ╩ ╩└─┘┴ ┴└─┘
-
-{boundary}
 """
-
-    startup_msg += f"\nModel loaded on {device}"
+    startup_msg += f"Model loaded on {device}"
     if device == "mps":
         startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
     elif device == "cuda":
