@@ -69,11 +69,9 @@ async def lifespan(app: FastAPI):
 """
     startup_msg += f"Model loaded on {device}"
     if device == "mps":
-        startup_msg += "\nUsing Apple Metal Performance Shaders (MPS)"
+        startup_msg += " (Apple Metal Performance Shaders)"
     elif device == "cuda":
-        startup_msg += f"\nCUDA available: {torch.cuda.is_available()}"
-    else:
-        startup_msg += "\nRunning on CPU"
+        startup_msg += " and cuda is enabled." if torch.cuda.is_available() else "but cuda is disabled"
 
     if settings.enable_web_player:
         startup_msg += f"\nWeb UI: or http://localhost:{settings.port}/web/"

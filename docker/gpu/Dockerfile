@@ -40,21 +40,22 @@ CMD ["./entrypoint.sh"]
 
 
 
-# If you want to test the docker image locally, run this from the project root:
-#   docker build -f docker\gpu\Dockerfile -t evie/kokorotts .
+# If you want to test the docker image locally, with GPU support, use Podman.
+# Use these commands from the project root:
+#   podman build -f docker\gpu\Dockerfile -t evie/kokorotts .
 # Run it with:
-#   docker run -p 8880:8880 --name kokorotts evie/kokorotts
+#   podman run --gpus all -p 8880:8880 --name kokorotts evie/kokorotts
 #
 # You can log into the container with
 #   docker exec -it kokorotts /bin/bash
 #
 # Other commands:
 # 1. Stop and remove container
-#    docker container remove kokorotts
+#    podman container rm kokorotts
 #
 # 2. List or remove images
-#    docker images
-#    docker image remove evie/kokorotts
+#    podman images
+#    podman image remove evie/kokorotts
 #
 # See docs for pushing to ECR
 #   https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html
