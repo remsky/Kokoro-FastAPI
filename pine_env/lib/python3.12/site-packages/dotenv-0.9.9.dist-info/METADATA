@@ -1,0 +1,14 @@
+Metadata-Version: 2.1
+Name: dotenv
+Version: 0.9.9
+Summary: Deprecated package
+Home-page: https://github.com/pedroburon/dotenv
+Author: Pedro Burón
+Author-email: pedroburonv@gmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+License-File: LICENSE
+Requires-Dist: python-dotenv
+
+UNKNOWN
+

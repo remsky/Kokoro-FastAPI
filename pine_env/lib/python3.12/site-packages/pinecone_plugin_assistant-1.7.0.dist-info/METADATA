@@ -1,0 +1,748 @@
+Metadata-Version: 2.3
+Name: pinecone-plugin-assistant
+Version: 1.7.0
+Summary: Assistant plugin for Pinecone SDK
+License: Apache-2.0
+Author: Pinecone Systems, Inc.
+Author-email: support@pinecone.io
+Requires-Python: >=3.9,<4.0
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Requires-Dist: packaging (>=24.2,<25.0)
+Requires-Dist: requests (>=2.32.3,<3.0.0)
+Project-URL: Documentation, https://pinecone.io/docs
+Project-URL: Homepage, https://www.pinecone.io
+Description-Content-Type: text/markdown
+
+# Assistant
+
+Interact with Pinecone's Assistant APIs, e.g. create, manage, and chat with assistants (currently in beta). Pinecone Assistant is also available in the [console](https://app.pinecone.io/).
+
+
+## Quickstart
+The following example highlights how to use an assistant to store and understand documents on a particular topic and chat with
+the assistant about those documents with the ultimate goal of semantically understanding your data.
+
+```python
+from pinecone import Pinecone
+from pinecone_plugins.assistant.models.chat import Message
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+# Create an assistant (in this case we'll store documents about planets)
+space_assistant = pc.assistant.create_assistant(assistant_name="space")
+
+# Upload information to your assistant
+space_assistant.upload_file("./space-fun-facts.pdf")
+
+# Once the upload succeeded, ask the assistant a question
+msg = Message(content="How old is the earth?")
+resp = space_assistant.chat_completions(messages=[msg])
+print(resp)
+
+# {'choices': [{'finish_reason': 'stop',
+# 'index': 0,
+# 'message': {'content': 'The age of the Earth is estimated to be '
+#                         'about 4.54 billion years, based on '
+#                         'evidence from radiometric age dating of '
+#                         'meteorite material and Earth rocks, as '
+#                         'well as lunar samples. This estimate has '
+#                         'a margin of error of about 1%.',
+#             'role': 'assistant'}}],
+# 'id': '00000000000000001a377ceeaabf3c18',
+
+```
+
+## Assistants API
+
+### Create Assistant
+To create an assistant, see the below example. This API creates a assistant with the specified name, metadata, and optional timeout settings.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+metadata = {"author": "Jane Doe", "version": "1.0"}
+
+assistant = pc.assistant.create_assistant(
+    assistant_name="example_assistant", 
+    instructions="Always use British English spelling and vocabulary.",
+    metadata=metadata,
+    timeout=30
+)
+```
+
+Arguments:
+- `assistant_name` The name to assign to the assistant. 
+    - type: `str`
+- `instructions`  Custom instructions for the assistant. These will be applied to all future chat interactions.
+    - type: `Optional[str] = None` 
+- `metadata`: A dictionary containing metadata for the assistant.
+    - type: `Optional[dict[str, any]] = None`
+- `timeout`: Specify the number of seconds to wait until assistant operation is completed. 
+    - If None, wait indefinitely until operation completes
+    - If >=0, time out after this many seconds
+    - If -1, return immediately and do not wait. 
+    - type: `Optional[int] = None`
+
+Returns:
+- `AssistantModel` object with the following properties:
+    - `name`: Contains the name of the assistant.
+    - `instructions`  Custom instructions for the assistant.
+    - `metadata`: Contains the provided metadata.
+    - `created_at`: Contains the timestamp of when the assistant was created.
+    - `updated_at`: Contains the timestamp of when the assistant was last updated.
+    - `status`: Contains the status of the assistant. This is one of:
+        - 'Initializing'
+        - 'Ready'
+        - 'Terminating'
+        - 'Failed'
+
+### Describe Assistant
+The example below describes/fetches an assistant with the specified name. Will raise a 404 if no model exists with the specified name. There are two methods for this:
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistant = pc.assistant.describe_assistant(
+    assistant_name="example_assistant", 
+)
+
+# we can also do this
+assistant = pc.assistant.Assistant(
+    assistant_name="example_assistant", 
+)
+```
+Arguments:
+- `assistant_name`: The name of the assistant to fetch.
+    - type: `str`, required
+
+Returns:
+- `AssistantModel` see [Create Assistant](#create-assistant)
+
+### Update Assistant
+To update an assistant's metadata and/or instructions, see the below example.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+metadata = {"author": "Jane Doe", "version": "2.0"}
+
+assistant = pc.assistant.update_assistant(
+    assistant_name="example_assistant", 
+    instructions="Always use Australian English spelling and vocabulary.",
+    metadata=metadata,
+)
+```
+
+Arguments:
+- `assistant_name`: The name of the assistant to fetch.
+    - type: `str`, required
+- `instructions`  Custom instructions for the assistant. These will be applied to all future chat interactions.
+    - type: `Optional[str] = None`
+- `metadata`: A dictionary containing metadata for the assistant. If provided, it will completely replace the existing metadata unless set to `None` (default).
+    - type: `Optional[dict[str, any]] = None`
+
+Returns:
+- `AssistantModel` see [Create Assistant](#create-assistant)
+
+
+### List Assistants
+Lists all assistants created from the current project. Will raise a 404 if no assistant exists with the specified name.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistants = pc.assistant.list_assistants()
+```
+
+Returns:
+- `List[AssistantModel]` objects
+
+### Delete Assistant
+Deletes a assistant with the specified name. Will raise a 404 if no assistant exists with the specified name.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+pc.assistant.delete_assistant(
+    assistant_name="example_assistant", 
+)
+```
+
+Arguments:
+- `assistant_name`: The name of the assistant to fetch.
+    - type: `str`, required
+
+Returns:
+- NoneType
+
+
+## Assistants Model API 
+
+### Upload File to Assistant
+Uploads a file from the specified path to this assistant for internal processing.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistant = pc.assistant.Assistant(
+    assistant_name="example_assistant", 
+)
+
+# upload file
+resp = assistant.upload_file(
+    file_path="/path/to/file.txt",
+    timeout=None
+)
+```
+
+Arguments:        
+- `file_path`: The path to the file that needs to be uploaded.
+    - type: `str`, required
+
+- `timeout`: Specify the number of seconds to wait until file processing is done.
+    - If `None`, wait indefinitely.
+    - If `>= 0`, time out after this many seconds.
+    - If `-1`, return immediately and do not wait.
+    - type: `Optional[int] = None`
+
+Return
+- `FileModel` object with the following properties:
+    - `id`: The file id of the uploaded file.
+    - `name`: The name of the uploaded file.
+    - `created_on`: The timestamp of when the file was created.
+    - `updated_on`: The timestamp of the last update to the file.
+    - `metadata`: Metadata associated with the file.
+    - `status`: The status of the file.
+
+
+It's also possible to upload files data directly as bytes from memory. 
+
+```python
+from io import BytesIO
+
+md_text = "# Title\n\ntext"
+
+# Note: assistant currently supports only utf-8 for text based files
+stream = BytesIO(md_text.encode("utf-8"))
+
+assistant.upload_bytes_stream(stream, "myfile.md")
+```
+
+### Describe File to Assistant
+Describes a file with the specified file `id` from this assistant. Includes information on its status and metadata.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistant = pc.assistant.Assistant(
+    assistant_name="example_assistant", 
+)
+
+# describe file
+file = assistant.describe_file(file_id="070513b3-022f-4966-b583-a9b12e0290ff")
+```
+
+Arguments:
+- `file_id`: The file ID of the file to be described.
+    - type: `str`, required
+
+Returns:
+- `FileModel` object with the following properties:
+    - `id`: The UUID of the requested file.
+    - `name`: The name of the requested file.
+    - `created_on`: The timestamp of when the file was created.
+    - `updated_on`: The timestamp of the last update to the file.
+    - `metadata`: Metadata associated with the file.
+    - `status`: The status of the file.
+
+### List Files
+Lists all uploaded files in this assistant.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistant = pc.assistant.Assistant(
+    assistant_name="example_assistant", 
+)
+
+files = assistant.list_files()
+```
+
+Arguments:
+None
+
+Returns:
+- `List[FileModel]`, the list of files in the assistant 
+
+
+### Delete file from assistant
+Deletes a file with the specified file_id from this assistant.
+
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+assistant = pc.assistant.Assistant(
+    assistant_name="example_assistant", 
+)
+
+# delete file
+assistant.delete_file(file_id="070513b3-022f-4966-b583-a9b12e0290ff")
+```
+
+Arguments:
+- `file_id`: The file ID of the file to be described.
+    - type: `str`, required
+
+Returns:
+- `NoneType`
+
+### Chat
+Performs a chat request to the following assistant which returns a stream of chat results in our custom format. Use this API if you want to have more control over the format of the citations. If the stream bool is set to `true`, this function will stream the response in chunks by returning a generator. 
+
+```python
+from pinecone import Pinecone
+from pinecone_plugins.assistant.models.chat import Message
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+space_assistant = pc.assistant.Assistant(assistant_name="space")
+
+msg = Message(content="How old is the earth?")
+resp = space_assistant.chat(messages=[msg])
+
+# The stream version
+chunks = space_assistant.chat(messages=[msg], stream=True)
+
+for chunk in chunks:
+    if chunk:
+        print(chunk)
+```
+
+Arguments:
+- `messages`: The current context for the chat request. The final element in the list represents the user query to be made from this context.
+    - type: `List[Message] or List[Dict]` where `Message/Dict` requires the following:
+        - `role`: `str`, the role of the context (`user` or `assistant`)
+        - `content`: `str`, the content of the context
+
+- `stream`: If this flag is turned on, then the return type is an `Iterable[StreamingChatResultModel]` where data is returned as a generator/stream.
+    - type: `bool`, default `false`
+
+- `model`: The large language model to use for answer generation. 
+    - type: `enum<str>`, default `gpt-4o`, available options: `gpt-4o`, `gpt-4.1`, `o4-mini`, `claude-3-5-sonnet`, `claude-3-7-sonnet`, `gemini-2.5-pro`
+
+- `temperature`: Controls the randomness of the model's output: lower values make responses more deterministic, while higher values increase creativity and variability. If the model does not support a temperature parameter, the parameter will be ignored.
+    - type: `float`, default `0.0`
+
+- `filter`: Optionally filter which documents can be retrieved using the following metadata fields.
+    - type: `object`
+
+- `json_response`: If true, the assistant will be instructed to return a JSON response. Cannot be used with streaming.
+    - type: `bool`, default `false`
+
+- `include_highlights`: If true, the assistant will be instructed to return highlights from the referenced documents that support its response.
+    - type: `bool`, default `false`
+
+- `context_options`: Controls the context snippets sent to the LLM.
+    - type: `ContextOptions`
+        - `top_k`: The maximum number of context snippets to use. Default is 16. Maximum is 64.
+            - type: `int`
+        - `snippet_size`: The maximum context snippet size. Default is 2048 tokens. Minimum is 512 tokens. Maximum is 8192 tokens.
+            - type: `int`
+
+Return:
+- The default result is a `ChatResultModel` with the following format:
+    - `finish_reason`: The reason the response finished, e.g., "stop".
+    - `message`: An object with the following properties:
+        - `content`: The content of the message.
+        - `role`: The role of the message sender (`user` or `assistant`).
+    - `id`: The unique identifier of the chat completion.
+    - `model`: The model used for the chat completion.
+    - `citations`: A list of citations with the following structure:
+        - `position`: The position of the citation in the document.
+        - `references`: A list of references with the following structure:
+            - `file`: A dictionary with the following properties:
+                - `id`: The file ID.
+                - `name`: The name of the file.
+                - `created_on`: The timestamp of when the file was created.
+                - `error_message`: A message describing any error during file processing, provided only if an error occurs.
+                - `metedata`: The metadata of the file.
+                - `percent_done`: The percentage of the file that has been processed.
+                - `signed_url`: A signed url that gives you access to the underlying file.
+                - `status`: The status of the file.
+                - `updated_on`: The timestamp of the last update to the file.
+                - `size`: The size of the file.
+            - `pages`: The list of pages that the citation references.
+            - `highlight`: When `include_highlights` is set to `true`, the response includes highlight. Otherwise, highlight is null. Highlight represents a portion of a referenced document that directly supports or is relevant to the response.
+                - `type`: The type of the highlight. Currently, it is always text.
+                - `content`: The content of the highlight.
+    - `usage`: The UsageModel describes the usage of a chat.
+        - `prompt_tokens`: The number of prompt tokens used.
+        - `completion_tokens`: The number of completion tokens used.
+        - `total_tokens`: The total number of tokens used.
+            
+The default result is a ChatModel with the following format:
+```json
+{
+    "finish_reason": "stop",
+    "index": 0,
+    "message": {
+        "content": "The 2020 World Series was played in Texas at Globe Life Field in Arlington.",
+        "role": "assistant"
+    },
+    "id": "chatcmpl-7QyqpwdfhqwajicIEznoc6Q47XAyW",
+    "model": "gpt-4o-2024-11-20",
+    "citations": [
+        {
+            "position": 3,
+            "references": [
+                {
+                    "file": {
+                        "id": "070513b3-022f-4966-b583-a9b12e0290ff",
+                        "name": "tiny_file.txt",
+                        "created_on": "2024-06-02T19:48:00Z",
+                        "error_message": null, 
+                        "metadata": null,
+                        "percent_done": 1.0,
+                        "signed_url": "https://storage.googleapis.com/...", 
+                        "status": "Available",
+                        "updated_on": "2024-06-02T19:48:00Z",
+                        "size": 36
+                    },
+                    "pages": [1, 2, 3],
+                    "highlight": null
+                }
+            ]
+        }
+    ],
+    "usage": {
+        "prompt_tokens": 1, 
+        "completion_tokens": 1, 
+        "total_tokens": 2
+        }
+}
+```
+- When stream is set to true, the response is a stream of ChatResultModel's. This can be one of the following types:
+    - StreamChatResultModelMessageStart:
+        - `type`: The type of the message, which is "message_start".
+        - `id`: The unique identifier of the message.
+        - `model`: The model used for the chat completion, e.g., "gpt-4o-2024-11-20".
+        - `role`: The role of the message sender, which is "assistant".
+
+    Example:
+    ```json
+        {
+            "type": "message_start",
+            "id": "0000000000000000468323be9d266e55",
+            "model": "gpt-4o-2024-11-20",
+            "role": "assistant"
+        }
+    ```
+    - StreamChatResultModelContentDelta
+        - `type`: The type of the message, which is "content_chunk".
+        - `id`: The unique identifier of the message.
+        - `model`: The model used for the chat completion, e.g., "gpt-4o-2024-11-20".
+        - `delta`: An object with the following properties:
+            - `content`: The incremental content of the message. 
+    ```json
+        {
+            "type": "content_chunk",
+            "id": "0000000000000000468323be9d266e55",
+            "model": "gpt-4o-2024-11-20",
+            "delta": {
+                "content": "The"
+            }
+        }
+    ```
+    - StreamChatResultModelCitation
+        - `type`: The type of the message, which is "citation".
+        - `id`: The unique identifier of the message.
+        - `model`: The model used for the chat completion, e.g., "gpt-4o-2024-11-20".
+        - `citation`: An object with the following properties:
+            - `position`: The position of the citation in the document.
+            - `references`: A list of references with the following structure:
+                - `id`: The file ID.
+                - `file`: A dictionary with the following properties:
+                    - `status`: The status of the file.
+                    - `id`: The file ID.
+                    - `name`: The name of the file.
+                    - `size`: The size of the file.
+                    - `metadata`: The metadata of the file.
+                    - `updated_on`: The timestamp of the last update to the file.
+                    - `created_on`: The timestamp of when the file was created.
+                    - `percent_done`: The percentage of the file that has been processed.
+                    - `signed_url`: The signed URL of the file.
+                    - `error_message`: A message describing any error during file processing, provided only if an error occurs.
+                - `pages`: The list of pages that the citation references.
+                - `highlight`: When `include_highlights` is set to `true`, the response includes highlight. Otherwise, highlight is null. Highlight represents a portion of a referenced document that directly supports or is relevant to the response.
+                    - `type`: The type of the highlight. Currently, it is always text.
+                    - `content`: The content of the highlight.
+    ```json
+        {
+            "type": "citation",
+            "id": "0000000000000000116990b44044d21e",
+            "model": "gpt-4o-2024-11-20",
+            "citation": {
+                "position": 247,
+                "references": [{
+                    "id": "s0",
+                    "file": {
+                        "status": "Available",
+                        "id": "985edb6c-f649-4334-8f14-9a16b7039ab6",
+                        "name": "PEPSICO_2022_10K.pdf",
+                        "size": 2993516,
+                        "metadata": null,
+                        "updated_on": "2024-08-08T15:41:58.839846634Z",
+                        "created_on": "2024-08-08T15:41:07.427879083Z",
+                        "percent_done": 0,
+                        "signed_url": "https://storage.googleapis.com/...",
+                        "error_message": null
+                    },
+                    "pages": [
+                        32
+                    ],
+                    "highlight": null
+                }]
+            }
+        }
+    ```
+    - StreamChatResultModelMessageEnd
+        - `type`: The type of the message, which is "message_end".
+        - `id`: The unique identifier of the message.
+        - `model`: The model used for the chat completion, e.g., "gpt-4o-2024-11-20".
+        - `finish_reason`: The reason the response finished, e.g., "stop".
+        - `usage`: An object with the following properties:
+            - `prompt_tokens`: The number of prompt tokens used.
+            - `completion_tokens`: The number of completion tokens used.
+            - `total_tokens`: The total number of tokens used.
+    ```json
+        {
+            "type": "message_end",
+            "id": "0000000000000000116990b44044d21e",
+            "model": "gpt-4o-2024-11-20",
+            "finish_reason": "stop",
+            "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2
+            }
+        }
+    ```
+
+### Chat Completions
+Performs a chat completion request to the following assistant. If the stream bool is set to `true`, this function will stream the response in chunks by returning a generator. 
+
+
+```python
+from pinecone import Pinecone
+from pinecone_plugins.assistant.models.chat import Message
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+space_assistant = pc.assistant.Assistant(assistant_name="space")
+
+msg = Message(content="How old is the earth?")
+resp = space_assistant.chat_completions(messages=[msg])
+
+# The stream version
+chunks = space_assistant.chat_completions(messages=[msg], stream=True)
+
+for chunk in chunks:
+    if chunk:
+        print(chunk)
+```
+
+Arguments:
+- `messages`: The current context for the chat request. The final element in the list represents the user query to be made from this context.
+    - type: `List[Message] or List[Dict]` where `Message/Dict` requires the following:
+        - `role`: `str`, the role of the context (`user` or `assistant`)
+        - `content`: `str`, the content of the context
+
+- `stream`: If this flag is turned on, then the return type is an `Iterable[StreamingChatResultModel]` where data is returned as a generator/stream.
+    - type: `bool`, default `false`
+
+- `model`: The large language model to use for answer generation. 
+    - type: `enum<str>`, default `gpt-4o`, available options: `gpt-4o`, `gpt-4.1`, `o4-mini`, `claude-3-5-sonnet`, `claude-3-7-sonnet`, `gemini-2.5-pro`
+
+- `temperature`: Controls the randomness of the model's output: lower values make responses more deterministic, while higher values increase creativity and variability. If the model does not support a temperature parameter, the parameter will be ignored.
+    - type: `float`, default `0.0`
+
+- `filter`: Optionally filter which documents can be retrieved using the following metadata fields.
+    - type: `object`
+
+Return:
+- The default result is a `ChatResultModel` with the following format:
+    - `choices`: A list with the following structure:
+        - `finish_reason`: The reason the response finished, e.g., "stop".
+        - `index`: The index of the choice in the list.
+        - `message`: An object with the following properties:
+            - `content`: The content of the message.
+            - `role`: The role of the message sender (`user` or `assistant`).
+    - `id`: The unique identifier of the chat completion.
+    - `model`: The model used for the chat completion.
+    - `usage`: The UsageModel describes the usage of a chat completion.
+        - `prompt_tokens`: The number of prompt tokens used.
+        - `completion_tokens`: The number of completion tokens used.
+        - `total_tokens`: The total number of tokens used.
+    
+See the example below
+```json
+{
+    "choices": [
+        {
+            "finish_reason": "stop",
+            "index": 0,
+            "message": {
+                "content": "The 2020 World Series was played in Texas at Globe Life Field in Arlington.",
+                "role": "assistant"
+            }
+        }
+    ],
+    "id": "00000000000000005c12d4d71263b642",
+    "model": "gpt-4o-2024-11-20",
+    "usage": {
+                "prompt_tokens": 1,
+                "completion_tokens": 1,
+                "total_tokens": 2
+            }
+}
+```
+- When `stream` is set to `true`, the response is an iterable of `StreamingChatResultModel` objects with the following properties:
+    - `choices`: A list with the following structure:
+        - `finish_reason`: The reason the response finished, which can be `null` while streaming.
+        - `index`: The index of the choice in the list.
+        - `delta`: An object with the following properties:
+            - `content`: The incremental content of the message.
+            - `role`: The role of the message sender, which can be empty while streaming.
+    - `id`: The unique identifier of the chat completion.
+    - `model`: The model used for the chat completion, e.g., "gpt-3.5-turbo-0613".
+
+See the example below
+```json
+    {
+        "choices": [
+            {
+                "finish_reason": null,
+                "index": 0,
+                "delta": {
+                    "content": "The",
+                    "role": "assistant"
+                }
+            }
+        ],
+        "id": "00000000000000005d487d0ba0cde006",
+        "model": "gpt-4o-2024-11-20"
+    }
+```
+
+
+### Context
+Performs a context request to the assistant and returns the content that might be used as part of a RAG system.
+```python
+from pinecone import Pinecone
+
+pc = Pinecone(api_key='<<PINECONE_API_KEY>>')
+
+space_assistant = pc.assistant.Assistant(assistant_name="space")
+
+resp = space_assistant.context(query="How old is the earth?")
+
+print(resp)
+```
+
+Arguments:
+- `query`: The query to be used in the context request.
+    - type: `str`
+
+- `messages`: The list of messages to use for generating the context. Exactly one of `query` or `messages` should be provided.
+    - type: `List[Message] or List[Dict]` where `Message/Dict` requires the following:
+        - `role`: `str`, the role of the context ('user' or 'assistant')
+        - `content`: `str`, the content of the context
+
+- `filter`: Optional dictionary to filter which documents can be used in this query. Use this to narrow down the context for the assistant's response.
+    - type: `dict`, default `None`
+
+- `top_k`: The maximum number of context snippets to return. Default is 16. Maximum is 64.
+    - type: `int`
+
+- `snippet_size`: The maximum context snippet size. Default is 2048 tokens. Minimum is 512 tokens. Maximum is 8192 tokens.
+    - type: `int`
+
+Return:
+- The default result is a `ContextResponse` with the following format:
+    - `snippets`: A list of snippets with the following structure:
+        - `type`: The type of the content.
+        - `content`: The content of the snippet. 
+        - `reference`: The reference of the snippet. Can be of type `PdfReference`, `TextReference`, `MarkdownReference`, or `JsonReference`.
+            - `type`: The type of the reference.
+            - `file`: A dictionary with the following properties:
+                - `created_on`: The timestamp of when the file was created.
+                - `id`: The file ID.
+                - `name`: The name of the file.
+                - `status`: The status of the file.
+                - `updated_on`: The timestamp of the last update to the file.
+                - `metadata`: The metadata of the file.
+                - `percent_done`: The percentage of the file that has been processed.
+                - `signed_url`: The signed URL of the file.
+                - `error_message`: A message describing any error during file processing, provided only if an error occurs.
+            - `pages`: The list of pages that the citation references. (Only available for `PdfReference`)
+    - `usage`: An object with the following properties:
+        - `prompt_tokens`: The number of prompt tokens used.
+        - `completion_tokens`: The number of completion tokens used.
+        - `total_tokens`: The total number of tokens used.
+    - `id`: The unique identifier of the context response.
+
+The default result is a ChatModel with the following format:
+```json
+{
+  "snippets": [
+    {
+      "type":" text",
+      "content": "The quick brown fox jumps over the lazy dog.",
+      "score": 0.9946,
+      "reference": {
+        "type": "pdf",
+        "file": {
+          "id": "96e6e2de-82b2-494d-8988-7dc88ce2ac01",
+          "metadata": null,
+          "name": "sample.pdf",
+          "percent_done": 1.0,
+          "status": "Available",
+          "created_on": "2024-11-13T14:59:53.369365582Z",
+          "updated_on": "2024-11-13T14:59:55.369365582Z",
+          "signed_url": "https://storage.googleapis.com/...",
+          "error_message": null
+        },
+        "pages": [1]
+      }
+    }
+  ],
+  "usage": {
+    "completion_tokens": 0,
+    "prompt_tokens": 506,
+    "total_tokens": 506
+  }
+}
+```
+

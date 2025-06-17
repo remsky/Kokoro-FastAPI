@@ -1,0 +1,23 @@
+Metadata-Version: 2.1
+Name: pinecone-plugin-interface
+Version: 0.0.7
+Summary: Plugin interface for the Pinecone python client
+Home-page: https://www.pinecone.io
+License: Apache-2.0
+Author: Pinecone Systems, Inc.
+Author-email: support@pinecone.io
+Requires-Python: >=3.8,<4.0
+Classifier: License :: OSI Approved :: Apache Software License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Project-URL: Documentation, https://pinecone.io/docs
+Project-URL: Repository, https://github.com/pinecone-io/python-plugin-interface
+Description-Content-Type: text/markdown
+
+This small package is used to distribute a few classes and utilities used to build and consume plugins for the [Pinecone Python SDK](https://github.com/pinecone-io/pinecone-python-client).
+
+At present this package is experimental and intended for internal use by Pinecone engineers iterating on new features. It should not be used by end-users or partners.
