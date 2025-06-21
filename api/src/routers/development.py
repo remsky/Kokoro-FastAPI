@@ -319,6 +319,7 @@ async def create_captioned_speech(
                 writer=writer,
                 speed=request.speed,
                 return_timestamps=request.return_timestamps,
+                volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
             )

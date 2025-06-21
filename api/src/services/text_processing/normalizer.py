@@ -11,7 +11,7 @@ from typing import List, Optional, Union
 
 import inflect
 from numpy import number
-from text_to_num import text2num
+# from text_to_num import text2num
 from torch import mul
 
 from ...structures.schemas import NormalizationOptions
@@ -132,6 +132,23 @@ VALID_UNITS = {
     "gbps": "gigabit per second",
     "tbps": "terabit per second",
     "px": "pixel",  # CSS units
+}
+
+SYMBOL_REPLACEMENTS = {
+    '~': ' ',
+    '@': ' at ',
+    '#': ' number ',
+    '$': ' dollar ',
+    '%': ' percent ',
+    '^': ' ',
+    '&': ' and ',
+    '*': ' ',
+    '_': ' ',
+    '|': ' ',
+    '\\': ' ',
+    '/': ' slash ',
+    '=': ' equals ',
+    '+': ' plus ',
 }
 
 MONEY_UNITS = {"$": ("dollar", "cent"), "£": ("pound", "pence"), "€": ("euro", "cent")}
@@ -391,6 +408,7 @@ def handle_time(t: re.Match[str]) -> str:
 
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
+    
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
@@ -415,7 +433,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
             text,
         )
 
-    # Replace quotes and brackets
+    # Replace quotes and brackets (additional cleanup)
     text = text.replace(chr(8216), "'").replace(chr(8217), "'")
     text = text.replace("«", chr(8220)).replace("»", chr(8221))
     text = text.replace(chr(8220), '"').replace(chr(8221), '"')
@@ -435,6 +453,11 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"  +", " ", text)
     text = re.sub(r"(?<=\n) +(?=\n)", "", text)
 
+    # Handle special characters that might cause audio artifacts first
+    # Replace newlines with spaces (or pauses if needed)
+    text = text.replace('\n', ' ')
+    text = text.replace('\r', ' ')
+    
     # Handle titles and abbreviations
     text = re.sub(r"\bD[Rr]\.(?= [A-Z])", "Doctor", text)
     text = re.sub(r"\b(?:Mr\.|MR\.(?= [A-Z]))", "Mister", text)
@@ -445,7 +468,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     # Handle common words
     text = re.sub(r"(?i)\b(y)eah?\b", r"\1e'a", text)
 
-    # Handle numbers and money
+    # Handle numbers and money BEFORE replacing special characters
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
 
     text = MONEY_PATTERN.sub(
@@ -457,6 +480,11 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     text = re.sub(r"\d*\.\d+", handle_decimal, text)
 
+    # Handle other problematic symbols AFTER money/number processing
+    if normalization_options.replace_remaining_symbols:
+        for symbol, replacement in SYMBOL_REPLACEMENTS.items():
+            text = text.replace(symbol, replacement)
+
     # Handle various formatting
     text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
     text = re.sub(r"(?<=\d)S", " S", text)
@@ -466,5 +494,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
         r"(?:[A-Za-z]\.){2,} [a-z]", lambda m: m.group().replace(".", "-"), text
     )
     text = re.sub(r"(?i)(?<=[A-Z])\.(?=[A-Z])", "-", text)
+
+    text = re.sub(r"\s{2,}", " ", text)
 
     return text.strip()
