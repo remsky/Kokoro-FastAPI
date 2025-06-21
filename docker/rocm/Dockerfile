@@ -1,4 +1,4 @@
-FROM rocm/dev-ubuntu-24.04:6.4
+FROM rocm/dev-ubuntu-24.04:6.4.1
 ENV DEBIAN_FRONTEND=noninteractive \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
