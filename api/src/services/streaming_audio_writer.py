@@ -32,19 +32,29 @@ class StreamingAudioWriter:
         if self.format in ["wav", "flac", "mp3", "pcm", "aac", "opus"]:
             if self.format != "pcm":
                 self.output_buffer = BytesIO()
+                container_options = {}
+                # Try disabling Xing VBR header for MP3 to fix iOS timeline reading issues
+                if self.format == 'mp3':
+                    # Disable Xing VBR header
+                    container_options = {'write_xing': '0'}
+                    logger.debug("Disabling Xing VBR header for MP3 encoding.")
+
                 self.container = av.open(
                     self.output_buffer,
                     mode="w",
                     format=self.format if self.format != "aac" else "adts",
+                    options=container_options # Pass options here
                 )
                 self.stream = self.container.add_stream(
                     codec_map[self.format],
-                    sample_rate=self.sample_rate,
+                    rate=self.sample_rate,
                     layout="mono" if self.channels == 1 else "stereo",
                 )
-                self.stream.bit_rate = 128000
+                # Set bit_rate only for codecs where it's applicable and useful
+                if self.format in ['mp3', 'aac', 'opus']:
+                    self.stream.bit_rate = 128000
         else:
-            raise ValueError(f"Unsupported format: {format}")
+            raise ValueError(f"Unsupported format: {self.format}") # Use self.format here
 
     def close(self):
         if hasattr(self, "container"):
@@ -65,12 +75,18 @@ class StreamingAudioWriter:
 
         if finalize:
             if self.format != "pcm":
+                # Flush stream encoder
                 packets = self.stream.encode(None)
                 for packet in packets:
                     self.container.mux(packet)
 
+                # Closing the container handles writing the trailer and finalizing the file.
+                # No explicit flush method is available or needed here.
+                logger.debug("Muxed final packets.")
+
+                # Get the final bytes from the buffer *before* closing it
                 data = self.output_buffer.getvalue()
-                self.close()
+                self.close() # Close container and buffer
                 return data
 
         if audio_data is None or len(audio_data) == 0:

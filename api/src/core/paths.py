@@ -300,7 +300,7 @@ async def get_web_file_path(filename: str) -> str:
     )
 
     # Construct web directory path relative to project root
-    web_dir = os.path.join("/app", settings.web_player_path)
+    web_dir = os.path.join(root_dir, settings.web_player_path)
 
     # Search in web directory
     search_paths = [web_dir]

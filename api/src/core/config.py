@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     # Audio Settings
     sample_rate: int = 24000
+    default_volume_multiplier: float = 1.0
     # Text Processing Settings
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk
