@@ -8,7 +8,7 @@ variable "REGISTRY" {
 }
 
 variable "OWNER" {
-    default = "kprinssu"
+    default = "remsky"
 }
 
 variable "REPO" {
