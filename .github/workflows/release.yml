@@ -39,7 +39,7 @@ jobs:
       VERSION: ${{ needs.prepare-release.outputs.version_tag }} # Use tag version (vX.Y.Z) for bake
     strategy:
       matrix:
-        build_target: ["cpu", "gpu", "rocm"]
+        build_target: ["cpu", "cpu-arm64", "gpu-arm64", "gpu", "rocm"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
