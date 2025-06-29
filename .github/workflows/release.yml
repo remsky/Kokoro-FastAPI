@@ -3,6 +3,7 @@ name: Create Release and Publish Docker Images
 on:
   push:
     branches:
+      - master
       - release # Trigger when commits are pushed to the release branch (e.g., after merging master)
     paths-ignore:
       - '**.md'
