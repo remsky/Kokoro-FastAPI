@@ -89,7 +89,7 @@ jobs:
         run: |
           echo "Building and pushing images for version ${{ needs.prepare-release.outputs.version_tag }}"
           # The VERSION env var above sets the tag for the bake file targets
-          docker buildx bake ${{} matrix.build_target }} --push
+          docker buildx bake ${{ matrix.build_target }} --push
 
   create-release:
     needs: [prepare-release, build-images]
