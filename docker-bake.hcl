@@ -69,7 +69,7 @@ target "gpu" {
 # AMD ROCm target with multi-platform support
 target "rocm" {
     inherits = ["_rocm_base"]
-    platforms = ["linux/amd64", "linux/arm64"]
+    platforms = ["linux/amd64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-rocm:${VERSION}",
         "${REGISTRY}/${OWNER}/${REPO}-rocm:latest"
