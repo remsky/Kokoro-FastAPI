@@ -76,9 +76,17 @@ target "rocm" {
     ]
 }
 
-# Default group to build both CPU and GPU versions
-group "default" {
-    targets = ["cpu", "gpu", "rocm"]
+# Build groups for parallel builds
+group "cpu" {
+    targets = ["cpu"]
+}
+
+group "gpu" {
+    targets = ["gpu"]
+}
+
+group "rocm" {
+    targets = ["rocm"]
 }
 
 # Development targets for faster local builds

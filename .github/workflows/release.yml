@@ -35,6 +35,9 @@ jobs:
       BUILDKIT_STEP_LOG_MAX_SIZE: 10485760
       # This environment variable will override the VERSION variable in docker-bake.hcl
       VERSION: ${{ needs.prepare-release.outputs.version_tag }} # Use tag version (vX.Y.Z) for bake
+    strategy:
+      matrix:
+        build_target: ["cpu", "gpu", "rocm"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -86,7 +89,7 @@ jobs:
         run: |
           echo "Building and pushing images for version ${{ needs.prepare-release.outputs.version_tag }}"
           # The VERSION env var above sets the tag for the bake file targets
-          docker buildx bake --push
+          docker buildx bake ${{} matrix.build_target }} --push
 
   create-release:
     needs: [prepare-release, build-images]
