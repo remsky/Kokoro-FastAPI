@@ -40,6 +40,12 @@ target "_gpu_base" {
     dockerfile = "docker/gpu/Dockerfile"
 }
 
+# Base settings for AMD ROCm builds
+target "_rocm_base" {
+    inherits = ["_common"]
+    dockerfile = "docker/rocm/Dockerfile"
+}
+
 # CPU target with multi-platform support
 target "cpu" {
     inherits = ["_cpu_base"]
@@ -60,9 +66,19 @@ target "gpu" {
     ]
 }
 
+# AMD ROCm target with multi-platform support
+target "rocm" {
+    inherits = ["_rocm_base"]
+    platforms = ["linux/amd64", "linux/arm64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-rocm:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-rocm:latest"
+    ]
+}
+
 # Default group to build both CPU and GPU versions
 group "default" {
-    targets = ["cpu", "gpu"]
+    targets = ["cpu", "gpu", "rocm"]
 }
 
 # Development targets for faster local builds
@@ -78,6 +94,12 @@ target "gpu-dev" {
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev"]
 }
 
+target "rocm-dev" {
+    inherits = ["_rocm_base"]
+    # No multi-platform for dev builds
+    tags = ["${REGISTRY}/${OWNER}/${REPO}-rocm:dev"]
+}
+
 group "dev" {
-    targets = ["cpu-dev", "gpu-dev"]
+    targets = ["cpu-dev", "gpu-dev", "rocm-dev"]
 }
