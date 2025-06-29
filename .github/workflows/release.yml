@@ -63,9 +63,8 @@ jobs:
           echo "Listing current disk space"
           df -h
           echo "Cleaning up disk space..."
-          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
           sudo docker system prune -af
-          sudo docker builder prune -a
           echo "Disk space after cleanup"
           df -h
 
