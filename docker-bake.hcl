@@ -56,7 +56,7 @@ target "cpu" {
     ]
 }
 
-target "cpu-arm" {
+target "cpu-arm64" {
     inherits = ["_cpu_base"]
     platforms = ["linux/arm64"]
     tags = [
