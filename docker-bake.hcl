@@ -49,7 +49,16 @@ target "_rocm_base" {
 # CPU target with multi-platform support
 target "cpu" {
     inherits = ["_cpu_base"]
-    platforms = ["linux/amd64", "linux/arm64"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
+    ]
+}
+
+target "cpu-arm64" {
+    inherits = ["_cpu_base"]
+    platforms = ["linux/arm64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
         "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
@@ -59,7 +68,16 @@ target "cpu" {
 # GPU target with multi-platform support
 target "gpu" {
     inherits = ["_gpu_base"]
-    platforms = ["linux/amd64", "linux/arm64"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+    ]
+}
+
+target "gpu-arm64" {
+    inherits = ["_gpu_base"]
+    platforms = ["linux/arm64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
         "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
@@ -79,6 +97,14 @@ target "rocm" {
 # Build groups for parallel builds
 group "cpu" {
     targets = ["cpu"]
+}
+
+group "cpu-arm64" {
+    targets = ["cpu-arm64"]
+}
+
+group "gpu-arm64" {
+    targets = ["gpu-arm64"]
 }
 
 group "gpu" {
