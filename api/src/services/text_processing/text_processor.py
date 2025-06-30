@@ -15,7 +15,7 @@ from .vocabulary import tokenize
 # Pre-compiled regex patterns for performance
 # Updated regex to be more strict and avoid matching isolated brackets
 # Only matches complete patterns like [word](/ipa/) and prevents catastrophic backtracking
-CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\])(\(\/[^\/\(\)]*?\/\))")
+CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 
@@ -100,7 +100,7 @@ def process_text(text: str, language: str = "a") -> List[int]:
 
 
 def get_sentence_info(
-    text: str, custom_phenomes_list: Dict[str, str], lang_code: str = "a"
+    text: str, lang_code: str = "a"
 ) -> List[Tuple[str, List[int], int]]:
     """Process all sentences and return info"""
     # Detect Chinese text
@@ -110,18 +110,10 @@ def get_sentence_info(
         sentences = re.split(r"([，。！？；])+", text)
     else:
         sentences = re.split(r"([.!?;:])(?=\s|$)", text)
-    phoneme_length, min_value = len(custom_phenomes_list), 0
 
     results = []
     for i in range(0, len(sentences), 2):
         sentence = sentences[i].strip()
-        for replaced in range(min_value, phoneme_length):
-            current_id = f"</|custom_phonemes_{replaced}|/>"
-            if current_id in sentence:
-                sentence = sentence.replace(
-                    current_id, custom_phenomes_list.pop(current_id)
-                )
-                min_value += 1
         punct = sentences[i + 1] if i + 1 < len(sentences) else ""
         if not sentence:
             continue
@@ -173,24 +165,23 @@ async def smart_split(
             # Strip leading and trailing spaces to prevent pause tag splitting artifacts
             text_part_raw = text_part_raw.strip()
 
-            # Apply the original smart_split logic to this text part
-            custom_phoneme_list = {}
-
             # Normalize text (original logic)
             processed_text = text_part_raw
             if settings.advanced_text_normalization and normalization_options.normalize:
                 if lang_code in ["a", "b", "en-us", "en-gb"]:
-                    processed_text = CUSTOM_PHONEMES.sub(
-                        lambda s: handle_custom_phonemes(s, custom_phoneme_list), processed_text
-                    )
-                    processed_text = normalize_text(processed_text, normalization_options)
+                    processed_text = CUSTOM_PHONEMES.split(processed_text)
+                    for index in range(0, len(processed_text), 2):
+                        processed_text[index] = normalize_text(processed_text[index], normalization_options)
+
+
+                    processed_text = "".join(processed_text).strip()
                 else:
                     logger.info(
                         "Skipping text normalization as it is only supported for english"
                     )
 
             # Process all sentences (original logic)
-            sentences = get_sentence_info(processed_text, custom_phoneme_list, lang_code=lang_code)
+            sentences = get_sentence_info(processed_text, lang_code=lang_code)
 
             current_chunk = []
             current_tokens = []
