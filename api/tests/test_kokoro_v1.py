@@ -1,6 +1,6 @@
+import os
 from unittest.mock import ANY, MagicMock, patch
 
-import numpy as np
 import pytest
 import torch
 
@@ -50,7 +50,7 @@ def test_clear_memory(mock_sync, mock_clear, kokoro_backend):
 @pytest.mark.asyncio
 async def test_load_model_validation(kokoro_backend):
     """Test model loading validation."""
-    with pytest.raises(RuntimeError, match="Failed to load Kokoro model"):
+    with pytest.raises(FileNotFoundError):
         await kokoro_backend.load_model("nonexistent_model.pth")
 
 
@@ -140,7 +140,7 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
         patch("tempfile.gettempdir") as mock_tempdir,
     ):
         mock_load_voice.return_value = torch.ones(1)
-        mock_tempdir.return_value = "/tmp"
+        mock_tempdir.return_value = f"{os.sep}tmp"
 
         # Mock KPipeline
         mock_pipeline = MagicMock()
@@ -162,4 +162,4 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
             # Verify the voice path is a temp file path
             call_args = mock_pipeline.call_args
             assert isinstance(call_args[1]["voice"], str)
-            assert call_args[1]["voice"].startswith("/tmp/temp_voice_")
+            assert call_args[1]["voice"].startswith(f"{os.sep}tmp{os.sep}temp_voice_")
