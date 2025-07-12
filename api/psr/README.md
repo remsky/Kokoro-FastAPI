@@ -1,8 +1,9 @@
 ## Introduction
-This is a simple PSR test written in locust. It simulates users that execute the following scenario:
-- call API to convert text to speech using streaming API
+This is a simple PSR test written in Locust. 
+It simulates users that execute the following scenario in a loop:
+- call the OpenAI API to convert text to speech
 - play the generated audio file
-- repeat
+
 
 ## Get Started
 Install the packages required by the PSR test: 
