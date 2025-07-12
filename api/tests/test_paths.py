@@ -18,8 +18,8 @@ async def test_find_file_exists():
     """Test finding existing file."""
     with patch("aiofiles.os.path.exists") as mock_exists:
         mock_exists.return_value = True
-        path = await _find_file("test.txt", ["/test/path"])
-        assert path == "/test/path/test.txt"
+        path = await _find_file("test.txt", [f"{os.sep}test{os.sep}path"])
+        assert path == f"{os.sep}test{os.sep}path{os.sep}test.txt"
 
 
 @pytest.mark.asyncio
@@ -37,8 +37,8 @@ async def test_find_file_with_filter():
     with patch("aiofiles.os.path.exists") as mock_exists:
         mock_exists.return_value = True
         filter_fn = lambda p: p.endswith(".txt")
-        path = await _find_file("test.txt", ["/test/path"], filter_fn)
-        assert path == "/test/path/test.txt"
+        path = await _find_file("test.txt", [f"{os.sep}test{os.sep}path"], filter_fn)
+        assert path == f"{os.sep}test{os.sep}path{os.sep}test.txt"
 
 
 @pytest.mark.asyncio
