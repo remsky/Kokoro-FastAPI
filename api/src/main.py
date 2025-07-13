@@ -2,10 +2,8 @@
 FastAPI OpenAI Compatible API
 """
 
-import os
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import torch
 import uvicorn
@@ -31,7 +29,6 @@ def setup_logger():
                 "<fg #4169E1>{module}:{line}</fg #4169E1> | "
                 "{message}",
                 "colorize": True,
-                "level": "DEBUG",
             },
         ],
     }
