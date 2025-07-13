@@ -39,9 +39,12 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data \
-    DEVICE="gpu"
-    
-ENV DOWNLOAD_MODEL=true
+    DEVICE="gpu" \
+    DOWNLOAD_MODEL=true \
+    UVICORN_LOG_LEVEL=warning \
+    LOGURU_LEVEL=WARNING \
+    NUM_WORKERS=2
+
 # Download model if enabled
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     python download_model.py --output api/src/models/v1_0; \
