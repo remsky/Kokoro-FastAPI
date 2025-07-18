@@ -1,3 +1,4 @@
+from email.policy import default
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
@@ -66,6 +67,10 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Changes phone numbers so they can be properly pronouced by kokoro",
     )
+    replace_remaining_symbols: bool = Field(
+        default=True,
+        description="Replaces the remaining symbols after normalization with their words"
+    )
 
 
 class OpenAISpeechRequest(BaseModel):
@@ -107,6 +112,10 @@ class OpenAISpeechRequest(BaseModel):
     lang_code: Optional[str] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
+    )
+    volume_multiplier: Optional[float] = Field(
+        default = 1.0,
+        description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
@@ -151,6 +160,10 @@ class CaptionedSpeechRequest(BaseModel):
     lang_code: Optional[str] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
+    )
+    volume_multiplier: Optional[float] = Field(
+        default = 1.0,
+        description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),

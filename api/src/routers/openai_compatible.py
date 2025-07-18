@@ -152,6 +152,7 @@ async def stream_audio_chunks(
             speed=request.speed,
             output_format=request.response_format,
             lang_code=request.lang_code,
+            volume_multiplier=request.volume_multiplier,
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
         ):
@@ -300,6 +301,7 @@ async def create_speech(
                 voice=voice_name,
                 writer=writer,
                 speed=request.speed,
+                volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
             )
