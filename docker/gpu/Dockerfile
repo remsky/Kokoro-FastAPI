@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
     g++ \
+    cmake \
  && apt-get clean && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /usr/share/espeak-ng-data \
  && ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/
