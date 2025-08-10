@@ -47,7 +47,7 @@ gpu = [
     "torch==2.7.1+cu128",
 ]
 rocm = [
-    "torch==2.8.0.dev20250627+rocm6.4",
+    "torch==2.8.0+rocm6.4",
     "pytorch-triton-rocm>=3.2.0",
 ]
 cpu = [
@@ -94,7 +94,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-rocm"
-url = "https://download.pytorch.org/whl/nightly/rocm6.4"
+url = "https://download.pytorch.org/whl/rocm6.4"
 explicit = true
 
 [build-system]
