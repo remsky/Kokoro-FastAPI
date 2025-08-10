@@ -44,14 +44,14 @@ dependencies = [
 
 [project.optional-dependencies]
 gpu = [
-    "torch==2.6.0+cu124",
+    "torch==2.7.1+cu128",
 ]
 rocm = [
     "torch==2.8.0.dev20250627+rocm6.4",
     "pytorch-triton-rocm>=3.2.0",
 ]
 cpu = [
-    "torch==2.6.0",
+    "torch==2.7.1",
 ]
 test = [
     "pytest==8.3.5",
@@ -89,7 +89,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu124"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [[tool.uv.index]]
