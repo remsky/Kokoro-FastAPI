@@ -1,4 +1,4 @@
-FROM rocm/dev-ubuntu-24.04:6.4.1
+FROM rocm/dev-ubuntu-24.04:6.4.3
 ENV DEBIAN_FRONTEND=noninteractive \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
@@ -8,6 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt upgrade -y && apt-get install -y --no-install-recommends \
     espeak-ng \
     espeak-ng-data \
+    rocrand \
     git \
     libsndfile1 \
     curl \
@@ -18,20 +19,20 @@ RUN apt-get update && apt upgrade -y && apt-get install -y --no-install-recommen
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /usr/share/espeak-ng-data \
-    && ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/
+    && ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ \
 
-RUN  mkdir -p /app/api/src/models/v1_0
+    # Install UV using the installer script
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
+    && mv /root/.local/bin/uv /usr/local/bin/ \
+    && mv /root/.local/bin/uvx /usr/local/bin/ \
+
+    # Create non-root user and set up directories and permissions
+    && useradd -m -u 1001 appuser \
+    && mkdir -p /app/api/src/models/v1_0 \
+    && chown -R appuser:appuser /app \
+    # Models folder
+    && mkdir -p /app/api/src/models/v1_0
 WORKDIR /app
-
-# Install UV using the installer script
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ && \
-    mv /root/.local/bin/uvx /usr/local/bin/
-
-# Create non-root user and set up directories and permissions
-RUN useradd -m -u 1001 appuser && \
-    mkdir -p /app/api/src/models/v1_0 && \
-    chown -R appuser:appuser /app
 
 USER appuser
 WORKDIR /app
@@ -59,14 +60,9 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
     PATH="/app/.venv/bin:$PATH" \
     UV_LINK_MODE=copy \
-    USE_GPU=true
+    USE_GPU=true \
+    DOWNLOAD_MODEL=true \
+    DEVICE="gpu"
 
-ENV DOWNLOAD_MODEL=true
-# Download model if enabled
-RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
-    python download_model.py --output api/src/models/v1_0; \
-    fi
-
-ENV DEVICE="gpu"
 # Run FastAPI server through entrypoint.sh
 CMD ["./entrypoint.sh"]
