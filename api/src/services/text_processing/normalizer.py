@@ -497,4 +497,4 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     text = re.sub(r"\s{2,}", " ", text)
 
-    return text.strip()
+    return text

@@ -44,10 +44,14 @@ dependencies = [
 
 [project.optional-dependencies]
 gpu = [
-    "torch==2.6.0+cu124",
+    "torch==2.7.1+cu128",
+]
+rocm = [
+    "torch==2.8.0+rocm6.4",
+    "pytorch-triton-rocm>=3.2.0",
 ]
 cpu = [
-    "torch==2.6.0",
+    "torch==2.7.1",
 ]
 test = [
     "pytest==8.3.5",
@@ -63,13 +67,19 @@ conflicts = [
     [
         { extra = "cpu" },
         { extra = "gpu" },
+        { extra = "rocm" },
     ],
 ]
+
 
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
     { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-rocm", extra = "rocm" },
+]
+pytorch-triton-rocm = [
+    { index = "pytorch-rocm", extra = "rocm" },
 ]
 
 [[tool.uv.index]]
@@ -79,7 +89,12 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu124"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm"
+url = "https://download.pytorch.org/whl/rocm6.4"
 explicit = true
 
 [build-system]
@@ -93,5 +108,5 @@ packages.find = {where = ["api/src"], namespaces = true}
 [tool.pytest.ini_options]
 testpaths = ["api/tests", "ui/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace" 
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace"
 asyncio_mode = "auto"
