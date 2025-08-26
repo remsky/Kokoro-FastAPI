@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.1.4"
+version = "0.3.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -31,29 +31,31 @@ dependencies = [
     "matplotlib>=3.10.0",
     "mutagen>=1.47.0",
     "psutil>=6.1.1",
-    "kokoro @ git+https://github.com/hexgrad/kokoro.git@31a2b6337b8c1b1418ef68c48142328f640da938",
-    'misaki[en,ja,ko,zh] @ git+https://github.com/hexgrad/misaki.git@ebc76c21b66c5fc4866ed0ec234047177b396170',
-    "spacy==3.7.2",
-    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
+    "espeakng-loader==0.2.4",
+    "kokoro==0.9.2",
+    "misaki[en,ja,ko,zh]==0.9.3",
+    "spacy==3.8.5",
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "inflect>=7.5.0",
     "phonemizer-fork>=3.3.2",
-    "av>=14.1.0",
+    "av>=14.2.0",
+    "text2num>=2.5.1",
 ]
 
 [project.optional-dependencies]
 gpu = [
-    "torch==2.6.0+cu124",
+    "torch==2.7.1+cu128",
 ]
 cpu = [
-    "torch==2.6.0",
+    "torch==2.7.1",
 ]
 test = [
-    "pytest==8.0.0",
-    "pytest-cov==4.1.0",
+    "pytest==8.3.5",
+    "pytest-cov==6.0.0",
     "httpx==0.26.0",
-    "pytest-asyncio==0.23.5",
-    "openai>=1.59.6",
+    "pytest-asyncio==0.25.3",
     "tomli>=2.0.1",
+    "jinja2>=3.1.6"
 ]
 
 [tool.uv]
@@ -77,7 +79,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu124"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [build-system]
@@ -91,5 +93,5 @@ packages.find = {where = ["api/src"], namespaces = true}
 [tool.pytest.ini_options]
 testpaths = ["api/tests", "ui/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc"
-asyncio_mode = "strict"
+addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace" 
+asyncio_mode = "auto"

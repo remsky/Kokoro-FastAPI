@@ -20,7 +20,7 @@ services:
       
   # # Gradio UI service [Comment out everything below if you don't need it]
   # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v0.2.0
+  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
   #   # Uncomment below (and comment out above) to build from source instead of using the released image
   #   build:
   #     context: ../../ui

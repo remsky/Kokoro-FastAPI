@@ -141,6 +141,8 @@ Model files not found! You need to download the Kokoro V1 model:
 
         try:
             async for chunk in self._backend.generate(*args, **kwargs):
+                if settings.default_volume_multiplier != 1.0:
+                    chunk.audio *= settings.default_volume_multiplier
                 yield chunk
         except Exception as e:
             raise RuntimeError(f"Generation failed: {e}")

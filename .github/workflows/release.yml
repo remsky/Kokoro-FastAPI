@@ -1,0 +1,110 @@
+name: Create Release and Publish Docker Images
+
+on:
+  push:
+    branches:
+      - release # Trigger when commits are pushed to the release branch (e.g., after merging master)
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  prepare-release:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get-version.outputs.version }}
+      version_tag: ${{ steps.get-version.outputs.version_tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get version from VERSION file
+        id: get-version
+        run: |
+          VERSION_PLAIN=$(cat VERSION)
+          echo "version=${VERSION_PLAIN}" >> $GITHUB_OUTPUT
+          echo "version_tag=v${VERSION_PLAIN}" >> $GITHUB_OUTPUT # Add 'v' prefix for tag
+
+  build-images:
+    needs: prepare-release
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write # Needed to push images to GHCR
+    env:
+      DOCKER_BUILDKIT: 1
+      BUILDKIT_STEP_LOG_MAX_SIZE: 10485760
+      # This environment variable will override the VERSION variable in docker-bake.hcl
+      VERSION: ${{ needs.prepare-release.outputs.version_tag }} # Use tag version (vX.Y.Z) for bake
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed to check for existing tags
+
+      - name: Check if tag already exists
+        run: |
+          TAG_NAME="${{ needs.prepare-release.outputs.version_tag }}"
+          echo "Checking for existing tag: $TAG_NAME"
+          # Fetch tags explicitly just in case checkout didn't get them all
+          git fetch --tags
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG_NAME already exists. Please increment the version in the VERSION file."
+            exit 1
+          else
+            echo "Tag $TAG_NAME does not exist. Proceeding with release."
+          fi
+
+      - name: Free disk space # Optional: Keep as needed for large builds
+        run: |
+          echo "Listing current disk space"
+          df -h
+          echo "Cleaning up disk space..."
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
+          docker system prune -af
+          echo "Disk space after cleanup"
+          df -h
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3 # Use v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3 # Use v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            network=host
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3 # Use v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images using Docker Bake
+        run: |
+          echo "Building and pushing images for version ${{ needs.prepare-release.outputs.version_tag }}"
+          # The VERSION env var above sets the tag for the bake file targets
+          docker buildx bake --push
+
+  create-release:
+    needs: [prepare-release, build-images]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to create releases
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for release notes generation
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2 # Use v2
+        with:
+          tag_name: ${{ needs.prepare-release.outputs.version_tag }} # Use vX.Y.Z tag
+          name: Release ${{ needs.prepare-release.outputs.version_tag }}
+          generate_release_notes: true # Auto-generate release notes
+          draft: false # Publish immediately
+          prerelease: false # Mark as a stable release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

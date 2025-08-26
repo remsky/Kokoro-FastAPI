@@ -81,26 +81,36 @@ class TempFileWriter:
         self.format = format
         self.temp_file = None
         self._finalized = False
+        self._write_error = False  # Flag to track if we've had a write error
 
     async def __aenter__(self):
         """Async context manager entry"""
-        # Clean up old files first
-        await cleanup_temp_files()
+        try:
+            # Clean up old files first
+            await cleanup_temp_files()
 
-        # Create temp file with proper extension
-        await aiofiles.os.makedirs(settings.temp_file_dir, exist_ok=True)
-        temp = tempfile.NamedTemporaryFile(
-            dir=settings.temp_file_dir,
-            delete=False,
-            suffix=f".{self.format}",
-            mode="wb",
-        )
-        self.temp_file = await aiofiles.open(temp.name, mode="wb")
-        self.temp_path = temp.name
-        temp.close()  # Close sync file, we'll use async version
+            # Create temp file with proper extension
+            await aiofiles.os.makedirs(settings.temp_file_dir, exist_ok=True)
+            temp = tempfile.NamedTemporaryFile(
+                dir=settings.temp_file_dir,
+                delete=False,
+                suffix=f".{self.format}",
+                mode="wb",
+            )
+            self.temp_file = await aiofiles.open(temp.name, mode="wb")
+            self.temp_path = temp.name
+            temp.close()  # Close sync file, we'll use async version
 
-        # Generate download path immediately
-        self.download_path = f"/download/{os.path.basename(self.temp_path)}"
+            # Generate download path immediately
+            self.download_path = f"/download/{os.path.basename(self.temp_path)}"
+        except Exception as e:
+            # Handle permission issues or other errors gracefully
+            logger.error(f"Failed to create temp file: {e}")
+            self._write_error = True
+            # Set a placeholder path so the API can still function
+            self.temp_path = f"unavailable_{self.format}"
+            self.download_path = f"/download/{self.temp_path}"
+
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -111,6 +121,7 @@ class TempFileWriter:
                 self._finalized = True
         except Exception as e:
             logger.error(f"Error closing temp file: {e}")
+            self._write_error = True
 
     async def write(self, chunk: bytes) -> None:
         """Write a chunk of audio data
@@ -121,8 +132,17 @@ class TempFileWriter:
         if self._finalized:
             raise RuntimeError("Cannot write to finalized temp file")
 
-        await self.temp_file.write(chunk)
-        await self.temp_file.flush()
+        # Skip writing if we've already encountered an error
+        if self._write_error or not self.temp_file:
+            return
+
+        try:
+            await self.temp_file.write(chunk)
+            await self.temp_file.flush()
+        except Exception as e:
+            # Handle permission issues or other errors gracefully
+            logger.error(f"Failed to write to temp file: {e}")
+            self._write_error = True
 
     async def finalize(self) -> str:
         """Close temp file and return download path
@@ -133,7 +153,18 @@ class TempFileWriter:
         if self._finalized:
             raise RuntimeError("Temp file already finalized")
 
-        await self.temp_file.close()
-        self._finalized = True
+        # Skip finalizing if we've already encountered an error
+        if self._write_error or not self.temp_file:
+            self._finalized = True
+            return self.download_path
 
-        return f"/download/{os.path.basename(self.temp_path)}"
+        try:
+            await self.temp_file.close()
+            self._finalized = True
+        except Exception as e:
+            # Handle permission issues or other errors gracefully
+            logger.error(f"Failed to finalize temp file: {e}")
+            self._write_error = True
+            self._finalized = True
+
+        return self.download_path

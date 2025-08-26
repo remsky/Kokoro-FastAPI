@@ -3,6 +3,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import numpy as np
 import pytest
 import torch
+import os
 
 from api.src.services.tts_service import TTSService
 
@@ -74,7 +75,7 @@ async def test_get_voice_path_single():
         mock_get_voice.return_value = voice_manager
 
         service = await TTSService.create("test_output")
-        name, path = await service._get_voice_path("voice1")
+        name, path = await service._get_voices_path("voice1")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
         voice_manager.get_voice_path.assert_called_once_with("voice1")
@@ -100,9 +101,12 @@ async def test_get_voice_path_combined():
         mock_load.return_value = torch.ones(10)
 
         service = await TTSService.create("test_output")
-        name, path = await service._get_voice_path("voice1+voice2")
+        name, path = await service._get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
-        assert path.endswith("voice1+voice2.pt")
+        # Verify the path points to a temporary file with expected format
+        assert path.startswith("/tmp/")
+        assert "voice1+voice2" in path
+        assert path.endswith(".pt")
         mock_save.assert_called_once()
 
 

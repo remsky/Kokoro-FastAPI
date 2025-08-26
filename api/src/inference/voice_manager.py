@@ -19,7 +19,7 @@ class VoiceManager:
     def __init__(self):
         """Initialize voice manager."""
         # Strictly respect settings.use_gpu
-        self._device = "cuda" if settings.use_gpu else "cpu"
+        self._device = settings.get_device()
         self._voices: Dict[str, torch.Tensor] = {}
 
     async def get_voice_path(self, voice_name: str) -> str:

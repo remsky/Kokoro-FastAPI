@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 import phonemizer
 
 from .normalizer import normalize_text
+from ...structures.schemas import NormalizationOptions
 
 phonemizers = {}
 
@@ -75,7 +76,7 @@ def create_phonemizer(language: str = "a") -> PhonemizerBackend:
         Phonemizer backend instance
     """
     # Map language codes to espeak language codes
-    lang_map = {"a": "en-us", "b": "en-gb"}
+    lang_map = {"a": "en-us", "b": "en-gb", "z": "z"}
 
     if language not in lang_map:
         raise ValueError(f"Unsupported language code: {language}")
@@ -83,20 +84,24 @@ def create_phonemizer(language: str = "a") -> PhonemizerBackend:
     return EspeakBackend(lang_map[language])
 
 
-def phonemize(text: str, language: str = "a", normalize: bool = True) -> str:
+def phonemize(text: str, language: str = "a") -> str:
     """Convert text to phonemes
 
     Args:
         text: Text to convert to phonemes
         language: Language code ('a' for US English, 'b' for British English)
-        normalize: Whether to normalize text before phonemization
 
     Returns:
         Phonemized text
     """
     global phonemizers
-    if normalize:
-        text = normalize_text(text)
+    
+    # Strip input text first to remove problematic leading/trailing spaces
+    text = text.strip()
+    
     if language not in phonemizers:
         phonemizers[language] = create_phonemizer(language)
-    return phonemizers[language].phonemize(text)
+    
+    result = phonemizers[language].phonemize(text)
+    # Final strip to ensure no leading/trailing spaces in phonemes
+    return result.strip()

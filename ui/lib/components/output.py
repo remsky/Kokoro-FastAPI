@@ -12,7 +12,7 @@ def create_output_column(disable_local_saving: bool = False) -> Tuple[gr.Column,
         audio_output = gr.Audio(
             label="Generated Speech",
             type="filepath",
-            waveform_options={"waveform_color": "#4C87AB"}
+            waveform_options={"waveform_color": "#4C87AB"},
         )
 
         # Create file-related components with visible=False when local saving is disabled
@@ -26,14 +26,14 @@ def create_output_column(disable_local_saving: bool = False) -> Tuple[gr.Column,
         )
 
         play_btn = gr.Button(
-            "▶️ Play Selected", 
+            "▶️ Play Selected",
             size="sm",
             visible=not disable_local_saving,
         )
 
         selected_audio = gr.Audio(
-            label="Selected Output", 
-            type="filepath", 
+            label="Selected Output",
+            type="filepath",
             visible=False,  # Always initially hidden
         )
 

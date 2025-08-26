@@ -4,18 +4,19 @@ import os
 from typing import AsyncGenerator, Tuple
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from api.src.inference.base import AudioChunk
 import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
 from api.src.core.config import settings
+from api.src.inference.base import AudioChunk
 from api.src.main import app
 from api.src.routers.openai_compatible import (
     get_tts_service,
     load_openai_mappings,
     stream_audio_chunks,
 )
+from api.src.services.streaming_audio_writer import StreamingAudioWriter
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import OpenAISpeechRequest
 
@@ -78,13 +79,13 @@ def test_list_models(mock_openai_mappings):
     assert data["object"] == "list"
     assert isinstance(data["data"], list)
     assert len(data["data"]) == 3  # tts-1, tts-1-hd, and kokoro
-    
+
     # Verify all expected models are present
     model_ids = [model["id"] for model in data["data"]]
     assert "tts-1" in model_ids
     assert "tts-1-hd" in model_ids
     assert "kokoro" in model_ids
-    
+
     # Verify model format
     for model in data["data"]:
         assert model["object"] == "model"
@@ -110,7 +111,6 @@ def test_retrieve_model(mock_openai_mappings):
     assert error["detail"]["error"] == "model_not_found"
     assert "not found" in error["detail"]["message"]
     assert error["detail"]["type"] == "invalid_request_error"
-
 
 
 @pytest.mark.asyncio
@@ -145,7 +145,7 @@ async def test_stream_audio_chunks_client_disconnect():
 
     async def mock_stream(*args, **kwargs):
         for i in range(5):
-            yield AudioChunk(np.ndarray([],np.int16),output=b"chunk")
+            yield AudioChunk(np.ndarray([], np.int16), output=b"chunk")
 
     mock_service.generate_audio_stream = mock_stream
     mock_service.list_voices.return_value = ["test_voice"]
@@ -159,9 +159,13 @@ async def test_stream_audio_chunks_client_disconnect():
         speed=1.0,
     )
 
+    writer = StreamingAudioWriter("mp3", 24000)
+
     chunks = []
-    async for chunk in stream_audio_chunks(mock_service, request, mock_request):
+    async for chunk in stream_audio_chunks(mock_service, request, mock_request, writer):
         chunks.append(chunk)
+
+    writer.close()
 
     assert len(chunks) == 0  # Should stop immediately due to disconnect
 
@@ -237,10 +241,10 @@ def mock_tts_service(mock_audio_bytes):
     """Mock TTS service for testing."""
     with patch("api.src.routers.openai_compatible.get_tts_service") as mock_get:
         service = AsyncMock(spec=TTSService)
-        service.generate_audio.return_value = AudioChunk(np.zeros(1000,np.int16))
+        service.generate_audio.return_value = AudioChunk(np.zeros(1000, np.int16))
 
         async def mock_stream(*args, **kwargs) -> AsyncGenerator[AudioChunk, None]:
-            yield AudioChunk(np.ndarray([],np.int16),output=mock_audio_bytes)
+            yield AudioChunk(np.ndarray([], np.int16), output=mock_audio_bytes)
 
         service.generate_audio_stream = mock_stream
         service.list_voices.return_value = ["test_voice", "voice1", "voice2"]
@@ -257,8 +261,10 @@ def test_openai_speech_endpoint(
 ):
     """Test the OpenAI-compatible speech endpoint with basic MP3 generation"""
     # Configure mocks
-    mock_tts_service.generate_audio.return_value = AudioChunk(np.zeros(1000,np.int16))
-    mock_convert.return_value = AudioChunk(np.zeros(1000,np.int16),output=mock_audio_bytes)
+    mock_tts_service.generate_audio.return_value = AudioChunk(np.zeros(1000, np.int16))
+    mock_convert.return_value = AudioChunk(
+        np.zeros(1000, np.int16), output=mock_audio_bytes
+    )
 
     response = client.post(
         "/v1/audio/speech",
@@ -483,7 +489,11 @@ async def test_streaming_initialization_error():
         speed=1.0,
     )
 
+    writer = StreamingAudioWriter("mp3", 24000)
+
     with pytest.raises(RuntimeError) as exc:
-        async for _ in stream_audio_chunks(mock_service, request, MagicMock()):
+        async for _ in stream_audio_chunks(mock_service, request, MagicMock(), writer):
             pass
+
+    writer.close()
     assert "Failed to initialize stream" in str(exc.value)
