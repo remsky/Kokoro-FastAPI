@@ -3,7 +3,6 @@ import time
 from datetime import datetime
 
 import psutil
-import torch
 from fastapi import APIRouter
 
 try:
@@ -114,14 +113,7 @@ async def get_system_info():
 
     # GPU Info if available
     gpu_info = None
-    if torch.backends.mps.is_available():
-        gpu_info = {
-            "type": "MPS",
-            "available": True,
-            "device": "Apple Silicon",
-            "backend": "Metal",
-        }
-    elif GPU_AVAILABLE:
+    if GPU_AVAILABLE:
         try:
             gpus = GPUtil.getGPUs()
             gpu_info = [

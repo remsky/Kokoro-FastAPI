@@ -1,6 +1,6 @@
-import datetime
 import os
-from typing import List, Optional, Tuple
+import datetime
+from typing import List, Tuple, Optional
 
 import requests
 

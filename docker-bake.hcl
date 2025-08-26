@@ -1,14 +1,14 @@
 # Variables for reuse
 variable "VERSION" {
-    default = "latest"
+    default = "20250826"
 }
 
 variable "REGISTRY" {
-    default = "ghcr.io"
+    default = "everymatrix.jfrog.io"
 }
 
 variable "OWNER" {
-    default = "remsky"
+    default = "emlab-docker"
 }
 
 variable "REPO" {
@@ -43,7 +43,7 @@ target "_gpu_base" {
 # CPU target with multi-platform support
 target "cpu" {
     inherits = ["_cpu_base"]
-    platforms = ["linux/amd64", "linux/arm64"]
+    platforms = ["linux/amd64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
         "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
@@ -53,10 +53,9 @@ target "cpu" {
 # GPU target with multi-platform support
 target "gpu" {
     inherits = ["_gpu_base"]
-    platforms = ["linux/amd64", "linux/arm64"]
+    platforms = ["linux/amd64"]
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+        "everymatrix.jfrog.io/emlab-docker/ayida/kokoro:${VERSION}"
     ]
 }
 

@@ -1,8 +1,8 @@
-import datetime
 import os
-from typing import List, Optional, Tuple
+import datetime
+from typing import List, Tuple, Optional
 
-from .config import AUDIO_FORMATS, INPUTS_DIR, OUTPUTS_DIR
+from .config import INPUTS_DIR, OUTPUTS_DIR, AUDIO_FORMATS
 
 
 def list_input_files() -> List[str]:

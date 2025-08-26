@@ -1,43 +1,82 @@
 {{- if .Values.ingress.enabled -}}
+{{- $fullName := include "kokoro-fastapi.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+{{- $rewriteTargets := (list) -}}
+{{- with .Values.ingress.host }}
+  {{- range .endpoints }}
+    {{- $serviceName := default $fullName .serviceName -}}
+    {{- $rewrite := .rewrite | default "none" -}}
+    {{- if not (has $rewrite $rewriteTargets  ) -}}
+    {{- $rewriteTargets = append $rewriteTargets $rewrite -}}
+    {{- end -}}
+  {{- end}}
+{{- end }}
+{{- range $key := $rewriteTargets }}
+{{- $expandedRewrite := regexReplaceAll "/(.*)$" $key "slash${1}" -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "kokoro-fastapi.fullname" . }}
+{{- if eq $key "none" }}
+  name: {{ $fullName }}
+{{- else }}
+  name: {{ $fullName }}-{{ $expandedRewrite }}
+{{- end }}
   labels:
-    {{- include "kokoro-fastapi.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+    {{- include "kokoro-fastapi.labels" $ | nindent 4 }}
+    {{- if ne $key "none" }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
-spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
-  {{- if .Values.ingress.tls }}
-  tls:
-    {{- range .Values.ingress.tls }}
-    - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
+    nginx.ingress.kubernetes.io/rewrite-target: {{ regexReplaceAll "/$" $key "" }}/$2
     {{- end }}
+spec:
+{{- if $.Values.ingress.tls }}
+  tls:
+  {{- range $.Values.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . | quote }}
+      {{- end }}
+      secretName: {{ .secretName }}
   {{- end }}
+{{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+  {{- with $.Values.ingress.host }}
+    - host: {{ .name | quote }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- with .pathType }}
-            pathType: {{ . }}
+        {{- range .endpoints }}
+          {{- $serviceName := default $fullName .serviceName -}}
+          {{- $servicePort := default (print "http") .servicePort -}}
+          {{- if eq ( .rewrite | default "none" ) $key }}
+            {{- range .paths }}
+              {{- if not (contains "@" .) }}
+                {{- if eq $key "none" }}
+            - path: {{ . }}
+                {{- else }}
+            - path: {{ regexReplaceAll "(.*)/$" . "${1}" }}(/|$)(.*)
+                {{- end }}
+              pathType: Prefix
+              backend:
+                service:
+                  name: "{{ $fullName }}-{{ $serviceName }}"
+                  port:
+                    number: {{ $servicePort }}
+              {{- else }}
+                {{- $path := . -}}
+                {{- $replicaCount := include "getServiceNameReplicaCount" (dict "global" $.Values "serviceName" $serviceName ) -}}
+                {{- range $count, $e := until ($replicaCount|int) }}
+            - path: {{ $path | replace "@" ( . | toString ) }}(/|$)(.*)
+              pathType: Prefix
+              backend:
+                service:
+                  name: "{{ $fullName }}-{{ $serviceName }}-{{ . }}"
+                  port:
+                    number: {{ $servicePort }}
+                {{- end }}
+              {{- end }}
             {{- end }}
-            backend:
-              service:
-                name: {{ include "kokoro-fastapi.fullname" $ }}-kokoro-tts-service
-                port:
-                  number: {{ $.Values.kokoroTTS.port }}
           {{- end }}
-    {{- end }}
+        {{- end }}
+  {{- end }}
+---
+{{- end }}
 {{- end }}
