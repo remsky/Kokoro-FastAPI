@@ -63,7 +63,7 @@ class KokoroV1(BaseModelBackend):
         except FileNotFoundError as e:
             raise e
         except Exception as e:
-            raise RuntimeError(f"Failed to load Kokoro model: {e}")
+            raise FileNotFoundError(f"Failed to load Kokoro model.") from e
 
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create pipeline for language code.
