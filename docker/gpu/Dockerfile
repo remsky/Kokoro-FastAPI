@@ -44,7 +44,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     UVICORN_LOG_LEVEL=warning \
     LOGURU_LEVEL=WARNING \
     NUM_WORKERS=2
-
+    
 # Download model if enabled
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     python download_model.py --output api/src/models/v1_0; \
