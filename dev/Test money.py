@@ -3,9 +3,7 @@ import json
 
 import requests
 
-text = """the administration has offered up a platter of repression for more than a year and is still slated to lose $400 million.
-
-Columbia is the largest private landowner in New York City and boasts an endowment of $14.8 billion;"""
+text = """奶酪芝士很浓郁！臭豆腐芝士有争议？陈年奶酪价格昂贵。"""
 
 
 Type = "wav"
@@ -15,7 +13,7 @@ response = requests.post(
     json={
         "model": "kokoro",
         "input": text,
-        "voice": "af_heart+af_sky",
+        "voice": "zf_xiaobei",
         "speed": 1.0,
         "response_format": Type,
         "stream": False,

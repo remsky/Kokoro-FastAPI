@@ -104,7 +104,7 @@ async def generate_from_phonemes(
 
                 if chunk_audio is not None:
                     # Normalize audio before writing
-                    normalized_audio = await normalizer.normalize(chunk_audio)
+                    normalized_audio = normalizer.normalize(chunk_audio)
                     # Write chunk and yield bytes
                     chunk_bytes = writer.write_chunk(normalized_audio)
                     if chunk_bytes:
@@ -114,6 +114,7 @@ async def generate_from_phonemes(
                     final_bytes = writer.write_chunk(finalize=True)
                     if final_bytes:
                         yield final_bytes
+                        writer.close()
                 else:
                     raise ValueError("Failed to generate audio data")
 
@@ -223,10 +224,13 @@ async def create_captioned_speech(
                                 ).decode("utf-8")
 
                                 # Add any chunks that may be in the acumulator into the return word_timestamps
-                                chunk_data.word_timestamps = (
-                                    timestamp_acumulator + chunk_data.word_timestamps
-                                )
-                                timestamp_acumulator = []
+                                if chunk_data.word_timestamps is not None:
+                                    chunk_data.word_timestamps = (
+                                        timestamp_acumulator + chunk_data.word_timestamps
+                                    )
+                                    timestamp_acumulator = []
+                                else:
+                                    chunk_data.word_timestamps = []
 
                                 yield CaptionedSpeechResponse(
                                     audio=base64_chunk,
@@ -271,7 +275,7 @@ async def create_captioned_speech(
                             )
 
                             # Add any chunks that may be in the acumulator into the return word_timestamps
-                            if chunk_data.word_timestamps != None:
+                            if chunk_data.word_timestamps is not None:
                                 chunk_data.word_timestamps = (
                                     timestamp_acumulator + chunk_data.word_timestamps
                                 )
@@ -315,6 +319,7 @@ async def create_captioned_speech(
                 writer=writer,
                 speed=request.speed,
                 return_timestamps=request.return_timestamps,
+                volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
             )
