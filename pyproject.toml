@@ -34,7 +34,7 @@ dependencies = [
     "espeakng-loader==0.2.4",
     "kokoro==0.9.4",
     "misaki[en,ja,ko,zh]==0.9.4",
-    "spacy==3.8.5",
+    "spacy==3.8.4",
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "inflect>=7.5.0",
     "phonemizer-fork>=3.3.2",
