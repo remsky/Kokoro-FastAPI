@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM nvidia/cuda:12.8.1-base-ubuntu24.04
 
 # Install Python and other dependencies
 RUN apt-get update -y &&  \
-    apt-get install -y python3.10 python3-venv espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg g++ &&  \
+    apt-get install -y python3.10 python3-venv espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg cmake g++ &&  \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /usr/share/espeak-ng-data &&  \
     ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \

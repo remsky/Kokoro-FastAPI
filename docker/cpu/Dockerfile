@@ -3,7 +3,7 @@ FROM python:3.10-slim
 # Install dependencies and check espeak location
 # Rust is required to build sudachipy and pyopenjtalk-plus
 RUN apt-get update -y &&  \
-    apt-get install -y espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg g++ && \
+    apt-get install -y espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg cmake g++ && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /usr/share/espeak-ng-data && \
     ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
