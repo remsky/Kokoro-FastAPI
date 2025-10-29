@@ -14,6 +14,7 @@ services:
       - PYTHONPATH=/app:/app/api
       - USE_GPU=true
       - PYTHONUNBUFFERED=1
+      - API_LOG_LEVEL=DEBUG
     deploy:
       resources:
         reservations:
