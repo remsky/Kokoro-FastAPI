@@ -22,6 +22,11 @@ from .routers.web_player import router as web_router
 
 def setup_logger():
     """Configure loguru logger with custom formatting"""
+    valid_levels = ["TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"]
+    level = os.getenv("API_LOG_LEVEL", "DEBUG").upper()
+    if level not in valid_levels:
+        level = "DEBUG"
+    print(f"Global API loguru logger level: {level}")
     config = {
         "handlers": [
             {
@@ -31,7 +36,7 @@ def setup_logger():
                 "<fg #4169E1>{module}:{line}</fg #4169E1> | "
                 "{message}",
                 "colorize": True,
-                "level": "DEBUG",
+                "level": level,
             },
         ],
     }
