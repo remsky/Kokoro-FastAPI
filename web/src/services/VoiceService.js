@@ -1,3 +1,5 @@
+import { config } from '../config.js';
+
 export class VoiceService {
     constructor() {
         this.availableVoices = [];
@@ -6,7 +8,8 @@ export class VoiceService {
 
     async loadVoices() {
         try {
-            const response = await fetch('/v1/audio/voices');
+            const apiUrl = await config.getApiUrl('/v1/audio/voices');
+            const response = await fetch(apiUrl);
             if (!response.ok) {
                 const error = await response.json();
                 throw new Error(error.detail?.message || 'Failed to load voices');
