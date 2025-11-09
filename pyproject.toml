@@ -44,6 +44,7 @@ dependencies = [
 
 [project.optional-dependencies]
 gpu = ["torch==2.8.0+cu129"]
+gpu-arm64 = ["torch"]
 cpu = ["torch==2.8.0"]
 test = [
     "pytest==8.3.5",
@@ -55,12 +56,13 @@ test = [
 ]
 
 [tool.uv]
-conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }, { extra = "gpu-arm64" }]]
 
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
     { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-nightly", extra = "gpu-arm64" },
 ]
 
 [[tool.uv.index]]
@@ -71,6 +73,11 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cuda"
 url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-nightly"
+url = "https://download.pytorch.org/whl/nightly/cu126"
 explicit = true
 
 [build-system]
