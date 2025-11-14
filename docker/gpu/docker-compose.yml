@@ -1,20 +1,60 @@
-name: kokoro-tts-gpu
+name: zipvoice-tts-gpu
 services:
-  kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-gpu:v${VERSION}
+  zipvoice-tts:
+    # image: ghcr.io/fabul8/zipvoice-fastapi-gpu:v${VERSION}
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile
     volumes:
       - ../../api:/app/api
-    user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
+      - zipvoice_cache:/app/api/src/voices/zipvoice_prompts
+      - onnx_cache:/app/api/src/models/onnx_cache
+      - tensorrt_cache:/app/api/src/models/tensorrt_cache
+      - temp_files:/app/api/temp_files
+    user: "1001:1001"  # Ensure container runs as UID 1001 (zipvoice user)
     ports:
       - "8880:8880"
     environment:
+      # Core settings
       - PYTHONPATH=/app:/app/api
-      - USE_GPU=true
       - PYTHONUNBUFFERED=1
-      - API_LOG_LEVEL=DEBUG
+      - API_LOG_LEVEL=INFO
+
+      # Device settings
+      - USE_GPU=true
+      - DEVICE_TYPE=cuda
+
+      # Backend settings
+      - ENABLE_KOKORO=false
+      - ENABLE_ZIPVOICE=true
+      - DEFAULT_BACKEND=zipvoice
+
+      # ZipVoice core settings
+      - ZIPVOICE_MODEL=zipvoice  # Options: zipvoice, zipvoice_distill, zipvoice_dialog, zipvoice_dialog_stereo
+      - ZIPVOICE_NUM_STEPS=8  # Inference steps (1-32, lower=faster)
+      - ZIPVOICE_REMOVE_LONG_SILENCE=true
+      - ZIPVOICE_SPEED_MULTIPLIER=1.0
+      - ZIPVOICE_MAX_PROMPT_DURATION=3.0
+      - ZIPVOICE_ALLOW_URL_DOWNLOAD=true
+      - ZIPVOICE_ALLOW_BASE64=true
+      - ZIPVOICE_MAX_DOWNLOAD_SIZE_MB=10.0
+
+      # Smart features
+      - ENABLE_AUTO_TRANSCRIPTION=true
+      - WHISPER_MODEL_SIZE=base  # Options: tiny, base, small, medium, large
+      - ENABLE_SMART_TUNING=true
+      - ENABLE_QUALITY_DETECTION=true
+      - QUALITY_THRESHOLD=0.7
+
+      # Optimization settings (enable as needed)
+      - ENABLE_ONNX=false  # Set to true for 1.7x speedup
+      - ENABLE_TENSORRT=false  # Set to true for 2.7x speedup (requires model conversion)
+
+      # Paths
+      - ZIPVOICE_CACHE_DIR=/app/api/src/voices/zipvoice_prompts
+      - ONNX_CACHE_DIR=/app/api/src/models/onnx_cache
+      - TENSORRT_CACHE_DIR=/app/api/src/models/tensorrt_cache
+
     deploy:
       resources:
         reservations:
@@ -23,20 +63,15 @@ services:
               count: all
               capabilities: [gpu]
 
-  # # Gradio UI service
-  # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
-  #   # Uncomment below to build from source instead of using the released image
-  #   # build:
-  #     # context: ../../ui
-  #   ports:
-  #     - "7860:7860"
-  #   volumes:
-  #     - ../../ui/data:/app/ui/data
-  #     - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
-  #   environment:
-  #     - GRADIO_WATCH=1  # Enable hot reloading
-  #     - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
-  #     - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
-  #     - API_HOST=kokoro-tts  # Set TTS service URL
-  #     - API_PORT=8880  # Set TTS service PORT
+    healthcheck:
+      test: ["CMD", "./healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  zipvoice_cache:
+  onnx_cache:
+  tensorrt_cache:
+  temp_files:
