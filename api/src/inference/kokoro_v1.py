@@ -21,6 +21,7 @@ class KokoroV1(BaseModelBackend):
     def __init__(self):
         """Initialize backend with environment-based configuration."""
         super().__init__()
+        self._backend_type = "kokoro"
         # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._model: Optional[KModel] = None

@@ -123,6 +123,117 @@ class OpenAISpeechRequest(BaseModel):
     )
 
 
+class ZipVoiceSpeechRequest(BaseModel):
+    """Request schema for ZipVoice TTS with zero-shot voice cloning"""
+
+    model: str = Field(
+        default="zipvoice",
+        description="ZipVoice model variant: zipvoice, zipvoice_distill, zipvoice_dialog, zipvoice_dialog_stereo",
+    )
+    input: str = Field(..., description="The text to generate audio for")
+
+    # Voice cloning parameters
+    voice: str = Field(
+        ...,
+        description="""Voice identifier with format:
+        - 'file+<name>' for multipart file upload
+        - 'url+<url>' to download from URL
+        - 'base64+<data>' for base64 encoded audio
+        - '<name>' for pre-registered voice in cache
+        """,
+    )
+    prompt_text: str = Field(
+        ...,
+        description="Exact transcription of the prompt_wav audio (required for voice cloning)"
+    )
+
+    # Audio format options
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
+        default="mp3",
+        description="The format to return audio in",
+    )
+    download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = Field(
+        default=None,
+        description="Optional different format for the final download",
+    )
+
+    # Generation parameters
+    speed: float = Field(
+        default=1.0,
+        ge=0.25,
+        le=4.0,
+        description="The speed of the generated audio (0.25 to 4.0)",
+    )
+    stream: bool = Field(
+        default=True,
+        description="If true, audio will be streamed in chunks",
+    )
+
+    # ZipVoice-specific parameters
+    num_steps: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=32,
+        description="Number of inference steps (lower = faster, default: 8)",
+    )
+    remove_long_silence: Optional[bool] = Field(
+        default=None,
+        description="Remove long silences from output (default: True)",
+    )
+    max_duration: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Maximum duration constraint in seconds",
+    )
+
+    # Additional options
+    return_download_link: bool = Field(
+        default=False,
+        description="If true, returns a download link in X-Download-Path header",
+    )
+    volume_multiplier: Optional[float] = Field(
+        default=1.0,
+        description="A volume multiplier to apply to output audio",
+    )
+
+
+class VoiceRegistrationRequest(BaseModel):
+    """Request schema for registering a reusable voice prompt"""
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for this voice",
+        min_length=1,
+        max_length=100
+    )
+    transcription: str = Field(
+        ...,
+        description="Exact text transcription of the audio",
+        min_length=1
+    )
+
+
+class VoiceListResponse(BaseModel):
+    """Response schema for listing registered voices"""
+
+    voices: dict = Field(
+        ...,
+        description="Dictionary of voice_name -> {audio_path, transcription}"
+    )
+    count: int = Field(..., description="Total number of registered voices")
+
+
+class VoiceInfoResponse(BaseModel):
+    """Response schema for voice information"""
+
+    name: str
+    transcription: str
+    audio_info: dict = Field(
+        ...,
+        description="Audio metadata (duration, samplerate, channels, etc.)"
+    )
+
+
 class CaptionedSpeechRequest(BaseModel):
     """Request schema for captioned speech endpoint"""
 
@@ -168,4 +279,115 @@ class CaptionedSpeechRequest(BaseModel):
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
         description="Options for the normalization system",
+    )
+
+
+class ZipVoiceSpeechRequest(BaseModel):
+    """Request schema for ZipVoice TTS with zero-shot voice cloning"""
+
+    model: str = Field(
+        default="zipvoice",
+        description="ZipVoice model variant: zipvoice, zipvoice_distill, zipvoice_dialog, zipvoice_dialog_stereo",
+    )
+    input: str = Field(..., description="The text to generate audio for")
+
+    # Voice cloning parameters
+    voice: str = Field(
+        ...,
+        description="""Voice identifier with format:
+        - 'file+<name>' for multipart file upload
+        - 'url+<url>' to download from URL
+        - 'base64+<data>' for base64 encoded audio
+        - '<name>' for pre-registered voice in cache
+        """,
+    )
+    prompt_text: str = Field(
+        ...,
+        description="Exact transcription of the prompt_wav audio (required for voice cloning)"
+    )
+
+    # Audio format options
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
+        default="mp3",
+        description="The format to return audio in",
+    )
+    download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = Field(
+        default=None,
+        description="Optional different format for the final download",
+    )
+
+    # Generation parameters
+    speed: float = Field(
+        default=1.0,
+        ge=0.25,
+        le=4.0,
+        description="The speed of the generated audio (0.25 to 4.0)",
+    )
+    stream: bool = Field(
+        default=True,
+        description="If true, audio will be streamed in chunks",
+    )
+
+    # ZipVoice-specific parameters
+    num_steps: Optional[int] = Field(
+        default=None,
+        ge=1,
+        le=32,
+        description="Number of inference steps (lower = faster, default: 8)",
+    )
+    remove_long_silence: Optional[bool] = Field(
+        default=None,
+        description="Remove long silences from output (default: True)",
+    )
+    max_duration: Optional[float] = Field(
+        default=None,
+        gt=0,
+        description="Maximum duration constraint in seconds",
+    )
+
+    # Additional options
+    return_download_link: bool = Field(
+        default=False,
+        description="If true, returns a download link in X-Download-Path header",
+    )
+    volume_multiplier: Optional[float] = Field(
+        default=1.0,
+        description="A volume multiplier to apply to output audio",
+    )
+
+
+class VoiceRegistrationRequest(BaseModel):
+    """Request schema for registering a reusable voice prompt"""
+
+    name: str = Field(
+        ...,
+        description="Unique identifier for this voice",
+        min_length=1,
+        max_length=100
+    )
+    transcription: str = Field(
+        ...,
+        description="Exact text transcription of the audio",
+        min_length=1
+    )
+
+
+class VoiceListResponse(BaseModel):
+    """Response schema for listing registered voices"""
+
+    voices: dict = Field(
+        ...,
+        description="Dictionary of voice_name -> {audio_path, transcription}"
+    )
+    count: int = Field(..., description="Total number of registered voices")
+
+
+class VoiceInfoResponse(BaseModel):
+    """Response schema for voice information"""
+
+    name: str
+    transcription: str
+    audio_info: dict = Field(
+        ...,
+        description="Audio metadata (duration, samplerate, channels, etc.)"
     )

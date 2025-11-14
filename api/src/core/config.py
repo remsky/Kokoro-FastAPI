@@ -64,6 +64,22 @@ class Settings(BaseSettings):
     max_temp_dir_age_hours: int = 1  # Remove temp files older than 1 hour
     max_temp_dir_count: int = 3  # Maximum number of temp files to keep
 
+    # TTS Backend Settings
+    default_backend: str = "kokoro"  # Default TTS backend: "kokoro" or "zipvoice"
+    enable_kokoro: bool = True  # Enable Kokoro TTS backend
+    enable_zipvoice: bool = True  # Enable ZipVoice TTS backend
+
+    # ZipVoice Settings
+    zipvoice_model: str = "zipvoice"  # Model variant: zipvoice, zipvoice_distill, zipvoice_dialog, zipvoice_dialog_stereo
+    zipvoice_num_steps: int = 8  # Inference steps (lower = faster, range: 1-32)
+    zipvoice_cache_dir: str = "api/src/voices/zipvoice_prompts"  # Directory for voice prompt cache
+    zipvoice_max_prompt_duration: float = 3.0  # Maximum duration for prompt_wav in seconds
+    zipvoice_remove_long_silence: bool = True  # Remove long silences from output
+    zipvoice_speed_multiplier: float = 1.0  # Default speed adjustment
+    zipvoice_max_download_size_mb: float = 10.0  # Maximum size for voice prompt URL downloads
+    zipvoice_allow_url_download: bool = True  # Allow downloading voice prompts from URLs
+    zipvoice_allow_base64: bool = True  # Allow base64 encoded voice prompts
+
     class Config:
         env_file = ".env"
 

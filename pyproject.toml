@@ -40,11 +40,16 @@ dependencies = [
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
     "text2num>=2.5.1",
+    "httpx>=0.26.0",  # For ZipVoice URL downloads
+    "librosa>=0.10.0",  # For audio speed adjustment
 ]
 
 [project.optional-dependencies]
 gpu = ["torch==2.8.0+cu129"]
 cpu = ["torch==2.8.0"]
+zipvoice = [
+    "k2>=1.24.4",  # ZipVoice dependency
+]
 test = [
     "pytest==8.3.5",
     "pytest-cov==6.0.0",

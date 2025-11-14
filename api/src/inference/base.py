@@ -57,6 +57,7 @@ class ModelBackend(ABC):
         text: str,
         voice: Union[str, Tuple[str, Union[torch.Tensor, str]]],
         speed: float = 1.0,
+        **kwargs
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate audio from text.
 
@@ -64,6 +65,7 @@ class ModelBackend(ABC):
             text: Input text to synthesize
             voice: Either a voice path or tuple of (name, tensor/path)
             speed: Speed multiplier
+            **kwargs: Additional backend-specific parameters
 
         Yields:
             Generated audio chunks
@@ -98,6 +100,16 @@ class ModelBackend(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def backend_type(self) -> str:
+        """Get the backend type identifier.
+
+        Returns:
+            Backend type string (e.g., 'kokoro', 'zipvoice')
+        """
+        pass
+
 
 class BaseModelBackend(ModelBackend):
     """Base implementation of model backend."""
@@ -106,6 +118,7 @@ class BaseModelBackend(ModelBackend):
         """Initialize base backend."""
         self._model: Optional[torch.nn.Module] = None
         self._device: str = "cpu"
+        self._backend_type: str = "base"
 
     @property
     def is_loaded(self) -> bool:
@@ -116,6 +129,11 @@ class BaseModelBackend(ModelBackend):
     def device(self) -> str:
         """Get device model is running on."""
         return self._device
+
+    @property
+    def backend_type(self) -> str:
+        """Get the backend type identifier."""
+        return self._backend_type
 
     def unload(self) -> None:
         """Unload model and free resources."""

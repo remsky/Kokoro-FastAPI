@@ -18,6 +18,7 @@ from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
 from .routers.openai_compatible import router as openai_router
 from .routers.web_player import router as web_router
+from .routers.zipvoice import router as zipvoice_router
 
 
 def setup_logger():
@@ -54,17 +55,23 @@ async def lifespan(app: FastAPI):
     """Lifespan context manager for model initialization"""
     from .inference.model_manager import get_manager
     from .inference.voice_manager import get_manager as get_voice_manager
+    from .inference.voice_prompt_manager import get_voice_prompt_manager
     from .services.temp_manager import cleanup_temp_files
 
     # Clean old temp files on startup
     await cleanup_temp_files()
 
-    logger.info("Loading TTS model and voice packs...")
+    logger.info("Loading TTS backends and voice packs...")
 
     try:
         # Initialize managers
         model_manager = await get_manager()
         voice_manager = await get_voice_manager()
+
+        # Initialize voice prompt manager for ZipVoice
+        if settings.enable_zipvoice:
+            voice_prompt_mgr = get_voice_prompt_manager()
+            logger.info(f"Voice prompt manager initialized ({len(voice_prompt_mgr.list_voices())} registered voices)")
 
         # Initialize model with warmup and get status
         device, model, voicepack_count = await model_manager.initialize_with_warmup(
@@ -72,7 +79,7 @@ async def lifespan(app: FastAPI):
         )
 
     except Exception as e:
-        logger.error(f"Failed to initialize model: {e}")
+        logger.error(f"Failed to initialize backends: {e}")
         raise
 
     boundary = "░" * 2 * 12
@@ -97,6 +104,8 @@ async def lifespan(app: FastAPI):
     else:
         startup_msg += "\nRunning on CPU"
     startup_msg += f"\n{voicepack_count} voice packs loaded"
+    startup_msg += f"\nAvailable backends: {', '.join(model_manager.available_backends)}"
+    startup_msg += f"\nDefault backend: {model_manager.current_backend}"
 
     # Add web player info if enabled
     if settings.enable_web_player:
@@ -136,6 +145,11 @@ if settings.cors_enabled:
 app.include_router(openai_router, prefix="/v1")
 app.include_router(dev_router)  # Development endpoints
 app.include_router(debug_router)  # Debug endpoints
+
+# Include ZipVoice router if enabled
+if settings.enable_zipvoice:
+    app.include_router(zipvoice_router, prefix="/v1")  # ZipVoice endpoints
+
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 
