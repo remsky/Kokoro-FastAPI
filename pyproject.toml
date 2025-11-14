@@ -1,7 +1,7 @@
 [project]
-name = "kokoro-fastapi"
-version = "0.3.0"
-description = "FastAPI TTS Service"
+name = "zipvoice-fastapi"
+version = "2.0.0"
+description = "ZipVoice Zero-Shot TTS FastAPI Service with Smart Features"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -50,7 +50,10 @@ cpu = ["torch==2.8.0"]
 zipvoice = [
     "k2>=1.24.4",  # ZipVoice dependency
     "openai-whisper>=20231117",  # Auto-transcription
-    "onnxruntime-gpu>=1.16.0",  # ONNX optimization (GPU)
+    "onnxruntime>=1.16.0",  # ONNX optimization (CPU/GPU compatible)
+]
+zipvoice-gpu = [
+    "onnxruntime-gpu>=1.16.0",  # ONNX GPU optimization (replaces onnxruntime)
     "tensorrt>=8.6.0; platform_system=='Linux'",  # TensorRT (Linux only)
 ]
 test = [

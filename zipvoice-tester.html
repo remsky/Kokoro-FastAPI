@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZipVoice TTS API Tester</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input[type="text"]:focus,
+        .form-group input[type="number"]:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .file-upload {
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8f9ff;
+        }
+
+        .file-upload:hover {
+            background: #f0f2ff;
+            border-color: #764ba2;
+        }
+
+        .file-upload.dragover {
+            background: #e8ebff;
+            border-color: #764ba2;
+        }
+
+        .file-upload input[type="file"] {
+            display: none;
+        }
+
+        .file-upload-text {
+            color: #667eea;
+            font-size: 16px;
+        }
+
+        .file-info {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 30px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-left: 10px;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .audio-player {
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .quality-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .metric {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .api-url {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .api-url input {
+            flex: 1;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .voice-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+
+        .voice-item {
+            padding: 10px;
+            background: #f8f9ff;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .voice-item:hover {
+            background: #e8ebff;
+        }
+
+        .voice-item.selected {
+            background: #667eea;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ ZipVoice TTS API Tester</h1>
+            <p>Test zero-shot voice cloning with smart features</p>
+        </div>
+
+        <!-- API Configuration -->
+        <div class="card">
+            <h2>⚙️ API Configuration</h2>
+            <div class="form-group">
+                <label>API Base URL</label>
+                <div class="api-url">
+                    <input type="text" id="apiUrl" value="http://localhost:8880" placeholder="http://localhost:8880">
+                    <button class="btn" onclick="testConnection()">Test Connection</button>
+                </div>
+            </div>
+            <div id="connectionStatus"></div>
+        </div>
+
+        <!-- Step 1: Register Voice -->
+        <div class="card">
+            <h2>📝 Step 1: Register Voice</h2>
+            <div class="form-group">
+                <label>Voice Name</label>
+                <input type="text" id="voiceName" placeholder="my_awesome_voice">
+            </div>
+            <div class="form-group">
+                <label>Voice Sample (WAV/MP3)</label>
+                <div class="file-upload" id="voiceUpload">
+                    <input type="file" id="voiceFile" accept=".wav,.mp3" onchange="handleFileSelect(event, 'voiceUpload')">
+                    <div class="file-upload-text">
+                        📁 Click or drag & drop audio file here<br>
+                        <small>WAV or MP3 • 1-3 seconds recommended</small>
+                    </div>
+                    <div class="file-info" id="voiceFileInfo"></div>
+                </div>
+            </div>
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoTranscribe" checked>
+                    <label>🤖 Auto-transcribe with Whisper (recommended)</label>
+                </div>
+            </div>
+            <div class="form-group" id="manualTranscriptionGroup" style="display: none;">
+                <label>Manual Transcription (if auto-transcribe disabled)</label>
+                <input type="text" id="transcription" placeholder="What the voice sample says...">
+            </div>
+            <button class="btn" onclick="registerVoice()">Register Voice</button>
+            <button class="btn btn-secondary" onclick="loadVoices()">Refresh Voice List</button>
+            <div id="registerStatus"></div>
+            <div id="voiceList"></div>
+        </div>
+
+        <!-- Step 2: Generate Speech -->
+        <div class="card">
+            <h2>🎵 Step 2: Generate Speech</h2>
+            <div class="form-group">
+                <label>Select Registered Voice</label>
+                <select id="selectedVoice" onchange="updateSelectedVoice()">
+                    <option value="">-- Select a voice --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Text to Speak</label>
+                <textarea id="textInput" placeholder="Enter the text you want to convert to speech...">Hello! This is a test of ZipVoice zero-shot text-to-speech synthesis. It sounds amazing!</textarea>
+            </div>
+            <div class="form-group">
+                <label>Model</label>
+                <select id="model">
+                    <option value="zipvoice">ZipVoice (Standard Quality)</option>
+                    <option value="zipvoice_distill">ZipVoice Distilled (Faster)</option>
+                    <option value="zipvoice_dialog">ZipVoice Dialog</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Inference Steps (4-16) - Lower = Faster, Higher = Better Quality</label>
+                <input type="number" id="numSteps" value="8" min="1" max="32">
+            </div>
+            <div class="form-group">
+                <label>Speed (0.5-2.0)</label>
+                <input type="number" id="speed" value="1.0" min="0.5" max="2.0" step="0.1">
+            </div>
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoTune" checked>
+                    <label>🧠 Smart Auto-Tuning (optimizes parameters automatically)</label>
+                </div>
+            </div>
+            <button class="btn" onclick="generateSpeech()">🎤 Generate Speech</button>
+            <div id="generateStatus"></div>
+            <div id="audioOutput"></div>
+        </div>
+
+        <!-- Step 3: Quality Analysis -->
+        <div class="card">
+            <h2>📊 Step 3: Quality Analysis (Optional)</h2>
+            <button class="btn" onclick="analyzeQuality()">Analyze Voice Quality</button>
+            <div id="qualityStatus"></div>
+            <div id="qualityMetrics"></div>
+        </div>
+    </div>
+
+    <script>
+        // API Base URL
+        let apiUrl = 'http://localhost:8880';
+        let selectedVoiceFile = null;
+        let currentVoiceName = '';
+
+        // Update API URL
+        document.getElementById('apiUrl').addEventListener('change', (e) => {
+            apiUrl = e.target.value;
+        });
+
+        // Auto-transcribe checkbox toggle
+        document.getElementById('autoTranscribe').addEventListener('change', (e) => {
+            document.getElementById('manualTranscriptionGroup').style.display = e.target.checked ? 'none' : 'block';
+        });
+
+        // Test API connection
+        async function testConnection() {
+            const statusDiv = document.getElementById('connectionStatus');
+            statusDiv.innerHTML = '<div class="status info">Testing connection... <span class="loading"></span></div>';
+
+            try {
+                const response = await fetch(`${apiUrl}/health`);
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Connected successfully!</div>';
+                    loadVoices();
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ Connection failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Connection error: ${error.message}</div>`;
+            }
+        }
+
+        // File upload handling
+        function setupDragAndDrop() {
+            const uploadArea = document.getElementById('voiceUpload');
+
+            uploadArea.addEventListener('click', () => {
+                document.getElementById('voiceFile').click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    document.getElementById('voiceFile').files = files;
+                    handleFileSelect({ target: { files } }, 'voiceUpload');
+                }
+            });
+        }
+
+        function handleFileSelect(event, uploadId) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedVoiceFile = file;
+                const infoDiv = document.getElementById('voiceFileInfo');
+                const sizeKB = (file.size / 1024).toFixed(2);
+                infoDiv.innerHTML = `✅ Selected: ${file.name} (${sizeKB} KB)`;
+            }
+        }
+
+        // Load available voices
+        async function loadVoices() {
+            try {
+                const response = await fetch(`${apiUrl}/v1/zipvoice/voices`);
+                const data = await response.json();
+
+                const voiceSelect = document.getElementById('selectedVoice');
+                const voiceListDiv = document.getElementById('voiceList');
+
+                voiceSelect.innerHTML = '<option value="">-- Select a voice --</option>';
+
+                if (data.voices && data.voices.length > 0) {
+                    let listHTML = '<h3 style="margin-top: 20px;">Registered Voices:</h3><ul class="voice-list">';
+
+                    data.voices.forEach(voice => {
+                        voiceSelect.innerHTML += `<option value="${voice.name}">${voice.name}</option>`;
+                        listHTML += `<li class="voice-item" onclick="selectVoiceFromList('${voice.name}')">${voice.name}</li>`;
+                    });
+
+                    listHTML += '</ul>';
+                    voiceListDiv.innerHTML = listHTML;
+                } else {
+                    voiceListDiv.innerHTML = '<div class="status info" style="margin-top: 15px;">No voices registered yet. Register one above!</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load voices:', error);
+            }
+        }
+
+        function selectVoiceFromList(voiceName) {
+            document.getElementById('selectedVoice').value = voiceName;
+            currentVoiceName = voiceName;
+
+            // Update UI
+            document.querySelectorAll('.voice-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            event.target.classList.add('selected');
+        }
+
+        function updateSelectedVoice() {
+            currentVoiceName = document.getElementById('selectedVoice').value;
+        }
+
+        // Register voice
+        async function registerVoice() {
+            const statusDiv = document.getElementById('registerStatus');
+            const voiceName = document.getElementById('voiceName').value;
+            const autoTranscribe = document.getElementById('autoTranscribe').checked;
+            const transcription = document.getElementById('transcription').value;
+
+            if (!voiceName) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please enter a voice name</div>';
+                return;
+            }
+
+            if (!selectedVoiceFile) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please select an audio file</div>';
+                return;
+            }
+
+            if (!autoTranscribe && !transcription) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please enter a transcription or enable auto-transcribe</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status info">⏳ Registering voice... <span class="loading"></span></div>';
+
+            try {
+                const formData = new FormData();
+                formData.append('name', voiceName);
+                formData.append('audio_file', selectedVoiceFile);
+                if (!autoTranscribe) {
+                    formData.append('transcription', transcription);
+                }
+
+                const url = autoTranscribe
+                    ? `${apiUrl}/v1/zipvoice/voices/register?auto_transcribe=true`
+                    : `${apiUrl}/v1/zipvoice/voices/register`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.innerHTML = `<div class="status success">✅ Voice registered successfully!${autoTranscribe && data.transcription ? '<br>Transcription: ' + data.transcription : ''}</div>`;
+                    loadVoices();
+                    currentVoiceName = voiceName;
+                    document.getElementById('selectedVoice').value = voiceName;
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ Registration failed: ${data.detail || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Generate speech
+        async function generateSpeech() {
+            const statusDiv = document.getElementById('generateStatus');
+            const audioDiv = document.getElementById('audioOutput');
+            const text = document.getElementById('textInput').value;
+            const voice = document.getElementById('selectedVoice').value;
+            const model = document.getElementById('model').value;
+            const numSteps = parseInt(document.getElementById('numSteps').value);
+            const speed = parseFloat(document.getElementById('speed').value);
+            const autoTune = document.getElementById('autoTune').checked;
+
+            if (!text) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please enter text to speak</div>';
+                return;
+            }
+
+            if (!voice) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please select a voice</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status info">⏳ Generating speech... <span class="loading"></span></div>';
+            audioDiv.innerHTML = '';
+
+            try {
+                const url = autoTune
+                    ? `${apiUrl}/v1/zipvoice/audio/speech?auto_tune=true&priority=balanced`
+                    : `${apiUrl}/v1/zipvoice/audio/speech`;
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        input: text,
+                        voice: voice,
+                        num_steps: numSteps,
+                        speed: speed
+                    })
+                });
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const audioUrl = URL.createObjectURL(blob);
+
+                    const qualityScore = response.headers.get('X-Quality-Score');
+                    const qualityWarnings = response.headers.get('X-Quality-Warnings');
+
+                    let statusHTML = '<div class="status success">✅ Speech generated successfully!</div>';
+                    if (qualityScore) {
+                        statusHTML += `<div class="status info">Quality Score: ${parseFloat(qualityScore).toFixed(2)}</div>`;
+                    }
+                    if (qualityWarnings) {
+                        statusHTML += `<div class="status warning">⚠️ ${qualityWarnings}</div>`;
+                    }
+                    statusDiv.innerHTML = statusHTML;
+
+                    audioDiv.innerHTML = `
+                        <audio class="audio-player" controls>
+                            <source src="${audioUrl}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                        <br>
+                        <button class="btn" onclick="downloadAudio('${audioUrl}', 'zipvoice_output.mp3')">💾 Download Audio</button>
+                    `;
+                } else {
+                    const error = await response.json();
+                    statusDiv.innerHTML = `<div class="status error">❌ Generation failed: ${error.detail || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Analyze quality
+        async function analyzeQuality() {
+            const statusDiv = document.getElementById('qualityStatus');
+            const metricsDiv = document.getElementById('qualityMetrics');
+            const voice = document.getElementById('selectedVoice').value;
+
+            if (!voice) {
+                statusDiv.innerHTML = '<div class="status error">❌ Please select a voice first</div>';
+                return;
+            }
+
+            statusDiv.innerHTML = '<div class="status info">⏳ Analyzing quality... <span class="loading"></span></div>';
+            metricsDiv.innerHTML = '';
+
+            try {
+                const response = await fetch(`${apiUrl}/v1/zipvoice/voices/${voice}/quality`);
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.innerHTML = '<div class="status success">✅ Analysis complete!</div>';
+
+                    let metricsHTML = '<div class="quality-metrics">';
+                    metricsHTML += `
+                        <div class="metric">
+                            <div class="metric-value">${(data.quality_score * 100).toFixed(1)}%</div>
+                            <div class="metric-label">Quality Score</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${data.duration.toFixed(2)}s</div>
+                            <div class="metric-label">Duration</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-value">${data.sample_rate / 1000}kHz</div>
+                            <div class="metric-label">Sample Rate</div>
+                        </div>
+                    `;
+
+                    if (data.metrics) {
+                        if (data.metrics.rms_level) {
+                            metricsHTML += `
+                                <div class="metric">
+                                    <div class="metric-value">${data.metrics.rms_level.toFixed(3)}</div>
+                                    <div class="metric-label">RMS Level</div>
+                                </div>
+                            `;
+                        }
+                        if (data.metrics.snr_db) {
+                            metricsHTML += `
+                                <div class="metric">
+                                    <div class="metric-value">${data.metrics.snr_db.toFixed(1)} dB</div>
+                                    <div class="metric-label">SNR</div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    metricsHTML += '</div>';
+
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        metricsHTML += '<div class="status warning" style="margin-top: 15px;"><strong>Recommendations:</strong><ul>';
+                        data.recommendations.forEach(rec => {
+                            metricsHTML += `<li>${rec}</li>`;
+                        });
+                        metricsHTML += '</ul></div>';
+                    }
+
+                    if (data.warnings && data.warnings.length > 0) {
+                        metricsHTML += '<div class="status error" style="margin-top: 15px;"><strong>Warnings:</strong><ul>';
+                        data.warnings.forEach(warn => {
+                            metricsHTML += `<li>${warn}</li>`;
+                        });
+                        metricsHTML += '</ul></div>';
+                    }
+
+                    metricsDiv.innerHTML = metricsHTML;
+                } else {
+                    statusDiv.innerHTML = `<div class="status error">❌ Analysis failed: ${data.detail || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Download audio
+        function downloadAudio(url, filename) {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Initialize
+        setupDragAndDrop();
+        testConnection();
+    </script>
+</body>
+</html>

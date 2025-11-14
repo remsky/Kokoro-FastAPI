@@ -51,6 +51,33 @@ pip install -e .[cpu,zipvoice]
 pip install zipvoice
 ```
 
+### Docker Installation (Recommended for Production)
+
+**GPU Setup:**
+```bash
+cd docker/gpu
+docker-compose up -d
+
+# Check logs
+docker-compose logs -f
+
+# Access API at http://localhost:8880
+```
+
+**CPU Setup:**
+```bash
+cd docker/cpu
+docker-compose up -d
+
+# Access API at http://localhost:8880
+```
+
+See [docker/README.md](docker/README.md) for complete Docker documentation including:
+- Performance optimization (ONNX, TensorRT)
+- Configuration options
+- Troubleshooting
+- Production deployment
+
 ### Basic Usage
 
 ```bash
