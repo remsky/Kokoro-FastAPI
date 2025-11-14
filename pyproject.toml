@@ -18,7 +18,7 @@ dependencies = [
     "scipy==1.14.1",
     # Audio processing
     "soundfile==0.13.0",
-    "regex==2024.11.6",
+    "regex==2025.11.3",
     # Utilities
     "aiofiles==23.2.1",
     "tqdm==4.67.1",
@@ -40,6 +40,7 @@ dependencies = [
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
     "text2num>=2.5.1",
+    "unicode-segment==0.2.0",
 ]
 
 [project.optional-dependencies]

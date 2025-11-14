@@ -18,7 +18,8 @@ soundfile==0.13.0
 
 # Text processing
 phonemizer==3.3.0
-regex==2024.11.6
+regex==2025.11.3
+unicode-segment==0.2.0
 
 # Utilities
 aiofiles==23.2.1  # Last version before Windows path handling changes
