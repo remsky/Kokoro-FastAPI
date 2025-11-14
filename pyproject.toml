@@ -49,6 +49,9 @@ gpu = ["torch==2.8.0+cu129"]
 cpu = ["torch==2.8.0"]
 zipvoice = [
     "k2>=1.24.4",  # ZipVoice dependency
+    "openai-whisper>=20231117",  # Auto-transcription
+    "onnxruntime-gpu>=1.16.0",  # ONNX optimization (GPU)
+    "tensorrt>=8.6.0; platform_system=='Linux'",  # TensorRT (Linux only)
 ]
 test = [
     "pytest==8.3.5",

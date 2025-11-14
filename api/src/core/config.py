@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     # API Settings
-    api_title: str = "Kokoro TTS API"
-    api_description: str = "API for text-to-speech generation using Kokoro"
-    api_version: str = "1.0.0"
+    api_title: str = "ZipVoice TTS API"
+    api_description: str = "API for zero-shot text-to-speech generation using ZipVoice"
+    api_version: str = "2.0.0"
     host: str = "0.0.0.0"
     port: int = 8880
 
@@ -64,12 +64,12 @@ class Settings(BaseSettings):
     max_temp_dir_age_hours: int = 1  # Remove temp files older than 1 hour
     max_temp_dir_count: int = 3  # Maximum number of temp files to keep
 
-    # TTS Backend Settings
-    default_backend: str = "kokoro"  # Default TTS backend: "kokoro" or "zipvoice"
-    enable_kokoro: bool = True  # Enable Kokoro TTS backend
+    # TTS Backend Settings (ZipVoice-only repository)
+    default_backend: str = "zipvoice"  # Default TTS backend
+    enable_kokoro: bool = False  # DISABLED - This is a ZipVoice-only repository
     enable_zipvoice: bool = True  # Enable ZipVoice TTS backend
 
-    # ZipVoice Settings
+    # ZipVoice Core Settings
     zipvoice_model: str = "zipvoice"  # Model variant: zipvoice, zipvoice_distill, zipvoice_dialog, zipvoice_dialog_stereo
     zipvoice_num_steps: int = 8  # Inference steps (lower = faster, range: 1-32)
     zipvoice_cache_dir: str = "api/src/voices/zipvoice_prompts"  # Directory for voice prompt cache
@@ -79,6 +79,24 @@ class Settings(BaseSettings):
     zipvoice_max_download_size_mb: float = 10.0  # Maximum size for voice prompt URL downloads
     zipvoice_allow_url_download: bool = True  # Allow downloading voice prompts from URLs
     zipvoice_allow_base64: bool = True  # Allow base64 encoded voice prompts
+
+    # Auto-Transcription Settings (Whisper integration)
+    enable_auto_transcription: bool = True  # Enable automatic transcription with Whisper
+    whisper_model_size: str = "base"  # Whisper model: tiny, base, small, medium, large
+    auto_transcribe_on_upload: bool = True  # Auto-transcribe when registering voices
+    whisper_device: str | None = None  # Device for Whisper (None = auto-detect)
+
+    # Optimization Settings
+    enable_onnx: bool = False  # Enable ONNX optimized inference (faster)
+    enable_tensorrt: bool = False  # Enable TensorRT optimization (fastest, requires GPU)
+    onnx_cache_dir: str = "api/src/models/onnx_cache"  # ONNX model cache
+    tensorrt_cache_dir: str = "api/src/models/tensorrt_cache"  # TensorRT engine cache
+
+    # Smart Features
+    enable_smart_tuning: bool = True  # Auto-tune parameters based on input
+    enable_quality_detection: bool = True  # Detect and warn about low-quality prompts
+    enable_intelligent_caching: bool = True  # Smart caching with prefetching
+    quality_threshold: float = 0.7  # Minimum quality score for voice prompts (0-1)
 
     class Config:
         env_file = ".env"

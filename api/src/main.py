@@ -18,7 +18,7 @@ from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
 from .routers.openai_compatible import router as openai_router
 from .routers.web_player import router as web_router
-from .routers.zipvoice import router as zipvoice_router
+from .routers.zipvoice_enhanced import router as zipvoice_router
 
 
 def setup_logger():
