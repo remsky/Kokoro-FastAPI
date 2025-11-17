@@ -40,7 +40,7 @@ dependencies = [
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
     "text2num>=2.5.1",
-    "unicode-segment==0.2.0",
+    "unicode-segment==0.4.2",
 ]
 
 [project.optional-dependencies]

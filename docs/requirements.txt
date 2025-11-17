@@ -234,7 +234,7 @@ typing-extensions==4.12.2
     #   pydantic-core
     #   sqlalchemy
     #   uvicorn
-unicode-segment==0.2.0
+unicode-segment==0.4.2
     # via -r docs/requirements.in
 uritemplate==4.1.1
     # via csvw
