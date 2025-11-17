@@ -44,6 +44,28 @@ def test_get_sentence_info():
         assert count == len(tokens)
         assert count > 0
 
+def test_get_sentence_info_with_unicode_sentence_segmenting():
+    text = "".join([
+        "This, that, the other thing, etc. Another sentence... A, b, c, etc., and ",
+        "more. D, e, f, etc. and more. One, i. e. two. Three, i. e., four. Five, ",
+        "i.e. six. You have 4.2 messages. Property access: `a.b.c`.",
+    ])
+
+    info = get_sentence_info(text)
+    sentences = [s for (s, _, _) in info]
+
+    assert sentences == [
+        "This, that, the other thing, etc.",
+        "Another sentence...",
+        "A, b, c, etc., and more.",
+        "D, e, f, etc. and more.",
+        "One, i. e. two.",
+        "Three, i. e., four.",
+        "Five, i.e. six.",
+        "You have 4.2 messages.",
+        "Property access: `a.b.c`.",
+    ]
+
 @pytest.mark.asyncio
 async def test_smart_split_short_text():
     """Test smart splitting with text under max tokens."""
