@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Get project root directory
 PROJECT_ROOT=$(pwd)
