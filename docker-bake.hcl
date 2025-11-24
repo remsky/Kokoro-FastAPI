@@ -61,8 +61,41 @@ target "gpu" {
 }
 
 # Default group to build both CPU and GPU versions
-group "default" {
-    targets = ["cpu", "gpu"]
+target "cpu" {
+    inherits = ["_cpu_base"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
+    ]
+}
+
+target "cpu-arm64" {
+    inherits = ["_cpu_base"]
+    platforms = ["linux/arm64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
+    ]
+}
+
+# GPU target with multi-platform support
+target "gpu" {
+    inherits = ["_gpu_base"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+    ]
+}
+
+target "gpu-arm64" {
+    inherits = ["_gpu_base"]
+    platforms = ["linux/arm64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+    ]
 }
 
 # Development targets for faster local builds
