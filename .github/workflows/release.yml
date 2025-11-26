@@ -33,8 +33,11 @@ jobs:
     env:
       DOCKER_BUILDKIT: 1
       BUILDKIT_STEP_LOG_MAX_SIZE: 10485760
-      # This environment variable will override the VERSION variable in docker-bake.hcl
+      # These environment variables will override the defaults within docker-bake.hcl
       VERSION: ${{ needs.prepare-release.outputs.version_tag }} # Use tag version (vX.Y.Z) for bake
+      REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }} # Override with GitHub Action Environment Variable
+      OWNER: ${{ vars.OWNER || 'remsky' }}
+      REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
