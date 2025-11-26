@@ -54,13 +54,10 @@ test = [
     "jinja2>=3.1.6",
 ]
 
-[tool.uv]
-conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
-
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-cpu", marker = "extra == 'cpu' and extra != 'gpu'" },
+    { index = "pytorch-cuda", marker = "extra == 'gpu' and extra != 'cpu'" },
 ]
 
 [[tool.uv.index]]
