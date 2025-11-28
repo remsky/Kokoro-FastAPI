@@ -21,7 +21,11 @@ COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
 # Install dependencies with GPU extras
 RUN uv venv --python 3.10 && \
-    uv sync --extra gpu --no-cache
+    if [ "$(uname -m)" = "aarch64" ]; then \
+        uv pip install --python .venv/bin/python --no-cache -e ".[gpu-arm64]" --prerelease=allow; \
+    else \
+        uv sync --extra gpu --no-cache; \
+    fi
 
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
