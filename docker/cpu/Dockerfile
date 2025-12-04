@@ -55,4 +55,4 @@ RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     fi
 
 # Run FastAPI server through entrypoint.sh
-CMD ["./entrypoint.sh"]
+CMD ["./scripts/entrypoint.sh"]
