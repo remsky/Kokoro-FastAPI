@@ -56,9 +56,12 @@ test = [
 
 [tool.uv]
 conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
-
-[tool.uv.required-environments]
-"sys_platform == 'linux' and platform_machine == 'aarch64'" = true
+required-environments = [
+    "sys_platform == 'linux' and platform_machine == 'aarch64'"
+]
+override-dependencies = [
+    "triton>=3.5.1 ; platform_machine == 'aarch64'"
+]
 
 [tool.uv.sources]
 torch = [
