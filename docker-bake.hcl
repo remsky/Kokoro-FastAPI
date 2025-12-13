@@ -60,13 +60,13 @@ target "gpu" {
     ]
 }
 
-# Default group to build both CPU and GPU versions
-target "cpu" {
+# Individual platform targets for debugging/testing
+target "cpu-amd64" {
     inherits = ["_cpu_base"]
     platforms = ["linux/amd64"]
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
-        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}-amd64",
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest-amd64"
     ]
 }
 
@@ -74,18 +74,17 @@ target "cpu-arm64" {
     inherits = ["_cpu_base"]
     platforms = ["linux/arm64"]
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}",
-        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest"
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}-arm64",
+        "${REGISTRY}/${OWNER}/${REPO}-cpu:latest-arm64"
     ]
 }
 
-# GPU target with multi-platform support
-target "gpu" {
+target "gpu-amd64" {
     inherits = ["_gpu_base"]
     platforms = ["linux/amd64"]
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-amd64",
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest-amd64"
     ]
 }
 
@@ -93,8 +92,8 @@ target "gpu-arm64" {
     inherits = ["_gpu_base"]
     platforms = ["linux/arm64"]
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-arm64",
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:latest-arm64"
     ]
 }
 
@@ -113,4 +112,21 @@ target "gpu-dev" {
 
 group "dev" {
     targets = ["cpu-dev", "gpu-dev"]
+}
+
+# Build groups for different use cases
+group "cpu-all" {
+    targets = ["cpu", "cpu-amd64", "cpu-arm64"]
+}
+
+group "gpu-all" {
+    targets = ["gpu", "gpu-amd64", "gpu-arm64"]
+}
+
+group "all" {
+    targets = ["cpu", "gpu"]
+}
+
+group "individual-platforms" {
+    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64"]
 }
