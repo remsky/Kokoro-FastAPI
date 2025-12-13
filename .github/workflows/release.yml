@@ -3,10 +3,16 @@ name: Create Release and Publish Docker Images
 on:
   push:
     branches:
-      - release # Trigger when commits are pushed to the release branch (e.g., after merging master)
+      - release # Auto-trigger only on release branch
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  workflow_dispatch: # Manual trigger - explicitly specify branch
+    inputs:
+      branch_name:
+        description: 'Branch to build from (required)'
+        required: true
+        type: string
 
 jobs:
   prepare-release:
@@ -22,22 +28,49 @@ jobs:
         id: get-version
         run: |
           VERSION_PLAIN=$(cat VERSION)
-          echo "version=${VERSION_PLAIN}" >> $GITHUB_OUTPUT
-          echo "version_tag=v${VERSION_PLAIN}" >> $GITHUB_OUTPUT # Add 'v' prefix for tag
+          
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            BRANCH_NAME="${{ inputs.branch_name }}"
+          else
+            BRANCH_NAME="${{ github.ref_name }}"
+          fi
+          
+          if [[ "$BRANCH_NAME" == "release" ]]; then
+            echo "version=${VERSION_PLAIN}" >> $GITHUB_OUTPUT
+            echo "version_tag=v${VERSION_PLAIN}" >> $GITHUB_OUTPUT
+          else
+            SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+            echo "version=${VERSION_PLAIN}-${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+            echo "version_tag=v${VERSION_PLAIN}-${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+          fi
 
   build-images:
     needs: prepare-release
-    runs-on: ubuntu-latest
     permissions:
-      packages: write # Needed to push images to GHCR
+      packages: write
     env:
       DOCKER_BUILDKIT: 1
       BUILDKIT_STEP_LOG_MAX_SIZE: 10485760
-      # These environment variables will override the defaults within docker-bake.hcl
-      VERSION: ${{ needs.prepare-release.outputs.version_tag }} # Use tag version (vX.Y.Z) for bake
-      REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }} # Override with GitHub Action Environment Variable
+      VERSION: ${{ needs.prepare-release.outputs.version_tag }}
+      REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
       OWNER: ${{ vars.OWNER || 'remsky' }}
       REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
+    strategy:
+      matrix:
+        include:
+          - build_target: "cpu"
+            platform: "linux/amd64"
+            runs_on: "ubuntu-latest"
+          - build_target: "gpu" 
+            platform: "linux/amd64"
+            runs_on: "ubuntu-latest"
+          - build_target: "cpu"
+            platform: "linux/arm64"
+            runs_on: "ubuntu-24.04-arm"
+          - build_target: "gpu"
+            platform: "linux/arm64" 
+            runs_on: "ubuntu-24.04-arm"
+    runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -48,7 +81,6 @@ jobs:
         run: |
           TAG_NAME="${{ needs.prepare-release.outputs.version_tag }}"
           echo "Checking for existing tag: $TAG_NAME"
-          # Fetch tags explicitly just in case checkout didn't get them all
           git fetch --tags
           if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
             echo "::error::Tag $TAG_NAME already exists. Please increment the version in the VERSION file."
@@ -57,7 +89,7 @@ jobs:
             echo "Tag $TAG_NAME does not exist. Proceeding with release."
           fi
 
-      - name: Free disk space # Optional: Keep as needed for large builds
+      - name: Free disk space
         run: |
           echo "Listing current disk space"
           df -h
@@ -66,9 +98,6 @@ jobs:
           docker system prune -af
           echo "Disk space after cleanup"
           df -h
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3 # Use v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3 # Use v3
@@ -84,30 +113,77 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push images using Docker Bake
+      - name: Build and push single-platform image
         run: |
-          echo "Building and pushing images for version ${{ needs.prepare-release.outputs.version_tag }}"
-          # The VERSION env var above sets the tag for the bake file targets
-          docker buildx bake --push
+          PLATFORM="${{ matrix.platform }}"
+          BUILD_TARGET="${{ matrix.build_target }}"
+          VERSION_TAG="${{ needs.prepare-release.outputs.version_tag }}"
+          
+          echo "Building ${PLATFORM} image for ${BUILD_TARGET} version ${VERSION_TAG}"
+          
+          TARGET="${BUILD_TARGET}-$(echo ${PLATFORM} | cut -d'/' -f2)"
+          echo "Using bake target: $TARGET"
+          
+          docker buildx bake $TARGET --push --progress=plain
 
-  create-release:
+  create-manifests:
     needs: [prepare-release, build-images]
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Needed to create releases
+      packages: write
+    env:
+      REGISTRY: ${{ vars.REGISTRY || 'ghcr.io' }}
+      OWNER: ${{ vars.OWNER || 'remsky' }}
+      REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
+    strategy:
+      matrix:
+        build_target: ["cpu", "gpu"]
+    steps:
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Create multi-platform manifest
+        run: |
+          VERSION_TAG="${{ needs.prepare-release.outputs.version_tag }}"
+          TARGET="${{ matrix.build_target }}"
+          REGISTRY="${{ env.REGISTRY }}"
+          OWNER="${{ env.OWNER }}"
+          REPO="${{ env.REPO }}"
+          
+          docker buildx imagetools create -t \
+            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG} \
+            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64 \
+            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64
+            
+          if [[ "$VERSION_TAG" != *"-"* ]]; then
+            docker buildx imagetools create -t \
+              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:latest \
+              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64 \
+              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64
+          fi
+
+  create-release:
+    needs: [prepare-release, create-manifests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetch all history for release notes generation
+          fetch-depth: 0
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2 # Use v2
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.prepare-release.outputs.version_tag }} # Use vX.Y.Z tag
+          tag_name: ${{ needs.prepare-release.outputs.version_tag }}
           name: Release ${{ needs.prepare-release.outputs.version_tag }}
-          generate_release_notes: true # Auto-generate release notes
-          draft: false # Publish immediately
-          prerelease: false # Mark as a stable release
+          generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
