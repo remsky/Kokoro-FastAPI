@@ -57,6 +57,7 @@ examples/ebook_test/parse_epub.py
 api/src/voices/af_jadzia.pt
 examples/assorted_checks/test_combinations/output/*
 examples/assorted_checks/test_openai/output/*
+docker/rocm1151/kokoro-tts/
 
 
 # Audio files

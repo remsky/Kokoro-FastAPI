@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.0
 
 # Install Python and other dependencies
 RUN apt-get update -y &&  \
-    apt-get install -y python3.10 python3-venv espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg g++ cmake && \
+    apt-get install -y python3.12-dev python3-venv espeak-ng espeak-ng-data git libsndfile1 curl ffmpeg g++ cmake && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /usr/share/espeak-ng-data &&  \
     ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
@@ -20,7 +20,7 @@ WORKDIR /app
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 
 # Install dependencies with GPU extras
-RUN uv venv --python 3.10 && \
+RUN uv venv --python 3.12 && \
     uv sync --extra gpu --no-cache
 
 # Copy project files including models
