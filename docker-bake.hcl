@@ -40,6 +40,12 @@ target "_gpu_base" {
     dockerfile = "docker/gpu/Dockerfile"
 }
 
+# Base settings for AMD ROCm gfx 1151 builds
+target "_rocm1151_base" {
+    inherits = ["_common"]
+    dockerfile = "docker/rocm1151/Dockerfile"
+}
+
 # CPU target with multi-platform support
 target "cpu" {
     inherits = ["_cpu_base"]
@@ -57,6 +63,16 @@ target "gpu" {
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}",
         "${REGISTRY}/${OWNER}/${REPO}-gpu:latest"
+    ]
+}
+
+# ROCM 1151 target with multi-platform support
+target "rocm1151" {
+    inherits = ["_rocm1151_base"]
+    platforms = ["linux/amd64" ]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-rocm1151:${VERSION}",
+        "${REGISTRY}/${OWNER}/${REPO}-rocm1151:latest"
     ]
 }
 
@@ -97,6 +113,16 @@ target "gpu-arm64" {
     ]
 }
 
+# AMD ROCm target with multi-platform support
+target "rocm1151-amd64" {
+    inherits = ["_rocm1151_base"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-rocm1151:${VERSION}-amd64",
+        "${REGISTRY}/${OWNER}/${REPO}-rocm1151:latest"
+    ]
+}
+
 # Development targets for faster local builds
 target "cpu-dev" {
     inherits = ["_cpu_base"]
@@ -110,8 +136,14 @@ target "gpu-dev" {
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev"]
 }
 
+target "rocm1151-dev" {
+    inherits = ["_rocm1151_base"]
+    # No multi-platform for dev builds
+    tags = ["${REGISTRY}/${OWNER}/${REPO}-rocm1151:dev"]
+}
+
 group "dev" {
-    targets = ["cpu-dev", "gpu-dev"]
+    targets = ["cpu-dev", "gpu-dev", "rocm1151-dev"]
 }
 
 # Build groups for different use cases
@@ -123,10 +155,14 @@ group "gpu-all" {
     targets = ["gpu", "gpu-amd64", "gpu-arm64"]
 }
 
+group "rocm1151-all" {
+    targets = ["rocm1151", "rocm1151-amd64" ]
+}
+
 group "all" {
-    targets = ["cpu", "gpu"]
+    targets = ["cpu", "gpu", "rocm1151"]
 }
 
 group "individual-platforms" {
-    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64"]
+    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "rocm1151-amd64" ]
 }

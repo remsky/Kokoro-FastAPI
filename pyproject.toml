@@ -3,7 +3,7 @@ name = "kokoro-fastapi"
 version = "0.3.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     # Core dependencies
     "fastapi==0.115.6",
@@ -45,6 +45,13 @@ dependencies = [
 [project.optional-dependencies]
 gpu = ["torch==2.8.0+cu129"]
 cpu = ["torch==2.8.0"]
+rocm1151 = [
+    "torch==2.9.1",
+    "pytorch-triton-rocm==3.5.1",
+    "rocm==7.10.0",
+    "rocm-sdk-core==7.10.0",
+    "rocm-sdk-libraries-gfx1151==7.10.0",
+]
 test = [
     "pytest==8.3.5",
     "pytest-cov==6.0.0",
@@ -55,9 +62,9 @@ test = [
 ]
 
 [tool.uv]
-conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }, { extra = "rocm1151" }]]
 required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'aarch64'"
+    "sys_platform == 'linux'"
 ]
 override-dependencies = [
     "triton>=3.5.1 ; platform_machine == 'aarch64'"
@@ -67,7 +74,12 @@ override-dependencies = [
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
     { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-rocm1151", extra = "rocm1151" }
 ]
+pytorch-triton-rocm = { index = "pytorch-rocm1151" }
+rocm = { index = "pytorch-rocm1151" }
+rocm-sdk-core = { index = "pytorch-rocm1151" }
+rocm-sdk-libraries-gfx1151 = { index = "pytorch-rocm1151" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -77,6 +89,11 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cuda"
 url = "https://download.pytorch.org/whl/cu129"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm1151"
+url = "https://repo.amd.com/rocm/whl/gfx1151/"
 explicit = true
 
 [build-system]
