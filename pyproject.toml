@@ -66,9 +66,6 @@ conflicts = [
         { extra = "rocm" },
     ],
 ]
-required-environments = [
-    "sys_platform == 'linux' and platform_machine == 'aarch64'"
-]
 override-dependencies = [
     "triton>=3.5.1 ; platform_machine == 'aarch64'"
 ]

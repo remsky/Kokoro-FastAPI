@@ -50,7 +50,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --extra rocm
 
 # Run kdb files (shape files for MIOpen)
-ENV ROCM_VERSION=6.4.3
+ENV ROCM_VERSION=6.4.4
 COPY --chown=appuser:appuser docker/rocm/kdb_install.sh /tmp/
 RUN /tmp/kdb_install.sh
 
