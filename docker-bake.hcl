@@ -60,6 +60,13 @@ target "gpu" {
     ]
 }
 
+# Base settings for AMD ROCm builds
+target "_rocm_base" {
+    inherits = ["_common"]
+    dockerfile = "docker/rocm/Dockerfile"
+}
+
+
 # Individual platform targets for debugging/testing
 target "cpu-amd64" {
     inherits = ["_cpu_base"]
@@ -97,6 +104,16 @@ target "gpu-arm64" {
     ]
 }
 
+# AMD ROCm only supports x86
+target "rocm-amd64" {
+    inherits = ["_rocm_base"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-rocm:${VERSION}-amd64",
+        "${REGISTRY}/${OWNER}/${REPO}-rocm:latest-amd64"
+    ]
+}
+
 # Development targets for faster local builds
 target "cpu-dev" {
     inherits = ["_cpu_base"]
@@ -123,10 +140,14 @@ group "gpu-all" {
     targets = ["gpu", "gpu-amd64", "gpu-arm64"]
 }
 
+group "rocm-all" {
+    targets = ["rocm-amd64"]
+}
+
 group "all" {
-    targets = ["cpu", "gpu"]
+    targets = ["cpu", "gpu", "rocm"]
 }
 
 group "individual-platforms" {
-    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64"]
+    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "rocm-amd64"]
 }
