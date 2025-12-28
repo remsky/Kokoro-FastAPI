@@ -28,13 +28,13 @@ jobs:
         id: get-version
         run: |
           VERSION_PLAIN=$(cat VERSION)
-          
+
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             BRANCH_NAME="${{ inputs.branch_name }}"
           else
             BRANCH_NAME="${{ github.ref_name }}"
           fi
-          
+
           if [[ "$BRANCH_NAME" == "release" ]]; then
             echo "version=${VERSION_PLAIN}" >> $GITHUB_OUTPUT
             echo "version_tag=v${VERSION_PLAIN}" >> $GITHUB_OUTPUT
@@ -61,15 +61,18 @@ jobs:
           - build_target: "cpu"
             platform: "linux/amd64"
             runs_on: "ubuntu-latest"
-          - build_target: "gpu" 
+          - build_target: "gpu"
             platform: "linux/amd64"
             runs_on: "ubuntu-latest"
           - build_target: "cpu"
             platform: "linux/arm64"
             runs_on: "ubuntu-24.04-arm"
           - build_target: "gpu"
-            platform: "linux/arm64" 
+            platform: "linux/arm64"
             runs_on: "ubuntu-24.04-arm"
+          - build_target: "rocm"
+            platform: "linux/amd64"
+            runs_on: "ubuntu-latest"
     runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
@@ -118,12 +121,12 @@ jobs:
           PLATFORM="${{ matrix.platform }}"
           BUILD_TARGET="${{ matrix.build_target }}"
           VERSION_TAG="${{ needs.prepare-release.outputs.version_tag }}"
-          
+
           echo "Building ${PLATFORM} image for ${BUILD_TARGET} version ${VERSION_TAG}"
-          
+
           TARGET="${BUILD_TARGET}-$(echo ${PLATFORM} | cut -d'/' -f2)"
           echo "Using bake target: $TARGET"
-          
+
           docker buildx bake $TARGET --push --progress=plain
 
   create-manifests:
@@ -137,7 +140,7 @@ jobs:
       REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
     strategy:
       matrix:
-        build_target: ["cpu", "gpu"]
+        build_target: ["cpu", "gpu", "rocm"]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -145,7 +148,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-          
+
       - name: Create multi-platform manifest
         run: |
           VERSION_TAG="${{ needs.prepare-release.outputs.version_tag }}"
@@ -153,12 +156,12 @@ jobs:
           REGISTRY="${{ env.REGISTRY }}"
           OWNER="${{ env.OWNER }}"
           REPO="${{ env.REPO }}"
-          
+
           docker buildx imagetools create -t \
             ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG} \
             ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64 \
             ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64
-            
+
           if [[ "$VERSION_TAG" != *"-"* ]]; then
             docker buildx imagetools create -t \
               ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:latest \
