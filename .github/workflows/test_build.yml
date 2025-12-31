@@ -1,4 +1,4 @@
-name: Build Images (Dry Run)
+name: Test Build / Dry Run
 
 on:
   workflow_dispatch:
@@ -16,32 +16,65 @@ on:
           - cpu
           - gpu
           - rocm
+      platform:
+        description: 'Platform (ignored for rocm)'
+        required: true
+        type: choice
+        options:
+          - all
+          - amd64
+          - arm64
+      dry_run:
+        description: 'Print build plan only (no actual build)'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: test-build-${{ inputs.branch_name }}
+  cancel-in-progress: true
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - name: Build matrix
+        id: set-matrix
+        run: |
+          ALL_TARGETS='[
+            {"build_target":"cpu","platform":"amd64","runs_on":"ubuntu-latest"},
+            {"build_target":"cpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
+            {"build_target":"gpu","platform":"amd64","runs_on":"ubuntu-latest"},
+            {"build_target":"gpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
+            {"build_target":"rocm","platform":"amd64","runs_on":"ubuntu-latest"}
+          ]'
+          
+          FILTERED=$(echo "$ALL_TARGETS" | jq -c \
+            --arg target "${{ inputs.build_target }}" \
+            --arg platform "${{ inputs.platform }}" \
+            '[.[] | select(
+              ($target == "all" or .build_target == $target) and
+              (.build_target == "rocm" or $platform == "all" or .platform == $platform)
+            )]')
+          
+          if [ "$FILTERED" = "[]" ]; then
+            echo "::error::No matching build configurations"
+            exit 1
+          fi
+          
+          echo "matrix={\"include\":$FILTERED}" >> "$GITHUB_OUTPUT"
+
   build-images:
+    needs: setup
     env:
       DOCKER_BUILDKIT: 1
       BUILDKIT_STEP_LOG_MAX_SIZE: 10485760
     strategy:
-      matrix:
-        include:
-          - build_target: "cpu"
-            platform: "amd64"
-            runs_on: "ubuntu-latest"
-          - build_target: "gpu"
-            platform: "amd64"
-            runs_on: "ubuntu-latest"
-          - build_target: "cpu"
-            platform: "arm64"
-            runs_on: "ubuntu-24.04-arm"
-          - build_target: "gpu"
-            platform: "arm64"
-            runs_on: "ubuntu-24.04-arm"
-          - build_target: "rocm"
-            platform: "amd64"
-            runs_on: "ubuntu-latest"
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     runs-on: ${{ matrix.runs_on }}
-    if: inputs.build_target == 'all' || inputs.build_target == matrix.build_target
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,16 +84,17 @@ jobs:
       - name: Free disk space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache
-          docker system prune -af
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver-opts: |
-            image=moby/buildkit:latest
-            network=host
+          driver-opts: image=moby/buildkit:v0.21.1
 
       - name: Build image
         run: |
           TARGET="${{ matrix.build_target }}-${{ matrix.platform }}"
-          docker buildx bake $TARGET --progress=plain
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            docker buildx bake "$TARGET" --print
+          else
+            docker buildx bake "$TARGET" --progress=plain
+          fi
