@@ -55,7 +55,8 @@ COPY --chown=appuser:appuser docker/rocm/kdb_install.sh /tmp/
 RUN /tmp/kdb_install.sh
 
 # Support older GFX Arch
-RUN cd /tmp && wget https://archlinux.org/packages/extra/x86_64/rocblas/download -O rocblas.tar.zst \
+ENV ROCBLAS_VERSION=6.4.4-1
+RUN cd /tmp && wget https://archive.archlinux.org/packages/r/rocblas/rocblas-${ROCBLAS_VERSION}-x86_64.pkg.tar.zst -O rocblas.tar.zst \
     && pwd && ls -lah ./ \
     && tar --zstd -xvf rocblas.tar.zst && rm rocblas.tar.zst \
     && rm -rf /app/.venv/lib/python3.12/site-packages/torch/lib/rocblas/library/ \
