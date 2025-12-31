@@ -4,10 +4,6 @@ services:
       devices:
         - /dev/dri
         - /dev/kfd
-      security_opt:
-        - seccomp:unconfined
-      cap_add:
-        - SYS_PTRACE
       group_add:
       # NOTE: These groups are the group ids for: video, input, and render
       # Numbers can be found via running: getent group $GROUP_NAME | cut -d: -f3
