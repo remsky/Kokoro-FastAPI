@@ -1,6 +1,8 @@
 services:
   kokoro-tts:
-      image: kprinssu/kokoro-fastapi:rocm
+      build:
+        context: ../..
+        dockerfile: docker/rocm/Dockerfile
       devices:
         - /dev/dri
         - /dev/kfd
