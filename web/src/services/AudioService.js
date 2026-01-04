@@ -1,3 +1,5 @@
+import { config } from '../config.js';
+
 export class AudioService {
     constructor() {
         this.mediaSource = null;
@@ -33,7 +35,8 @@ export class AudioService {
             
             console.log('AudioService: Making API call...', { text, voice, speed });
             
-            const response = await fetch('/v1/audio/speech', {
+            const apiUrl = await config.getApiUrl('/v1/audio/speech');
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -124,8 +127,8 @@ export class AudioService {
                     
                     const downloadPath = headers['x-download-path'];
                     if (downloadPath) {
-                        // Prepend /v1 since the router is mounted there
-                        this.serverDownloadPath = `/v1${downloadPath}`;
+                        // Use config to prepend root path and /v1
+                        this.serverDownloadPath = await config.getApiUrl(`/v1${downloadPath}`);
                         console.log('Download path received:', this.serverDownloadPath);
                     } else {
                         console.warn('No X-Download-Path header found. Available headers:',
