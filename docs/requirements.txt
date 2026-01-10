@@ -169,12 +169,13 @@ referencing==0.35.1
     # via
     #   jsonschema
     #   jsonschema-specifications
-regex==2024.11.6
+regex==2025.11.3
     # via
     #   -r docs/requirements.in
     #   segments
     #   tiktoken
     #   transformers
+    #   unicode-segment
 requests==2.32.3
     # via
     #   -r docs/requirements.in
@@ -233,6 +234,8 @@ typing-extensions==4.12.2
     #   pydantic-core
     #   sqlalchemy
     #   uvicorn
+unicode-segment==0.4.2
+    # via -r docs/requirements.in
 uritemplate==4.1.1
     # via csvw
 urllib3==2.3.0
