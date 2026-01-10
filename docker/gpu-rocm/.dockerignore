@@ -1,0 +1,40 @@
+# Version control
+.git
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.py[cod]
+*$py.class
+.pytest_cache
+.coverage
+.coveragerc
+
+# Environment
+# .env
+.venv*
+env/
+venv/
+ENV/
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Project specific
+examples/
+Kokoro-82M/
+ui/
+tests/
+*.md
+*.txt
+!requirements.txt
+
+# Docker
+Dockerfile*
+docker-compose*
