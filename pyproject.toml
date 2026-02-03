@@ -40,6 +40,8 @@ dependencies = [
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
     "text2num>=2.5.1",
+    "sentencepiece>=0.2.0",
+    "protobuf>=5.29.1",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +60,10 @@ cpu = ["torch==2.8.0"]
 rocm = [
     "torch==2.8.0+rocm6.4",
     "pytorch-triton-rocm>=3.2.0",
+]
+intel = [
+    "torch==2.5.1",
+    "intel-extension-for-pytorch==2.5.10+xpu",
 ]
 test = [
     "pytest==8.3.5",
@@ -79,6 +85,7 @@ conflicts = [
         { extra = "gpu" },
         { extra = "gpu-cu128" },
         { extra = "rocm" },
+        { extra = "intel" },
     ],
 ]
 override-dependencies = [
@@ -93,9 +100,13 @@ torch = [
     { index = "pytorch-cu128", extra = "gpu-cu128", marker = "platform_machine == 'x86_64'" },
     { index = "pytorch-cu129", extra = "gpu-cu128", marker = "platform_machine == 'aarch64'" },
     { index = "pytorch-rocm", extra = "rocm" },
+    { index = "pytorch-intel", extra = "intel" },
 ]
 pytorch-triton-rocm = [
     { index = "pytorch-rocm", extra = "rocm" },
+]
+intel-extension-for-pytorch = [
+    { index = "pytorch-intel", extra = "intel" },
 ]
 
 [[tool.uv.index]]
@@ -122,6 +133,13 @@ explicit = true
 name = "pytorch-rocm"
 url = "https://download.pytorch.org/whl/rocm6.4"
 explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-intel"
+url = "https://pytorch-extension.intel.com/release-whl/stable/xpu/us/"
+explicit = true
+
+
 
 [build-system]
 requires = ["setuptools>=61.0"]

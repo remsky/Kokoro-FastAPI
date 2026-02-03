@@ -96,6 +96,14 @@ class Settings(BaseSettings):
             return "mps"
         elif torch.cuda.is_available():
             return "cuda"
+            
+        try:
+            import intel_extension_for_pytorch as ipex
+            if torch.xpu.is_available():
+                return "xpu"
+        except ImportError:
+            pass
+            
         return "cpu"
 
 
