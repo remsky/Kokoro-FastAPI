@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     )
     use_gpu: bool = True  # Whether to use GPU acceleration if available
     device_type: str | None = (
-        None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
+        None  # Will be auto-detected if None, can be "cuda", "mps", "xpu", or "cpu"
     )
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
@@ -75,7 +75,7 @@ class Settings(BaseSettings):
     cors_enabled: bool = True  # Whether to enable CORS
 
     # Temp File Settings for WEB Ui
-    temp_file_dir: str = "api/temp_files"  # Directory for temporary audio files (relative to project root)
+    temp_file_dir: str = "/tmp/kokoro_temp"  # Directory for temporary audio files
     max_temp_dir_size_mb: int = 2048  # Maximum size of temp directory (2GB)
     max_temp_dir_age_hours: int = 1  # Remove temp files older than 1 hour
     max_temp_dir_count: int = 3  # Maximum number of temp files to keep
@@ -96,10 +96,12 @@ class Settings(BaseSettings):
             return "mps"
         elif torch.cuda.is_available():
             return "cuda"
-            
+
+        # Check for Intel GPU (XPU)
         try:
             import intel_extension_for_pytorch as ipex
-            if torch.xpu.is_available():
+
+            if hasattr(torch, "xpu") and torch.xpu.is_available():
                 return "xpu"
         except ImportError:
             pass
