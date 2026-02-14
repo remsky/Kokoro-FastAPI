@@ -80,13 +80,15 @@ class StreamingAudioWriter:
                 for packet in packets:
                     self.container.mux(packet)
 
-                # Closing the container handles writing the trailer and finalizing the file.
-                # No explicit flush method is available or needed here.
-                logger.debug("Muxed final packets.")
+                # Close the container FIRST — this writes the final OGG page
+                # (or other format trailer) to the output buffer. For OGG/Opus,
+                # the last page of audio data is only written during close().
+                self.container.close()
+                logger.debug("Closed container, final page/trailer written.")
 
-                # Get the final bytes from the buffer *before* closing it
+                # Now read the buffer which includes all trailing data
                 data = self.output_buffer.getvalue()
-                self.close() # Close container and buffer
+                self.output_buffer.close()
                 return data
 
         if audio_data is None or len(audio_data) == 0:
