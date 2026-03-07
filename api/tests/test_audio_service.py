@@ -1,7 +1,9 @@
 """Tests for AudioService"""
 
+from io import BytesIO
 from unittest.mock import patch
 
+import av
 import numpy as np
 import pytest
 
@@ -80,16 +82,35 @@ async def test_convert_to_opus(sample_audio):
     writer = StreamingAudioWriter("opus", sample_rate=24000)
 
     audio_chunk = await AudioService.convert_audio(
-        AudioChunk(audio_data), "opus", writer
+        AudioChunk(audio_data), "opus", writer, is_last_chunk=False, trim_audio=False
+    )
+    final_chunk = await AudioService.convert_audio(
+        AudioChunk(np.array([], dtype=np.int16)),
+        "opus",
+        writer,
+        is_last_chunk=True,
+        trim_audio=False,
     )
 
-    writer.close()
+    encoded = audio_chunk.output + final_chunk.output
 
-    assert isinstance(audio_chunk.output, bytes)
+    assert isinstance(encoded, bytes)
     assert isinstance(audio_chunk, AudioChunk)
-    assert len(audio_chunk.output) > 0
+    assert len(encoded) > 0
     # Check OGG header
-    assert audio_chunk.output.startswith(b"OggS")
+    assert encoded.startswith(b"OggS")
+
+    with av.open(BytesIO(encoded), mode="r", format="ogg") as container:
+        decoded_samples = 0
+        decoded_rate = None
+        for frame in container.decode(audio=0):
+            decoded_samples += frame.samples
+            decoded_rate = frame.sample_rate
+
+    assert decoded_rate == 48000
+    assert decoded_samples / decoded_rate == pytest.approx(
+        len(audio_data) / sample_rate, abs=0.03
+    )
 
 
 @pytest.mark.asyncio

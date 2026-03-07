@@ -256,6 +256,8 @@ response = requests.post(
 - m4a
 - pcm
 
+Implementation note: Opus output is encoded on a 48 kHz codec clock. When streaming to an in-memory buffer, the final Ogg/Opus pages are only available after the muxer is closed, so the last response chunk must be read after finalization to avoid truncating the tail of the clip.
+
 <p align="center">
 <img src="assets/format_comparison.png" width="80%" alt="Audio Format Comparison" style="border: 2px solid #333; padding: 10px;">
 </p>
