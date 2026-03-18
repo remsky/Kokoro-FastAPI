@@ -37,6 +37,7 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi:latest
 
 </details>
 
+
 <details>
 
 <summary>Quick Start (docker compose) </summary>
