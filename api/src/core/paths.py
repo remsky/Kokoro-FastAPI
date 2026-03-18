@@ -160,7 +160,7 @@ async def list_voices() -> List[str]:
 
 
 async def load_voice_tensor(
-    voice_path: str, device: str = "cpu", weights_only=False
+    voice_path: str, device: str = "cuda", weights_only=False
 ) -> torch.Tensor:
     """Load voice tensor from file.
 
@@ -223,7 +223,7 @@ async def load_json(path: str) -> dict:
         raise RuntimeError(f"Failed to load JSON file {path}: {e}")
 
 
-async def load_model_weights(path: str, device: str = "cpu") -> dict:
+async def load_model_weights(path: str, device: str = "cuda") -> dict:
     """Load model weights asynchronously.
 
     Args:

@@ -163,8 +163,8 @@ def update_readme(version_with_v: str):
 
     try:
         content = README_FILE.read_text()
-        # Regex to find and capture current ghcr.io/.../kokoro-fastapi-(cpu|gpu):vX.Y.Z
-        pattern = r"(ghcr\.io/remsky/kokoro-fastapi-(?:cpu|gpu)):(v\d+\.\d+\.\d+)"
+        # Regex to find and capture current ghcr.io/.../kokoro-fastapi:vX.Y.Z
+        pattern = r"(ghcr\.io/remsky/kokoro-fastapi):(v\d+\.\d+\.\d+)"
         matches = list(re.finditer(pattern, content))  # Find all occurrences
 
         if not matches:

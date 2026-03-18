@@ -4,8 +4,7 @@
 PROJECT_ROOT=$(pwd)
 
 # Set environment variables
-export USE_GPU=true
-export USE_ONNX=false
+export TORCH_CUDA_ARCH_LIST="12.0"
 export PYTHONPATH=$PROJECT_ROOT:$PROJECT_ROOT/api
 export MODEL_DIR=src/models
 export VOICES_DIR=src/voices/v1_0

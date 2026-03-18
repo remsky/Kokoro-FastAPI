@@ -37,8 +37,6 @@ spec:
           env:
             - name: PYTHONPATH
               value: "/app:/app/api"
-            - name: USE_GPU
-              value: "true"
             - name: PYTHONUNBUFFERED
               value: "1"
           ports:

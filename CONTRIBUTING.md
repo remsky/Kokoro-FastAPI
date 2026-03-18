@@ -51,9 +51,7 @@ In addition to local `pytest` runs, test your changes using Docker Compose to en
 
 ```bash
 
-docker compose -f docker/cpu/docker-compose.yml up --build
-+
-docker compose -f docker/gpu/docker-compose.yml up --build
+docker compose -f docker/docker-compose.yml up --build
 ```
 This command will build the Docker images (if they've changed) and start the services defined in the respective compose file. Verify the application starts correctly and test the relevant functionality.
 

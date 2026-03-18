@@ -7,17 +7,8 @@ on:
         description: 'Branch to build from'
         required: true
         type: string
-      build_target:
-        description: 'Build target'
-        required: true
-        type: choice
-        options:
-          - all
-          - cpu
-          - gpu
-          - rocm
       platform:
-        description: 'Platform (ignored for rocm)'
+        description: 'Platform'
         required: true
         type: choice
         options:
@@ -44,26 +35,21 @@ jobs:
         id: set-matrix
         run: |
           ALL_TARGETS='[
-            {"build_target":"cpu","platform":"amd64","runs_on":"ubuntu-latest"},
-            {"build_target":"cpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
-            {"build_target":"gpu","platform":"amd64","runs_on":"ubuntu-latest"},
-            {"build_target":"gpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
-            {"build_target":"rocm","platform":"amd64","runs_on":"ubuntu-latest"}
+            {"build_target":"default","platform":"amd64","runs_on":"ubuntu-latest"},
+            {"build_target":"default","platform":"arm64","runs_on":"ubuntu-24.04-arm"}
           ]'
-          
+
           FILTERED=$(echo "$ALL_TARGETS" | jq -c \
-            --arg target "${{ inputs.build_target }}" \
             --arg platform "${{ inputs.platform }}" \
             '[.[] | select(
-              ($target == "all" or .build_target == $target) and
-              (.build_target == "rocm" or $platform == "all" or .platform == $platform)
+              $platform == "all" or .platform == $platform
             )]')
-          
+
           if [ "$FILTERED" = "[]" ]; then
             echo "::error::No matching build configurations"
             exit 1
           fi
-          
+
           echo "matrix={\"include\":$FILTERED}" >> "$GITHUB_OUTPUT"
 
   build-images:
@@ -92,7 +78,7 @@ jobs:
 
       - name: Build image
         run: |
-          TARGET="${{ matrix.build_target }}-${{ matrix.platform }}"
+          TARGET="${{ matrix.platform }}"
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             docker buildx bake "$TARGET" --print
           else

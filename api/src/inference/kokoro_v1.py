@@ -21,8 +21,7 @@ class KokoroV1(BaseModelBackend):
     def __init__(self):
         """Initialize backend with environment-based configuration."""
         super().__init__()
-        # Strictly respect settings.use_gpu
-        self._device = settings.get_device()
+        self._device = "cuda"
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
 
@@ -47,18 +46,9 @@ class KokoroV1(BaseModelBackend):
             logger.info(f"Config path: {config_path}")
             logger.info(f"Model path: {model_path}")
 
-            # Load model and let KModel handle device mapping
+            # Load model and move to CUDA
             self._model = KModel(config=config_path, model=model_path).eval()
-            # For MPS, manually move ISTFT layers to CPU while keeping rest on MPS
-            if self._device == "mps":
-                logger.info(
-                    "Moving model to MPS device with CPU fallback for unsupported operations"
-                )
-                self._model = self._model.to(torch.device("mps"))
-            elif self._device == "cuda":
-                self._model = self._model.cuda()
-            else:
-                self._model = self._model.cpu()
+            self._model = self._model.cuda()
 
         except FileNotFoundError as e:
             raise e
@@ -109,10 +99,9 @@ class KokoroV1(BaseModelBackend):
             raise RuntimeError("Model not loaded")
 
         try:
-            # Memory management for GPU
-            if self._device == "cuda":
-                if self._check_memory():
-                    self._clear_memory()
+            # Memory management
+            if self._check_memory():
+                self._clear_memory()
 
             # Handle voice input
             voice_path: str
@@ -127,7 +116,6 @@ class KokoroV1(BaseModelBackend):
 
                     temp_dir = tempfile.gettempdir()
                     voice_path = os.path.join(temp_dir, f"{voice_name}.pt")
-                    # Save tensor with CPU mapping for portability
                     torch.save(voice_data.cpu(), voice_path)
             else:
                 voice_path = voice
@@ -172,8 +160,7 @@ class KokoroV1(BaseModelBackend):
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             if (
-                self._device == "cuda"
-                and model_config.pytorch_gpu.retry_on_oom
+                model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
@@ -208,10 +195,9 @@ class KokoroV1(BaseModelBackend):
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
         try:
-            # Memory management for GPU
-            if self._device == "cuda":
-                if self._check_memory():
-                    self._clear_memory()
+            # Memory management
+            if self._check_memory():
+                self._clear_memory()
 
             # Handle voice input
             voice_path: str
@@ -226,7 +212,6 @@ class KokoroV1(BaseModelBackend):
 
                     temp_dir = tempfile.gettempdir()
                     voice_path = os.path.join(temp_dir, f"{voice_name}.pt")
-                    # Save tensor with CPU mapping for portability
                     torch.save(voice_data.cpu(), voice_path)
             else:
                 voice_path = voice
@@ -320,8 +305,7 @@ class KokoroV1(BaseModelBackend):
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             if (
-                self._device == "cuda"
-                and model_config.pytorch_gpu.retry_on_oom
+                model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
@@ -330,22 +314,14 @@ class KokoroV1(BaseModelBackend):
             raise
 
     def _check_memory(self) -> bool:
-        """Check if memory usage is above threshold."""
-        if self._device == "cuda":
-            memory_gb = torch.cuda.memory_allocated() / 1e9
-            return memory_gb > model_config.pytorch_gpu.memory_threshold
-        # MPS doesn't provide memory management APIs
-        return False
+        """Check if CUDA memory usage is above threshold."""
+        memory_gb = torch.cuda.memory_allocated() / 1e9
+        return memory_gb > model_config.pytorch_gpu.memory_threshold
 
     def _clear_memory(self) -> None:
-        """Clear device memory."""
-        if self._device == "cuda":
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
-        elif self._device == "mps":
-            # Empty cache if available (future-proofing)
-            if hasattr(torch.mps, "empty_cache"):
-                torch.mps.empty_cache()
+        """Clear CUDA memory."""
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
     def unload(self) -> None:
         """Unload model and free resources."""
@@ -355,9 +331,8 @@ class KokoroV1(BaseModelBackend):
         for pipeline in self._pipelines.values():
             del pipeline
         self._pipelines.clear()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
 
     @property
     def is_loaded(self) -> bool:

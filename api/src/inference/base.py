@@ -94,7 +94,7 @@ class ModelBackend(ABC):
         """Get device model is running on.
 
         Returns:
-            Device string ('cpu' or 'cuda')
+            Device string ('cuda')
         """
         pass
 
@@ -105,7 +105,7 @@ class BaseModelBackend(ModelBackend):
     def __init__(self):
         """Initialize base backend."""
         self._model: Optional[torch.nn.Module] = None
-        self._device: str = "cpu"
+        self._device: str = "cuda"
 
     @property
     def is_loaded(self) -> bool:
@@ -122,6 +122,5 @@ class BaseModelBackend(ModelBackend):
         if self._model is not None:
             del self._model
             self._model = None
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+            torch.cuda.synchronize()

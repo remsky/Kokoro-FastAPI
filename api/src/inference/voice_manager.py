@@ -18,7 +18,6 @@ class VoiceManager:
 
     def __init__(self):
         """Initialize voice manager."""
-        # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._voices: Dict[str, torch.Tensor] = {}
 

@@ -28,8 +28,8 @@ class ModelManager:
         self._device: Optional[str] = None
 
     def _determine_device(self) -> str:
-        """Determine device based on settings."""
-        return "cuda" if settings.use_gpu else "cpu"
+        """Return CUDA device."""
+        return "cuda"
 
     async def initialize(self) -> None:
         """Initialize Kokoro V1 backend."""

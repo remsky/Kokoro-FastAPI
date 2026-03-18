@@ -4,7 +4,7 @@
 kokoroTTS:
   replicaCount: 1
   # The name of the deployment repository
-  repository: "ghcr.io/remsky/kokoro-fastapi-gpu"
+  repository: "ghcr.io/remsky/kokoro-fastapi"
   imagePullSecrets: [] # Set if using a private image or getting rate limited
   tag: "latest"
   pullPolicy: Always

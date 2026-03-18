@@ -14,8 +14,7 @@
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - Multi-language support (English, Japanese, Chinese, _Vietnamese soon_)
-- OpenAI-compatible Speech endpoint, NVIDIA GPU accelerated or CPU inference with PyTorch 
-- ONNX support coming soon, see v0.1.5 and earlier for legacy ONNX support in the interim
+- OpenAI-compatible Speech endpoint, NVIDIA GPU accelerated with CUDA
 - Debug endpoints for monitoring system stats, integrated web UI on localhost:8880/web
 - Phoneme-based audio generation, phoneme generation
 - Per-word timestamped caption generation
@@ -29,19 +28,12 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 <details>
 <summary>Quickest Start (docker run)</summary>
 
-
-Pre built images are available to run, with arm/multi-arch support, and baked in models
-Refer to the core/config.py file for a full list of variables which can be managed via the environment
+Pre built images are available to run, with arm/multi-arch support, and baked in models.
+Refer to the core/config.py file for a full list of variables which can be managed via the environment.
 
 ```bash
-# the `latest` tag can be used, though it may have some unexpected bonus features which impact stability.
- Named versions should be pinned for your regular usage.
- Feedback/testing is always welcome
-
-docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU, or:
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NVIDIA GPU
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi:latest
 ```
-
 
 </details>
 
@@ -49,56 +41,41 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NV
 
 <summary>Quick Start (docker compose) </summary>
 
-1. Install prerequisites, and start the service using Docker Compose (Full setup including UI):
-   - Install [Docker](https://www.docker.com/products/docker-desktop/)
+1. Install prerequisites, and start the service using Docker Compose:
+   - Install [Docker](https://www.docker.com/products/docker-desktop/) with NVIDIA Container Toolkit
    - Clone the repository:
         ```bash
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
 
-        cd docker/gpu  # For GPU support
-        # or cd docker/cpu  # For CPU support
+        cd docker
         docker compose up --build
-
-        # *Note for Apple Silicon (M1/M2) users:
-        # The current GPU build relies on CUDA, which is not supported on Apple Silicon.  
-        # If you are on an M1/M2/M3 Mac, please use the `docker/cpu` setup.  
-        # MPS (Apple's GPU acceleration) support is planned but not yet available.
 
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
 
         # Or run directly via UV:
-        ./start-gpu.sh  # For GPU support
-        ./start-cpu.sh  # For CPU support
+        ./start.sh
         ```
 </details>
 <details>
 <summary>Direct Run (via uv) </summary>
 
-1. Install prerequisites ():
+1. Install prerequisites:
    - Install [astral-uv](https://docs.astral.sh/uv/)
-   - Install [espeak-ng](https://github.com/espeak-ng/espeak-ng) in your system if you want it available as a fallback for unknown words/sounds. The upstream libraries may attempt to handle this, but results have varied.
+   - Install [espeak-ng](https://github.com/espeak-ng/espeak-ng) in your system if you want it available as a fallback for unknown words/sounds.
    - Clone the repository:
         ```bash
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
         ```
-        
-        Run the [model download script](https://github.com/remsky/Kokoro-FastAPI/blob/master/docker/scripts/download_model.py) if you haven't already
-     
-        Start directly via UV (with hot-reload)
-        
-        Linux and macOS
-        ```bash
-        ./start-cpu.sh OR
-        ./start-gpu.sh 
-        ```
 
-        Windows
-        ```powershell
-        .\start-cpu.ps1 OR
-        .\start-gpu.ps1 
+        Run the [model download script](https://github.com/remsky/Kokoro-FastAPI/blob/master/docker/scripts/download_model.py) if you haven't already
+
+        Start directly via UV (with hot-reload)
+
+        ```bash
+        ./start.sh
         ```
 
 </details>
@@ -108,7 +85,7 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NV
 
 
 Run locally as an OpenAI-Compatible Speech Endpoint
-    
+
 ```python
 from openai import OpenAI
 
@@ -123,7 +100,7 @@ with client.audio.speech.with_streaming_response.create(
   ) as response:
       response.stream_to_file("output.mp3")
 ```
-  
+
 - The API will be available at http://localhost:8880
 - API Documentation: http://localhost:8880/docs
 
@@ -136,7 +113,7 @@ with client.audio.speech.with_streaming_response.create(
 
 </details>
 
-## Features 
+## Features
 
 <details>
 <summary>OpenAI-Compatible Speech Endpoint</summary>
@@ -146,7 +123,7 @@ with client.audio.speech.with_streaming_response.create(
 from openai import OpenAI
 client = OpenAI(base_url="http://localhost:8880/v1", api_key="not-needed")
 response = client.audio.speech.create(
-    model="kokoro",  
+    model="kokoro",
     voice="af_bella+af_sky", # see /api/src/core/openai_mappings.json to customize
     input="Hello world!",
     response_format="mp3"
@@ -166,7 +143,7 @@ voices = response.json()["voices"]
 response = requests.post(
     "http://localhost:8880/v1/audio/speech",
     json={
-        "model": "kokoro",  
+        "model": "kokoro",
         "input": "Hello world!",
         "voice": "af_bella",
         "response_format": "mp3",  # Supported: mp3, wav, opus, flac
@@ -251,7 +228,7 @@ response = requests.post(
 
 - mp3
 - wav
-- opus 
+- opus
 - flac
 - m4a
 - pcm
@@ -282,9 +259,9 @@ with client.audio.speech.with_streaming_response.create(
 # Stream to speakers (requires PyAudio)
 import pyaudio
 player = pyaudio.PyAudio().open(
-    format=pyaudio.paInt16, 
-    channels=1, 
-    rate=24000, 
+    format=pyaudio.paInt16,
+    channels=1,
+    rate=24000,
     output=True
 )
 
@@ -319,16 +296,12 @@ for chunk in response.iter_content(chunk_size=1024):
 ```
 
 <p align="center">
-  <img src="assets/gpu_first_token_timeline_openai.png" width="45%" alt="GPU First Token Timeline" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
-  <img src="assets/cpu_first_token_timeline_stream_openai.png" width="45%" alt="CPU First Token Timeline" style="border: 2px solid #333; padding: 10px;">
+  <img src="assets/gpu_first_token_timeline_openai.png" width="80%" alt="GPU First Token Timeline" style="border: 2px solid #333; padding: 10px;">
 </p>
 
 Key Streaming Metrics:
-- First token latency @ chunksize
-    - ~300ms  (GPU) @ 400 
-    - ~3500ms (CPU) @ 200 (older i7)
-    - ~<1s    (CPU) @ 200 (M3 Pro)
-- Adjustable chunking settings for real-time playback 
+- First token latency: ~300ms @ chunksize 400
+- Adjustable chunking settings for real-time playback
 
 *Note: Artifacts in intonation can increase with smaller chunks*
 </details>
@@ -337,8 +310,8 @@ Key Streaming Metrics:
 <details>
 <summary>Performance Benchmarks</summary>
 
-Benchmarking was performed on generation via the local API using text lengths up to feature-length books (~1.5 hours output), measuring processing time and realtime factor. Tests were run on: 
-- Windows 11 Home w/ WSL2 
+Benchmarking was performed on generation via the local API using text lengths up to feature-length books (~1.5 hours output), measuring processing time and realtime factor. Tests were run on:
+- Windows 11 Home w/ WSL2
 - NVIDIA 4060Ti 16gb GPU @ CUDA 12.1
 - 11th Gen i7-11700 @ 2.5GHz
 - 64gb RAM
@@ -354,26 +327,11 @@ Key Performance Metrics:
 - Realtime Speed: Ranges between 35x-100x (generation time to output audio length)
 - Average Processing Rate: 137.67 tokens/second (cl100k_base)
 </details>
-<details>
-<summary>GPU Vs. CPU</summary>
-
-```bash
-# GPU: Requires NVIDIA GPU with CUDA 12.8 support (~35x-100x realtime speed)
-cd docker/gpu
-docker compose up --build
-
-# CPU: PyTorch CPU inference
-cd docker/cpu
-docker compose up --build
-
-```
-*Note: Overall speed may have reduced somewhat with the structural changes to accommodate streaming. Looking into it* 
-</details>
 
 <details>
 <summary>Natural Boundary Detection</summary>
 
-- Automatically splits and stitches at sentence boundaries 
+- Automatically splits and stitches at sentence boundaries
 - Helps to reduce artifacts and allow long form processing as the base model is only currently configured for approximately 30s output
 
 The model is capable of processing up to a 510 phonemized token chunk at a time, however, this can often lead to 'rushed' speech or other artifacts. An additional layer of chunking is applied in the server, that creates flexible chunks with a `TARGET_MIN_TOKENS` , `TARGET_MAX_TOKENS`, and `ABSOLUTE_MAX_TOKENS` which are configurable via environment variables, and set to 175, 250, 450 by default
@@ -405,13 +363,13 @@ response = requests.post(
 with open("output.mp3","wb") as f:
 
     audio_json=json.loads(response.content)
-    
+
     # Decode base 64 stream to bytes
     chunk_audio=base64.b64decode(audio_json["audio"].encode("utf-8"))
-    
+
     # Process streaming chunks
     f.write(chunk_audio)
-    
+
     # Print word level timestamps
     print(audio_json["timestamps"])
 ```
@@ -439,13 +397,13 @@ f=open("output.mp3","wb")
 for chunk in response.iter_lines(decode_unicode=True):
     if chunk:
         chunk_json=json.loads(chunk)
-        
+
         # Decode base 64 stream to bytes
         chunk_audio=base64.b64decode(chunk_json["audio"].encode("utf-8"))
-        
+
         # Process streaming chunks
         f.write(chunk_audio)
-        
+
         # Print word level timestamps
         print(chunk_json["timestamps"])
 ```
@@ -508,7 +466,6 @@ Monitor system state and resource usage with these endpoints:
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Monitor temp file and output directory usage
 - `/debug/system` - Get system information (CPU, memory, GPU)
-- `/debug/session_pools` - View ONNX session and CUDA stream status
 
 Useful for debugging resource exhaustion or performance issues.
 </details>
@@ -527,18 +484,9 @@ docker run --env 'API_LOG_LEVEL=WARNING' ...
 
 **Direct via UV**
 
-Linux and macOS
 ```bash
 export API_LOG_LEVEL=WARNING
-./start-cpu.sh OR
-./start-gpu.sh
-```
-
-Windows
-```powershell
-$env:API_LOG_LEVEL = 'WARNING'
-.\start-cpu.ps1 OR
-.\start-gpu.ps1
+./start.sh
 ```
 </details>
 
@@ -570,7 +518,7 @@ for chunk in response.iter_content(chunk_size=1024):
         # Process streaming chunks
         pass
 ```
-  
+
 </details>
 
 <details>
@@ -580,27 +528,27 @@ for chunk in response.iter_content(chunk_size=1024):
 *   **`release` branch:** Contains the latest stable build, recommended for production use. Docker images tagged with specific versions (e.g., `v0.3.0`) are built from this branch.
 *   **`master` branch:** Used for active development. It may contain experimental features, ongoing changes, or fixes not yet in a stable release. Use this branch if you want the absolute latest code, but be aware it might be less stable. The `latest` Docker tag often points to builds from this branch.
 
-Note: This is a *development* focused project at its core. 
+Note: This is a *development* focused project at its core.
 
 If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR.
 
 Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
 
   <a href="https://www.buymeacoffee.com/remsky" target="_blank">
-    <img 
-      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" 
-      alt="Buy Me A Coffee" 
+    <img
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png"
+      alt="Buy Me A Coffee"
       style="height: 30px !important;width: 110px !important;"
     >
   </a>
 
-  
+
 </details>
 
 <details>
 <summary>Linux GPU Permissions</summary>
 
-Some Linux users may encounter GPU permission issues when running as non-root. 
+Some Linux users may encounter GPU permission issues when running as non-root.
 Can't guarantee anything, but here are some common solutions, consider your security requirements carefully
 
 ### Option 1: Container Groups (Likely the best option)
@@ -634,7 +582,7 @@ services:
       - /dev/nvidiactl:/dev/nvidiactl
       - /dev/nvidia-uvm:/dev/nvidia-uvm
 ```
-⚠️ Warning: Reduces system security. Use only in development environments.
+Warning: Reduces system security. Use only in development environments.
 
 Prerequisites: NVIDIA GPU, drivers, and container toolkit must be properly configured.
 
@@ -647,7 +595,7 @@ Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter
 <details open>
 <summary>Model</summary>
 
-This API uses the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) model from HuggingFace. 
+This API uses the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) model from HuggingFace.
 
 Visit the model page for more details about training, architecture, and capabilities. I have no affiliation with any of their work, and produced this wrapper for ease of use and personal projects.
 </details>
@@ -662,11 +610,8 @@ This project is licensed under the Apache License 2.0 - see below for details:
 The full Apache 2.0 license text can be found at: https://www.apache.org/licenses/LICENSE-2.0
 </details>
 
-</details open>
-
 ## Contributor Stats
 ![Alt](https://repobeats.axiom.co/api/embed/f9694366bf96febc749d592316ff0a275fe77219.svg "Repobeats analytics image")
-</details>
 
 <a href="https://github.com/remsky/Kokoro-FastAPI/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=remsky/Kokoro-FastAPI" />
