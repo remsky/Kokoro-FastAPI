@@ -3,7 +3,7 @@ name: Create Release and Publish Docker Images
 on:
   push:
     branches:
-      - main
+      - master
     paths-ignore:
       - '**.md'
       - 'docs/**'
