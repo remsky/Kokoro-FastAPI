@@ -99,11 +99,9 @@ class Settings(BaseSettings):
 
         # Check for Intel GPU (XPU)
         try:
-            import intel_extension_for_pytorch as ipex
-
             if hasattr(torch, "xpu") and torch.xpu.is_available():
                 return "xpu"
-        except ImportError:
+        except Exception:
             pass
             
         return "cpu"
