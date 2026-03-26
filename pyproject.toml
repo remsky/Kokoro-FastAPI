@@ -52,8 +52,13 @@ rocm = [
     "pytorch-triton-rocm>=3.2.0",
 ]
 intel = [
-    "torch==2.5.1",
-    "intel-extension-for-pytorch==2.5.10+xpu",
+    "torch==2.10.0+xpu",
+    "torchaudio==2.10.0+xpu",
+    "torchvision==0.25.0+xpu",
+    "triton-xpu==3.6.0",
+    "pytorch-triton-xpu",
+    "intel-sycl-rt",
+    "intel-opencl-rt",
 ]
 test = [
     "pytest==8.3.5",
@@ -84,11 +89,26 @@ torch = [
     { index = "pytorch-rocm", extra = "rocm" },
     { index = "pytorch-intel", extra = "intel" },
 ]
+torchaudio = [
+    { index = "pytorch-intel", extra = "intel" },
+]
+torchvision = [
+    { index = "pytorch-intel", extra = "intel" },
+]
+triton-xpu = [
+    { index = "pytorch-intel", extra = "intel" },
+]
+pytorch-triton-xpu = [
+    { index = "pytorch-intel", extra = "intel" },
+]
+intel-sycl-rt = [
+    { index = "pytorch-intel", extra = "intel" },
+]
+intel-opencl-rt = [
+    { index = "pytorch-intel", extra = "intel" },
+]
 pytorch-triton-rocm = [
     { index = "pytorch-rocm", extra = "rocm" },
-]
-intel-extension-for-pytorch = [
-    { index = "pytorch-intel", extra = "intel" },
 ]
 
 [[tool.uv.index]]
@@ -108,7 +128,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-intel"
-url = "https://pytorch-extension.intel.com/release-whl/stable/xpu/us/"
+url = "https://download.pytorch.org/whl/xpu"
 explicit = true
 
 
