@@ -62,10 +62,10 @@ rocm = [
     "pytorch-triton-rocm>=3.2.0",
 ]
 intel = [
-    "torch==2.10.0+xpu",
-    "torchaudio==2.10.0+xpu",
-    "torchvision==0.25.0+xpu",
-    "triton-xpu==3.6.0",
+    "torch==2.6.0+xpu",
+    "torchaudio==2.6.0+xpu",
+    "torchvision==0.21.0+xpu",
+    "triton-xpu",
     "pytorch-triton-xpu",
     "intel-sycl-rt",
     "intel-opencl-rt",
