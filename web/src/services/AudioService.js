@@ -7,34 +7,53 @@ export class AudioService {
         this.audio = null;
         this.controller = null;
         this.eventListeners = new Map();
-        this.minimumPlaybackSize = 50000; // 50KB minimum before playback
+        this.minimumPlaybackSize = 50000;
         this.textLength = 0;
         this.shouldAutoplay = false;
-        this.CHARS_PER_CHUNK = 150; // Estimated chars per chunk
-        this.serverDownloadPath = null; // Server-side download path
-        this.pendingOperations = []; // Queue for buffer operations
+        this.CHARS_PER_CHUNK = 150;
+        this.serverDownloadPath = null;
+        this.pendingOperations = [];
+        this.objectUrl = null;
+    }
+
+    supportsMSEMp3() {
+        return (
+            typeof window !== 'undefined' &&
+            'MediaSource' in window &&
+            typeof MediaSource.isTypeSupported === 'function' &&
+            MediaSource.isTypeSupported('audio/mpeg')
+        );
+    }
+
+    getPreferredStreamingMode() {
+        return this.supportsMSEMp3();
     }
 
     async streamAudio(text, voice, speed, onProgress) {
         try {
             console.log('AudioService: Starting stream...', { text, voice, speed });
-            
+
             if (this.controller) {
                 this.controller.abort();
                 this.controller = null;
             }
-            
+
             this.controller = new AbortController();
             this.cleanup();
-            onProgress?.(0, 1); // Reset progress to 0
+            onProgress?.(0, 1);
             this.textLength = text.length;
             this.shouldAutoplay = document.getElementById('autoplay-toggle').checked;
-            
-            // Calculate expected number of chunks based on text length
+
             const estimatedChunks = Math.max(1, Math.ceil(this.textLength / this.CHARS_PER_CHUNK));
-            
-            console.log('AudioService: Making API call...', { text, voice, speed });
-            
+            const canStreamMp3 = this.getPreferredStreamingMode();
+
+            console.log('AudioService: Making API call...', {
+                text,
+                voice,
+                speed,
+                canStreamMp3
+            });
+
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -42,9 +61,9 @@ export class AudioService {
                 body: JSON.stringify({
                     input: text,
                     voice: voice,
-                    response_format: 'mp3', // Always use mp3 for streaming playback
-                    download_format: document.getElementById('format-select').value || 'mp3', // Format for final download
-                    stream: true,
+                    response_format: 'mp3',
+                    download_format: document.getElementById('format-select').value || 'mp3',
+                    stream: canStreamMp3,
                     speed: speed,
                     return_download_link: true,
                     lang_code: document.getElementById('lang-select').value || undefined
@@ -57,7 +76,6 @@ export class AudioService {
                 headers: Object.fromEntries(response.headers.entries())
             });
 
-            // Check for download path as soon as we get the response
             const downloadPath = response.headers.get('x-download-path');
             if (downloadPath) {
                 this.serverDownloadPath = `/v1${downloadPath}`;
@@ -78,13 +96,48 @@ export class AudioService {
         }
     }
 
+    async setupBlobPlayback(response, onProgress) {
+        this.audio = new Audio();
+
+        const blob = await response.blob();
+        this.objectUrl = URL.createObjectURL(blob);
+        this.audio.src = this.objectUrl;
+
+        this.audio.addEventListener('error', () => {
+            console.error('Audio error:', this.audio.error);
+        });
+
+        this.audio.addEventListener('ended', () => {
+            this.dispatchEvent('ended');
+        });
+
+        this.audio.addEventListener('canplaythrough', () => {
+            if (this.shouldAutoplay) {
+                this.play();
+            }
+        }, { once: true });
+
+        onProgress?.(1, 1);
+        this.dispatchEvent('complete');
+
+        setTimeout(() => {
+            this.dispatchEvent('downloadReady');
+        }, 100);
+    }
+
     async setupAudioStream(stream, response, onProgress, estimatedChunks) {
+        if (!this.supportsMSEMp3()) {
+            console.warn('MSE audio/mpeg not supported in this browser. Falling back to blob playback.');
+            await this.setupBlobPlayback(response, onProgress);
+            return;
+        }
+
         this.audio = new Audio();
         this.mediaSource = new MediaSource();
-        this.audio.src = URL.createObjectURL(this.mediaSource);
-        
-        // Monitor for audio element errors
-        this.audio.addEventListener('error', (e) => {
+        this.objectUrl = URL.createObjectURL(this.mediaSource);
+        this.audio.src = this.objectUrl;
+
+        this.audio.addEventListener('error', () => {
             console.error('Audio error:', this.audio.error);
         });
 
@@ -97,17 +150,17 @@ export class AudioService {
                 try {
                     this.sourceBuffer = this.mediaSource.addSourceBuffer('audio/mpeg');
                     this.sourceBuffer.mode = 'sequence';
-                    
+
                     this.sourceBuffer.addEventListener('updateend', () => {
                         this.processNextOperation();
                     });
-                    
+
                     await this.processStream(stream, response, onProgress, estimatedChunks);
                     resolve();
                 } catch (error) {
                     reject(error);
                 }
-            });
+            }, { once: true });
         });
     }
 
@@ -118,16 +171,14 @@ export class AudioService {
 
         try {
             while (true) {
-                const {value, done} = await reader.read();
-                
+                const { value, done } = await reader.read();
+
                 if (done) {
-                    // Get final download path from header after stream is complete
                     const headers = Object.fromEntries(response.headers.entries());
                     console.log('Response headers at stream end:', headers);
-                    
+
                     const downloadPath = headers['x-download-path'];
                     if (downloadPath) {
-                        // Use config to prepend root path and /v1
                         this.serverDownloadPath = await config.getApiUrl(`/v1${downloadPath}`);
                         console.log('Download path received:', this.serverDownloadPath);
                     } else {
@@ -135,22 +186,26 @@ export class AudioService {
                             Object.keys(headers).join(', '));
                     }
 
-                    if (this.mediaSource.readyState === 'open') {
+                    if (this.mediaSource && this.mediaSource.readyState === 'open') {
                         this.mediaSource.endOfStream();
                     }
-                    
-                    // Signal completion
+
                     onProgress?.(estimatedChunks, estimatedChunks);
                     this.dispatchEvent('complete');
-                    
-                    // Check if we should autoplay for small inputs that didn't trigger during streaming
-                    if (this.shouldAutoplay && !hasStartedPlaying && this.sourceBuffer.buffered.length > 0) {
+
+                    if (
+                        this.shouldAutoplay &&
+                        !hasStartedPlaying &&
+                        this.sourceBuffer &&
+                        this.sourceBuffer.buffered.length > 0
+                    ) {
                         setTimeout(() => this.play(), 100);
                     }
-                    
+
                     setTimeout(() => {
                         this.dispatchEvent('downloadReady');
                     }, 800);
+
                     return;
                 }
 
@@ -158,19 +213,15 @@ export class AudioService {
                 onProgress?.(receivedChunks, estimatedChunks);
 
                 try {
-                    // Check for audio errors before proceeding
-                    if (this.audio.error) {
+                    if (this.audio?.error) {
                         console.error('Audio error detected:', this.audio.error);
-                        continue; // Skip this chunk if audio is in error state
+                        continue;
                     }
 
-                    // Only remove old data if we're hitting quota errors
-                    if (this.sourceBuffer.buffered.length > 0) {
+                    if (this.sourceBuffer?.buffered.length > 0) {
                         const currentTime = this.audio.currentTime;
                         const start = this.sourceBuffer.buffered.start(0);
-                        const end = this.sourceBuffer.buffered.end(0);
-                        
-                        // Only remove if we have a lot of historical data
+
                         if (currentTime - start > 30) {
                             const removeEnd = Math.max(start, currentTime - 15);
                             if (removeEnd > start) {
@@ -181,7 +232,7 @@ export class AudioService {
 
                     await this.appendChunk(value);
 
-                    if (!hasStartedPlaying && this.sourceBuffer.buffered.length > 0) {
+                    if (!hasStartedPlaying && this.sourceBuffer?.buffered.length > 0) {
                         hasStartedPlaying = true;
                         if (this.shouldAutoplay) {
                             setTimeout(() => this.play(), 100);
@@ -189,14 +240,12 @@ export class AudioService {
                     }
                 } catch (error) {
                     if (error.name === 'QuotaExceededError') {
-                        // If we hit quota, try more aggressive cleanup
-                        if (this.sourceBuffer.buffered.length > 0) {
+                        if (this.sourceBuffer?.buffered.length > 0) {
                             const currentTime = this.audio.currentTime;
                             const start = this.sourceBuffer.buffered.start(0);
                             const removeEnd = Math.max(start, currentTime - 5);
                             if (removeEnd > start) {
                                 await this.removeBufferRange(start, removeEnd);
-                                // Retry append after removing data
                                 try {
                                     await this.appendChunk(value);
                                 } catch (retryError) {
@@ -217,9 +266,12 @@ export class AudioService {
     }
 
     async removeBufferRange(start, end) {
-        // Double check that end is greater than start
+        if (!this.sourceBuffer) {
+            return;
+        }
+
         if (end <= start) {
-            console.warn('Invalid buffer remove range:', {start, end});
+            console.warn('Invalid buffer remove range:', { start, end });
             return;
         }
 
@@ -244,16 +296,19 @@ export class AudioService {
     }
 
     async appendChunk(chunk) {
-        // Don't append if audio is in error state
-        if (this.audio.error) {
+        if (!this.audio || this.audio.error) {
             console.warn('Skipping chunk append due to audio error');
+            return;
+        }
+
+        if (!this.sourceBuffer) {
             return;
         }
 
         return new Promise((resolve, reject) => {
             const operation = { chunk, resolve, reject };
             this.pendingOperations.push(operation);
-            
+
             if (!this.sourceBuffer.updating) {
                 this.processNextOperation();
             }
@@ -261,13 +316,12 @@ export class AudioService {
     }
 
     processNextOperation() {
-        if (this.sourceBuffer.updating || this.pendingOperations.length === 0) {
+        if (!this.sourceBuffer || this.sourceBuffer.updating || this.pendingOperations.length === 0) {
             return;
         }
 
-        // Don't process if audio is in error state
-        if (this.audio.error) {
-            console.warn("Skipping operation due to audio error");
+        if (!this.audio || this.audio.error) {
+            console.warn('Skipping operation due to audio error');
             return;
         }
 
@@ -276,37 +330,27 @@ export class AudioService {
         try {
             this.sourceBuffer.appendBuffer(operation.chunk);
 
-            // Set up event listeners
             const onUpdateEnd = () => {
                 operation.resolve();
-                this.sourceBuffer.removeEventListener("updateend", onUpdateEnd);
-                this.sourceBuffer.removeEventListener(
-                    "updateerror",
-                    onUpdateError
-                );
-                // Process the next operation
+                this.sourceBuffer?.removeEventListener('updateend', onUpdateEnd);
+                this.sourceBuffer?.removeEventListener('updateerror', onUpdateError);
                 this.processNextOperation();
             };
 
             const onUpdateError = (event) => {
                 operation.reject(event);
-                this.sourceBuffer.removeEventListener("updateend", onUpdateEnd);
-                this.sourceBuffer.removeEventListener(
-                    "updateerror",
-                    onUpdateError
-                );
-                // Decide whether to continue processing
-                if (event.name !== "InvalidStateError") {
+                this.sourceBuffer?.removeEventListener('updateend', onUpdateEnd);
+                this.sourceBuffer?.removeEventListener('updateerror', onUpdateError);
+                if (event.name !== 'InvalidStateError') {
                     this.processNextOperation();
                 }
             };
 
-            this.sourceBuffer.addEventListener("updateend", onUpdateEnd);
-            this.sourceBuffer.addEventListener("updateerror", onUpdateError);
+            this.sourceBuffer.addEventListener('updateend', onUpdateEnd);
+            this.sourceBuffer.addEventListener('updateerror', onUpdateError);
         } catch (error) {
             operation.reject(error);
-            // Only continue processing if it's not a fatal error
-            if (error.name !== "InvalidStateError") {
+            if (error.name !== 'InvalidStateError') {
                 this.processNextOperation();
             }
         }
@@ -389,6 +433,13 @@ export class AudioService {
         }
     }
 
+    revokeObjectUrl() {
+        if (this.objectUrl) {
+            URL.revokeObjectURL(this.objectUrl);
+            this.objectUrl = null;
+        }
+    }
+
     cancel() {
         if (this.controller) {
             this.controller.abort();
@@ -397,26 +448,22 @@ export class AudioService {
 
         if (this.audio) {
             this.audio.pause();
-            this.audio.src = "";
+            this.audio.src = '';
             this.audio = null;
         }
 
-        if (this.mediaSource && this.mediaSource.readyState === "open") {
+        if (this.mediaSource && this.mediaSource.readyState === 'open') {
             try {
                 this.mediaSource.endOfStream();
             } catch (e) {
-                // Ignore errors during cleanup
             }
         }
 
         this.mediaSource = null;
-        if (this.sourceBuffer) {
-            this.sourceBuffer.removeEventListener("updateend", () => {});
-            this.sourceBuffer.removeEventListener("updateerror", () => {});
-            this.sourceBuffer = null;
-        }
+        this.sourceBuffer = null;
         this.serverDownloadPath = null;
         this.pendingOperations = [];
+        this.revokeObjectUrl();
     }
 
     cleanup() {
@@ -428,26 +475,22 @@ export class AudioService {
             });
 
             this.audio.pause();
-            this.audio.src = "";
+            this.audio.src = '';
             this.audio = null;
         }
 
-        if (this.mediaSource && this.mediaSource.readyState === "open") {
+        if (this.mediaSource && this.mediaSource.readyState === 'open') {
             try {
                 this.mediaSource.endOfStream();
             } catch (e) {
-                // Ignore errors during cleanup
             }
         }
 
         this.mediaSource = null;
-        if (this.sourceBuffer) {
-            this.sourceBuffer.removeEventListener("updateend", () => {});
-            this.sourceBuffer.removeEventListener("updateerror", () => {});
-            this.sourceBuffer = null;
-        }
+        this.sourceBuffer = null;
         this.serverDownloadPath = null;
         this.pendingOperations = [];
+        this.revokeObjectUrl();
     }
 
     getDownloadUrl() {
