@@ -160,7 +160,7 @@ async def list_voices() -> List[str]:
 
 
 async def load_voice_tensor(
-    voice_path: str, device: str = "cpu", weights_only=False
+    voice_path: str, device: str = "cpu", weights_only=True
 ) -> torch.Tensor:
     """Load voice tensor from file.
 

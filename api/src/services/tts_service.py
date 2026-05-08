@@ -174,7 +174,7 @@ class TTSService:
             raise ValueError(f"Voice not found at path: {path}")
 
         logger.debug(f"Loading voice tensor from path: {path}")
-        return torch.load(path, map_location="cpu") * weight
+        return torch.load(path, map_location="cpu", weights_only=True) * weight
 
     async def _get_voices_path(self, voice: str) -> Tuple[str, str]:
         """Get voice path, handling combined voices.
