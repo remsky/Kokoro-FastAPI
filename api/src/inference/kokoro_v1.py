@@ -25,6 +25,24 @@ class KokoroV1(BaseModelBackend):
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
+        self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
+
+    async def _get_voice_tensor(self, voice_path: str) -> torch.Tensor:
+        """Load voice tensor with in-memory caching to avoid repeated file I/O.
+
+        Args:
+            voice_path: Path to the .pt voice file
+
+        Returns:
+            Voice tensor on the target device
+        """
+        cache_key = f"{voice_path}:{self._device}"
+        if cache_key not in self._voice_cache:
+            self._voice_cache[cache_key] = await paths.load_voice_tensor(
+                voice_path, device=self._device
+            )
+            logger.debug(f"Cached voice tensor from {voice_path}")
+        return self._voice_cache[cache_key]
 
     async def load_model(self, path: str) -> None:
         """Load pre-baked model.
@@ -133,18 +151,17 @@ class KokoroV1(BaseModelBackend):
                 voice_path = voice
                 voice_name = os.path.splitext(os.path.basename(voice_path))[0]
 
-            # Load voice tensor with proper device mapping
-            voice_tensor = await paths.load_voice_tensor(
-                voice_path, device=self._device
-            )
-            # Save back to a temporary file with proper device mapping
+            # Load voice tensor with caching to avoid repeated file I/O
+            voice_tensor = await self._get_voice_tensor(voice_path)
+            # Save to temp file only if needed (pipeline requires a file path)
             import tempfile
 
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(
                 temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
             )
-            await paths.save_voice_tensor(voice_tensor, temp_path)
+            if not os.path.exists(temp_path):
+                await paths.save_voice_tensor(voice_tensor, temp_path)
             voice_path = temp_path
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
@@ -232,18 +249,17 @@ class KokoroV1(BaseModelBackend):
                 voice_path = voice
                 voice_name = os.path.splitext(os.path.basename(voice_path))[0]
 
-            # Load voice tensor with proper device mapping
-            voice_tensor = await paths.load_voice_tensor(
-                voice_path, device=self._device
-            )
-            # Save back to a temporary file with proper device mapping
+            # Load voice tensor with caching to avoid repeated file I/O
+            voice_tensor = await self._get_voice_tensor(voice_path)
+            # Save to temp file only if needed (pipeline requires a file path)
             import tempfile
 
             temp_dir = tempfile.gettempdir()
             temp_path = os.path.join(
                 temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
             )
-            await paths.save_voice_tensor(voice_tensor, temp_path)
+            if not os.path.exists(temp_path):
+                await paths.save_voice_tensor(voice_tensor, temp_path)
             voice_path = temp_path
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
