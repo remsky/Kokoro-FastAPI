@@ -248,7 +248,7 @@ def generate_analysis_plots(
 
 
 if __name__ == "__main__":
-    wav_file = r"C:\Users\jerem\Desktop\Kokoro-FastAPI\examples\assorted_checks\benchmarks\output_audio\chunk_600_tokens.wav"
+    wav_file = str(Path(__file__).parent / "benchmarks" / "output_audio" / "chunk_600_tokens.wav")
     silent = False
 
     print(f"\n\n Processing:\n\t{wav_file}")
