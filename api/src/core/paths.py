@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import time
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Set
 
@@ -344,12 +345,13 @@ async def cleanup_temp_files() -> None:
             await aiofiles.os.makedirs(settings.temp_file_dir, exist_ok=True)
             return
 
+        now = time.time()
+        max_age = settings.max_temp_dir_age_hours * 3600
         entries = await aiofiles.os.scandir(settings.temp_file_dir)
         for entry in entries:
             if entry.is_file():
                 stat = await aiofiles.os.stat(entry.path)
-                max_age = stat.st_mtime + (settings.max_temp_dir_age_hours * 3600)
-                if max_age < stat.st_mtime:
+                if now - stat.st_mtime > max_age:
                     try:
                         await aiofiles.os.remove(entry.path)
                         logger.info(f"Cleaned up old temp file: {entry.name}")
