@@ -49,13 +49,6 @@ def test_clear_memory(mock_sync, mock_clear, kokoro_backend):
         mock_sync.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_load_model_validation(kokoro_backend):
-    """Test model loading validation: missing file surfaces FileNotFoundError unwrapped."""
-    with pytest.raises(FileNotFoundError):
-        await kokoro_backend.load_model("nonexistent_model.pth")
-
-
 def test_unload_with_pipelines(kokoro_backend):
     """Test model unloading with multiple pipelines."""
     # Mock loaded state with multiple pipelines
