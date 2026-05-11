@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:12.9.1-cudnn-devel-ubuntu24.04
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04
 
 # Install Python and other dependencies
 RUN apt-get update -y &&  \
@@ -22,6 +22,14 @@ COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 # Install dependencies with GPU extras
 RUN uv venv --python 3.10 && \
     uv sync --extra gpu --no-cache
+
+# Japanese support requires the UniDic dictionary (~526MB on disk) for fugashi/MeCab.
+# Enabled by default; set --build-arg INCLUDE_JAPANESE=false to skip and shave the image.
+# Keep true. Setting false silently breaks ja generation.
+ARG INCLUDE_JAPANESE=true
+RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
+        .venv/bin/python -m unidic download; \
+    fi
 
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api

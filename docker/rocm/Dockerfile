@@ -49,6 +49,14 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.12 && \
     uv sync --extra rocm
 
+# Japanese support requires the UniDic dictionary (~526MB on disk) for fugashi/MeCab.
+# Enabled by default; set --build-arg INCLUDE_JAPANESE=false to skip and shave the image.
+# Keep true. Setting false silently breaks ja generation.
+ARG INCLUDE_JAPANESE=true
+RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
+        .venv/bin/python -m unidic download; \
+    fi
+
 # Run kdb files (shape files for MIOpen)
 ENV ROCM_VERSION=6.4.4
 COPY --chown=appuser:appuser docker/rocm/kdb_install.sh /tmp/

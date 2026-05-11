@@ -23,7 +23,12 @@ benchmarks = [
 ]
 transcription = [
     "faster-whisper>=1.0.0",
+    "hf-transfer>=0.1.9",
     "jiwer>=3.0.0",
+]
+transcription-gpu = [
+    "nvidia-cublas-cu12>=12.9.2.10",
+    "nvidia-cudnn-cu12>=9.22.0.52",
 ]
 
 [tool.uv]

@@ -1,37 +1,37 @@
 # Long-Form Baseline
 
-Reference numbers from `test_long_form.py` against a known-good build, so future
-runs have something to compare against.
-
-## Setup
+Reference numbers from `test_long_form.py` so future runs have something to
+compare against. All numbers are with `WHISPER_DEVICE=cuda` (the .bat default).
 
 - Voice: `af_heart`
 - Server: local, GPU
-- Whisper: `base.en`, CPU, int8, VAD on
-- Output format: 24 kHz mono PCM WAV
-- Source: `input/journey_all.txt.gz` — Project Gutenberg, *A Journey to the Centre of the Earth* (Jules Verne)
+- Whisper: `base.en`, float16, VAD on, CUDA
+- Source: `input/journey_all.txt.gz` (*A Journey to the Centre of the Earth*, Project Gutenberg)
+- Short: `--chars 65000` (~end of chapter 7). Full: entire book.
 
-Both runs use the same source. The short run caps the cleaned input at 65,000 chars (`--chars 65000`), which lands at roughly end-of-chapter-7. The full run uses the entire book.
-
-## Numbers
-
-| Metric | Short (`--chars 65000`) | Full book |
+| Metric | Short (warm) | Full |
 | --- | --- | --- |
 | Input words / chars | 11,468 / 64,996 | 88,884 / 502,766 |
-| Synth time | 1m21s | 10m13s |
 | Audio length | 66m06s | 507m52s |
-| Synth speedup | 48.6× realtime | 49.7× realtime |
+| Synth time / speedup | 1m49s, 36.4x rt | 11m06s, 45.7x rt |
+| Transcribe time / speedup | 1m03s, 62.4x rt | 7m48s, 65.1x rt |
 | Output size | 181.6 MB | 1394.9 MB |
-| Transcribe time | 4m54s | 31m24s |
-| Transcribe speedup | 13.5× realtime | 16.2× realtime |
-| Transcript words | 11,546 | 89,300 |
-| **WER (normalized)** | **0.0481** | **0.0339** |
+| Transcript words | 11,518 | 89,173 |
+| **WER (normalized)** | **0.0466** | **0.0334** |
 
-## Regression thresholds
+Captured on cu126 GPU build, warm container.
 
-A fresh run on the same input + voice + Whisper config should land near the table above. Loose bands:
+## Cold vs warm
 
-- WER < 0.06 (current: 0.034–0.048)
-- Transcript word count within **±1%** of cleaned input
-- Synth realtime factor in the 40–60× range (GPU-dependent; a 10× regression is worth a look)
-- Transcribe realtime factor in the 13–17× range (CPU-dependent on `base.en` int8)
+The short test is sensitive to first-run cuDNN autotune: a cold-container short
+synth on the same setup landed at 17x rt (vs 36x warm). The full run is long
+enough to amortize the autotune cost, so it lands at the same number cold or
+warm. When comparing the short numbers, make sure the container has done at
+least one prior synth — otherwise you'll be measuring autotune, not throughput.
+
+## Regression bands
+
+- WER < 0.07
+- Transcript word count within +/-1% of cleaned input
+- Synth >= 25x realtime, warm (depends on GPU; cold first-run on short can drop to ~15-20x)
+- Transcribe >= 40x realtime on CUDA (CPU `base.en` int8 lands ~13-17x)

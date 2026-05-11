@@ -6,8 +6,8 @@
     "wer": 0.0,
     "passed": true,
     "audio_path": "output/af_heart.wav",
-    "synth_seconds": 2.286747300007846,
-    "transcribe_seconds": 1.1613717000000179
+    "synth_seconds": 1.838453500000469,
+    "transcribe_seconds": 0.8427800000026764
   },
   {
     "voice": "af_bella",
@@ -16,8 +16,8 @@
     "wer": 0.0,
     "passed": true,
     "audio_path": "output/af_bella.wav",
-    "synth_seconds": 1.3922755000094185,
-    "transcribe_seconds": 1.0665276000072481
+    "synth_seconds": 1.1176961999990453,
+    "transcribe_seconds": 0.8100260000028356
   },
   {
     "voice": "am_adam",
@@ -26,8 +26,8 @@
     "wer": 0.0,
     "passed": true,
     "audio_path": "output/am_adam.wav",
-    "synth_seconds": 1.4518334999884246,
-    "transcribe_seconds": 0.9967074000014691
+    "synth_seconds": 1.2620734999982233,
+    "transcribe_seconds": 0.8112173000008625
   },
   {
     "voice": "af_nicole",
@@ -36,7 +36,7 @@
     "wer": 0.0,
     "passed": true,
     "audio_path": "output/af_nicole.wav",
-    "synth_seconds": 2.4623890000075335,
-    "transcribe_seconds": 0.9693172000115737
+    "synth_seconds": 2.248253800000384,
+    "transcribe_seconds": 0.9149532999981602
   }
 ]

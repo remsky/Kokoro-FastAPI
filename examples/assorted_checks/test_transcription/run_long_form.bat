@@ -1,14 +1,18 @@
 @echo off
-REM Long-form runner. Usage: run_long_form.bat [full|synth|transcribe|short]
-REM   full       synth + transcribe on the whole book (default)
+REM Long-form runner. Usage: run_long_form.bat [short|full|synth|transcribe]
+REM   short      synth + transcribe on a 65k-char slice (~chapters 1-7) [default]
+REM   full       synth + transcribe on the whole book
 REM   synth      synth only, no transcription (fast on GPU)
-REM   short      synth + transcribe on a 65k-char slice (~chapters 1-7)
 REM   transcribe transcribe only, reuses the wav from a previous synth run
-REM Double-click runs 'full'. Output streams to the window and to a log file.
+REM Double-click runs 'short'. Output streams to the window and to a log file.
 
 setlocal
 set "MODE=%~1"
-if "%MODE%"=="" set "MODE=full"
+if "%MODE%"=="" set "MODE=short"
+
+REM Whisper defaults; set these before invoking the .bat to override.
+if not defined WHISPER_DEVICE set "WHISPER_DEVICE=cuda"
+if not defined WHISPER_MODEL  set "WHISPER_MODEL=base.en"
 
 set "EXTRA_ARGS="
 if /I "%MODE%"=="full"       goto :full
@@ -46,6 +50,7 @@ if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 pushd "%REPO_ROOT%"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+    "$env:VIRTUAL_ENV = $null;" ^
     "Write-Output ('Run started ' + (Get-Date)) | Tee-Object -FilePath '%LOG_FILE%';" ^
     "uv run --project examples python examples/assorted_checks/test_transcription/test_long_form.py %EXTRA_ARGS% 2>&1 | Tee-Object -FilePath '%LOG_FILE%' -Append;" ^
     "Write-Output ('Run finished ' + (Get-Date)) | Tee-Object -FilePath '%LOG_FILE%' -Append;"

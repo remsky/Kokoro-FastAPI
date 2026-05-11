@@ -3,7 +3,7 @@ services:
   kokoro-tts:
     build:
       context: ../..
-      dockerfile: docker/cpu/Dockerfile
+      dockerfile: docker/cpu/Dockerfile.optimized
     volumes:
       - ../../api:/app/api
     ports:

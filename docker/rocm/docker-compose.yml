@@ -1,3 +1,4 @@
+name: kokoro-fastapi-rocm
 services:
   kokoro-tts:
       build:

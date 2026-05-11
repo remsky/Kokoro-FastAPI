@@ -31,13 +31,13 @@ target "_common" {
 # Base settings for CPU builds
 target "_cpu_base" {
     inherits = ["_common"]
-    dockerfile = "docker/cpu/Dockerfile"
+    dockerfile = "docker/cpu/Dockerfile.optimized"
 }
 
 # Base settings for GPU builds
 target "_gpu_base" {
     inherits = ["_common"]
-    dockerfile = "docker/gpu/Dockerfile"
+    dockerfile = "docker/gpu/Dockerfile.optimized"
 }
 
 # CPU target with multi-platform support

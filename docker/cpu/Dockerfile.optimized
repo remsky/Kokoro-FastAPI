@@ -1,0 +1,84 @@
+# Stage 1: Builder
+FROM python:3.10 as builder
+
+# Install build dependencies
+RUN apt-get update -y && \
+    apt-get install -y git curl g++ cmake make && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ && \
+    mv /root/.local/bin/uvx /usr/local/bin/
+
+# Install Rust for building sudachipy and pyopenjtalk
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml ./pyproject.toml
+
+# Install dependencies with CPU extras
+ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3
+
+RUN uv venv --python 3.10 && \
+    uv sync --extra cpu --no-cache --no-install-project
+
+# Stage 2: Runtime - slim image
+FROM python:3.10-slim
+
+# Install runtime dependencies + uv (needed by entrypoint.sh)
+RUN apt-get update -y && \
+    apt-get install -y espeak-ng espeak-ng-data libsndfile1 ffmpeg curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ && \
+    mv /root/.local/bin/uvx /usr/local/bin/ && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /usr/share/espeak-ng-data && \
+    ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
+    useradd -m -u 1000 appuser && \
+    mkdir -p /app/api/src/models/v1_0 && \
+    chown -R appuser:appuser /app
+
+WORKDIR /app
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Download model in runtime stage so download_model.py is present for runtime re-downloads via entrypoint
+COPY --chown=appuser:appuser docker/scripts/download_model.py ./download_model.py
+ARG DOWNLOAD_MODEL=true
+RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
+    /app/.venv/bin/python download_model.py --output api/src/models/v1_0 && \
+    chown -R appuser:appuser /app/api/src/models; \
+    fi
+
+# Japanese support requires the UniDic dictionary (~526MB on disk) for fugashi/MeCab.
+# Enabled by default; set --build-arg INCLUDE_JAPANESE=false to skip and shave the image.
+# Keep true. Setting false silently breaks ja generation.
+ARG INCLUDE_JAPANESE=true
+RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
+    /app/.venv/bin/python -m unidic download && \
+    chown -R appuser:appuser /app/.venv/lib/python*/site-packages/unidic; \
+    fi
+
+# Copy project files
+COPY --chown=appuser:appuser api ./api
+COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+USER appuser
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/api \
+    PATH="/app/.venv/bin:$PATH" \
+    UV_LINK_MODE=copy \
+    USE_GPU=false \
+    PHONEMIZER_ESPEAK_PATH=/usr/bin \
+    PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
+    ESPEAK_DATA_PATH=/usr/share/espeak-ng-data \
+    DEVICE="cpu"
+
+# Run FastAPI server
+CMD ["./entrypoint.sh"]

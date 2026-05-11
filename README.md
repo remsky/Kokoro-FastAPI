@@ -358,7 +358,7 @@ Key Performance Metrics:
 <summary>GPU Vs. CPU</summary>
 
 ```bash
-# GPU: Requires NVIDIA GPU with CUDA 12.8 support (~35x-100x realtime speed)
+# GPU: Requires NVIDIA GPU with CUDA 12.6 support (~35x-100x realtime speed)
 cd docker/gpu
 docker compose up --build
 

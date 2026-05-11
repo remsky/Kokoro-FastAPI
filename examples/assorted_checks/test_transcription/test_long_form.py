@@ -1,13 +1,15 @@
 """Long-form roundtrip baseline.
 
-Synthesizes a long input file with one voice via a running Kokoro server,
-transcribes the result with faster-whisper, and reports timing + WER. Goal:
-establish a baseline for "can the server produce 30-60 min of clean audio
-in one go, and how long does it take" — not to assert pass/fail.
+Synthesizes a long input file via a running Kokoro server, transcribes the
+result with faster-whisper, and reports timing + WER. Captures baseline
+numbers for multi-hour synthesis runs; not a pass/fail test.
 
-Usage:
-    uv sync --extra transcription
-    uv run python assorted_checks/test_transcription/test_long_form.py
+Usage (from repo root):
+    uv sync --project examples --extra transcription
+    uv run --project examples python examples/assorted_checks/test_transcription/test_long_form.py
+
+On Windows, run_long_form.bat wraps this with logging and named modes
+(short / full / synth / transcribe).
 
 Env overrides:
     KOKORO_BASE_URL  default http://localhost:8880/v1
@@ -15,6 +17,8 @@ Env overrides:
     LONGFORM_INPUT   default input/journey_all.txt.gz (relative to this script; .gz auto-decoded)
     LONGFORM_CHARS   default unset (full file); int caps cleaned input length
     WHISPER_MODEL    default base.en
+    WHISPER_DEVICE   default cpu (set "cuda" for GPU)
+    WHISPER_COMPUTE  default int8 on cpu, float16 on cuda
 """
 
 from __future__ import annotations
@@ -34,6 +38,10 @@ import openai
 BASE_URL = os.environ.get("KOKORO_BASE_URL", "http://localhost:8880/v1")
 VOICE = os.environ.get("LONGFORM_VOICE", "af_heart")
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base.en")
+WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "cpu").lower()
+WHISPER_COMPUTE = os.environ.get(
+    "WHISPER_COMPUTE", "float16" if WHISPER_DEVICE == "cuda" else "int8"
+)
 
 SCRIPT_DIR = Path(__file__).parent
 INPUT_PATH = Path(os.environ.get("LONGFORM_INPUT", SCRIPT_DIR / "input" / "journey_all.txt.gz"))
@@ -41,7 +49,7 @@ OUTPUT_DIR = SCRIPT_DIR / "output_long_form"
 
 
 def rel(path: Path) -> str:
-    """Path relative to the script dir, posix-style — keeps reports portable."""
+    """Path relative to the script dir, posix-style."""
     return path.resolve().relative_to(SCRIPT_DIR.resolve()).as_posix()
 
 
@@ -123,9 +131,7 @@ def fix_streaming_wav_header(wav_path: Path) -> None:
             if chunk_id == b"data":
                 data_size_offset = f.tell() - 4
                 break
-            # Skip body (chunk_size from header, but it's the placeholder for
-            # streaming; jump to end-of-file for the data chunk if we're not
-            # there yet — for non-data chunks, trust the header).
+            # Non-data chunk: trust its header size and skip past.
             f.seek(chunk_size, 1)
 
         if data_size_offset is None:
@@ -145,14 +151,27 @@ def audio_duration_seconds(wav_path: Path) -> float:
         return wf.getnframes() / float(wf.getframerate())
 
 
-def transcribe(model, audio_path: Path) -> tuple[str, float]:
+def transcribe(model, audio_path: Path, total_audio_s: float | None = None) -> tuple[str, float]:
     start = time.perf_counter()
     segments, _info = model.transcribe(
         str(audio_path),
         beam_size=1,
         vad_filter=True,
     )
-    text = " ".join(seg.text for seg in segments).strip()
+    parts: list[str] = []
+    last_print = 0.0
+    for seg in segments:
+        parts.append(seg.text)
+        # Heartbeat every ~30s of audio processed so long runs aren't silent.
+        if seg.end - last_print >= 30.0:
+            elapsed = time.perf_counter() - start
+            if total_audio_s:
+                pct = 100.0 * seg.end / total_audio_s
+                print(f"  [{fmt_time(elapsed)}] {fmt_time(seg.end)} / {fmt_time(total_audio_s)} ({pct:.0f}%)", flush=True)
+            else:
+                print(f"  [{fmt_time(elapsed)}] {fmt_time(seg.end)}", flush=True)
+            last_print = seg.end
+    text = " ".join(parts).strip()
     return text, time.perf_counter() - start
 
 
@@ -185,6 +204,20 @@ def main() -> int:
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+    audio_path = OUTPUT_DIR / f"long_form_{VOICE}.wav"
+    synth_meta_path = OUTPUT_DIR / f"long_form_{VOICE}.synth_meta.json"
+
+    # Transcribe-only inherits the exact char cap the synth used, so the
+    # reference text matches what's actually in the wav.
+    if args.transcribe_only and char_cap is None and synth_meta_path.exists():
+        try:
+            inherited = json.loads(synth_meta_path.read_text()).get("input_chars_cap")
+            if inherited is not None:
+                char_cap = int(inherited)
+                print(f"Inheriting char cap from prior synth: {char_cap}")
+        except Exception:
+            pass
+
     if INPUT_PATH.suffix == ".gz":
         with gzip.open(INPUT_PATH, "rt", encoding="utf-8") as f:
             raw = f.read()
@@ -204,10 +237,8 @@ def main() -> int:
         print(f"Input:       {INPUT_PATH.name} ({word_count} words, {char_count} chars; capped at {char_cap} of {full_chars})")
     else:
         print(f"Input:       {INPUT_PATH.name} ({word_count} words, {char_count} chars)")
-    print(f"Whisper:     {WHISPER_MODEL} (CPU, int8, VAD on)")
+    print(f"Whisper:     {WHISPER_MODEL} ({WHISPER_DEVICE}, {WHISPER_COMPUTE}, VAD on)")
     print()
-
-    audio_path = OUTPUT_DIR / f"long_form_{VOICE}.wav"
 
     if args.transcribe_only:
         if not audio_path.exists():
@@ -232,6 +263,12 @@ def main() -> int:
         audio_s = audio_duration_seconds(audio_path)
         synth_rtf = audio_s / synth_s if synth_s > 0 else 0.0
         file_mb = audio_path.stat().st_size / (1024 * 1024)
+        synth_meta_path.write_text(json.dumps({
+            "input_file": rel(INPUT_PATH),
+            "input_chars_cap": char_cap,
+            "input_chars": char_count,
+            "voice": VOICE,
+        }, indent=2))
         print(f"  synth time:    {fmt_time(synth_s)}")
         print(f"  audio length:  {fmt_time(audio_s)}")
         print(f"  synth speedup: {synth_rtf:.2f}x realtime")
@@ -265,11 +302,11 @@ def main() -> int:
 
     normalize = _build_normalizer()
 
-    print("Loading Whisper model...")
-    model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+    print(f"Loading Whisper model ({WHISPER_DEVICE}, {WHISPER_COMPUTE})...")
+    model = WhisperModel(WHISPER_MODEL, device=WHISPER_DEVICE, compute_type=WHISPER_COMPUTE)
 
-    print("Transcribing (this can take a while on CPU)...")
-    transcript, trans_s = transcribe(model, audio_path)
+    print("Transcribing...")
+    transcript, trans_s = transcribe(model, audio_path, audio_s)
     trans_rtf = audio_s / trans_s if trans_s > 0 else 0.0
     print(f"  transcribe time: {fmt_time(trans_s)}")
     print(f"  transcribe speedup: {trans_rtf:.2f}x realtime")
@@ -290,6 +327,8 @@ def main() -> int:
 
     report.update({
         "whisper_model": WHISPER_MODEL,
+        "whisper_device": WHISPER_DEVICE,
+        "whisper_compute": WHISPER_COMPUTE,
         "transcribe_seconds": round(trans_s, 2),
         "transcribe_realtime_factor": round(trans_rtf, 2),
         "transcript_words": len(transcript.split()),
@@ -300,7 +339,10 @@ def main() -> int:
     report_path.write_text(json.dumps(report, indent=2))
 
     print("Summary")
-    print(f"  generated {fmt_time(audio_s)} of audio in {fmt_time(synth_s)} ({synth_rtf:.1f}x rt)")
+    if synth_s > 0:
+        print(f"  generated {fmt_time(audio_s)} of audio in {fmt_time(synth_s)} ({synth_rtf:.1f}x rt)")
+    else:
+        print(f"  reused {fmt_time(audio_s)} of audio (no resynth)")
     print(f"  transcribed in {fmt_time(trans_s)} ({trans_rtf:.1f}x rt)")
     print(f"  WER {score:.4f} vs cleaned input")
     print(f"  report: {rel(report_path)}")

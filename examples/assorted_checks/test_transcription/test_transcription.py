@@ -4,9 +4,9 @@ Synthesizes short phrases via a running Kokoro server, transcribes the audio
 locally with faster-whisper, and reports word error rate against the expected
 text. Intended as a manual sanity check, not a pytest suite.
 
-Usage:
-    uv sync --extra transcription
-    uv run python assorted_checks/test_transcription/test_transcription.py
+Usage (from repo root):
+    uv sync --project examples --extra transcription
+    uv run --project examples python examples/assorted_checks/test_transcription/test_transcription.py
 
 Env overrides:
     KOKORO_BASE_URL  default http://localhost:8880/v1
@@ -74,7 +74,7 @@ OUTPUT_DIR = SCRIPT_DIR / "output"
 
 
 def rel(path: Path) -> str:
-    """Path relative to the script dir, posix-style — keeps reports portable."""
+    """Path relative to the script dir, posix-style."""
     return path.resolve().relative_to(SCRIPT_DIR.resolve()).as_posix()
 
 CASES: list[tuple[str, str]] = [
