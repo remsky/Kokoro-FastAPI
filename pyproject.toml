@@ -43,7 +43,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gpu = ["torch==2.8.0+cu129"]
+gpu = ["torch==2.8.0+cu126"]
 cpu = ["torch==2.8.0"]
 rocm = [
     "torch==2.8.0+rocm6.4",
@@ -87,7 +87,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-cuda"
-url = "https://download.pytorch.org/whl/cu129"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
 [[tool.uv.index]]
