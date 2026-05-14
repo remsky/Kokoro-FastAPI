@@ -36,7 +36,7 @@ concurrency:
 
 jobs:
   setup:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -44,11 +44,11 @@ jobs:
         id: set-matrix
         run: |
           ALL_TARGETS='[
-            {"build_target":"cpu","platform":"amd64","runs_on":"ubuntu-latest"},
+            {"build_target":"cpu","platform":"amd64","runs_on":"ubuntu-24.04"},
             {"build_target":"cpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
-            {"build_target":"gpu","platform":"amd64","runs_on":"ubuntu-latest"},
+            {"build_target":"gpu","platform":"amd64","runs_on":"ubuntu-24.04"},
             {"build_target":"gpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
-            {"build_target":"rocm","platform":"amd64","runs_on":"ubuntu-latest"}
+            {"build_target":"rocm","platform":"amd64","runs_on":"ubuntu-24.04"}
           ]'
           
           FILTERED=$(echo "$ALL_TARGETS" | jq -c \

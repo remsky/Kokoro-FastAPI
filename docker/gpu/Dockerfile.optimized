@@ -1,5 +1,9 @@
+# CUDA_VERSION is overridden per-arch in docker-bake.hcl (amd64=12.6.3, arm64=12.9.1).
+# The arm64 bump is required because pytorch.org/whl/cu126 has no aarch64 wheels.
+ARG CUDA_VERSION=12.6.3
+
 # Stage 1: Builder - Use devel image for compilation
-FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:12.6.3-cudnn-devel-ubuntu24.04 AS builder
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS builder
 
 # Install Python and build dependencies
 RUN apt-get update -y && \
@@ -24,7 +28,7 @@ RUN uv venv --python 3.10 && \
     uv sync --extra gpu --no-cache --no-install-project
 
 # Stage 2: Runtime - Use smaller runtime image
-FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04
 
 # Install runtime dependencies + uv (needed by entrypoint.sh)
 RUN apt-get update -y && \

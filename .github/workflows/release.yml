@@ -14,26 +14,38 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.branch_name || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   prepare-release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.get-version.outputs.version }}
       version_tag: ${{ steps.get-version.outputs.version_tag }}
+      source_ref: ${{ steps.resolve-ref.outputs.source_ref }}
     steps:
+      - name: Resolve source ref
+        id: resolve-ref
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "source_ref=${{ inputs.branch_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "source_ref=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve-ref.outputs.source_ref }}
+          fetch-depth: 0
 
       - name: Get version from VERSION file
         id: get-version
         run: |
           VERSION_PLAIN=$(cat VERSION)
-
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            BRANCH_NAME="${{ inputs.branch_name }}"
-          else
-            BRANCH_NAME="${{ github.ref_name }}"
-          fi
+          BRANCH_NAME="${{ steps.resolve-ref.outputs.source_ref }}"
 
           if [[ "$BRANCH_NAME" == "release" ]]; then
             echo "version=${VERSION_PLAIN}" >> $GITHUB_OUTPUT
@@ -42,6 +54,15 @@ jobs:
             SAFE_BRANCH=$(echo "$BRANCH_NAME" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
             echo "version=${VERSION_PLAIN}-${SAFE_BRANCH}" >> $GITHUB_OUTPUT
             echo "version_tag=v${VERSION_PLAIN}-${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check tag does not exist
+        run: |
+          TAG_NAME="${{ steps.get-version.outputs.version_tag }}"
+          git fetch --tags
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG_NAME already exists. Please increment the version in the VERSION file."
+            exit 1
           fi
 
   build-images:
@@ -60,10 +81,10 @@ jobs:
         include:
           - build_target: "cpu"
             platform: "linux/amd64"
-            runs_on: "ubuntu-latest"
+            runs_on: "ubuntu-24.04"
           - build_target: "gpu"
             platform: "linux/amd64"
-            runs_on: "ubuntu-latest"
+            runs_on: "ubuntu-24.04"
           - build_target: "cpu"
             platform: "linux/arm64"
             runs_on: "ubuntu-24.04-arm"
@@ -72,25 +93,13 @@ jobs:
             runs_on: "ubuntu-24.04-arm"
           - build_target: "rocm"
             platform: "linux/amd64"
-            runs_on: "ubuntu-latest"
+            runs_on: "ubuntu-24.04"
     runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed to check for existing tags
-
-      - name: Check if tag already exists
-        run: |
-          TAG_NAME="${{ needs.prepare-release.outputs.version_tag }}"
-          echo "Checking for existing tag: $TAG_NAME"
-          git fetch --tags
-          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
-            echo "::error::Tag $TAG_NAME already exists. Please increment the version in the VERSION file."
-            exit 1
-          else
-            echo "Tag $TAG_NAME does not exist. Proceeding with release."
-          fi
+          ref: ${{ needs.prepare-release.outputs.source_ref }}
 
       - name: Free disk space
         run: |
@@ -106,7 +115,7 @@ jobs:
         uses: docker/setup-buildx-action@v3 # Use v3
         with:
           driver-opts: |
-            image=moby/buildkit:latest
+            image=moby/buildkit:v0.21.1
             network=host
 
       - name: Log in to GitHub Container Registry
@@ -131,7 +140,7 @@ jobs:
 
   create-manifests:
     needs: [prepare-release, build-images]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
     env:
@@ -157,21 +166,30 @@ jobs:
           OWNER="${{ env.OWNER }}"
           REPO="${{ env.REPO }}"
 
+          # ROCm is x86-only, so the manifest references just the amd64 image.
+          if [[ "$TARGET" == "rocm" ]]; then
+            SOURCES=("${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64")
+          else
+            SOURCES=(
+              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64"
+              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64"
+            )
+          fi
+
           docker buildx imagetools create -t \
             ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG} \
-            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64 \
-            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64
+            "${SOURCES[@]}"
 
+          # Publish :latest only for clean release tags (no branch suffix).
           if [[ "$VERSION_TAG" != *"-"* ]]; then
             docker buildx imagetools create -t \
               ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:latest \
-              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64 \
-              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64
+              "${SOURCES[@]}"
           fi
 
   create-release:
     needs: [prepare-release, create-manifests]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
@@ -184,6 +202,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.version_tag }}
+          target_commitish: ${{ needs.prepare-release.outputs.source_ref }}
           name: Release ${{ needs.prepare-release.outputs.version_tag }}
           generate_release_notes: true
           draft: false

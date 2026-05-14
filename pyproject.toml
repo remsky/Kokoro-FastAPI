@@ -43,7 +43,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gpu = ["torch==2.8.0+cu126"]
+gpu = [
+    "torch==2.8.0+cu126 ; platform_machine == 'x86_64'",
+    "torch==2.8.0+cu129 ; platform_machine == 'aarch64'",
+]
 cpu = ["torch==2.8.0"]
 rocm = [
     "torch==2.8.0+rocm6.4",
@@ -73,7 +76,8 @@ override-dependencies = [
 [tool.uv.sources]
 torch = [
     { index = "pytorch-cpu", extra = "cpu" },
-    { index = "pytorch-cuda", extra = "gpu" },
+    { index = "pytorch-cu126", extra = "gpu", marker = "platform_machine == 'x86_64'" },
+    { index = "pytorch-cu129", extra = "gpu", marker = "platform_machine == 'aarch64'" },
     { index = "pytorch-rocm", extra = "rocm" },
 ]
 pytorch-triton-rocm = [
@@ -86,8 +90,13 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cuda"
+name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [[tool.uv.index]]
