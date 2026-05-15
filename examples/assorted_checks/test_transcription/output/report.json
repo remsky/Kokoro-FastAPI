@@ -1,0 +1,42 @@
+[
+  {
+    "voice": "af_heart",
+    "expected": "The quick brown fox jumps over the lazy dog.",
+    "transcript": "The quick brown fox jumps over the lazy dog.",
+    "wer": 0.0,
+    "passed": true,
+    "audio_path": "output/af_heart.wav",
+    "synth_seconds": 1.838453500000469,
+    "transcribe_seconds": 0.8427800000026764
+  },
+  {
+    "voice": "af_bella",
+    "expected": "She sells seashells by the seashore.",
+    "transcript": "She sells seashells by the seashore.",
+    "wer": 0.0,
+    "passed": true,
+    "audio_path": "output/af_bella.wav",
+    "synth_seconds": 1.1176961999990453,
+    "transcribe_seconds": 0.8100260000028356
+  },
+  {
+    "voice": "am_adam",
+    "expected": "Pack my box with five dozen liquor jugs.",
+    "transcript": "Pack my box with 5 dozen liquor jugs.",
+    "wer": 0.0,
+    "passed": true,
+    "audio_path": "output/am_adam.wav",
+    "synth_seconds": 1.2620734999982233,
+    "transcribe_seconds": 0.8112173000008625
+  },
+  {
+    "voice": "af_nicole",
+    "expected": "The five boxing wizards jump quickly across the field.",
+    "transcript": "the five boxing wizards.  Jump quickly across the field.",
+    "wer": 0.0,
+    "passed": true,
+    "audio_path": "output/af_nicole.wav",
+    "synth_seconds": 2.248253800000384,
+    "transcribe_seconds": 0.9149532999981602
+  }
+]

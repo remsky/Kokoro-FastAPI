@@ -16,7 +16,8 @@ export class App {
             autoplayToggle: document.getElementById('autoplay-toggle'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
-            cancelBtn: document.getElementById('cancel-btn')
+            cancelBtn: document.getElementById('cancel-btn'),
+            streamingNotice: document.getElementById('streaming-notice')
         };
 
         this.initialize();
@@ -53,6 +54,31 @@ export class App {
 
         this.setupEventListeners();
         this.setupAudioEvents();
+        this.applyBrowserStreamingNotice();
+    }
+
+    applyBrowserStreamingNotice() {
+        const notice = this.elements.streamingNotice;
+        if (!notice) {
+            return;
+        }
+        const format = this.elements.formatSelect?.value || 'mp3';
+        const formatLabel = format.toUpperCase();
+        const isFirefox = /Firefox\//.test(navigator.userAgent);
+        let message = '';
+
+        if (format === 'pcm') {
+            message = 'PCM output can be generated, but in-browser playback may be unsupported.';
+        } else if (format !== 'mp3') {
+            message = `${formatLabel} output will be generated, playback and/or download will be available when generation finishes.`;
+        } else if (!this.audioService.supportsMSEMp3()) {
+            message = isFirefox
+                ? 'Audio streaming is not currently supported in Firefox. Playback and/or download should stilll be available when generation finishes.'
+                : 'This browser may not support streaming. Playback and/or download should still be available when generation finishes.';
+        }
+
+        notice.textContent = message;
+        notice.hidden = !message;
     }
 
     setupEventListeners() {
@@ -61,6 +87,9 @@ export class App {
 
         // Download button
         this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+
+        // Keep browser/output warning aligned with the selected format
+        this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());
 
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
@@ -110,7 +139,9 @@ export class App {
         // Handle download ready
         this.audioService.addEventListener('downloadReady', () => {
             setTimeout(() => {
-                this.showStatus('Generation complete', 'success');
+                if (!this._playbackFailed) {
+                    this.showStatus('Generation complete', 'success');
+                }
             }, 500); // Small delay to ensure "Preparing file..." is visible
         });
 
@@ -124,6 +155,15 @@ export class App {
             this.showStatus('Error: ' + error.message, 'error');
             this.setGenerating(false);
             this.elements.downloadBtn.style.display = 'none';
+        });
+
+        // Block-mode playback failure: file is still available for download
+        this.audioService.addEventListener('playbackUnavailable', () => {
+            this._playbackFailed = true;
+            this.showStatus(
+                'Playback unavailable in this browser. Use the download below.',
+                'info'
+            );
         });
     }
 
@@ -170,6 +210,7 @@ export class App {
         const speed = this.playerState.getState().speed;
 
         this.setGenerating(true);
+        this._playbackFailed = false;
         this.elements.downloadBtn.classList.remove('ready');
 
         // Just reset progress bar, don't do full cleanup

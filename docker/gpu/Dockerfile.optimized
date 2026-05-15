@@ -1,0 +1,92 @@
+# CUDA_VERSION is overridden per-arch in docker-bake.hcl (amd64=12.6.3, arm64=12.9.1).
+# The arm64 bump is required because pytorch.org/whl/cu126 has no aarch64 wheels.
+ARG CUDA_VERSION=12.6.3
+
+# Stage 1: Builder - Use devel image for compilation
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS builder
+
+# Install Python and build dependencies
+RUN apt-get update -y && \
+    apt-get install -y python3.10 python3-venv python3-dev git curl && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ && \
+    mv /root/.local/bin/uvx /usr/local/bin/
+
+WORKDIR /app
+
+# Copy dependency files
+COPY pyproject.toml ./pyproject.toml
+
+# Install dependencies with GPU extras (--no-install-project since api/src doesn't exist yet)
+# UV_PYTHON_INSTALL_DIR keeps the uv-managed interpreter at a stage-shareable path so the
+# runtime stage can find the venv's python target via COPY --from=builder.
+ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python
+
+RUN uv venv --python 3.10 && \
+    uv sync --extra gpu --no-cache --no-install-project
+
+# Stage 2: Runtime - Use smaller runtime image
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04
+
+# Install runtime dependencies + uv (needed by entrypoint.sh)
+RUN apt-get update -y && \
+    apt-get install -y python3.10 espeak-ng espeak-ng-data libsndfile1 ffmpeg curl && \
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.local/bin/uv /usr/local/bin/ && \
+    mv /root/.local/bin/uvx /usr/local/bin/ && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* && \
+    mkdir -p /usr/share/espeak-ng-data && \
+    ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
+    useradd -m -u 1001 appuser && \
+    mkdir -p /app/api/src/models/v1_0 && \
+    chown -R appuser:appuser /app
+
+WORKDIR /app
+
+# Copy uv-managed Python interpreter (the venv's bin/python symlinks into here)
+COPY --from=builder /opt/uv-python /opt/uv-python
+
+# Copy virtual environment from builder
+COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
+
+# Download model in runtime stage so download_model.py is present for runtime re-downloads via entrypoint
+COPY --chown=appuser:appuser docker/scripts/download_model.py ./download_model.py
+ARG DOWNLOAD_MODEL=true
+RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
+    /app/.venv/bin/python download_model.py --output api/src/models/v1_0 && \
+    chown -R appuser:appuser /app/api/src/models; \
+    fi
+
+# Japanese support requires the UniDic dictionary (~526MB on disk) for fugashi/MeCab.
+# Enabled by default; set --build-arg INCLUDE_JAPANESE=false to skip and shave the image.
+# Keep true. Setting false silently breaks ja generation.
+ARG INCLUDE_JAPANESE=true
+RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
+    /app/.venv/bin/python -m unidic download && \
+    chown -R appuser:appuser /app/.venv/lib/python*/site-packages/unidic; \
+    fi
+
+# Copy project files
+COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
+COPY --chown=appuser:appuser api ./api
+COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh
+RUN chmod +x ./entrypoint.sh
+
+USER appuser
+
+# Set environment variables
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app:/app/api \
+    UV_LINK_MODE=copy \
+    USE_GPU=true \
+    PHONEMIZER_ESPEAK_PATH=/usr/bin \
+    PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
+    ESPEAK_DATA_PATH=/usr/share/espeak-ng-data \
+    DEVICE="gpu"
+
+# Run FastAPI server
+CMD ["./entrypoint.sh"]

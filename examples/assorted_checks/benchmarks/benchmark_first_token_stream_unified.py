@@ -10,6 +10,9 @@ OPENAI_CLIENT = OpenAI(
     base_url="http://localhost:8880/v1", api_key="not-needed-for-local"
 )
 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+EXAMPLES_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir, os.pardir))
+
 
 def measure_first_token_requests(
     text: str, output_dir: str, tokens: int, run_number: int
@@ -46,7 +49,7 @@ def measure_first_token_requests(
         # Save complete audio
         audio_filename = f"benchmark_tokens{tokens}_run{run_number}_stream.wav"
         audio_path = os.path.join(output_dir, audio_filename)
-        results["audio_path"] = audio_path
+        results["audio_path"] = os.path.relpath(audio_path, EXAMPLES_DIR)
 
         first_chunk_time = None
         chunks = []
@@ -114,7 +117,7 @@ def measure_first_token_openai(
         # Save complete audio
         audio_filename = f"benchmark_tokens{tokens}_run{run_number}_stream_openai.wav"
         audio_path = os.path.join(output_dir, audio_filename)
-        results["audio_path"] = audio_path
+        results["audio_path"] = os.path.relpath(audio_path, EXAMPLES_DIR)
 
         first_chunk_time = None
         all_audio_data = bytearray()

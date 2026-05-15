@@ -42,6 +42,8 @@ ENV/
 
 # Other project files
 .env
+.claude/*
+.agents/*
 Kokoro-82M/
 ui/data/
 EXTERNAL_UV_DOCUMENTATION*
@@ -49,7 +51,7 @@ app
 api/temp_files/
 
 # Docker
-Dockerfile*
+# Dockerfile*
 docker-compose*
 examples/ebook_test/chapter_to_audio.py
 examples/ebook_test/chapters_to_audio.py
@@ -69,7 +71,15 @@ examples/*.ogg
 examples/speech.mp3
 examples/phoneme_examples/output/*.wav
 examples/assorted_checks/benchmarks/output_audio/*
+examples/assorted_checks/test_transcription/output/*.wav
+examples/assorted_checks/test_transcription/output_long_form/*.log
+examples/assorted_checks/test_transcription/output_long_form/*.transcript.txt
+examples/assorted_checks/test_transcription/output_long_form/*.wav
+examples/assorted_checks/test_transcription/output_long_form/*.synth_meta.json
+examples/assorted_checks/test_transcription/output_multilingual/*.wav
 uv.lock
 
 # Mac MPS virtualenv for dual testing
 .venv-mps
+examples/assorted_checks/test_transcription/*/*.wav
+pyproject.toml.bkp

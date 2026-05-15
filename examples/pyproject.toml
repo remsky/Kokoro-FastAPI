@@ -1,0 +1,35 @@
+[project]
+name = "kokoro-examples"
+version = "0.1.0"
+description = "Standalone scripts and validation tools for Kokoro-FastAPI."
+requires-python = ">=3.10"
+dependencies = [
+    "openai>=1.0.0",
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "loguru>=0.7",
+    "tqdm>=4.65",
+]
+
+[project.optional-dependencies]
+playback = [
+    "pyaudio>=0.2.13",
+]
+benchmarks = [
+    "matplotlib>=3.7",
+    "pandas>=2.0",
+    "psutil>=5.9",
+    "tiktoken>=0.5",
+]
+transcription = [
+    "faster-whisper>=1.0.0",
+    "hf-transfer>=0.1.9",
+    "jiwer>=3.0.0",
+]
+transcription-gpu = [
+    "nvidia-cublas-cu12>=12.9.2.10",
+    "nvidia-cudnn-cu12>=9.22.0.52",
+]
+
+[tool.uv]
+package = false

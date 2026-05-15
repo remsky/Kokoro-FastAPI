@@ -1,9 +1,10 @@
 name: kokoro-fastapi-cpu
 services:
   kokoro-tts:
+    # image: ghcr.io/remsky/kokoro-fastapi-cpu:v${VERSION}
     build:
       context: ../..
-      dockerfile: docker/cpu/Dockerfile
+      dockerfile: docker/cpu/Dockerfile.optimized
     volumes:
       - ../../api:/app/api
     ports:
@@ -17,6 +18,7 @@ services:
       - ONNX_OPTIMIZATION_LEVEL=all
       - ONNX_MEMORY_PATTERN=true
       - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
+      - API_LOG_LEVEL=DEBUG
       
   # # Gradio UI service [Comment out everything below if you don't need it]
   # gradio-ui:

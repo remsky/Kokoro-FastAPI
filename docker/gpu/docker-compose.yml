@@ -1,10 +1,10 @@
-name: kokoro-tts-gpu
+name: kokoro-fastapi-gpu
 services:
   kokoro-tts:
     # image: ghcr.io/remsky/kokoro-fastapi-gpu:v${VERSION}
     build:
       context: ../..
-      dockerfile: docker/gpu/Dockerfile
+      dockerfile: docker/gpu/Dockerfile.optimized
     volumes:
       - ../../api:/app/api
     user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
@@ -14,6 +14,7 @@ services:
       - PYTHONPATH=/app:/app/api
       - USE_GPU=true
       - PYTHONUNBUFFERED=1
+      - API_LOG_LEVEL=DEBUG
     deploy:
       resources:
         reservations:

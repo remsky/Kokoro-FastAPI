@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -104,8 +105,8 @@ async def test_get_voice_path_combined():
         name, path = await service._get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
         # Verify the path points to a temporary file with expected format
-        assert path.startswith("/tmp/")
-        assert "voice1+voice2" in path
+        assert Path(path).parent == Path("/tmp")
+        assert "voice1+voice2" in Path(path).name
         assert path.endswith(".pt")
         mock_save.assert_called_once()
 

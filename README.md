@@ -3,18 +3,18 @@
 </p>
 
 # <sub><sub>_`FastKoko`_ </sub></sub>
-[![Tests](https://img.shields.io/badge/tests-69-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-54%25-tan)]()
+[![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]()
 [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
 
-[![Kokoro](https://img.shields.io/badge/kokoro-0.9.2-BB5420)](https://github.com/hexgrad/kokoro)
-[![Misaki](https://img.shields.io/badge/misaki-0.9.3-B8860B)](https://github.com/hexgrad/misaki)
+[![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
+[![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 
 [![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - Multi-language support (English, Japanese, Chinese, _Vietnamese soon_)
-- OpenAI-compatible Speech endpoint, NVIDIA GPU accelerated or CPU inference with PyTorch 
+- OpenAI-compatible Speech endpoint with NVIDIA GPU, AMD GPU (ROCm, experimental), or CPU inference via PyTorch. Apple Silicon (MPS) supported when running directly via UV.
 - ONNX support coming soon, see v0.1.5 and earlier for legacy ONNX support in the interim
 - Debug endpoints for monitoring system stats, integrated web UI on localhost:8880/web
 - Phoneme-based audio generation, phoneme generation
@@ -35,11 +35,12 @@ Refer to the core/config.py file for a full list of variables which can be manag
 
 ```bash
 # the `latest` tag can be used, though it may have some unexpected bonus features which impact stability.
- Named versions should be pinned for your regular usage.
- Feedback/testing is always welcome
+### Named versions should be pinned for your regular usage.
+### Feedback/testing is always welcome
 
 docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU, or:
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NVIDIA GPU
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  # NVIDIA GPU, or:
+docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest  # AMD GPU (ROCm, experimental, amd64 only)
 ```
 
 
@@ -56,14 +57,14 @@ docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  #NV
         git clone https://github.com/remsky/Kokoro-FastAPI.git
         cd Kokoro-FastAPI
 
-        cd docker/gpu  # For GPU support
-        # or cd docker/cpu  # For CPU support
+        cd docker/gpu   # For NVIDIA GPU support
+        # or cd docker/cpu   # For CPU support
+        # or cd docker/rocm  # For AMD GPU (ROCm, experimental, amd64 only)
         docker compose up --build
 
-        # *Note for Apple Silicon (M1/M2) users:
-        # The current GPU build relies on CUDA, which is not supported on Apple Silicon.  
-        # If you are on an M1/M2/M3 Mac, please use the `docker/cpu` setup.  
-        # MPS (Apple's GPU acceleration) support is planned but not yet available.
+        # *Note for Apple Silicon (M1/M2/M3) users:
+        # The Docker GPU image is CUDA-only and won't run on Apple Silicon. With Docker, use `docker/cpu`.
+        # For native MPS (Apple GPU) acceleration, run directly via UV with `./start-gpu_mac.sh`.
 
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
@@ -354,11 +355,45 @@ Key Performance Metrics:
 - Realtime Speed: Ranges between 35x-100x (generation time to output audio length)
 - Average Processing Rate: 137.67 tokens/second (cl100k_base)
 </details>
+
+<details>
+<summary>Transcription Roundtrip (WER/CER)</summary>
+
+End-to-end roundtrip: synthesize with Kokoro, transcribe the result back with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper), compare to the source text. Scripts and data live under `examples/assorted_checks/test_transcription/`.
+
+**Long-form English** (full book, *A Journey to the Centre of the Earth*, Project Gutenberg, voice `af_heart`, `base.en` Whisper on CUDA float16, baseline captured on cu126 GPU build):
+
+| Run | Input chars | Audio length | Synth speedup | Transcribe speedup | WER |
+| --- | --- | --- | --- | --- | --- |
+| Short (~ch.7) | 64,996 | 66m 06s | 36.4x rt | 62.4x rt | **0.047** |
+| Full book | 502,766 | 507m 52s | 45.7x rt | 65.1x rt | **0.033** |
+
+See `examples/assorted_checks/test_transcription/BASELINE.md` for the full regression bands.
+
+**Per-language check** (single-sentence per voice, multilingual Whisper `small`. WER for Latin scripts, CER for ja/zh/hi):
+
+| Language | Voice | Metric | Score |
+| --- | --- | --- | --- |
+| English | `af_heart` | WER | 0.000 |
+| English (UK) | `bf_emma` | WER | 0.111 |
+| Spanish | `ef_dora` | WER | 0.000 |
+| French | `ff_siwis` | WER | 0.000 |
+| Italian | `if_sara` | WER | 0.000 |
+| Portuguese | `pf_dora` | WER | 0.000 |
+| Hindi | `hf_alpha` | CER | 0.059 |
+| Japanese | `jf_alpha` | CER | 0.000 |
+| Chinese | `zf_xiaobei` | CER | 0.143 |
+
+*Caveat: these are single short sentences, not a comprehensive per-language quality benchmark. They confirm each voice produces transcribable audio in its target language; deeper quality evaluation per language is open work.*
+
+To reproduce, see `examples/assorted_checks/test_transcription/README.md`.
+</details>
+
 <details>
 <summary>GPU Vs. CPU</summary>
 
 ```bash
-# GPU: Requires NVIDIA GPU with CUDA 12.8 support (~35x-100x realtime speed)
+# GPU: Requires NVIDIA driver with CUDA 12.6+ support (~35x-100x realtime speed)
 cd docker/gpu
 docker compose up --build
 
@@ -366,8 +401,11 @@ docker compose up --build
 cd docker/cpu
 docker compose up --build
 
+# AMD GPU: ROCm 6.4 (experimental, amd64 only)
+cd docker/rocm
+docker compose up --build
+
 ```
-*Note: Overall speed may have reduced somewhat with the structural changes to accommodate streaming. Looking into it* 
 </details>
 
 <details>
@@ -513,6 +551,35 @@ Monitor system state and resource usage with these endpoints:
 Useful for debugging resource exhaustion or performance issues.
 </details>
 
+<details>
+<summary>Logging</summary>
+
+Global API [loguru logging level](https://loguru.readthedocs.io/en/stable/api/logger.html#levels) can be set using the `API_LOG_LEVEL` environment variable. Defaults to `DEBUG`.
+
+**Docker**
+
+Modify the appropriate compose `yml` or append to command line.
+```bash
+docker run --env 'API_LOG_LEVEL=WARNING' ...
+```
+
+**Direct via UV**
+
+Linux and macOS
+```bash
+export API_LOG_LEVEL=WARNING
+./start-cpu.sh OR
+./start-gpu.sh
+```
+
+Windows
+```powershell
+$env:API_LOG_LEVEL = 'WARNING'
+.\start-cpu.ps1 OR
+.\start-gpu.ps1
+```
+</details>
+
 ## Known Issues & Troubleshooting
 
 <details>
@@ -632,3 +699,15 @@ This project is licensed under the Apache License 2.0 - see below for details:
 
 The full Apache 2.0 license text can be found at: https://www.apache.org/licenses/LICENSE-2.0
 </details>
+
+</details open>
+
+## Contributor Stats
+![Alt](https://repobeats.axiom.co/api/embed/f9694366bf96febc749d592316ff0a275fe77219.svg "Repobeats analytics image")
+</details>
+
+<a href="https://github.com/remsky/Kokoro-FastAPI/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=remsky/Kokoro-FastAPI" />
+</a>
+
+Made with [contrib.rocks](https://contrib.rocks).
