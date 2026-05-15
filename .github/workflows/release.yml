@@ -136,7 +136,9 @@ jobs:
           TARGET="${BUILD_TARGET}-$(echo ${PLATFORM} | cut -d'/' -f2)"
           echo "Using bake target: $TARGET"
 
-          docker buildx bake $TARGET --push --progress=plain
+          docker buildx bake $TARGET --push --progress=plain \
+            --set "*.cache-from=type=gha,scope=${TARGET}" \
+            --set "*.cache-to=type=gha,mode=max,scope=${TARGET}"
 
   create-manifests:
     needs: [prepare-release, build-images]

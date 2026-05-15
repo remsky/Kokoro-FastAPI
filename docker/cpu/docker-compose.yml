@@ -1,6 +1,7 @@
 name: kokoro-fastapi-cpu
 services:
   kokoro-tts:
+    # image: ghcr.io/remsky/kokoro-fastapi-cpu:v${VERSION}
     build:
       context: ../..
       dockerfile: docker/cpu/Dockerfile.optimized

@@ -25,13 +25,10 @@ export class AudioService {
         );
     }
 
-    getPreferredStreamingMode() {
-        return this.supportsMSEMp3();
-    }
-
     async streamAudio(text, voice, speed, onProgress) {
         try {
-            console.log('AudioService: Starting stream...', { text, voice, speed });
+            const canStreamMp3 = this.supportsMSEMp3();
+            console.log('AudioService: Starting stream...', { text, voice, speed, canStreamMp3 });
 
             if (this.controller) {
                 this.controller.abort();
@@ -45,14 +42,8 @@ export class AudioService {
             this.shouldAutoplay = document.getElementById('autoplay-toggle').checked;
 
             const estimatedChunks = Math.max(1, Math.ceil(this.textLength / this.CHARS_PER_CHUNK));
-            const canStreamMp3 = this.getPreferredStreamingMode();
-
-            console.log('AudioService: Making API call...', {
-                text,
-                voice,
-                speed,
-                canStreamMp3
-            });
+            const responseFormat = document.getElementById('format-select').value || 'mp3';
+            const canUseMseStream = responseFormat === 'mp3' && canStreamMp3;
 
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
             const response = await fetch(apiUrl, {
@@ -61,9 +52,9 @@ export class AudioService {
                 body: JSON.stringify({
                     input: text,
                     voice: voice,
-                    response_format: 'mp3',
-                    download_format: document.getElementById('format-select').value || 'mp3',
-                    stream: canStreamMp3,
+                    response_format: responseFormat,
+                    download_format: responseFormat,
+                    stream: true,
                     speed: speed,
                     return_download_link: true,
                     lang_code: document.getElementById('lang-select').value || undefined
@@ -88,7 +79,7 @@ export class AudioService {
                 throw new Error(error.detail?.message || 'Failed to generate speech');
             }
 
-            await this.setupAudioStream(response.body, response, onProgress, estimatedChunks);
+            await this.setupAudioStream(response.body, response, onProgress, estimatedChunks, canUseMseStream);
             return this.audio;
         } catch (error) {
             this.cleanup();
@@ -96,15 +87,43 @@ export class AudioService {
         }
     }
 
-    async setupBlobPlayback(response, onProgress) {
-        this.audio = new Audio();
+    async setupBlockMode(stream, response, onProgress, estimatedChunks) {
+        const reader = stream.getReader();
+        const chunks = [];
+        let receivedChunks = 0;
 
-        const blob = await response.blob();
+        try {
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                chunks.push(value);
+                receivedChunks++;
+                onProgress?.(receivedChunks, estimatedChunks);
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                return;
+            }
+            throw error;
+        }
+
+        const headers = Object.fromEntries(response.headers.entries());
+        const downloadPath = headers['x-download-path'];
+        if (downloadPath) {
+            this.serverDownloadPath = await config.getApiUrl(`/v1${downloadPath}`);
+        }
+
+        onProgress?.(estimatedChunks, estimatedChunks);
+
+        const blobType = response.headers.get('content-type') || 'audio/mpeg';
+        const blob = new Blob(chunks, { type: blobType });
+        this.audio = new Audio();
         this.objectUrl = URL.createObjectURL(blob);
         this.audio.src = this.objectUrl;
 
         this.audio.addEventListener('error', () => {
-            console.error('Audio error:', this.audio.error);
+            console.error('Audio error (block mode):', this.audio?.error);
+            this.dispatchEvent('playbackUnavailable');
         });
 
         this.audio.addEventListener('ended', () => {
@@ -117,7 +136,6 @@ export class AudioService {
             }
         }, { once: true });
 
-        onProgress?.(1, 1);
         this.dispatchEvent('complete');
 
         setTimeout(() => {
@@ -125,10 +143,10 @@ export class AudioService {
         }, 100);
     }
 
-    async setupAudioStream(stream, response, onProgress, estimatedChunks) {
-        if (!this.supportsMSEMp3()) {
-            console.warn('MSE audio/mpeg not supported in this browser. Falling back to blob playback.');
-            await this.setupBlobPlayback(response, onProgress);
+    async setupAudioStream(stream, response, onProgress, estimatedChunks, canUseMseStream) {
+        if (!canUseMseStream) {
+            console.warn('MSE streaming unavailable for this output. Using block mode (full file then play).');
+            await this.setupBlockMode(stream, response, onProgress, estimatedChunks);
             return;
         }
 

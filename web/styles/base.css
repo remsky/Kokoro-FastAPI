@@ -33,6 +33,8 @@ body {
     width: 100%;
     max-width: 100vw;
     overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .overlay {
@@ -72,7 +74,7 @@ body {
     flex-direction: column;
     box-sizing: border-box;
     padding: clamp(5rem, 8vh, 7rem) clamp(0.75rem, 2vw, 2rem) 2rem;
-    min-height: 100vh;
+    flex: 1;
 }
 
 @media (max-width: 768px) {
@@ -119,4 +121,64 @@ main {
     background: rgba(34, 197, 94, 0.1);
     border: 1px solid rgba(34, 197, 94, 0.2);
     opacity: 1;
+}
+
+.streaming-notice {
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.5rem;
+    background: rgba(234, 179, 8, 0.08);
+    border: 1px solid rgba(234, 179, 8, 0.25);
+    color: var(--text-light, #b9bcc7);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    margin-bottom: 0.5rem;
+}
+
+.streaming-notice[hidden] {
+    display: none;
+}
+
+.page-footer {
+    width: 100%;
+    padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 2rem);
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.6);
+    border-top: 1px solid rgba(99, 102, 241, 0.15);
+    min-height: clamp(2.75rem, 5vh, 3.5rem);
+    position: relative;
+    z-index: 1;
+}
+
+.bmc-link {
+    display: inline-block;
+    line-height: 0;
+    opacity: 0.85;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    border-radius: 8px;
+}
+
+.bmc-link:hover,
+.bmc-link:focus-visible {
+    opacity: 1;
+    transform: translateY(-1px);
+    outline: none;
+}
+
+.bmc-link img {
+    height: 28px;
+    width: auto;
+    display: block;
+}
+
+@media (max-width: 768px) {
+    .page-footer {
+        padding: 0.5rem 0.75rem;
+        min-height: 2.5rem;
+        justify-content: center;
+    }
+    .bmc-link img {
+        height: 24px;
+    }
 }

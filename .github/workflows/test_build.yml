@@ -93,8 +93,12 @@ jobs:
       - name: Build image
         run: |
           TARGET="${{ matrix.build_target }}-${{ matrix.platform }}"
+          CACHE_ARGS=(
+            --set "*.cache-from=type=gha,scope=${TARGET}"
+            --set "*.cache-to=type=gha,mode=max,scope=${TARGET}"
+          )
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-            docker buildx bake "$TARGET" --print
+            docker buildx bake "$TARGET" --print "${CACHE_ARGS[@]}"
           else
-            docker buildx bake "$TARGET" --progress=plain
+            docker buildx bake "$TARGET" --progress=plain "${CACHE_ARGS[@]}"
           fi
