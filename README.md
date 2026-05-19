@@ -5,7 +5,7 @@
 # <sub><sub>_`FastKoko`_ </sub></sub>
 [![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]()
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko)
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
@@ -13,13 +13,15 @@
 [![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6)
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
-- Multi-language support (English, Japanese, Chinese, _Vietnamese soon_)
-- OpenAI-compatible Speech endpoint with NVIDIA GPU, AMD GPU (ROCm, experimental), or CPU inference via PyTorch. Apple Silicon (MPS) supported when running directly via UV.
-- ONNX support coming soon, see v0.1.5 and earlier for legacy ONNX support in the interim
-- Debug endpoints for monitoring system stats, integrated web UI on localhost:8880/web
-- Phoneme-based audio generation, phoneme generation
-- Per-word timestamped caption generation
-- Voice mixing with weighted combinations
+- OpenAI-compatible Speech endpoint, multi-language support
+  - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
+- Per-word timestamped caption generation, voice mixing with weighted combinations
+- Phoneme endpoints: generate phonemes from text, or generate audio from phonemes
+- Prebuilt multiplatform images
+  - CPU and NVIDIA GPU (CUDA): linux/amd64 + linux/arm64
+  - AMD GPU (ROCm, experimental): linux/amd64 only
+- Apple Silicon (MPS) supported when running directly via UV (no image)
+
 
 ### Integration Guides
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Setup-Kubernetes) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-DigitalOcean) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-SillyTavern)
@@ -546,7 +548,6 @@ Monitor system state and resource usage with these endpoints:
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Monitor temp file and output directory usage
 - `/debug/system` - Get system information (CPU, memory, GPU)
-- `/debug/session_pools` - View ONNX session and CUDA stream status
 
 Useful for debugging resource exhaustion or performance issues.
 </details>
@@ -585,7 +586,7 @@ $env:API_LOG_LEVEL = 'WARNING'
 <details>
 <summary>Missing words & Missing some timestamps</summary>
 
-The api will automaticly do text normalization on input text which may incorrectly remove or change some phrases. This can be disabled by adding `"normalization_options":{"normalize": false}` to your request json:
+The api will automatically do text normalization on input text which may incorrectly remove or change some phrases. This can be disabled by adding `"normalization_options":{"normalize": false}` to your request json:
 ```python
 import requests
 
