@@ -15,6 +15,7 @@ services:
       - USE_GPU=true
       - PYTHONUNBUFFERED=1
       - API_LOG_LEVEL=DEBUG
+      - DOWNLOAD_MODEL=true
     deploy:
       resources:
         reservations:

@@ -82,7 +82,7 @@ if verify_files "$MODEL_PATH" "$CONFIG_PATH"; then
 fi
 
 # Define URLs
-BASE_URL="https://github.com/remsky/Kokoro-FastAPI/releases/download/v1.4"
+BASE_URL="https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4"
 MODEL_URL="$BASE_URL/$MODEL_FILE"
 CONFIG_URL="$BASE_URL/$CONFIG_FILE"
 

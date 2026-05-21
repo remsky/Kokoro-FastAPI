@@ -3,10 +3,24 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 from urllib.request import urlretrieve
 
-from loguru import logger
+
+def _log(msg: str) -> None:
+    print(msg, file=sys.stderr, flush=True)
+
+
+class _Logger:
+    def info(self, msg: str) -> None:
+        _log(msg)
+
+    def error(self, msg: str) -> None:
+        _log(f"ERROR: {msg}")
+
+
+logger = _Logger()
 
 
 def verify_files(model_path: str, config_path: str) -> bool:
@@ -28,7 +42,7 @@ def verify_files(model_path: str, config_path: str) -> bool:
 
         # Verify config file is valid JSON
         with open(config_path) as f:
-            config = json.load(f)
+            json.load(f)
 
         # Check model file size (should be non-zero)
         if os.path.getsize(model_path) == 0:
