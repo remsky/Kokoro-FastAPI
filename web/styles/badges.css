@@ -75,3 +75,25 @@
     height: 100%;
     border-radius: 4px;
 }
+
+.version-badge {
+    position: fixed;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    padding: 0.25rem 0.55rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.75rem;
+    color: rgba(226, 232, 240, 0.7);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: 999px;
+    text-decoration: none;
+    backdrop-filter: blur(8px);
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.version-badge:hover {
+    color: rgba(226, 232, 240, 1);
+    border-color: rgba(99, 102, 241, 0.6);
+}
