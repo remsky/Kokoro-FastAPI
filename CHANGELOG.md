@@ -5,9 +5,20 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [v0.3.1] - Unreleased
+### Added
+- Integration test suite (`api/tests/integration/`, opt-in `integration` marker) and a `tts-api-test-client` image that round-trips speech through faster-whisper against a live server. Run via `docker/docker-compose.test.yml`.
+- Web UI footer badge showing the server version from `/config`.
+
+### Changed
+- `api_version` now read from the `VERSION` file instead of hardcoded.
+- Removed the legacy `docker/{cpu,gpu}/Dockerfile`; the `.optimized` variants are the only build files now.
+
 ### Fixed
-- `/v1/audio/voices` now returns `[{"id": ..., "name": ...}, ...]` by default so OpenAI-compatible clients (notably Open WebUI, which reads `voice['id']` and silently falls back to a hardcoded 6-voice list otherwise) can render the full voice catalog (#462). Pass `?legacy=true` to get the pre-0.3.1 plain-string shape.
-- cpu/gpu composes set `DOWNLOAD_MODEL=true`, which runs an idempotent fetch from the static release artifact on startup. `download_model.py` also runs on stock Python for the host fallback.
+- `/v1/audio/voices` returns `[{"id", "name"}, ...]` objects by default so OpenAI-compatible clients like Open WebUI see the full voice catalog (#462). Pass `?legacy=true` for the old string shape.
+- cpu/gpu composes set `DOWNLOAD_MODEL=true` for an idempotent model fetch on startup.
+- Silence trimming no longer treats full-scale-negative samples as silent (`int16` `abs()` overflow).
+- Fixed invalid escape sequences in the text-normalizer URL regex.
+- CI test job uses the CPU PyTorch build and excludes integration tests by default.
 
 ## [v0.3.0] - 2026-05-15
 ### Added
