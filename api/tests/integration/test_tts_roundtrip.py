@@ -29,15 +29,6 @@ import pytest
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
-from jiwer import cer, wer
-from jiwer.transforms import (
-    Compose,
-    ReduceToListOfListOfWords,
-    RemoveMultipleSpaces,
-    RemovePunctuation,
-    Strip,
-    ToLowerCase,
-)
 
 
 pytestmark = pytest.mark.integration
@@ -74,15 +65,6 @@ CER_THRESHOLD = 0.25
 MIN_AUDIO_BYTES = 1000
 
 
-_WORD_NORMALIZE = Compose([
-    ToLowerCase(),
-    RemovePunctuation(),
-    RemoveMultipleSpaces(),
-    Strip(),
-    ReduceToListOfListOfWords(),
-])
-
-
 def _strip_for_cer(s: str) -> str:
     return "".join(
         c for c in s
@@ -91,13 +73,34 @@ def _strip_for_cer(s: str) -> str:
 
 
 def _score(lang: str, reference: str, hypothesis: str) -> float:
+    # jiwer ships only in the tts-api-test-client image, not the base test
+    # env. Import it lazily so the default `pytest -m "not integration"` run
+    # can still collect this module (the marker filter runs after import).
+    from jiwer import cer, wer
+    from jiwer.transforms import (
+        Compose,
+        ReduceToListOfListOfWords,
+        RemoveMultipleSpaces,
+        RemovePunctuation,
+        Strip,
+        ToLowerCase,
+    )
+
     if lang in CER_LANGS:
         return cer(_strip_for_cer(reference), _strip_for_cer(hypothesis))
+
+    word_normalize = Compose([
+        ToLowerCase(),
+        RemovePunctuation(),
+        RemoveMultipleSpaces(),
+        Strip(),
+        ReduceToListOfListOfWords(),
+    ])
     return wer(
         reference,
         hypothesis,
-        reference_transform=_WORD_NORMALIZE,
-        hypothesis_transform=_WORD_NORMALIZE,
+        reference_transform=word_normalize,
+        hypothesis_transform=word_normalize,
     )
 
 
