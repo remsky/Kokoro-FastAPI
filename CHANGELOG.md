@@ -2,36 +2,114 @@
 
 Notable changes to this project will be documented in this file.
 
-## [v0.3.0] - 2025-04-04
+Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
+
+## [v0.3.1] - Unreleased
+### Fixed
+- `/v1/audio/voices` now returns `[{"id": ..., "name": ...}, ...]` by default so OpenAI-compatible clients (notably Open WebUI, which reads `voice['id']` and silently falls back to a hardcoded 6-voice list otherwise) can render the full voice catalog (#462). Pass `?legacy=true` to get the pre-0.3.1 plain-string shape.
+- cpu/gpu composes set `DOWNLOAD_MODEL=true`, which runs an idempotent fetch from the static release artifact on startup. `download_model.py` also runs on stock Python for the host fallback.
+
+## [v0.3.0] - 2026-05-15
+### Added
+- AMD GPU support via ROCm (`docker/rocm/` build, `rocm` extra in `pyproject.toml`).
+- `gpt-4o-mini-tts` model alias for OpenAI-compatible clients.
+- Reverse-proxy support for the Web UI (new `/config` endpoint exposing `UVICORN_ROOT_PATH`).
+- Configurable logging level via the `API_LOG_LEVEL` environment variable.
+- `INCLUDE_JAPANESE` Docker build flag for opt-in Japanese support.
+- Transcription accuracy test harness under `examples/assorted_checks/test_transcription/` (baselines, multilingual reports, long-form runner).
+- Override of `docker-bake.hcl` variables through GitHub Actions environment variables.
+
+### Changed
+- PyTorch bumped to 2.8.0 (x86_64: cu126, aarch64: cu129). x86_64 settled on cu126 to keep Maxwell/Pascal cards working, which drops native Blackwell (RTX 50-series) kernel support. Blackwell users need to override the torch index manually. See #443.
+- `kokoro` bumped to 0.9.4 and `misaki` to 0.9.4.
+- New optimized multi-stage Dockerfiles (`docker/{cpu,gpu}/Dockerfile.optimized`) become the default bake target. Reported image sizes: CPU 5.6 → 4.9 GB, GPU 14.8 → 9.9 GB.
+- Parallelized Docker bake targets per architecture for faster CI.
+- ROCBlas version pinned; ROCm docker-compose now builds locally.
+- CI/release workflow hardening: pinned BuildKit/runners, branch-tagged builds, manifest fixes, `workflow_dispatch` ref and tag-check race fixed, `latest` tag gated.
+
+### Fixed
+- OGG/Opus audio truncation where the final page was lost during `write_chunk` finalize.
+- Voice tensor loading hardened with `weights_only=True` (avoids unsafe pickle in `torch.load`).
+- Per-request voice-tensor memory leak resolved via caching (#453), with cache cleared on unload.
+- Custom phoneme handling made significantly more robust.
+- Firefox Web UI playback falls back gracefully when `audio/mpeg` MSE is unsupported; waveform rendering bugfix bundled in the same web rewrite.
+- CPU Docker builds: Rust now installed for `appuser` with proper `PATH` and longer `uv` timeouts.
+- `cmake` added to CI deps to unblock `pyopenjtalk` builds.
+- `start-gpu.sh` uses `#!/usr/bin/env bash` for broader compatibility.
+- Apple Silicon: `test_initial_state()` no longer fails.
+
+## [v0.2.4] - 2025-06-18
 ### Added
 - Apple Silicon (MPS) acceleration support for macOS users.
 - Voice subtraction capability for creating unique voice effects.
 - Windows PowerShell start scripts (`start-cpu.ps1`, `start-gpu.ps1`).
 - Automatic model downloading integrated into all start scripts.
 - Example Helm chart values for Azure AKS and Nvidia GPU Operator deployments.
+- Volume multiplier setting.
+- Chinese punctuation-based sentence splitting.
 - `CONTRIBUTING.md` guidelines for developers.
 
 ### Changed
-- Version bump of underlying Kokoro and Misaki libraries
+- Version bump of underlying Kokoro and Misaki libraries.
 - Default API port reverted to 8880.
-- Docker containers now run as a non-root user for enhanced security.
+- Docker containers now run as a non-root user.
 - Improved text normalization for numbers, currency, and time formats.
+- Improved MP3 encoding and audio-pause handling.
 - Updated and improved Helm chart configurations and documentation.
 - Enhanced temporary file management with better error tracking.
 - Web UI dependencies (Siriwave) are now served locally.
 - Standardized environment variable handling across shell/PowerShell scripts.
+- Rust installed in Dockerfile for builds requiring it.
 
 ### Fixed
-- Corrected an issue preventing download links from being returned when `streaming=false`.
-- Resolved errors in Windows PowerShell scripts related to virtual environment activation order.
-- Addressed potential segfaults during inference.
-- Fixed various Helm chart issues related to health checks, ingress, and default values.
-- Corrected audio quality degradation caused by incorrect bitrate settings in some cases.
-- Ensured custom phonemes provided in input text are preserved.
-- Fixed a 'MediaSource' error affecting playback stability in the web player.
+- Download links no longer dropped when `streaming=false` and `return_download_link=true`.
+- Windows PowerShell start scripts fixed around virtual-environment activation order.
+- Potential segfaults during inference addressed.
+- Helm chart issues around health checks, ingress, and default values.
+- Audio-quality degradation from incorrect bitrate settings in some paths.
+- Custom phonemes provided in input text are now preserved end-to-end.
+- 'MediaSource' error affecting playback stability in the web player.
+- CRLF line endings in `custom_responses.py` converted to LF.
+- Money parsing and related tests.
+- Additional safety checks on captioned-speech generation.
+- Phoneme handling fixes.
 
 ### Removed
-- Obsolete GitHub Actions build workflow, build and publish now occurs on merge to `Release` branch
+- Obsolete GitHub Actions build workflow; build and publish now occurs on merge to `Release` branch.
+
+## [v0.2.3] - 2025-03-06
+### Added
+- Streaming word timestamps.
+- `.gitattributes` for consistent line endings.
+
+### Changed
+- Text normalization improvements.
+
+### Fixed
+- Audio-quality regression caused by lower-bitrate encoding.
+- Disabled uvicorn/FastAPI `--reload` to avoid pegging a CPU core.
+
+## [v0.2.2] - 2025-02-13
+### Added
+- Helm chart.
+- Settings-based override of the default `lang_code`.
+- Advanced normalization settings.
+
+### Fixed
+- Speech not engaging reliably on the CPU image fallback.
+- Audio quality bumped via adjusted compression settings.
+- Web UI format-selection bug.
+
+## [v0.2.1] - 2025-02-10
+### Added
+- Dummy `/v1/models` endpoint for OpenAI compatibility (#144).
+
+### Changed
+- Caption flow now streams audio with tempfile download at completion, removing duplicate captions (#139).
+
+### Fixed
+- Compatibility with the `espeak-loader` dependency on misaki (#127).
+- Build system and model-download issues.
 
 ## [v0.2.0post1] - 2025-02-07
 - Fix: Building Kokoro from source with adjustments, to avoid CUDA lock 

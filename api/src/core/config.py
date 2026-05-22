@@ -1,12 +1,25 @@
+from importlib.metadata import PackageNotFoundError, version as _pkg_version
+from pathlib import Path
+
 import torch
 from pydantic_settings import BaseSettings
+
+
+def _read_version() -> str:
+    version_file = Path(__file__).resolve().parents[3] / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    try:
+        return _pkg_version("kokoro-fastapi")
+    except PackageNotFoundError:
+        return "0.0.0"
 
 
 class Settings(BaseSettings):
     # API Settings
     api_title: str = "Kokoro TTS API"
     api_description: str = "API for text-to-speech generation using Kokoro"
-    api_version: str = "1.0.0"
+    api_version: str = _read_version()
     host: str = "0.0.0.0"
     port: int = 8880
 
