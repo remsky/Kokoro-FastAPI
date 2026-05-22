@@ -34,9 +34,6 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         enable-cache: true
-    - name: Install dependencies
-      run: |
-        uv pip install -e .[test,cpu]
     - name: Run Tests
       run: |
-        uv run pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing
+        uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing
