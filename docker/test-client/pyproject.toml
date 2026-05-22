@@ -1,0 +1,17 @@
+[project]
+name = "tts-api-test-client"
+version = "0"
+description = "Test client for OpenAI-compatible TTS HTTP APIs. Drives a running server, decodes the audio, transcribes with faster-whisper, asserts contract + intelligibility."
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "faster-whisper==1.2.1",
+    "jiwer==4.0.0",
+    "soundfile==0.13.1",
+    "pytest==8.3.5",
+    "pytest-asyncio==0.25.3",
+    "httpx==0.26.0",
+    "openai==2.37.0",
+]
+
+[tool.uv]
+package = false

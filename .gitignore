@@ -52,7 +52,6 @@ api/temp_files/
 
 # Docker
 # Dockerfile*
-docker-compose*
 examples/ebook_test/chapter_to_audio.py
 examples/ebook_test/chapters_to_audio.py
 examples/ebook_test/parse_epub.py
@@ -78,8 +77,12 @@ examples/assorted_checks/test_transcription/output_long_form/*.wav
 examples/assorted_checks/test_transcription/output_long_form/*.synth_meta.json
 examples/assorted_checks/test_transcription/output_multilingual/*.wav
 uv.lock
+!docker/test-client/uv.lock
 
 # Mac MPS virtualenv for dual testing
 .venv-mps
 examples/assorted_checks/test_transcription/*/*.wav
 pyproject.toml.bkp
+
+# Local scratch notes, scan outputs, anything not meant to ship
+.local/

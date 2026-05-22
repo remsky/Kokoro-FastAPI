@@ -1,0 +1,52 @@
+name: kokoro-fastapi-test
+#
+# Test orchestration. Brings up the Kokoro server and the Whisper-equipped
+# TTS API test client, runs `pytest -m integration` against the live HTTP
+# API, and exits with the client container's status code.
+#
+# Run from the repo root:
+#     docker compose -f docker/docker-compose.test.yml up --build \
+#         --abort-on-container-exit --exit-code-from test-client
+#
+# Against a published server image (e.g. release verification):
+#     SERVER_IMAGE=ghcr.io/remsky/kokoro-fastapi-cpu:v0.3.0 \
+#         docker compose -f docker/docker-compose.test.yml up \
+#         --abort-on-container-exit --exit-code-from test-client
+#
+# Against a published test-client image (skips local Whisper build):
+#     TEST_CLIENT_IMAGE=ghcr.io/remsky/tts-api-test-client:v1 \
+#         docker compose -f docker/docker-compose.test.yml up \
+#         --abort-on-container-exit --exit-code-from test-client
+#
+services:
+  server:
+    image: ${SERVER_IMAGE:-kokoro-fastapi-test-server:local}
+    build:
+      context: ..
+      dockerfile: ${SERVER_DOCKERFILE:-docker/cpu/Dockerfile.optimized}
+    ports:
+      - "8880:8880"
+    environment:
+      - API_LOG_LEVEL=INFO
+      - PYTHONPATH=/app:/app/api
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - 'python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen(''http://localhost:8880/health'',timeout=2).status==200 else 1)"'
+      interval: 5s
+      timeout: 5s
+      retries: 60
+      start_period: 30s
+
+  test-client:
+    image: ${TEST_CLIENT_IMAGE:-tts-api-test-client:local}
+    build:
+      context: ./test-client
+    depends_on:
+      server:
+        condition: service_healthy
+    volumes:
+      - ../api/tests/integration:/tests/integration:ro
+    environment:
+      KOKORO_BASE_URL: http://server:8880
+      WHISPER_MODEL: /opt/whisper/small

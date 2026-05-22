@@ -60,6 +60,10 @@ test = [
     "tomli>=2.0.1",
     "jinja2>=3.1.6",
 ]
+# Integration test deps (faster-whisper, jiwer, soundfile, etc.) intentionally
+# live in the tts-api-test-client image, not here. Run via:
+#   docker compose -f docker/docker-compose.test.yml up --build \
+#       --abort-on-container-exit --exit-code-from test-client
 
 [tool.uv]
 conflicts = [
