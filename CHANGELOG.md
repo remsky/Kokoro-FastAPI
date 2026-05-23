@@ -6,6 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [v0.3.1] - Unreleased
 ### Added
+- GPU image variants for Blackwell / RTX 50-series (`:latest-cu128`, `:vX.Y.Z-cu128`, amd64 only) with PyTorch cu128 wheels (#443). Default `:latest` and new `:latest-cu126` alias stay on cu126 for Maxwell/Pascal compatibility.
 - Integration test suite (`api/tests/integration/`, opt-in `integration` marker) and a `tts-api-test-client` image that round-trips speech through faster-whisper against a live server. Run via `docker/docker-compose.test.yml`.
 - Web UI footer badge showing the server version from `/config`.
 

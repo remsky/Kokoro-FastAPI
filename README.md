@@ -42,8 +42,11 @@ Refer to the core/config.py file for a full list of variables which can be manag
 
 docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU, or:
 docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  # NVIDIA GPU, or:
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128  # NVIDIA Blackwell / RTX 50-series, or:
 docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest  # AMD GPU (ROCm, experimental, amd64 only)
 ```
+
+> `:latest` defaults to cu126 (multi-arch, also published as `:latest-cu126`). `:latest-cu128` is the Blackwell / RTX 50-series variant (PyTorch cu128, amd64 only). Same suffixes on versioned tags.
 
 
 </details>

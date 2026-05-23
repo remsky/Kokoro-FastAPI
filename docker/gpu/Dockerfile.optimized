@@ -24,8 +24,13 @@ COPY pyproject.toml ./pyproject.toml
 ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
     UV_PYTHON_INSTALL_DIR=/opt/uv-python
 
+# GPU_EXTRA selects the torch wheel set: "gpu" (cu126, keeps Maxwell/Pascal
+# working) or "gpu-cu128" (cu128, adds Blackwell / RTX 50-series). Overridden
+# per target in docker-bake.hcl.
+ARG GPU_EXTRA=gpu
+
 RUN uv venv --python 3.10 && \
-    uv sync --extra gpu --no-cache --no-install-project
+    uv sync --extra ${GPU_EXTRA} --no-cache --no-install-project
 
 # Stage 2: Runtime - Use smaller runtime image
 FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04

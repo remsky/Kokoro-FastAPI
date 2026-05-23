@@ -85,6 +85,9 @@ jobs:
           - build_target: "gpu"
             platform: "linux/amd64"
             runs_on: "ubuntu-24.04"
+          - build_target: "gpu-cu128"
+            platform: "linux/amd64"
+            runs_on: "ubuntu-24.04"
           - build_target: "cpu"
             platform: "linux/arm64"
             runs_on: "ubuntu-24.04-arm"
@@ -151,7 +154,7 @@ jobs:
       REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
     strategy:
       matrix:
-        build_target: ["cpu", "gpu", "rocm"]
+        build_target: ["cpu", "gpu", "gpu-cu128", "rocm"]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -168,25 +171,64 @@ jobs:
           OWNER="${{ env.OWNER }}"
           REPO="${{ env.REPO }}"
 
-          # ROCm is x86-only, so the manifest references just the amd64 image.
-          if [[ "$TARGET" == "rocm" ]]; then
-            SOURCES=("${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64")
-          else
-            SOURCES=(
-              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64"
-              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64"
-            )
-          fi
+          # Resolve the package name, manifest tag(s), and source images per target.
+          #
+          # Tag layout per target:
+          #  - cpu:        :VERSION + :latest                         (multi-arch)
+          #  - gpu:        :VERSION + :VERSION-cu126 + :latest + :latest-cu126
+          #                  (the -cu126 aliases make the wheel variant explicit so
+          #                  Maxwell/Pascal users can pin it across future default flips)
+          #  - gpu-cu128:  :VERSION-cu128 + :latest-cu128             (amd64 only)
+          #  - rocm:       :VERSION + :latest                         (amd64 only)
+          #
+          # MANIFEST_TAGS / LATEST_TAGS are space-separated lists; all entries point at
+          # the same SOURCES so the underlying blobs are deduplicated by digest.
+          case "$TARGET" in
+            gpu-cu128)
+              PACKAGE="${REPO}-gpu"
+              MANIFEST_TAGS="${VERSION_TAG}-cu128"
+              LATEST_TAGS="latest-cu128"
+              SOURCES=("${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu128-amd64")
+              ;;
+            gpu)
+              PACKAGE="${REPO}-gpu"
+              MANIFEST_TAGS="${VERSION_TAG} ${VERSION_TAG}-cu126"
+              LATEST_TAGS="latest latest-cu126"
+              SOURCES=(
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-arm64"
+              )
+              ;;
+            rocm)
+              PACKAGE="${REPO}-rocm"
+              MANIFEST_TAGS="${VERSION_TAG}"
+              LATEST_TAGS="latest"
+              SOURCES=("${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64")
+              ;;
+            *)
+              PACKAGE="${REPO}-${TARGET}"
+              MANIFEST_TAGS="${VERSION_TAG}"
+              LATEST_TAGS="latest"
+              SOURCES=(
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-arm64"
+              )
+              ;;
+          esac
 
-          docker buildx imagetools create -t \
-            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG} \
-            "${SOURCES[@]}"
-
-          # Publish :latest only for clean release tags (no branch suffix).
-          if [[ "$VERSION_TAG" != *"-"* ]]; then
+          for TAG in $MANIFEST_TAGS; do
             docker buildx imagetools create -t \
-              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:latest \
+              ${REGISTRY}/${OWNER}/${PACKAGE}:${TAG} \
               "${SOURCES[@]}"
+          done
+
+          # Publish the rolling tag(s) only for clean release tags (no branch suffix).
+          if [[ "$VERSION_TAG" != *"-"* ]]; then
+            for TAG in $LATEST_TAGS; do
+              docker buildx imagetools create -t \
+                ${REGISTRY}/${OWNER}/${PACKAGE}:${TAG} \
+                "${SOURCES[@]}"
+            done
           fi
 
   create-release:
