@@ -100,6 +100,22 @@ target "gpu-arm64" {
     ]
 }
 
+# Blackwell / RTX 50-series variant: cu128 torch wheels (sm_120 kernels).
+# x86_64 only; published as a -cu128 suffixed tag on the existing -gpu package.
+target "gpu-cu128-amd64" {
+    inherits = ["_gpu_base"]
+    platforms = ["linux/amd64"]
+    args = {
+        # 12.8.x is the first CUDA toolkit with Blackwell (sm_120) support and is
+        # what the cu128 torch wheels are built against. Keep base + wheel aligned.
+        CUDA_VERSION = "12.8.1"
+        GPU_EXTRA = "gpu-cu128"
+    }
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-cu128-amd64"
+    ]
+}
+
 # AMD ROCm only supports x86
 target "rocm-amd64" {
     inherits = ["_rocm_base"]
@@ -122,6 +138,16 @@ target "gpu-dev" {
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev"]
 }
 
+target "gpu-cu128-dev" {
+    inherits = ["_gpu_base"]
+    # No multi-platform for dev builds
+    args = {
+        CUDA_VERSION = "12.8.1"
+        GPU_EXTRA = "gpu-cu128"
+    }
+    tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev-cu128"]
+}
+
 group "dev" {
     targets = ["cpu-dev", "gpu-dev"]
 }
@@ -132,7 +158,7 @@ group "cpu-all" {
 }
 
 group "gpu-all" {
-    targets = ["gpu-amd64", "gpu-arm64"]
+    targets = ["gpu-amd64", "gpu-arm64", "gpu-cu128-amd64"]
 }
 
 group "rocm-all" {
@@ -140,9 +166,9 @@ group "rocm-all" {
 }
 
 group "all" {
-    targets = ["cpu", "gpu-amd64", "gpu-arm64", "rocm-amd64"]
+    targets = ["cpu", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64"]
 }
 
 group "individual-platforms" {
-    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "rocm-amd64"]
+    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64"]
 }

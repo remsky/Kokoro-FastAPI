@@ -5,6 +5,11 @@ services:
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile.optimized
+      # Default builds cu126 wheels, multi-arch (Maxwell through Ada: GTX 9xx, 10xx, 20xx, 30xx, 40xx).
+      # Temp fix for NVIDIA Blackwell / RTX 50-series, uncomment:
+      # args:
+      #   GPU_EXTRA: gpu-cu128
+      #   CUDA_VERSION: 12.8.1
     volumes:
       - ../../api:/app/api
     user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
