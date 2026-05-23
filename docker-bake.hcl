@@ -106,7 +106,9 @@ target "gpu-cu128-amd64" {
     inherits = ["_gpu_base"]
     platforms = ["linux/amd64"]
     args = {
-        CUDA_VERSION = "12.9.1"
+        # 12.8.x is the first CUDA toolkit with Blackwell (sm_120) support and is
+        # what the cu128 torch wheels are built against. Keep base + wheel aligned.
+        CUDA_VERSION = "12.8.1"
         GPU_EXTRA = "gpu-cu128"
     }
     tags = [
@@ -140,7 +142,7 @@ target "gpu-cu128-dev" {
     inherits = ["_gpu_base"]
     # No multi-platform for dev builds
     args = {
-        CUDA_VERSION = "12.9.1"
+        CUDA_VERSION = "12.8.1"
         GPU_EXTRA = "gpu-cu128"
     }
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev-cu128"]
