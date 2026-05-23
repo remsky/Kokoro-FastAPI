@@ -4,18 +4,18 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [v0.3.1] - Unreleased
+## [v0.4.0] - Unreleased
 ### Added
 - GPU image variants for Blackwell / RTX 50-series (`:latest-cu128`, `:vX.Y.Z-cu128`, amd64 only) with PyTorch cu128 wheels (#443). Default `:latest` and new `:latest-cu126` alias stay on cu126 for Maxwell/Pascal compatibility.
 - Integration test suite (`api/tests/integration/`, opt-in `integration` marker) and a `tts-api-test-client` image that round-trips speech through faster-whisper against a live server. Run via `docker/docker-compose.test.yml`.
 - Web UI footer badge showing the server version from `/config`.
 
 ### Changed
+- `/v1/audio/voices` default response shape changed to `[{"id", "name"}, ...]` so OpenAI-compatible clients like Open WebUI see the full voice catalog (#462). Pass `?legacy=true` to restore the old `string[]` shape.
 - `api_version` now read from the `VERSION` file instead of hardcoded.
 - Removed the legacy `docker/{cpu,gpu}/Dockerfile`; the `.optimized` variants are the only build files now.
 
 ### Fixed
-- `/v1/audio/voices` returns `[{"id", "name"}, ...]` objects by default so OpenAI-compatible clients like Open WebUI see the full voice catalog (#462). Pass `?legacy=true` for the old string shape.
 - cpu/gpu composes set `DOWNLOAD_MODEL=true` for an idempotent model fetch on startup.
 - Silence trimming no longer treats full-scale-negative samples as silent (`int16` `abs()` overflow).
 - Fixed invalid escape sequences in the text-normalizer URL regex.
@@ -23,7 +23,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [v0.3.0] - 2026-05-15
 ### Added
-- AMD GPU support via ROCm (`docker/rocm/` build, `rocm` extra in `pyproject.toml`).
+- AMD GPU support via ROCm (`docker/rocm/` build, `rocm` extra in `pyproject.toml`). Also explored/proposed via @asheghi in #393.
 - `gpt-4o-mini-tts` model alias for OpenAI-compatible clients.
 - Reverse-proxy support for the Web UI (new `/config` endpoint exposing `UVICORN_ROOT_PATH`).
 - Configurable logging level via the `API_LOG_LEVEL` environment variable.
@@ -33,7 +33,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - PyTorch bumped to 2.8.0 (x86_64: cu126, aarch64: cu129). x86_64 settled on cu126 to keep Maxwell/Pascal cards working, which drops native Blackwell (RTX 50-series) kernel support. Blackwell users need to override the torch index manually. See #443.
-- `kokoro` bumped to 0.9.4 and `misaki` to 0.9.4.
+- `kokoro` bumped to 0.9.4 and `misaki` to 0.9.4 (proposed by @jcheek in #371, superceded).
 - New optimized multi-stage Dockerfiles (`docker/{cpu,gpu}/Dockerfile.optimized`) become the default bake target. Reported image sizes: CPU 5.6 → 4.9 GB, GPU 14.8 → 9.9 GB.
 - Parallelized Docker bake targets per architecture for faster CI.
 - ROCBlas version pinned; ROCm docker-compose now builds locally.
@@ -46,7 +46,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Custom phoneme handling made significantly more robust.
 - Firefox Web UI playback falls back gracefully when `audio/mpeg` MSE is unsupported; waveform rendering bugfix bundled in the same web rewrite.
 - CPU Docker builds: Rust now installed for `appuser` with proper `PATH` and longer `uv` timeouts.
-- `cmake` added to CI deps to unblock `pyopenjtalk` builds.
+- `cmake` added to CI deps to unblock `pyopenjtalk` builds (proposed by @jcheek in #371; superceded).
 - `start-gpu.sh` uses `#!/usr/bin/env bash` for broader compatibility.
 - Apple Silicon: `test_initial_state()` no longer fails.
 

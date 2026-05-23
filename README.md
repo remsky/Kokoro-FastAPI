@@ -3,6 +3,8 @@
 </p>
 
 # <sub><sub>_`FastKoko`_ </sub></sub>
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
+
 [![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]() [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md)
 

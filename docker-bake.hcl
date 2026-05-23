@@ -84,8 +84,10 @@ target "gpu-amd64" {
     args = {
         CUDA_VERSION = "12.6.3"
     }
+    # Per-arch tag carries the wheel variant so it parallels gpu-cu128-amd64.
+    # The published manifest still resolves to :VERSION / :VERSION-cu126 via release.yml.
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-amd64"
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-cu126-amd64"
     ]
 }
 
@@ -95,8 +97,9 @@ target "gpu-arm64" {
     args = {
         CUDA_VERSION = "12.9.1"
     }
+    # aarch64 uses cu129 wheels (no cu126 aarch64 wheels exist on pytorch.org).
     tags = [
-        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-arm64"
+        "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-cu129-arm64"
     ]
 }
 

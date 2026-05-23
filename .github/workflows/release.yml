@@ -194,9 +194,11 @@ jobs:
               PACKAGE="${REPO}-gpu"
               MANIFEST_TAGS="${VERSION_TAG} ${VERSION_TAG}-cu126"
               LATEST_TAGS="latest latest-cu126"
+              # Per-arch sources carry their wheel variant (cu126 amd64, cu129 arm64);
+              # both feed the same multi-arch manifest tags above.
               SOURCES=(
-                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64"
-                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-arm64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu126-amd64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu129-arm64"
               )
               ;;
             rocm)
