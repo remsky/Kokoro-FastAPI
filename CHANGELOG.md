@@ -16,6 +16,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Removed the legacy `docker/{cpu,gpu}/Dockerfile`; the `.optimized` variants are the only build files now.
 
 ### Fixed
+- WAV responses drop junk size-field trailer that decoded as a click at chunk end. (#463)
 - cpu/gpu composes set `DOWNLOAD_MODEL=true` for an idempotent model fetch on startup.
 - Silence trimming no longer treats full-scale-negative samples as silent (`int16` `abs()` overflow).
 - Fixed invalid escape sequences in the text-normalizer URL regex.

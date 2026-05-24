@@ -156,7 +156,7 @@ export class AudioService {
         this.audio.src = this.objectUrl;
 
         this.audio.addEventListener('error', () => {
-            console.error('Audio error:', this.audio.error);
+            console.error('Audio error:', this.audio?.error);
         });
 
         this.audio.addEventListener('ended', () => {
