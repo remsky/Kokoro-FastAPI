@@ -39,7 +39,7 @@ services:
       start_period: 30s
 
   test-client:
-    image: ${TEST_CLIENT_IMAGE:-tts-api-test-client:local}
+    image: ${TEST_CLIENT_IMAGE:-ghcr.io/remsky/tts-api-test-client:latest}
     build:
       context: ./test-client
     depends_on:

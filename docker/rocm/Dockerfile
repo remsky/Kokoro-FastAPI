@@ -73,6 +73,7 @@ RUN cd /tmp && wget https://archive.archlinux.org/packages/r/rocblas/rocblas-${R
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/ ./
 
 RUN chmod +x ./entrypoint.sh

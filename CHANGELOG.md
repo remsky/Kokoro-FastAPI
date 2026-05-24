@@ -14,10 +14,12 @@ Per-PR attribution and contributor credits are published automatically on the co
 - `/v1/audio/voices` default response shape changed to `[{"id", "name"}, ...]` so OpenAI-compatible clients like Open WebUI see the full voice catalog (#462). Pass `?legacy=true` to restore the old `string[]` shape.
 - `api_version` now read from the `VERSION` file instead of hardcoded.
 - Removed the legacy `docker/{cpu,gpu}/Dockerfile`; the `.optimized` variants are the only build files now.
+- Docker images carry OCI metadata so GHCR pages render properly. Integration compose defaults to the published test-client image.
 
 ### Fixed
 - WAV responses drop junk size-field trailer that decoded as a click at chunk end. (#463)
 - cpu/gpu composes set `DOWNLOAD_MODEL=true` for an idempotent model fetch on startup.
+- `VERSION` shipped into images so `/config` reports the real server version.
 - Silence trimming no longer treats full-scale-negative samples as silent (`int16` `abs()` overflow).
 - Fixed invalid escape sequences in the text-normalizer URL regex.
 - CI test job uses the CPU PyTorch build and excludes integration tests by default.
