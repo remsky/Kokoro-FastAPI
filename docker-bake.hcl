@@ -19,25 +19,72 @@ variable "DOWNLOAD_MODEL" {
     default = "true"
 }
 
-# Common settings shared between targets
+# Source-control revision + build timestamp, populated from CI env.
+# Left blank for local builds so the resulting labels/annotations stay empty
+# rather than carrying stale values.
+variable "REVISION" {
+    default = ""
+}
+
+variable "CREATED" {
+    default = ""
+}
+
+# OCI metadata applied to every image. `labels` lands in the image config
+# (visible via `docker inspect`); `annotations` lands on the pushed manifest
+# (which is what GHCR reads for per-arch package pages). Index-level
+# annotations for the multi-arch tag are added in release.yml at
+# `imagetools create` time, since bake here only produces per-arch manifests.
 target "_common" {
     context = "."
     args = {
         DEBIAN_FRONTEND = "noninteractive"
         DOWNLOAD_MODEL = "${DOWNLOAD_MODEL}"
     }
+    labels = {
+        "org.opencontainers.image.source"   = "https://github.com/${OWNER}/Kokoro-FastAPI"
+        "org.opencontainers.image.url"      = "https://github.com/${OWNER}/Kokoro-FastAPI"
+        "org.opencontainers.image.licenses" = "Apache-2.0"
+        "org.opencontainers.image.revision" = "${REVISION}"
+        "org.opencontainers.image.version"  = "${VERSION}"
+        "org.opencontainers.image.created"  = "${CREATED}"
+    }
+    annotations = [
+        "org.opencontainers.image.source=https://github.com/${OWNER}/Kokoro-FastAPI",
+        "org.opencontainers.image.url=https://github.com/${OWNER}/Kokoro-FastAPI",
+        "org.opencontainers.image.licenses=Apache-2.0",
+        "org.opencontainers.image.revision=${REVISION}",
+        "org.opencontainers.image.version=${VERSION}",
+        "org.opencontainers.image.created=${CREATED}",
+    ]
 }
 
 # Base settings for CPU builds
 target "_cpu_base" {
     inherits = ["_common"]
     dockerfile = "docker/cpu/Dockerfile.optimized"
+    labels = {
+        "org.opencontainers.image.title"       = "Kokoro-FastAPI (CPU)"
+        "org.opencontainers.image.description" = "Kokoro TTS served via FastAPI. CPU build."
+    }
+    annotations = [
+        "org.opencontainers.image.title=Kokoro-FastAPI (CPU)",
+        "org.opencontainers.image.description=Kokoro TTS served via FastAPI. CPU build.",
+    ]
 }
 
 # Base settings for GPU builds
 target "_gpu_base" {
     inherits = ["_common"]
     dockerfile = "docker/gpu/Dockerfile.optimized"
+    labels = {
+        "org.opencontainers.image.title"       = "Kokoro-FastAPI (GPU)"
+        "org.opencontainers.image.description" = "Kokoro TTS served via FastAPI. NVIDIA GPU build (CUDA 12.6 amd64 / CUDA 12.9 arm64; cu128 tag for Blackwell)."
+    }
+    annotations = [
+        "org.opencontainers.image.title=Kokoro-FastAPI (GPU)",
+        "org.opencontainers.image.description=Kokoro TTS served via FastAPI. NVIDIA GPU build (CUDA 12.6 amd64 / CUDA 12.9 arm64; cu128 tag for Blackwell).",
+    ]
 }
 
 # CPU target with multi-platform support
@@ -58,6 +105,14 @@ group "gpu" {
 target "_rocm_base" {
     inherits = ["_common"]
     dockerfile = "docker/rocm/Dockerfile"
+    labels = {
+        "org.opencontainers.image.title"       = "Kokoro-FastAPI (ROCm)"
+        "org.opencontainers.image.description" = "Kokoro TTS served via FastAPI. AMD ROCm build (amd64 only)."
+    }
+    annotations = [
+        "org.opencontainers.image.title=Kokoro-FastAPI (ROCm)",
+        "org.opencontainers.image.description=Kokoro TTS served via FastAPI. AMD ROCm build (amd64 only).",
+    ]
 }
 
 

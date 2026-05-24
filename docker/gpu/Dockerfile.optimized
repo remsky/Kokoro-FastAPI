@@ -77,6 +77,7 @@ RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 COPY --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 

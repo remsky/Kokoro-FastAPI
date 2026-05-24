@@ -86,3 +86,4 @@ pyproject.toml.bkp
 
 # Local scratch notes, scan outputs, anything not meant to ship
 .local/
+examples/assorted_checks/test_silence/out/*

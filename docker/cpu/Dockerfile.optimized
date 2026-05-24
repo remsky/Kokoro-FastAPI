@@ -1,5 +1,5 @@
 # Stage 1: Builder
-FROM python:3.10 as builder
+FROM python:3.10 AS builder
 
 # Install build dependencies
 RUN apt-get update -y && \
@@ -64,6 +64,7 @@ RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
 # Copy project files
 COPY --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
