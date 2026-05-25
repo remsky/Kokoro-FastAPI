@@ -402,8 +402,12 @@ def test_list_voices(mock_tts_service):
     data = response.json()
     assert "voices" in data
     assert len(data["voices"]) == 2
-    assert "voice1" in data["voices"]
-    assert "voice2" in data["voices"]
+    assert {"id": "voice1", "name": "voice1"} in data["voices"]
+    assert {"id": "voice2", "name": "voice2"} in data["voices"]
+
+    legacy = client.get("/v1/audio/voices?legacy=true")
+    assert legacy.status_code == 200
+    assert legacy.json()["voices"] == ["voice1", "voice2"]
 
 
 @patch("api.src.routers.openai_compatible.settings")

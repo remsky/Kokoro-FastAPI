@@ -1,0 +1,10 @@
+paths:
+  - api
+  - ui
+paths-ignore:
+  - .venv
+  - "**/node_modules"
+  - "**/__pycache__"
+  - examples
+  - docs
+  - "**/tests/**"

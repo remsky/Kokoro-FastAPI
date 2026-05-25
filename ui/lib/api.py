@@ -16,7 +16,8 @@ def check_api_status() -> Tuple[bool, List[str]]:
             timeout=30,  # Increased timeout for initial startup period
         )
         response.raise_for_status()
-        voices = response.json().get("voices", [])
+        raw_voices = response.json().get("voices", [])
+        voices = [v["id"] if isinstance(v, dict) else v for v in raw_voices]
         if voices:
             return True, voices
         print("No voices found in response")

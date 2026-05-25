@@ -546,12 +546,20 @@ async def retrieve_model(model: str):
 
 
 @router.get("/audio/voices")
-async def list_voices():
-    """List all available voices for text-to-speech"""
+async def list_voices(legacy: bool = False):
+    """List all available voices for text-to-speech.
+
+    Returns `[{"id": ..., "name": ...}, ...]` by default so OpenAI-compatible
+    clients (Open WebUI in particular, which does `voice['id']` directly and
+    silently falls back to a hardcoded 6-voice list otherwise) can render the
+    full voice list. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    """
     try:
         tts_service = await get_tts_service()
         voices = await tts_service.list_voices()
-        return {"voices": voices}
+        if legacy:
+            return {"voices": voices}
+        return {"voices": [{"id": v, "name": v} for v in voices]}
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")
         raise HTTPException(

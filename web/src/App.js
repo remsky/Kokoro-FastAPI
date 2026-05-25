@@ -5,6 +5,7 @@ import PlayerControls from './components/PlayerControls.js';
 import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
+import config from './config.js';
 
 export class App {
     constructor() {
@@ -28,6 +29,8 @@ export class App {
         this.playerState = new PlayerState();
         this.audioService = new AudioService();
         this.voiceService = new VoiceService();
+
+        this.renderVersionBadge();
 
         // Initialize components
         this.playerControls = new PlayerControls(this.audioService, this.playerState);
@@ -55,6 +58,20 @@ export class App {
         this.setupEventListeners();
         this.setupAudioEvents();
         this.applyBrowserStreamingNotice();
+    }
+
+    async renderVersionBadge() {
+        const badge = document.getElementById('version-badge');
+        if (!badge) return;
+        try {
+            await config.ensureInitialized();
+            if (config.version) {
+                badge.textContent = `v${config.version}`;
+                badge.hidden = false;
+            }
+        } catch (_) {
+            // leave hidden on failure
+        }
     }
 
     applyBrowserStreamingNotice() {

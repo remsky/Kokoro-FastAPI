@@ -73,18 +73,31 @@ RUN cd /tmp && wget https://archive.archlinux.org/packages/r/rocblas/rocblas-${R
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
+COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/ ./
+COPY --chown=appuser:appuser docker/rocm/warmup_miopen.py /app/docker/rocm/warmup_miopen.py
 
 RUN chmod +x ./entrypoint.sh
 
-# Set all environment variables in one go
+# Pre-create MIOpen cache dirs so named-volume mounts inherit appuser
+# ownership (Docker would otherwise create the mount target as root:root
+# and MIOpen as uid 1001 could not write to it on first run).
+RUN mkdir -p /home/appuser/.config/miopen /home/appuser/.cache/miopen
+
+# Set all environment variables in one go.
+# MIOPEN_FIND_MODE=2 (FAST): reuse the on-disk find DB when present, fall back
+# to immediate-mode heuristics otherwise. Cheap default that avoids the 5-60s
+# per-shape kernel search on first hit. See docker/rocm/warmup_miopen.py to
+# pre-populate the cache for best-case latency. Override at runtime to redo
+# the search (e.g. MIOPEN_FIND_MODE=3 + MIOPEN_FIND_ENFORCE=3).
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
     PATH="/app/.venv/bin:$PATH" \
     UV_LINK_MODE=copy \
     USE_GPU=true \
     DOWNLOAD_MODEL=true \
-    DEVICE="gpu"
+    DEVICE="gpu" \
+    MIOPEN_FIND_MODE=2
 
 # Run FastAPI server through entrypoint.sh
 CMD ["./entrypoint.sh"]

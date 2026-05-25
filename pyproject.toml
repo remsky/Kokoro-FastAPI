@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.3.0"
+version = "0.4.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -47,6 +47,13 @@ gpu = [
     "torch==2.8.0+cu126 ; platform_machine == 'x86_64'",
     "torch==2.8.0+cu129 ; platform_machine == 'aarch64'",
 ]
+# Blackwell / RTX 50-series variant. cu128 wheels carry sm_120 kernels but
+# drop Maxwell/Pascal, so this is a separate extra rather than the default.
+# See #443. aarch64 already ships cu129 (Blackwell-capable) under both extras.
+gpu-cu128 = [
+    "torch==2.8.0+cu128 ; platform_machine == 'x86_64'",
+    "torch==2.8.0+cu129 ; platform_machine == 'aarch64'",
+]
 cpu = ["torch==2.8.0"]
 rocm = [
     "torch==2.8.0+rocm6.4",
@@ -60,12 +67,17 @@ test = [
     "tomli>=2.0.1",
     "jinja2>=3.1.6",
 ]
+# Integration test deps (faster-whisper, jiwer, soundfile, etc.) intentionally
+# live in the tts-api-test-client image, not here. Run via:
+#   docker compose -f docker/docker-compose.test.yml up --build \
+#       --abort-on-container-exit --exit-code-from test-client
 
 [tool.uv]
 conflicts = [
     [
         { extra = "cpu" },
         { extra = "gpu" },
+        { extra = "gpu-cu128" },
         { extra = "rocm" },
     ],
 ]
@@ -78,6 +90,8 @@ torch = [
     { index = "pytorch-cpu", extra = "cpu" },
     { index = "pytorch-cu126", extra = "gpu", marker = "platform_machine == 'x86_64'" },
     { index = "pytorch-cu129", extra = "gpu", marker = "platform_machine == 'aarch64'" },
+    { index = "pytorch-cu128", extra = "gpu-cu128", marker = "platform_machine == 'x86_64'" },
+    { index = "pytorch-cu129", extra = "gpu-cu128", marker = "platform_machine == 'aarch64'" },
     { index = "pytorch-rocm", extra = "rocm" },
 ]
 pytorch-triton-rocm = [
@@ -92,6 +106,11 @@ explicit = true
 [[tool.uv.index]]
 name = "pytorch-cu126"
 url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [[tool.uv.index]]

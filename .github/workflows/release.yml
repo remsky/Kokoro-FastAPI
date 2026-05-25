@@ -85,6 +85,9 @@ jobs:
           - build_target: "gpu"
             platform: "linux/amd64"
             runs_on: "ubuntu-24.04"
+          - build_target: "gpu-cu128"
+            platform: "linux/amd64"
+            runs_on: "ubuntu-24.04"
           - build_target: "cpu"
             platform: "linux/arm64"
             runs_on: "ubuntu-24.04-arm"
@@ -136,6 +139,11 @@ jobs:
           TARGET="${BUILD_TARGET}-$(echo ${PLATFORM} | cut -d'/' -f2)"
           echo "Using bake target: $TARGET"
 
+          # Bake reads REVISION/CREATED as HCL variables; both populate
+          # org.opencontainers.image.* labels and annotations on the per-arch push.
+          export REVISION="${GITHUB_SHA}"
+          export CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
           docker buildx bake $TARGET --push --progress=plain \
             --set "*.cache-from=type=gha,scope=${TARGET}" \
             --set "*.cache-to=type=gha,mode=max,scope=${TARGET}"
@@ -151,7 +159,7 @@ jobs:
       REPO: ${{ vars.REPO || 'kokoro-fastapi' }}
     strategy:
       matrix:
-        build_target: ["cpu", "gpu", "rocm"]
+        build_target: ["cpu", "gpu", "gpu-cu128", "rocm"]
     steps:
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -168,25 +176,97 @@ jobs:
           OWNER="${{ env.OWNER }}"
           REPO="${{ env.REPO }}"
 
-          # ROCm is x86-only, so the manifest references just the amd64 image.
-          if [[ "$TARGET" == "rocm" ]]; then
-            SOURCES=("${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64")
-          else
-            SOURCES=(
-              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-amd64"
-              "${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG}-arm64"
-            )
-          fi
+          # Resolve the package name, manifest tag(s), and source images per target.
+          #
+          # Tag layout per target:
+          #  - cpu:        :VERSION + :latest                         (multi-arch)
+          #  - gpu:        :VERSION + :VERSION-cu126 + :latest + :latest-cu126
+          #                  (the -cu126 aliases make the wheel variant explicit so
+          #                  Maxwell/Pascal users can pin it across future default flips)
+          #  - gpu-cu128:  :VERSION-cu128 + :latest-cu128             (amd64 only)
+          #  - rocm:       :VERSION + :latest                         (amd64 only)
+          #
+          # MANIFEST_TAGS / LATEST_TAGS are space-separated lists; all entries point at
+          # the same SOURCES so the underlying blobs are deduplicated by digest.
+          #
+          # TITLE / DESCRIPTION are attached as index-level OCI annotations.
+          # GHCR reads org.opencontainers.image.description from the index manifest
+          # for multi-arch packages, so the per-arch labels set by bake are not
+          # enough on their own.
+          case "$TARGET" in
+            gpu-cu128)
+              PACKAGE="${REPO}-gpu"
+              MANIFEST_TAGS="${VERSION_TAG}-cu128"
+              LATEST_TAGS="latest-cu128"
+              SOURCES=("${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu128-amd64")
+              TITLE="Kokoro-FastAPI (GPU, cu128 / Blackwell)"
+              DESCRIPTION="Kokoro TTS served via FastAPI. NVIDIA GPU build with CUDA 12.8 + cu128 torch wheels for RTX 50-series (Blackwell, sm_120). amd64 only."
+              ;;
+            gpu)
+              PACKAGE="${REPO}-gpu"
+              MANIFEST_TAGS="${VERSION_TAG} ${VERSION_TAG}-cu126"
+              LATEST_TAGS="latest latest-cu126"
+              # Per-arch sources carry their wheel variant (cu126 amd64, cu129 arm64);
+              # both feed the same multi-arch manifest tags above.
+              SOURCES=(
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu126-amd64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-cu129-arm64"
+              )
+              TITLE="Kokoro-FastAPI (GPU)"
+              DESCRIPTION="Kokoro TTS served via FastAPI. NVIDIA GPU build, multi-arch (CUDA 12.6 + cu126 wheels on amd64, CUDA 12.9 + cu129 wheels on arm64). See the -cu128 tag for Blackwell."
+              ;;
+            rocm)
+              PACKAGE="${REPO}-rocm"
+              MANIFEST_TAGS="${VERSION_TAG}"
+              LATEST_TAGS="latest"
+              SOURCES=("${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64")
+              TITLE="Kokoro-FastAPI (ROCm)"
+              DESCRIPTION="Kokoro TTS served via FastAPI. AMD ROCm build. amd64 only."
+              ;;
+            *)
+              PACKAGE="${REPO}-${TARGET}"
+              MANIFEST_TAGS="${VERSION_TAG}"
+              LATEST_TAGS="latest"
+              SOURCES=(
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-amd64"
+                "${REGISTRY}/${OWNER}/${PACKAGE}:${VERSION_TAG}-arm64"
+              )
+              TITLE="Kokoro-FastAPI (CPU)"
+              DESCRIPTION="Kokoro TTS served via FastAPI. CPU build, multi-arch (amd64 + arm64)."
+              ;;
+          esac
 
-          docker buildx imagetools create -t \
-            ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:${VERSION_TAG} \
-            "${SOURCES[@]}"
+          # Common index annotations. `index:` is required so these land on the
+          # index manifest itself, not on per-platform descriptors inside it.
+          SOURCE_URL="https://github.com/${OWNER}/Kokoro-FastAPI"
+          CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          REVISION="${GITHUB_SHA}"
+          ANNOTATIONS=(
+            --annotation "index:org.opencontainers.image.title=${TITLE}"
+            --annotation "index:org.opencontainers.image.description=${DESCRIPTION}"
+            --annotation "index:org.opencontainers.image.source=${SOURCE_URL}"
+            --annotation "index:org.opencontainers.image.url=${SOURCE_URL}"
+            --annotation "index:org.opencontainers.image.licenses=Apache-2.0"
+            --annotation "index:org.opencontainers.image.version=${VERSION_TAG}"
+            --annotation "index:org.opencontainers.image.revision=${REVISION}"
+            --annotation "index:org.opencontainers.image.created=${CREATED}"
+          )
 
-          # Publish :latest only for clean release tags (no branch suffix).
-          if [[ "$VERSION_TAG" != *"-"* ]]; then
-            docker buildx imagetools create -t \
-              ${REGISTRY}/${OWNER}/${REPO}-${TARGET}:latest \
+          for TAG in $MANIFEST_TAGS; do
+            docker buildx imagetools create \
+              "${ANNOTATIONS[@]}" \
+              -t ${REGISTRY}/${OWNER}/${PACKAGE}:${TAG} \
               "${SOURCES[@]}"
+          done
+
+          # Publish the rolling tag(s) only for clean release tags (no branch suffix).
+          if [[ "$VERSION_TAG" != *"-"* ]]; then
+            for TAG in $LATEST_TAGS; do
+              docker buildx imagetools create \
+                "${ANNOTATIONS[@]}" \
+                -t ${REGISTRY}/${OWNER}/${PACKAGE}:${TAG} \
+                "${SOURCES[@]}"
+            done
           fi
 
   create-release:
@@ -206,6 +286,8 @@ jobs:
           tag_name: ${{ needs.prepare-release.outputs.version_tag }}
           target_commitish: ${{ needs.prepare-release.outputs.source_ref }}
           name: Release ${{ needs.prepare-release.outputs.version_tag }}
+          body: |
+            Curated summary: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.prepare-release.outputs.version_tag }}/CHANGELOG.md)
           generate_release_notes: true
           draft: false
           prerelease: false

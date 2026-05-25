@@ -20,7 +20,7 @@ export class VoiceService {
                 throw new Error('No voices available');
             }
 
-            this.availableVoices = data.voices;
+            this.availableVoices = data.voices.map(v => typeof v === 'string' ? v : v.id);
             
             // Select first voice if none selected
             if (this.selectedVoices.size === 0) {

@@ -2,26 +2,32 @@
   <img src="githubbanner.png" alt="Kokoro TTS Banner">
 </p>
 
-# <sub><sub>_`FastKoko`_ </sub></sub>
-[![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
+# <sub><sub>_`FastKoko`_ </sub></sub> 
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]()
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/Kokoro-TTS-Zero)
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
+[![Tested at Model Commit](https://img.shields.io/badge/model-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6) 
 
-[![Tested at Model Commit](https://img.shields.io/badge/last--tested--model--commit-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.4M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+
+
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
-- Multi-language support (English, Japanese, Chinese, _Vietnamese soon_)
-- OpenAI-compatible Speech endpoint with NVIDIA GPU, AMD GPU (ROCm, experimental), or CPU inference via PyTorch. Apple Silicon (MPS) supported when running directly via UV.
-- ONNX support coming soon, see v0.1.5 and earlier for legacy ONNX support in the interim
-- Debug endpoints for monitoring system stats, integrated web UI on localhost:8880/web
-- Phoneme-based audio generation, phoneme generation
-- Per-word timestamped caption generation
-- Voice mixing with weighted combinations
+- OpenAI-compatible Speech endpoint, multi-language support
+  - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
+- Per-word timestamped caption generation, voice mixing with weighted combinations
+- Phoneme endpoints: generate phonemes from text, or generate audio from phonemes
+- Prebuilt multiplatform images
+  - CPU and NVIDIA GPU (CUDA): linux/amd64 + linux/arm64
+  - AMD GPU (ROCm, experimental): linux/amd64 only
+- Apple Silicon (MPS) supported when running directly via UV (no image)
+
 
 ### Integration Guides
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
+
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Setup-Kubernetes) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-DigitalOcean) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-SillyTavern)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-OpenWebUi)
 ## Get Started
@@ -29,20 +35,27 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 <details>
 <summary>Quickest Start (docker run)</summary>
 
+Pre-built multi-arch images with models baked in. 
 
-Pre built images are available to run, with arm/multi-arch support, and baked in models
-Refer to the core/config.py file for a full list of variables which can be managed via the environment
+`:latest` is available, but please pin to a release tag for stable usage.
+
+| Your hardware | Image |
+|---|---|
+| No GPU (any laptop, VPS, CPU-only server) | `kokoro-fastapi-cpu:latest` |
+| Apple Silicon (M1/M2/M3) | `kokoro-fastapi-cpu:latest` in Docker, or `./start-gpu_mac.sh` natively for MPS |
+| NVIDIA GTX 9xx, 10xx, 20xx, 30xx, 40xx (x86_64) | `kokoro-fastapi-gpu:latest-cu126` or `kokoro-fastapi-gpu:latest` |
+| NVIDIA RTX 50-series / Blackwell (x86_64) | `kokoro-fastapi-gpu:latest-cu128` |
+| NVIDIA on arm64 (Jetson, GH200) | `kokoro-fastapi-gpu:latest` (ships cu129, no cu126 arm64 wheels upstream) |
+| AMD GPU | `kokoro-fastapi-rocm:latest` (experimental, x86_64 only) |
 
 ```bash
-# the `latest` tag can be used, though it may have some unexpected bonus features which impact stability.
-### Named versions should be pinned for your regular usage.
-### Feedback/testing is always welcome
-
-docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest # CPU, or:
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest  # NVIDIA GPU, or:
-docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest  # AMD GPU (ROCm, experimental, amd64 only)
+docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest                                       # CPU
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest                            # NVIDIA (x86_64 or arm64)
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128                      # NVIDIA Blackwell / RTX 50-series
+docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest  # AMD
 ```
 
+Configuration via environment variables, see `core/config.py`. The `:latest` and `:latest-cu126` tags resolve to the same multi-arch image.
 
 </details>
 
@@ -161,7 +174,7 @@ import requests
 
 
 response = requests.get("http://localhost:8880/v1/audio/voices")
-voices = response.json()["voices"]
+voices = [v["id"] for v in response.json()["voices"]]
 
 # Generate audio
 response = requests.post(
@@ -199,7 +212,7 @@ Combine voices and generate audio:
 ```python
 import requests
 response = requests.get("http://localhost:8880/v1/audio/voices")
-voices = response.json()["voices"]
+voices = [v["id"] for v in response.json()["voices"]]
 
 # Example 1: Simple voice combination (50%/50% mix)
 response = requests.post(
@@ -336,10 +349,28 @@ Key Streaming Metrics:
 
 ## Processing Details
 <details>
-<summary>Performance Benchmarks</summary>
+<summary>Performance & Benchmarks</summary>
 
-Benchmarking was performed on generation via the local API using text lengths up to feature-length books (~1.5 hours output), measuring processing time and realtime factor. Tests were run on: 
-- Windows 11 Home w/ WSL2 
+### Hardware variants
+
+```bash
+# GPU: Requires NVIDIA driver with CUDA 12.6+ support (~35x-100x realtime speed)
+cd docker/gpu
+docker compose up --build
+
+# CPU: PyTorch CPU inference
+cd docker/cpu
+docker compose up --build
+
+# AMD GPU: ROCm 6.4 (experimental, amd64 only)
+cd docker/rocm
+docker compose up --build
+```
+
+### Throughput
+
+Benchmarking was performed on generation via the local API using text lengths up to feature-length books (~1.5 hours output), measuring processing time and realtime factor. Tests were run on:
+- Windows 11 Home w/ WSL2
 - NVIDIA 4060Ti 16gb GPU @ CUDA 12.1
 - 11th Gen i7-11700 @ 2.5GHz
 - 64gb RAM
@@ -354,10 +385,8 @@ Benchmarking was performed on generation via the local API using text lengths up
 Key Performance Metrics:
 - Realtime Speed: Ranges between 35x-100x (generation time to output audio length)
 - Average Processing Rate: 137.67 tokens/second (cl100k_base)
-</details>
 
-<details>
-<summary>Transcription Roundtrip (WER/CER)</summary>
+### Transcription roundtrip (WER/CER)
 
 End-to-end roundtrip: synthesize with Kokoro, transcribe the result back with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper), compare to the source text. Scripts and data live under `examples/assorted_checks/test_transcription/`.
 
@@ -387,25 +416,6 @@ See `examples/assorted_checks/test_transcription/BASELINE.md` for the full regre
 *Caveat: these are single short sentences, not a comprehensive per-language quality benchmark. They confirm each voice produces transcribable audio in its target language; deeper quality evaluation per language is open work.*
 
 To reproduce, see `examples/assorted_checks/test_transcription/README.md`.
-</details>
-
-<details>
-<summary>GPU Vs. CPU</summary>
-
-```bash
-# GPU: Requires NVIDIA driver with CUDA 12.6+ support (~35x-100x realtime speed)
-cd docker/gpu
-docker compose up --build
-
-# CPU: PyTorch CPU inference
-cd docker/cpu
-docker compose up --build
-
-# AMD GPU: ROCm 6.4 (experimental, amd64 only)
-cd docker/rocm
-docker compose up --build
-
-```
 </details>
 
 <details>
@@ -546,7 +556,6 @@ Monitor system state and resource usage with these endpoints:
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Monitor temp file and output directory usage
 - `/debug/system` - Get system information (CPU, memory, GPU)
-- `/debug/session_pools` - View ONNX session and CUDA stream status
 
 Useful for debugging resource exhaustion or performance issues.
 </details>
@@ -585,7 +594,7 @@ $env:API_LOG_LEVEL = 'WARNING'
 <details>
 <summary>Missing words & Missing some timestamps</summary>
 
-The api will automaticly do text normalization on input text which may incorrectly remove or change some phrases. This can be disabled by adding `"normalization_options":{"normalize": false}` to your request json:
+The api will automatically do text normalization on input text which may incorrectly remove or change some phrases. This can be disabled by adding `"normalization_options":{"normalize": false}` to your request json:
 ```python
 import requests
 
@@ -608,30 +617,6 @@ for chunk in response.iter_content(chunk_size=1024):
         # Process streaming chunks
         pass
 ```
-  
-</details>
-
-<details>
-<summary>Versioning & Development</summary>
-
-**Branching Strategy:**
-*   **`release` branch:** Contains the latest stable build, recommended for production use. Docker images tagged with specific versions (e.g., `v0.3.0`) are built from this branch.
-*   **`master` branch:** Used for active development. It may contain experimental features, ongoing changes, or fixes not yet in a stable release. Use this branch if you want the absolute latest code, but be aware it might be less stable. The `latest` Docker tag often points to builds from this branch.
-
-Note: This is a *development* focused project at its core. 
-
-If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR.
-
-Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
-
-  <a href="https://www.buymeacoffee.com/remsky" target="_blank">
-    <img 
-      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" 
-      alt="Buy Me A Coffee" 
-      style="height: 30px !important;width: 110px !important;"
-    >
-  </a>
-
   
 </details>
 
@@ -680,7 +665,38 @@ Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter
 
 </details>
 
-## Model and License
+<details>
+<summary>WAV duration reported as nonsense in some readers</summary>
+
+WAV responses ship with streaming-sentinel (`0xFFFFFFFF`) size fields in the header. Most readers (`soundfile`, `pydub`/ffmpeg, browsers, OS players) handle this fine. Python's stdlib `wave` does not, and reports a bogus duration. Use `soundfile.info(path).duration` or `ffprobe` for exact length.
+
+</details>
+
+## Project
+
+<details>
+<summary>Versioning & Development</summary>
+
+**Branching Strategy:**
+*   **`release` branch:** Contains the latest stable build, recommended for production use. Docker images tagged with specific versions are built from this branch.
+*   **`master` branch:** Used for active development. It may contain experimental features, ongoing changes, or fixes not yet in a stable release. Use this branch if you want the absolute latest code, but be aware it might be less stable. The `latest` Docker tag often points to builds from this branch.
+
+Note: This is a *development* focused project at its core.
+
+If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR.
+
+Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
+
+  <a href="https://www.buymeacoffee.com/remsky" target="_blank">
+    <img
+      src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png"
+      alt="Buy Me A Coffee"
+      style="height: 30px !important;width: 110px !important;"
+    >
+  </a>
+
+
+</details>
 
 <details open>
 <summary>Model</summary>

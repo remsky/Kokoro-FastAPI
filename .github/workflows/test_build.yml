@@ -15,6 +15,7 @@ on:
           - all
           - cpu
           - gpu
+          - gpu-cu128
           - rocm
       platform:
         description: 'Platform (ignored for rocm)'
@@ -48,6 +49,7 @@ jobs:
             {"build_target":"cpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
             {"build_target":"gpu","platform":"amd64","runs_on":"ubuntu-24.04"},
             {"build_target":"gpu","platform":"arm64","runs_on":"ubuntu-24.04-arm"},
+            {"build_target":"gpu-cu128","platform":"amd64","runs_on":"ubuntu-24.04"},
             {"build_target":"rocm","platform":"amd64","runs_on":"ubuntu-24.04"}
           ]'
           

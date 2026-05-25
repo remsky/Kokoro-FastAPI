@@ -19,6 +19,7 @@ services:
       - ONNX_MEMORY_PATTERN=true
       - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
       - API_LOG_LEVEL=DEBUG
+      - DOWNLOAD_MODEL=true
       
   # # Gradio UI service [Comment out everything below if you don't need it]
   # gradio-ui:
