@@ -10,14 +10,20 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Integration test suite (`api/tests/integration/`, opt-in `integration` marker) and a `tts-api-test-client` image that round-trips speech through faster-whisper against a live server. Run via `docker/docker-compose.test.yml`.
 - Web UI footer badge showing the server version from `/config`.
 
+### Breaking changes
+- `/v1/audio/voices` items in the `voices` array changed from plain strings to `{"id", "name"}` objects (#462) to match OpenWebUI/similar clients, and allow metadata in the response. Clients reading entries as strings will break; pass `?legacy=true` to restore the old item shape.
+  - Old: `{"voices": ["af_heart", ...]}`
+  - New: `{"voices": [{"id": "af_heart", "name": "af_heart"}, ...]}`
+
 ### Changed
-- `/v1/audio/voices` default response shape changed to `[{"id", "name"}, ...]` so OpenAI-compatible clients like Open WebUI see the full voice catalog (#462). Pass `?legacy=true` to restore the old `string[]` shape.
 - `api_version` now read from the `VERSION` file instead of hardcoded.
 - Removed the legacy `docker/{cpu,gpu}/Dockerfile`; the `.optimized` variants are the only build files now.
 - Docker images carry OCI metadata so GHCR pages render properly. Integration compose defaults to the published test-client image.
+- ROCm image defaults to `MIOPEN_FIND_MODE=2` so the on-disk kernel cache is reused instead of re-searched per process, and ships an opt-in warmup script at `docker/rocm/warmup_miopen.py` to pre-populate it. Recipe and benchmarks from @realugbun in #454.
 
 ### Fixed
 - WAV responses drop junk size-field trailer that decoded as a click at chunk end. (#463)
+- ROCm MIOpen cache set to persist across compose restarts; switched bind mounts to named volumes at the path MIOpen writes to (prior mounts targeted an inaccessible location).
 - cpu/gpu composes set `DOWNLOAD_MODEL=true` for an idempotent model fetch on startup.
 - `VERSION` shipped into images so `/config` reports the real server version.
 - Silence trimming no longer treats full-scale-negative samples as silent (`int16` `abs()` overflow).
