@@ -286,6 +286,8 @@ jobs:
           tag_name: ${{ needs.prepare-release.outputs.version_tag }}
           target_commitish: ${{ needs.prepare-release.outputs.source_ref }}
           name: Release ${{ needs.prepare-release.outputs.version_tag }}
+          body: |
+            Curated summary: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.prepare-release.outputs.version_tag }}/CHANGELOG.md)
           generate_release_notes: true
           draft: false
           prerelease: false

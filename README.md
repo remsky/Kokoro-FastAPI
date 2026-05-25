@@ -665,6 +665,13 @@ Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter
 
 </details>
 
+<details>
+<summary>WAV duration reported as nonsense in some readers</summary>
+
+WAV responses ship with streaming-sentinel (`0xFFFFFFFF`) size fields in the header. Most readers (`soundfile`, `pydub`/ffmpeg, browsers, OS players) handle this fine. Python's stdlib `wave` does not, and reports a bogus duration. Use `soundfile.info(path).duration` or `ffprobe` for exact length.
+
+</details>
+
 ## Project
 
 <details>

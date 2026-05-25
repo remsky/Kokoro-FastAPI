@@ -9,7 +9,7 @@ name: kokoro-fastapi-test
 #         --abort-on-container-exit --exit-code-from test-client
 #
 # Against a published server image (e.g. release verification):
-#     SERVER_IMAGE=ghcr.io/remsky/kokoro-fastapi-cpu:v0.3.0 \
+#     SERVER_IMAGE=ghcr.io/remsky/kokoro-fastapi-cpu:v0.4.0 \
 #         docker compose -f docker/docker-compose.test.yml up \
 #         --abort-on-container-exit --exit-code-from test-client
 #
