@@ -15,25 +15,32 @@ services:
         - 993
         - 996
       restart: 'always'
+      # Named volumes persist the MIOpen find DB and kernel cache at the paths
+      # MIOpen actually writes to ($HOME/.config/miopen and $HOME/.cache/miopen
+      # for appuser). Defined at the bottom of this file. Survives
+      # `docker compose down`; `docker compose down -v` clears them. Inspect
+      # contents with `docker volume inspect kokoro-fastapi-rocm_miopen_cache`.
       volumes:
-        - ./kokoro-tts/config:/root/.config/miopen
-        - ./kokoro-tts/cache:/root/.cache/miopen
+        - miopen_config:/home/appuser/.config/miopen
+        - miopen_cache:/home/appuser/.cache/miopen
       ports:
         - 8880:8880
       environment:
         - USE_GPU=true
         - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
-        # IMPORTANT: This is only required for RDNA 2 GPUs. You do not need the following steps if you use GPUS that are RDNA 1 (gfx1030) or older.
-        # ROCm's MIOpen libray will be slow if it has to figure out the optimal kernel shapes for each model
-        # See documentation on performancing tuning: https://github.com/ROCm/MIOpen/blob/develop/docs/conceptual/tuningdb.rst
-        # The volumes above cache the MIOpen shape files and user database for subsequent runs
+        # MIOPEN_FIND_MODE=2 is set by default in the Dockerfile. It reuses the
+        # on-disk find DB and skips the expensive per-process kernel search.
+        # The named volumes above persist that cache across runs.
+        # See: https://github.com/ROCm/MIOpen/blob/develop/docs/conceptual/tuningdb.rst
         #
-        # Steps:
-        # 1. Run Kokoro once with the following environment variables set:
+        # To pre-populate the cache for best-case latency (recommended for RDNA 2+):
+        # 1. Override the env to force an exhaustive search:
         #      - MIOPEN_FIND_MODE=3
         #      - MIOPEN_FIND_ENFORCE=3
-        # 2. Generate various recordings using sample data (e.g. first couple paragraphs of Dracula); this will be slow
-        # 3. Comment out/remove the previously set environment variables
-        # 4. Add the following environment variables to enable caching of model shapes:
-        #       - MIOPEN_FIND_MODE=2
-        # 5. Restart the container and run Kokoro again, it should be much faster
+        # 2. Run docker/rocm/warmup_miopen.py inside the container, or generate
+        #    audio for varied input lengths (e.g. a few paragraphs of Dracula).
+        # 3. Remove the overrides. The default (FIND_MODE=2) will reuse the cache.
+
+volumes:
+  miopen_config:
+  miopen_cache:
