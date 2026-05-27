@@ -1,0 +1,19 @@
+{
+  "type": "module",
+  "scripts": {
+    "test:web": "node web/tests/unit/index.test.mjs",
+    "test:e2e": "playwright test",
+    "gpu:build": "docker compose -f docker/gpu/docker-compose.yml build",
+    "gpu:up": "docker compose -f docker/gpu/docker-compose.yml up",
+    "gpu:down": "docker compose -f docker/gpu/docker-compose.yml down",
+    "cpu:build": "docker compose -f docker/cpu/docker-compose.yml build",
+    "cpu:up": "docker compose -f docker/cpu/docker-compose.yml up",
+    "cpu:down": "docker compose -f docker/cpu/docker-compose.yml down",
+    "rocm:build": "docker compose -f docker/rocm/docker-compose.yml build",
+    "rocm:up": "docker compose -f docker/rocm/docker-compose.yml up",
+    "rocm:down": "docker compose -f docker/rocm/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}

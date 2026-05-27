@@ -40,6 +40,7 @@ export class WaveVisualizer {
     }
 
     setupStateSubscription() {
+        this.wasPlaying = false;
         this.playerState.subscribe(state => {
             // Handle generation progress
             if (state.isGenerating) {
@@ -53,12 +54,14 @@ export class WaveVisualizer {
                 }, 500);
             }
 
-            // Only animate when playing, stop otherwise
-            if (state.isPlaying) {
+            // SiriWave.start() is not idempotent — each call spawns a new RAF
+            // loop. Only call start/stop on isPlaying transitions.
+            if (state.isPlaying && !this.wasPlaying) {
                 this.wave.start();
-            } else {
+            } else if (!state.isPlaying && this.wasPlaying) {
                 this.wave.stop();
             }
+            this.wasPlaying = state.isPlaying;
         });
     }
 
