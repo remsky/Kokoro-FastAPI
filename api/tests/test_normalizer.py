@@ -177,7 +177,8 @@ def test_money():
 
     assert (
         normalize_text(
-            "Your shopping spree cost $674.03!", normalization_options=NormalizationOptions()
+            "Your shopping spree cost $674.03!",
+            normalization_options=NormalizationOptions(),
         )
         == "Your shopping spree cost six hundred and seventy-four dollars and three cents!"
     )
@@ -323,11 +324,13 @@ def test_non_url_text():
         == "It costs fifty dollars."
     )
 
+
 def test_remaining_symbol():
     """Test that remaining symbols are replaced"""
     assert (
         normalize_text(
-            "I love buying products @ good store here & @ other store", normalization_options=NormalizationOptions()
+            "I love buying products @ good store here & @ other store",
+            normalization_options=NormalizationOptions(),
         )
         == "I love buying products at good store here and at other store"
     )

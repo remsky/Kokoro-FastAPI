@@ -69,7 +69,7 @@ class NormalizationOptions(BaseModel):
     )
     replace_remaining_symbols: bool = Field(
         default=True,
-        description="Replaces the remaining symbols after normalization with their words"
+        description="Replaces the remaining symbols after normalization with their words",
     )
 
 
@@ -114,8 +114,7 @@ class OpenAISpeechRequest(BaseModel):
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
     volume_multiplier: Optional[float] = Field(
-        default = 1.0,
-        description="A volume multiplier to multiply the output audio by."
+        default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
@@ -162,8 +161,7 @@ class CaptionedSpeechRequest(BaseModel):
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
     volume_multiplier: Optional[float] = Field(
-        default = 1.0,
-        description="A volume multiplier to multiply the output audio by."
+        default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
