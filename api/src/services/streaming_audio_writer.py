@@ -34,16 +34,16 @@ class StreamingAudioWriter:
                 self.output_buffer = BytesIO()
                 container_options = {}
                 # Try disabling Xing VBR header for MP3 to fix iOS timeline reading issues
-                if self.format == 'mp3':
+                if self.format == "mp3":
                     # Disable Xing VBR header
-                    container_options = {'write_xing': '0'}
+                    container_options = {"write_xing": "0"}
                     logger.debug("Disabling Xing VBR header for MP3 encoding.")
 
                 self.container = av.open(
                     self.output_buffer,
                     mode="w",
                     format=self.format if self.format != "aac" else "adts",
-                    options=container_options # Pass options here
+                    options=container_options,  # Pass options here
                 )
                 self.stream = self.container.add_stream(
                     codec_map[self.format],
@@ -51,10 +51,12 @@ class StreamingAudioWriter:
                     layout="mono" if self.channels == 1 else "stereo",
                 )
                 # Set bit_rate only for codecs where it's applicable and useful
-                if self.format in ['mp3', 'aac', 'opus']:
+                if self.format in ["mp3", "aac", "opus"]:
                     self.stream.bit_rate = 128000
         else:
-            raise ValueError(f"Unsupported format: {self.format}") # Use self.format here
+            raise ValueError(
+                f"Unsupported format: {self.format}"
+            )  # Use self.format here
 
     def close(self):
         if hasattr(self, "container"):

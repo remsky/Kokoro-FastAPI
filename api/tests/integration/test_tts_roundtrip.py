@@ -22,7 +22,6 @@ from dataclasses import dataclass
 
 import pytest
 
-
 # Windows stdout defaults to cp1252; printing Devanagari/CJK reference strings
 # or transcripts raises UnicodeEncodeError and surfaces as a fake test failure.
 # Reconfigure once at module import so any -s output is safe.
@@ -45,15 +44,15 @@ class Case:
 # well in CPU/int8 with `small`, so a regression below the threshold means
 # something actually broke in Kokoro, not Whisper drift.
 CASES: list[Case] = [
-    Case("af_heart",    "en", "The quick brown fox jumps over the lazy dog."),
-    Case("bf_emma",     "en", "The rain in Spain falls mainly on the plain."),
-    Case("ef_dora",     "es", "El sol brilla en el cielo azul."),
-    Case("ff_siwis",    "fr", "Le soleil brille dans le ciel bleu."),
-    Case("if_sara",     "it", "Il gatto dorme sul tappeto rosso."),
-    Case("pf_dora",     "pt", "O gato dorme no tapete vermelho."),
-    Case("hf_alpha",    "hi", "आज मौसम बहुत अच्छा है।"),
-    Case("jf_alpha",    "ja", "今日はとても良い天気です。"),
-    Case("zf_xiaobei",  "zh", "今天天气非常好。"),
+    Case("af_heart", "en", "The quick brown fox jumps over the lazy dog."),
+    Case("bf_emma", "en", "The rain in Spain falls mainly on the plain."),
+    Case("ef_dora", "es", "El sol brilla en el cielo azul."),
+    Case("ff_siwis", "fr", "Le soleil brille dans le ciel bleu."),
+    Case("if_sara", "it", "Il gatto dorme sul tappeto rosso."),
+    Case("pf_dora", "pt", "O gato dorme no tapete vermelho."),
+    Case("hf_alpha", "hi", "आज मौसम बहुत अच्छा है।"),
+    Case("jf_alpha", "ja", "今日はとても良い天気です。"),
+    Case("zf_xiaobei", "zh", "今天天气非常好。"),
 ]
 
 # Hindi uses combining diacritics; CJK has no word boundaries. CER is the
@@ -67,8 +66,7 @@ MIN_AUDIO_BYTES = 1000
 
 def _strip_for_cer(s: str) -> str:
     return "".join(
-        c for c in s
-        if not c.isspace() and not unicodedata.category(c).startswith("P")
+        c for c in s if not c.isspace() and not unicodedata.category(c).startswith("P")
     )
 
 
@@ -89,13 +87,15 @@ def _score(lang: str, reference: str, hypothesis: str) -> float:
     if lang in CER_LANGS:
         return cer(_strip_for_cer(reference), _strip_for_cer(hypothesis))
 
-    word_normalize = Compose([
-        ToLowerCase(),
-        RemovePunctuation(),
-        RemoveMultipleSpaces(),
-        Strip(),
-        ReduceToListOfListOfWords(),
-    ])
+    word_normalize = Compose(
+        [
+            ToLowerCase(),
+            RemovePunctuation(),
+            RemoveMultipleSpaces(),
+            Strip(),
+            ReduceToListOfListOfWords(),
+        ]
+    )
     return wer(
         reference,
         hypothesis,
