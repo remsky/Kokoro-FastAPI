@@ -44,7 +44,7 @@ jobs:
       OWNER: ${{ vars.OWNER || 'remsky' }}
       IMAGE_NAME: ${{ vars.TEST_CLIENT_IMAGE_NAME || 'tts-api-test-client' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Resolve image refs
         id: refs
@@ -61,7 +61,7 @@ jobs:
           echo "latest=${BASE}:latest" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: github.event_name != 'workflow_dispatch' || inputs.push
