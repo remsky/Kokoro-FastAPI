@@ -4,6 +4,14 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- Web UI long-playback bugfix around the 10-minute mark; in-browser audio buffer is now bounded ahead of `currentTime` with trailing eviction behind it, so long generations stop overflowing the SourceBuffer.
+- Web UI stays responsive on extended sessions; waveform animation is transition-gated and `PlayerState` short-circuits no-op updates, so controls don't drift into lag after 10+ minutes of playback.
+
+### Notes
+- Scrubbing may not be fully not supported in current state on MP3 streamed playback. WAV etc, plays back fine on completion. 
+
 ## [v0.4.0] - 2026-05-24
 ### Added
 - GPU image variants for Blackwell / RTX 50-series (`:latest-cu128`, `:vX.Y.Z-cu128`, amd64 only) with PyTorch cu128 wheels (#443). Default `:latest` and new `:latest-cu126` alias stay on cu126 for Maxwell/Pascal compatibility.

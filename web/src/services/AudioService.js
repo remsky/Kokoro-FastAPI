@@ -11,9 +11,13 @@ export class AudioService {
         this.textLength = 0;
         this.shouldAutoplay = false;
         this.CHARS_PER_CHUNK = 150;
+        this.MAX_LEAD_SECONDS = 60;
         this.serverDownloadPath = null;
         this.pendingOperations = [];
         this.objectUrl = null;
+        this.chunkQueue = [];
+        this.streamFinished = false;
+        this.feederWakeup = null;
     }
 
     supportsMSEMp3() {
@@ -23,6 +27,21 @@ export class AudioService {
             typeof MediaSource.isTypeSupported === 'function' &&
             MediaSource.isTypeSupported('audio/mpeg')
         );
+    }
+
+    shouldUseMseStream(responseFormat, canStreamMp3) {
+        return responseFormat === 'mp3' && canStreamMp3;
+    }
+
+    attachAudioReadinessEvents() {
+        if (!this.audio) {
+            return;
+        }
+
+        const dispatchReady = () => this.dispatchEvent('ready');
+        this.audio.addEventListener('loadedmetadata', dispatchReady);
+        this.audio.addEventListener('durationchange', dispatchReady);
+        this.audio.addEventListener('canplay', dispatchReady);
     }
 
     async streamAudio(text, voice, speed, onProgress) {
@@ -43,7 +62,7 @@ export class AudioService {
 
             const estimatedChunks = Math.max(1, Math.ceil(this.textLength / this.CHARS_PER_CHUNK));
             const responseFormat = document.getElementById('format-select').value || 'mp3';
-            const canUseMseStream = responseFormat === 'mp3' && canStreamMp3;
+            const canUseMseStream = this.shouldUseMseStream(responseFormat, canStreamMp3);
 
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
             const response = await fetch(apiUrl, {
@@ -118,8 +137,10 @@ export class AudioService {
         const blobType = response.headers.get('content-type') || 'audio/mpeg';
         const blob = new Blob(chunks, { type: blobType });
         this.audio = new Audio();
+        this.attachAudioReadinessEvents();
         this.objectUrl = URL.createObjectURL(blob);
         this.audio.src = this.objectUrl;
+        this.audio.load();
 
         this.audio.addEventListener('error', () => {
             console.error('Audio error (block mode):', this.audio?.error);
@@ -130,7 +151,7 @@ export class AudioService {
             this.dispatchEvent('ended');
         });
 
-        this.audio.addEventListener('canplaythrough', () => {
+        this.audio.addEventListener('canplay', () => {
             if (this.shouldAutoplay) {
                 this.play();
             }
@@ -151,6 +172,7 @@ export class AudioService {
         }
 
         this.audio = new Audio();
+        this.attachAudioReadinessEvents();
         this.mediaSource = new MediaSource();
         this.objectUrl = URL.createObjectURL(this.mediaSource);
         this.audio.src = this.objectUrl;
@@ -183,8 +205,17 @@ export class AudioService {
     }
 
     async processStream(stream, response, onProgress, estimatedChunks) {
+        this.chunkQueue = [];
+        this.streamFinished = false;
+        this.feederWakeup = null;
+
+        const feederPromise = this.runFeeder().catch((err) => {
+            if (err?.name !== 'AbortError') {
+                console.warn('Feeder error:', err);
+            }
+        });
+
         const reader = stream.getReader();
-        let hasStartedPlaying = false;
         let receivedChunks = 0;
 
         try {
@@ -204,21 +235,11 @@ export class AudioService {
                             Object.keys(headers).join(', '));
                     }
 
-                    if (this.mediaSource && this.mediaSource.readyState === 'open') {
-                        this.mediaSource.endOfStream();
-                    }
+                    this.streamFinished = true;
+                    this.wakeFeeder();
 
                     onProgress?.(estimatedChunks, estimatedChunks);
                     this.dispatchEvent('complete');
-
-                    if (
-                        this.shouldAutoplay &&
-                        !hasStartedPlaying &&
-                        this.sourceBuffer &&
-                        this.sourceBuffer.buffered.length > 0
-                    ) {
-                        setTimeout(() => this.play(), 100);
-                    }
 
                     setTimeout(() => {
                         this.dispatchEvent('downloadReady');
@@ -229,56 +250,121 @@ export class AudioService {
 
                 receivedChunks++;
                 onProgress?.(receivedChunks, estimatedChunks);
+                this.chunkQueue.push(value);
+                this.wakeFeeder();
+            }
+        } catch (error) {
+            this.streamFinished = true;
+            this.wakeFeeder();
+            if (error.name !== 'AbortError') {
+                throw error;
+            }
+        }
+    }
 
-                try {
-                    if (this.audio?.error) {
-                        console.error('Audio error detected:', this.audio.error);
-                        continue;
+    wakeFeeder() {
+        if (this.feederWakeup) {
+            const resolve = this.feederWakeup;
+            this.feederWakeup = null;
+            resolve();
+        }
+    }
+
+    waitForFeederSignal(timeoutMs) {
+        return new Promise((resolve) => {
+            this.feederWakeup = resolve;
+            if (timeoutMs) {
+                setTimeout(() => {
+                    if (this.feederWakeup === resolve) {
+                        this.feederWakeup = null;
+                        resolve();
                     }
+                }, timeoutMs);
+            }
+        });
+    }
 
-                    if (this.sourceBuffer?.buffered.length > 0) {
-                        const currentTime = this.audio.currentTime;
-                        const start = this.sourceBuffer.buffered.start(0);
+    async runFeeder() {
+        let hasStartedPlaying = false;
 
-                        if (currentTime - start > 30) {
-                            const removeEnd = Math.max(start, currentTime - 15);
-                            if (removeEnd > start) {
-                                await this.removeBufferRange(start, removeEnd);
-                            }
-                        }
+        while (true) {
+            if (!this.audio || !this.sourceBuffer || !this.mediaSource) {
+                return;
+            }
+            if (this.streamFinished && this.chunkQueue.length === 0) {
+                if (this.mediaSource.readyState === 'open') {
+                    try {
+                        this.mediaSource.endOfStream();
+                    } catch (e) {
+                        console.warn('endOfStream error:', e);
                     }
+                }
+                return;
+            }
+            if (this.chunkQueue.length === 0) {
+                await this.waitForFeederSignal();
+                continue;
+            }
 
-                    await this.appendChunk(value);
+            const currentTime = this.audio.currentTime || 0;
+            const buffered = this.sourceBuffer.buffered;
 
-                    if (!hasStartedPlaying && this.sourceBuffer?.buffered.length > 0) {
-                        hasStartedPlaying = true;
-                        if (this.shouldAutoplay) {
-                            setTimeout(() => this.play(), 100);
-                        }
-                    }
-                } catch (error) {
-                    if (error.name === 'QuotaExceededError') {
-                        if (this.sourceBuffer?.buffered.length > 0) {
-                            const currentTime = this.audio.currentTime;
-                            const start = this.sourceBuffer.buffered.start(0);
-                            const removeEnd = Math.max(start, currentTime - 5);
-                            if (removeEnd > start) {
-                                await this.removeBufferRange(start, removeEnd);
-                                try {
-                                    await this.appendChunk(value);
-                                } catch (retryError) {
-                                    console.warn('Buffer error after cleanup:', retryError);
-                                }
-                            }
-                        }
-                    } else {
-                        console.warn('Buffer error:', error);
+            // Leading-edge backpressure: hold off if we already have plenty queued
+            // ahead of currentTime. Keeps MSE buffer bounded so long generations
+            // (>10 min) don't hit QuotaExceededError.
+            if (buffered.length > 0) {
+                const leadingEdge = buffered.end(buffered.length - 1);
+                if (leadingEdge - currentTime > this.MAX_LEAD_SECONDS) {
+                    await this.waitForFeederSignal(250);
+                    continue;
+                }
+            }
+
+            // Trailing eviction: drop audio more than 30s behind currentTime.
+            if (buffered.length > 0) {
+                const start = buffered.start(0);
+                if (currentTime - start > 30) {
+                    const removeEnd = Math.max(start, currentTime - 15);
+                    if (removeEnd > start) {
+                        await this.removeBufferRange(start, removeEnd);
                     }
                 }
             }
-        } catch (error) {
-            if (error.name !== 'AbortError') {
-                throw error;
+
+            const chunk = this.chunkQueue.shift();
+            try {
+                if (this.audio?.error) {
+                    console.error('Audio error detected:', this.audio.error);
+                    continue;
+                }
+
+                await this.appendChunk(chunk);
+                this.dispatchEvent('ready');
+
+                if (!hasStartedPlaying && this.sourceBuffer?.buffered.length > 0) {
+                    hasStartedPlaying = true;
+                    if (this.shouldAutoplay) {
+                        setTimeout(() => this.play(), 100);
+                    }
+                }
+            } catch (error) {
+                if (error.name === 'QuotaExceededError') {
+                    this.chunkQueue.unshift(chunk);
+                    const buf = this.sourceBuffer?.buffered;
+                    if (buf && buf.length > 0) {
+                        const start = buf.start(0);
+                        const removeEnd = Math.max(start, (this.audio?.currentTime || 0) - 5);
+                        if (removeEnd > start) {
+                            await this.removeBufferRange(start, removeEnd);
+                        }
+                    } else {
+                        return;
+                    }
+                } else if (error?.name === 'AbortError') {
+                    return;
+                } else {
+                    console.warn('Buffer error:', error);
+                }
             }
         }
     }
@@ -295,12 +381,25 @@ export class AudioService {
 
         return new Promise((resolve) => {
             const doRemove = () => {
+                const sourceBuffer = this.sourceBuffer;
+                if (!sourceBuffer || !this.mediaSource || this.mediaSource.readyState !== 'open') {
+                    resolve();
+                    return;
+                }
+
+                const onUpdateEnd = () => {
+                    sourceBuffer.removeEventListener('updateend', onUpdateEnd);
+                    resolve();
+                };
+
                 try {
-                    this.sourceBuffer.remove(start, end);
+                    sourceBuffer.addEventListener('updateend', onUpdateEnd, { once: true });
+                    sourceBuffer.remove(start, end);
                 } catch (e) {
                     console.warn('Error removing buffer:', e);
+                    sourceBuffer.removeEventListener('updateend', onUpdateEnd);
+                    resolve();
                 }
-                resolve();
             };
 
             if (this.sourceBuffer.updating) {
@@ -375,7 +474,7 @@ export class AudioService {
     }
 
     play() {
-        if (this.audio && this.audio.readyState >= 2 && !this.audio.error) {
+        if (this.audio && !this.audio.error) {
             const playPromise = this.audio.play();
             if (playPromise) {
                 playPromise.catch(error => {
@@ -458,6 +557,18 @@ export class AudioService {
         }
     }
 
+    rejectPendingOperations(reason) {
+        const ops = this.pendingOperations;
+        this.pendingOperations = [];
+        ops.forEach((op) => {
+            try {
+                op.reject(reason);
+            } catch (e) {
+                // ignore
+            }
+        });
+    }
+
     cancel() {
         if (this.controller) {
             this.controller.abort();
@@ -480,7 +591,10 @@ export class AudioService {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
-        this.pendingOperations = [];
+        this.rejectPendingOperations(new Error('AudioService cancelled'));
+        this.chunkQueue = [];
+        this.streamFinished = true;
+        this.wakeFeeder();
         this.revokeObjectUrl();
     }
 
@@ -507,7 +621,10 @@ export class AudioService {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
-        this.pendingOperations = [];
+        this.rejectPendingOperations(new Error('AudioService cleanup'));
+        this.chunkQueue = [];
+        this.streamFinished = true;
+        this.wakeFeeder();
         this.revokeObjectUrl();
     }
 

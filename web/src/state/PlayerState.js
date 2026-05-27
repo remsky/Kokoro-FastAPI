@@ -8,6 +8,7 @@ export class PlayerState {
             volume: 1,
             speed: 1,
             progress: 0,
+            isReady: false,
             error: null
         };
         this.listeners = new Set();
@@ -23,6 +24,14 @@ export class PlayerState {
     }
 
     setState(updates) {
+        let changed = false;
+        for (const key in updates) {
+            if (updates[key] !== this.state[key]) {
+                changed = true;
+                break;
+            }
+        }
+        if (!changed) return;
         this.state = {
             ...this.state,
             ...updates
@@ -41,6 +50,10 @@ export class PlayerState {
     setProgress(loaded, total) {
         const progress = total > 0 ? (loaded / total) * 100 : 0;
         this.setState({ progress });
+    }
+
+    setReady(isReady) {
+        this.setState({ isReady });
     }
 
     setTime(currentTime, duration) {
@@ -74,6 +87,7 @@ export class PlayerState {
             currentTime: 0,
             duration: 0,
             progress: 0,
+            isReady: false,
             error: null,
             speed: currentSpeed,
             volume: currentVolume

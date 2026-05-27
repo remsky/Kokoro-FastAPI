@@ -226,6 +226,9 @@ export class App {
         const voice = this.voiceService.getSelectedVoiceString();
         const speed = this.playerState.getState().speed;
 
+        this.playerState.setReady(false);
+        this.playerState.setPlaying(false);
+        this.playerState.setTime(0, 0);
         this.setGenerating(true);
         this._playbackFailed = false;
         this.elements.downloadBtn.classList.remove('ready');

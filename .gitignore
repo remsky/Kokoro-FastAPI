@@ -23,6 +23,7 @@ build/
 # Environment
 # .env
 .venv/
+node_modules/
 env/
 venv/
 ENV/
@@ -87,3 +88,5 @@ pyproject.toml.bkp
 # Local scratch notes, scan outputs, anything not meant to ship
 .local/
 examples/assorted_checks/test_silence/out/*
+playwright-report/
+test-results/
