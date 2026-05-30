@@ -5,12 +5,15 @@ import time
 from typing import AsyncGenerator, Dict, List, Tuple, Optional
 
 from loguru import logger
+from unicode_segment.sentence import SentenceSegmenter
 
 from ...core.config import settings
 from ...structures.schemas import NormalizationOptions
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
+
+sentence_segmenter = SentenceSegmenter()
 
 # Pre-compiled regex patterns for performance
 # Updated regex to be more strict and avoid matching isolated brackets
@@ -100,24 +103,13 @@ def process_text(text: str, language: str = "a") -> List[int]:
 
 
 def get_sentence_info(
-    text: str, lang_code: str = "a"
+    text: str,
+    # currently unused, as the Unicode sentence segmentation algorithm is language-agnostic
+    lang_code: str = "a",
 ) -> List[Tuple[str, List[int], int]]:
     """Process all sentences and return info"""
-    # Detect Chinese text
-    is_chinese = lang_code.startswith("z") or re.search(r"[\u4e00-\u9fff]", text)
-    if is_chinese:
-        # Split using Chinese punctuation
-        sentences = re.split(r"([，。！？；])+", text)
-    else:
-        sentences = re.split(r"([.!?;:])(?=\s|$)", text)
-
     results = []
-    for i in range(0, len(sentences), 2):
-        sentence = sentences[i].strip()
-        punct = sentences[i + 1] if i + 1 < len(sentences) else ""
-        if not sentence:
-            continue
-        full = sentence + punct
+    for _, full in sentence_segmenter.segment(text):
         # Strip the full sentence to remove any leading/trailing spaces before processing
         full = full.strip()
         if not full:  # Skip if empty after stripping
