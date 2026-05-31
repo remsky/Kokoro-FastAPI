@@ -15,6 +15,7 @@ from loguru import logger
 from ..core.config import settings
 from ..inference.base import AudioChunk
 from ..inference.kokoro_v1 import KokoroV1
+from ..inference.model_manager import ModelManager
 from ..inference.model_manager import get_manager as get_model_manager
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions
@@ -33,7 +34,7 @@ class TTSService:
     def __init__(self, output_dir: str = None):
         """Initialize service."""
         self.output_dir = output_dir
-        self.model_manager = None
+        self.model_manager: Optional[ModelManager] = None
         self._voice_manager = None
 
     @classmethod
