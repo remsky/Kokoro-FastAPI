@@ -101,6 +101,12 @@ Model files not found! You need to download the Kokoro V1 model:
         except Exception as e:
             raise RuntimeError(f"Warmup failed: {e}")
 
+    async def ensure_backend(self) -> None:
+        """Reload the backend if it was unloaded via /dev/unload."""
+        if not self._backend:
+            await self.initialize()
+            await self.load_model(self._config.pytorch_kokoro_v1_file)
+
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.
 

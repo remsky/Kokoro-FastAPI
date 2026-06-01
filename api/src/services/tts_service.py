@@ -88,7 +88,7 @@ class TTSService:
                 if not tokens and not chunk_text:
                     return
 
-                # Get backend
+                await self.model_manager.ensure_backend()
                 backend = self.model_manager.get_backend()
 
                 # Generate audio using pre-warmed model
@@ -273,7 +273,7 @@ class TTSService:
         chunk_index = 0
         current_offset = 0.0
         try:
-            # Get backend
+            await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
             # Get voice path, handling combined voices
@@ -466,7 +466,7 @@ class TTSService:
         """
         start_time = time.time()
         try:
-            # Get backend and voice path
+            await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
             voice_name, voice_path = await self._get_voices_path(voice)
 
