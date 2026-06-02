@@ -103,9 +103,12 @@ Model files not found! You need to download the Kokoro V1 model:
 
     async def ensure_backend(self) -> None:
         """Reload the backend if it was unloaded via /dev/unload."""
-        if not self._backend:
-            await self.initialize()
-            await self.load_model(self._config.pytorch_kokoro_v1_file)
+        if self._backend:
+            return
+        async with self._lock:
+            if not self._backend:
+                await self.initialize()
+                await self.load_model(self._config.pytorch_kokoro_v1_file)
 
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.
@@ -145,9 +148,8 @@ Model files not found! You need to download the Kokoro V1 model:
         Raises:
             RuntimeError: If generation fails
         """
-        if not self._backend:
-            await self.initialize()
-            await self.load_model(self._config.pytorch_kokoro_v1_file)
+        await self.ensure_backend()
+        assert self._backend is not None  # ensure_backend loaded it or raised
 
         try:
             async for chunk in self._backend.generate(*args, **kwargs):

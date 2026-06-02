@@ -91,6 +91,36 @@ async def test_unload_skips_cuda_empty_cache_when_unavailable():
 
 
 @pytest.mark.asyncio
+async def test_ensure_backend_serializes_concurrent_reloads():
+    """Concurrent callers when _backend is None should trigger only one load cycle."""
+    manager = ModelManager()
+    assert manager._backend is None
+
+    mock_backend = MagicMock()
+    init_count = 0
+    load_count = 0
+
+    async def fake_initialize():
+        nonlocal init_count
+        init_count += 1
+        await asyncio.sleep(0)  # yield so other tasks can attempt entry
+        manager._backend = mock_backend
+
+    async def fake_load(path):
+        nonlocal load_count
+        load_count += 1
+
+    with (
+        patch.object(manager, "initialize", side_effect=fake_initialize),
+        patch.object(manager, "load_model", side_effect=fake_load),
+    ):
+        await asyncio.gather(*[manager.ensure_backend() for _ in range(5)])
+
+    assert init_count == 1
+    assert load_count == 1
+
+
+@pytest.mark.asyncio
 async def test_generate_lazy_reinit_when_backend_none():
     """generate() initializes backend lazily when _backend is None."""
     manager = ModelManager()
