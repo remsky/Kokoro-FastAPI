@@ -411,3 +411,24 @@ async def create_captioned_speech(
                 "type": "server_error",
             },
         )
+
+
+@router.post("/dev/unload")
+async def unload_model(
+    tts_service: TTSService = Depends(get_tts_service),
+):
+    """Release the model from GPU VRAM without stopping the container.
+
+    The model reloads automatically on the next inference request.
+    Useful for homelab deployments where GPU memory is shared across services.
+    """
+    try:
+        if tts_service.model_manager is None:
+            raise HTTPException(status_code=503, detail={"error": "Model manager not initialized"})
+        await tts_service.model_manager.unload()
+        return JSONResponse({"status": "unloaded"})
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error unloading model: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})

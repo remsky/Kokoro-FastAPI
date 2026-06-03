@@ -1,7 +1,9 @@
 """Kokoro V1 model management."""
 
+import asyncio
 from typing import Optional
 
+import torch
 from loguru import logger
 
 from ..core import paths
@@ -26,6 +28,7 @@ class ModelManager:
         self._config = config or model_config
         self._backend: Optional[KokoroV1] = None  # Explicitly type as KokoroV1
         self._device: Optional[str] = None
+        self._lock = asyncio.Lock()
 
     def _determine_device(self) -> str:
         """Determine device based on settings."""
@@ -98,6 +101,15 @@ Model files not found! You need to download the Kokoro V1 model:
         except Exception as e:
             raise RuntimeError(f"Warmup failed: {e}")
 
+    async def ensure_backend(self) -> None:
+        """Reload the backend if it was unloaded via /dev/unload."""
+        if self._backend:
+            return
+        async with self._lock:
+            if not self._backend:
+                await self.initialize()
+                await self.load_model(self._config.pytorch_kokoro_v1_file)
+
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.
 
@@ -136,8 +148,8 @@ Model files not found! You need to download the Kokoro V1 model:
         Raises:
             RuntimeError: If generation fails
         """
-        if not self._backend:
-            raise RuntimeError("Backend not initialized")
+        await self.ensure_backend()
+        assert self._backend is not None  # ensure_backend loaded it or raised
 
         try:
             async for chunk in self._backend.generate(*args, **kwargs):
@@ -152,6 +164,16 @@ Model files not found! You need to download the Kokoro V1 model:
         if self._backend:
             self._backend.unload()
             self._backend = None
+
+    async def unload(self) -> None:
+        """Release model from GPU memory. Reloads automatically on next request."""
+        async with self._lock:
+            if self._backend is not None:
+                self._backend.unload()
+                self._backend = None
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        logger.info("Model unloaded from GPU memory")
 
     @property
     def current_backend(self) -> str:
