@@ -5,6 +5,9 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- `POST /dev/unload` release model from VRAM without stopping container; lazy reload on next request. For freeing a shared GPU while idle. Reclaim scale with load (~0.7 GB; ~1.6 GB via long-form test on 4060Ti). (#474)
+
 ### Fixed
 - Web UI long-playback bugfix around the 10-minute mark; in-browser audio buffer is now bounded ahead of `currentTime` with trailing eviction behind it, so long generations stop overflowing the SourceBuffer.
 - Web UI stays responsive on extended sessions; waveform animation is transition-gated and `PlayerState` short-circuits no-op updates, so controls don't drift into lag after 10+ minutes of playback.

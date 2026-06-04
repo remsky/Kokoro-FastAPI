@@ -79,6 +79,8 @@ Configuration via environment variables, see `core/config.py`. The `:latest` and
         # The Docker GPU image is CUDA-only and won't run on Apple Silicon. With Docker, use `docker/cpu`.
         # For native MPS (Apple GPU) acceleration, run directly via UV with `./start-gpu_mac.sh`.
 
+        cd ../..  # back to repo root for the paths below
+
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
 
@@ -386,6 +388,22 @@ Key Performance Metrics:
 - Realtime Speed: Ranges between 35x-100x (generation time to output audio length)
 - Average Processing Rate: 137.67 tokens/second (cl100k_base)
 
+### Model Unload / VRAM Reclaim
+
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+
+<p align="center">
+  <img src="assets/gpu_model_unload_short.png" width="45%" alt="Short workload" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
+  <img src="assets/gpu_model_unload_longform.png" width="45%" alt="Long-form workload" style="border: 2px solid #333; padding: 10px;">
+</p>
+
+| Workload | Loaded | Floor | Reclaimed | Reload |
+| --- | --- | --- | --- | --- |
+| Short (6s audio) | 3.11 GB | 2.37 GB | 758 MiB | +4.9s |
+| Long-form (7.5m) | 3.98 GB | 2.37 GB | 1,656 MiB | +5.1s |
+
+Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
+
 ### Transcription roundtrip (WER/CER)
 
 End-to-end roundtrip: synthesize with Kokoro, transcribe the result back with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper), compare to the source text. Scripts and data live under `examples/assorted_checks/test_transcription/`.
@@ -549,6 +567,19 @@ See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
 </details>
 
 <details>
+<summary>Inline Control Tokens</summary>
+
+Two tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
+
+- **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
+- **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
+
+```text
+The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
+```
+</details>
+
+<details>
 <summary>Debug Endpoints</summary>
 
 Monitor system state and resource usage with these endpoints:
@@ -556,6 +587,7 @@ Monitor system state and resource usage with these endpoints:
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Monitor temp file and output directory usage
 - `/debug/system` - Get system information (CPU, memory, GPU)
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request
 
 Useful for debugging resource exhaustion or performance issues.
 </details>
