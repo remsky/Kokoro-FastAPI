@@ -18,7 +18,7 @@ export class WaveVisualizer {
             height: 100,  // Increased height
             autostart: false,
             amplitude: 1,
-            speed: 0.1
+            speed: 0.03
         });
 
         // Handle window resize

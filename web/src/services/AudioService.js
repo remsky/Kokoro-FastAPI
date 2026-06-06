@@ -18,6 +18,11 @@ export class AudioService {
         this.chunkQueue = [];
         this.streamFinished = false;
         this.feederWakeup = null;
+        // once an MSE generation finishes, the full file lives on the server. swapping
+        // the <audio> element over to it restores true duration + full seeking, which
+        // the bounded streaming buffer can't provide for long generations (#150).
+        this.usingFileSource = false;
+        this.swapInProgress = false;
     }
 
     supportsMSEMp3() {
@@ -183,6 +188,11 @@ export class AudioService {
 
         this.audio.addEventListener('ended', () => {
             this.dispatchEvent('ended');
+            // reaching the end is a safe break point too: swap so a replay/scrub uses
+            // the full file rather than the evicted streaming buffer.
+            if (this.canSwapToFileSource()) {
+                this.swapToFileSource();
+            }
         });
 
         return new Promise((resolve, reject) => {
@@ -243,6 +253,12 @@ export class AudioService {
 
                     setTimeout(() => {
                         this.dispatchEvent('downloadReady');
+                        // if the user isn't actively listening (autoplay off, or paused),
+                        // switch to the full file now so duration + seeking are correct
+                        // the moment generation finishes. otherwise defer to pause/ended.
+                        if (this.audio && this.audio.paused) {
+                            this.swapToFileSource();
+                        }
                     }, 800);
 
                     return;
@@ -491,6 +507,11 @@ export class AudioService {
         if (this.audio) {
             this.audio.pause();
             this.dispatchEvent('pause');
+            // pausing a finished generation is a safe break point: swap to the full
+            // file so the user can scrub the whole track and see the real duration.
+            if (this.canSwapToFileSource()) {
+                this.swapToFileSource();
+            }
         }
     }
 
@@ -502,6 +523,93 @@ export class AudioService {
                 this.play();
             }
         }
+    }
+
+    // true only for a finished MSE stream that hasn't been swapped yet. block mode
+    // already plays a full-file blob, so it never needs (or gets) a swap.
+    canSwapToFileSource() {
+        return (
+            !this.usingFileSource &&
+            !this.swapInProgress &&
+            this.streamFinished &&
+            this.mediaSource !== null &&
+            !!this.serverDownloadPath &&
+            !!this.audio &&
+            !this.audio.error
+        );
+    }
+
+    // tear down the bounded MSE buffer and point the same <audio> element at the
+    // finished server file (FileResponse serves range requests, so duration and
+    // seeking become correct). reusing the element keeps every listener attached.
+    // only called at safe moments (idle on completion, on pause, on ended) so active
+    // playback is never interrupted mid-stream.
+    async swapToFileSource(targetTime = null, shouldPlay = false) {
+        if (!this.canSwapToFileSource()) {
+            return false;
+        }
+        this.swapInProgress = true;
+
+        const audio = this.audio;
+        const resumeTime = targetTime != null ? targetTime : (audio.currentTime || 0);
+        const volume = audio.volume;
+        const rate = audio.playbackRate;
+        const previousObjectUrl = this.objectUrl;
+        const fileUrl = this.serverDownloadPath;
+
+        // drop MSE references up front so a late feeder/updateend can't touch them.
+        this.mediaSource = null;
+        this.sourceBuffer = null;
+        this.objectUrl = null;
+
+        return await new Promise((resolve) => {
+            const detach = () => {
+                audio.removeEventListener('loadedmetadata', onLoaded);
+                audio.removeEventListener('error', onError);
+            };
+
+            const onLoaded = () => {
+                detach();
+                if (audio !== this.audio) { this.swapInProgress = false; resolve(false); return; }
+                const duration = audio.duration;
+                if (Number.isFinite(duration) && duration > 0) {
+                    // 1:1 timeline (sequence mode appended the same bytes), so the
+                    // playhead lands where the stream left off.
+                    audio.currentTime = Math.min(Math.max(resumeTime, 0), Math.max(0, duration - 0.05));
+                }
+                audio.volume = volume;
+                audio.playbackRate = rate;
+                this.usingFileSource = true;
+                this.swapInProgress = false;
+                this.dispatchEvent('ready');
+                if (shouldPlay) {
+                    this.play();
+                }
+                resolve(true);
+            };
+
+            const onError = () => {
+                detach();
+                if (audio !== this.audio) { this.swapInProgress = false; resolve(false); return; }
+                this.swapInProgress = false;
+                // the stream buffer is gone, but the file is still downloadable. surface
+                // that so the user isn't left with a dead player.
+                console.warn('Failed to switch to file playback:', audio.error);
+                this.dispatchEvent('playbackUnavailable');
+                resolve(false);
+            };
+
+            audio.addEventListener('loadedmetadata', onLoaded, { once: true });
+            audio.addEventListener('error', onError, { once: true });
+
+            audio.src = fileUrl;
+            audio.load();
+
+            // safe to revoke now that the element no longer references the MSE url.
+            if (previousObjectUrl) {
+                URL.revokeObjectURL(previousObjectUrl);
+            }
+        });
     }
 
     setVolume(volume) {
@@ -594,6 +702,8 @@ export class AudioService {
         this.rejectPendingOperations(new Error('AudioService cancelled'));
         this.chunkQueue = [];
         this.streamFinished = true;
+        this.usingFileSource = false;
+        this.swapInProgress = false;
         this.wakeFeeder();
         this.revokeObjectUrl();
     }
@@ -624,6 +734,8 @@ export class AudioService {
         this.rejectPendingOperations(new Error('AudioService cleanup'));
         this.chunkQueue = [];
         this.streamFinished = true;
+        this.usingFileSource = false;
+        this.swapInProgress = false;
         this.wakeFeeder();
         this.revokeObjectUrl();
     }

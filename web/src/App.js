@@ -92,6 +92,8 @@ export class App {
             message = isFirefox
                 ? 'Audio streaming is not currently supported in Firefox. Playback and/or download should stilll be available when generation finishes.'
                 : 'This browser may not support streaming. Playback and/or download should still be available when generation finishes.';
+        } else if (this.elements.autoplayToggle?.checked) {
+            message = 'Auto-play on: pause after generation completes to enable full seek/scrub.';
         }
 
         notice.textContent = message;
@@ -105,8 +107,9 @@ export class App {
         // Download button
         this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
 
-        // Keep browser/output warning aligned with the selected format
+        // Keep browser/output warning aligned with the selected format and autoplay state
         this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());
+        this.elements.autoplayToggle.addEventListener('change', () => this.applyBrowserStreamingNotice());
 
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {

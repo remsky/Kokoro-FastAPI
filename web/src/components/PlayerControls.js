@@ -16,6 +16,7 @@ export class PlayerControls {
         this.setupAudioEvents();
         this.setupStateSubscription();
         this.timeUpdateInterval = null;
+        this.updateControls(this.playerState.getState());
     }
 
     formatTime(secs) {
