@@ -11,6 +11,7 @@ from typing import List, Optional, Union
 
 import inflect
 from numpy import number
+
 # from text_to_num import text2num
 from torch import mul
 
@@ -135,20 +136,20 @@ VALID_UNITS = {
 }
 
 SYMBOL_REPLACEMENTS = {
-    '~': ' ',
-    '@': ' at ',
-    '#': ' number ',
-    '$': ' dollar ',
-    '%': ' percent ',
-    '^': ' ',
-    '&': ' and ',
-    '*': ' ',
-    '_': ' ',
-    '|': ' ',
-    '\\': ' ',
-    '/': ' slash ',
-    '=': ' equals ',
-    '+': ' plus ',
+    "~": " ",
+    "@": " at ",
+    "#": " number ",
+    "$": " dollar ",
+    "%": " percent ",
+    "^": " ",
+    "&": " and ",
+    "*": " ",
+    "_": " ",
+    "|": " ",
+    "\\": " ",
+    "/": " slash ",
+    "=": " equals ",
+    "+": " plus ",
 }
 
 MONEY_UNITS = {"$": ("dollar", "cent"), "£": ("pound", "pence"), "€": ("euro", "cent")}
@@ -408,7 +409,7 @@ def handle_time(t: re.Match[str]) -> str:
 
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
-    
+
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
@@ -455,9 +456,9 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     # Handle special characters that might cause audio artifacts first
     # Replace newlines with spaces (or pauses if needed)
-    text = text.replace('\n', ' ')
-    text = text.replace('\r', ' ')
-    
+    text = text.replace("\n", " ")
+    text = text.replace("\r", " ")
+
     # Handle titles and abbreviations
     text = re.sub(r"\bD[Rr]\.(?= [A-Z])", "Doctor", text)
     text = re.sub(r"\b(?:Mr\.|MR\.(?= [A-Z]))", "Mister", text)

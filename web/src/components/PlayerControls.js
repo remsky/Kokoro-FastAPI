@@ -16,9 +16,14 @@ export class PlayerControls {
         this.setupAudioEvents();
         this.setupStateSubscription();
         this.timeUpdateInterval = null;
+        this.updateControls(this.playerState.getState());
     }
 
     formatTime(secs) {
+        if (!Number.isFinite(secs) || secs < 0) {
+            return '0:00';
+        }
+
         const minutes = Math.floor(secs / 60);
         const seconds = Math.floor(secs % 60);
         return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -47,7 +52,7 @@ export class PlayerControls {
             `${this.formatTime(currentTime)} / ${this.formatTime(duration || 0)}`;
         
         // Update seek slider
-        if (duration > 0 && !this.elements.seekSlider.dragging) {
+        if (Number.isFinite(duration) && duration > 0 && !this.elements.seekSlider.dragging) {
             this.elements.seekSlider.value = (currentTime / duration) * 100;
         }
         
@@ -123,6 +128,11 @@ export class PlayerControls {
             this.stopTimeUpdate();
         });
 
+        this.audioService.addEventListener('ready', () => {
+            this.playerState.setReady(true);
+            this.updateTimeDisplay();
+        });
+
         // Initial time display
         this.updateTimeDisplay();
     }
@@ -133,8 +143,8 @@ export class PlayerControls {
 
     updateControls(state) {
         // Update button states
-        this.elements.playPauseBtn.disabled = !state.duration && !state.isGenerating;
-        this.elements.seekSlider.disabled = !state.duration;
+        this.elements.playPauseBtn.disabled = !state.isReady && !state.isGenerating;
+        this.elements.seekSlider.disabled = !state.isReady || !Number.isFinite(state.duration) || state.duration <= 0;
         this.elements.cancelBtn.style.display = state.isGenerating ? 'block' : 'none';
         
         // Update volume and speed if changed externally

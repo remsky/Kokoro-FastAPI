@@ -330,6 +330,16 @@ async def get_content_type(path: str) -> str:
         ".gif": "image/gif",
         ".svg": "image/svg+xml",
         ".ico": "image/x-icon",
+        # audio downloads: serve a real media type so the webui can play the file
+        # directly (the player swaps to this URL once generation finishes, #150).
+        ".mp3": "audio/mpeg",
+        ".wav": "audio/wav",
+        ".opus": "audio/opus",
+        ".flac": "audio/flac",
+        ".aac": "audio/aac",
+        ".m4a": "audio/mp4",
+        ".ogg": "audio/ogg",
+        ".pcm": "audio/pcm",
     }.get(ext, "application/octet-stream")
 
 

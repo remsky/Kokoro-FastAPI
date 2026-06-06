@@ -23,6 +23,7 @@ build/
 # Environment
 # .env
 .venv/
+node_modules/
 env/
 venv/
 ENV/
@@ -76,6 +77,10 @@ examples/assorted_checks/test_transcription/output_long_form/*.transcript.txt
 examples/assorted_checks/test_transcription/output_long_form/*.wav
 examples/assorted_checks/test_transcription/output_long_form/*.synth_meta.json
 examples/assorted_checks/test_transcription/output_multilingual/*.wav
+examples/assorted_checks/benchmarks/output_data/model_unload_stats.txt
+examples/assorted_checks/benchmarks/output_data/model_unload_results.json
+examples/assorted_checks/benchmarks/output_plots/model_unload_longform.png
+examples/assorted_checks/benchmarks/output_plots/model_unload_short.png
 uv.lock
 !docker/test-client/uv.lock
 
@@ -87,3 +92,5 @@ pyproject.toml.bkp
 # Local scratch notes, scan outputs, anything not meant to ship
 .local/
 examples/assorted_checks/test_silence/out/*
+playwright-report/
+test-results/
