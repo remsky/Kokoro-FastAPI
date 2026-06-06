@@ -67,6 +67,14 @@ async def test_get_content_type():
         ("test.css", "text/css"),
         ("test.png", "image/png"),
         ("test.unknown", "application/octet-stream"),
+        ("test.mp3", "audio/mpeg"),
+        ("test.wav", "audio/wav"),
+        ("test.opus", "audio/opus"),
+        ("test.flac", "audio/flac"),
+        ("test.aac", "audio/aac"),
+        ("test.ogg", "audio/ogg"),
+        ("test.m4a", "audio/mp4"),
+        ("test.pcm", "audio/pcm"),
     ]
 
     for filename, expected in test_cases:
