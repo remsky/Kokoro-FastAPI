@@ -20,9 +20,9 @@ async def get_web_config():
     """Get web player configuration including UVICORN_ROOT_PATH."""
     if not settings.enable_web_player:
         raise HTTPException(status_code=404, detail="Web player is disabled")
-    
+
     root_path = os.environ.get("UVICORN_ROOT_PATH", "")
-    
+
     return {
         "root_path": root_path,
         "version": settings.api_version,

@@ -102,7 +102,7 @@ class TTSService:
                         lang_code=lang_code,
                         return_timestamps=return_timestamps,
                     ):
-                        chunk_data.audio*=volume_multiplier
+                        chunk_data.audio *= volume_multiplier
                         # For streaming, convert to bytes
                         if output_format:
                             try:
@@ -135,7 +135,7 @@ class TTSService:
                         speed=speed,
                         return_timestamps=return_timestamps,
                     )
-                    
+
                     if chunk_data.audio is None:
                         logger.error("Model generated None for audio chunk")
                         return
@@ -144,7 +144,7 @@ class TTSService:
                         logger.error("Model generated empty audio chunk")
                         return
 
-                    chunk_data.audio*=volume_multiplier
+                    chunk_data.audio *= volume_multiplier
 
                     # For streaming, convert to bytes
                     if output_format:
@@ -296,17 +296,26 @@ class TTSService:
                     # --- Handle Pause Chunk ---
                     try:
                         logger.debug(f"Generating {pause_duration_s}s silence chunk")
-                        silence_samples = int(pause_duration_s * 24000)  # 24kHz sample rate
+                        silence_samples = int(
+                            pause_duration_s * 24000
+                        )  # 24kHz sample rate
                         # Create proper silence as int16 zeros to avoid normalization artifacts
                         silence_audio = np.zeros(silence_samples, dtype=np.int16)
-                        pause_chunk = AudioChunk(audio=silence_audio, word_timestamps=[])  # Empty timestamps for silence
+                        pause_chunk = AudioChunk(
+                            audio=silence_audio, word_timestamps=[]
+                        )  # Empty timestamps for silence
 
                         # Format and yield the silence chunk
                         if output_format:
                             formatted_pause_chunk = await AudioService.convert_audio(
-                                pause_chunk, output_format, writer, speed=speed, chunk_text="",
-                                is_last_chunk=False, trim_audio=False, normalizer=stream_normalizer,
-
+                                pause_chunk,
+                                output_format,
+                                writer,
+                                speed=speed,
+                                chunk_text="",
+                                is_last_chunk=False,
+                                trim_audio=False,
+                                normalizer=stream_normalizer,
                             )
                             if formatted_pause_chunk.output:
                                 yield formatted_pause_chunk
@@ -324,7 +333,9 @@ class TTSService:
                         logger.error(f"Failed to process pause chunk: {str(e)}")
                         continue
 
-                elif tokens or chunk_text.strip():  # Process if there are tokens OR non-whitespace text
+                elif (
+                    tokens or chunk_text.strip()
+                ):  # Process if there are tokens OR non-whitespace text
                     # --- Handle Text Chunk ---
                     try:
                         # Process audio for chunk
@@ -350,14 +361,20 @@ class TTSService:
 
                             # Update offset based on the actual duration of the generated audio chunk
                             chunk_duration = 0
-                            if chunk_data.audio is not None and len(chunk_data.audio) > 0:
+                            if (
+                                chunk_data.audio is not None
+                                and len(chunk_data.audio) > 0
+                            ):
                                 chunk_duration = len(chunk_data.audio) / 24000
                                 current_offset += chunk_duration
 
                             # Yield the processed chunk (either formatted or raw)
                             if chunk_data.output is not None:
                                 yield chunk_data
-                            elif chunk_data.audio is not None and len(chunk_data.audio) > 0:
+                            elif (
+                                chunk_data.audio is not None
+                                and len(chunk_data.audio) > 0
+                            ):
                                 yield chunk_data
                             else:
                                 logger.warning(

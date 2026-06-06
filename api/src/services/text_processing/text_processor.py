@@ -2,7 +2,7 @@
 
 import re
 import time
-from typing import AsyncGenerator, Dict, List, Tuple, Optional
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 from loguru import logger
 
@@ -34,10 +34,10 @@ def process_text_chunk(
         List of token IDs
     """
     start_time = time.time()
-    
+
     # Strip input text to remove any leading/trailing spaces that could cause artifacts
     text = text.strip()
-    
+
     if not text:
         return []
 
@@ -140,7 +140,7 @@ async def smart_split(
     normalization_options: NormalizationOptions = NormalizationOptions(),
 ) -> AsyncGenerator[Tuple[str, List[int], Optional[float]], None]:
     """Build optimal chunks targeting 300-400 tokens, never exceeding max_tokens.
-    
+
     Yields:
         Tuple of (text_chunk, tokens, pause_duration_s).
         If pause_duration_s is not None, it's a pause chunk with empty text/tokens.
@@ -161,7 +161,9 @@ async def smart_split(
         part_idx += 1
 
         # --- Process Text Part ---
-        if text_part_raw and text_part_raw.strip():  # Only process if the part is not empty string
+        if (
+            text_part_raw and text_part_raw.strip()
+        ):  # Only process if the part is not empty string
             # Strip leading and trailing spaces to prevent pause tag splitting artifacts
             text_part_raw = text_part_raw.strip()
 
@@ -171,8 +173,9 @@ async def smart_split(
                 if lang_code in ["a", "b", "en-us", "en-gb"]:
                     processed_text = CUSTOM_PHONEMES.split(processed_text)
                     for index in range(0, len(processed_text), 2):
-                        processed_text[index] = normalize_text(processed_text[index], normalization_options)
-
+                        processed_text[index] = normalize_text(
+                            processed_text[index], normalization_options
+                        )
 
                     processed_text = "".join(processed_text).strip()
                 else:
@@ -316,7 +319,9 @@ async def smart_split(
                         yield "", [], duration  # Yield pause chunk
                 except (ValueError, TypeError):
                     # This case should be rare if re.fullmatch passed, but handle anyway
-                    logger.warning(f"Could not parse valid-looking pause duration: {duration_str}")
+                    logger.warning(
+                        f"Could not parse valid-looking pause duration: {duration_str}"
+                    )
 
     # --- End of parts loop ---
     total_time = time.time() - start_time

@@ -226,7 +226,8 @@ async def create_captioned_speech(
                                 # Add any chunks that may be in the acumulator into the return word_timestamps
                                 if chunk_data.word_timestamps is not None:
                                     chunk_data.word_timestamps = (
-                                        timestamp_acumulator + chunk_data.word_timestamps
+                                        timestamp_acumulator
+                                        + chunk_data.word_timestamps
                                     )
                                     timestamp_acumulator = []
                                 else:

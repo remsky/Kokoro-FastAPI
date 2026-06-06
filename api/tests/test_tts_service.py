@@ -1,10 +1,10 @@
+import os
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
 import torch
-import os
 
 from api.src.services.tts_service import TTSService
 
