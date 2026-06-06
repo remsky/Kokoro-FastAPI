@@ -2,8 +2,8 @@ apiVersion: v2
 name: kokoro-fastapi
 description: A Helm chart for deploying the Kokoro FastAPI TTS service to Kubernetes
 type: application
-version: 0.4.0
-appVersion: "0.4.0"
+version: 0.5.0
+appVersion: "0.5.0"
 
 keywords:
   - tts
