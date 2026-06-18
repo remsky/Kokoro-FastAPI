@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [v0.6.0] - Unreleased
+### Fixed
+- OpenAI voice aliases pointed at legacy v0.19 voicepacks that sound degraded on the v1.0 model. Added the proper v1.0 `bf_isabella` and repointed `nova` (`bf_v0isabella` -> `bf_isabella`), `alloy`, `ash`, `coral`, `echo` to their v1.0 voices. The `v0*` voices stay available by explicit name. (#479)
+
 ## [v0.5.0] - 2026-06-06
 ### Added
 - `POST /dev/unload` release model from VRAM without stopping container; lazy reload on next request. For freeing a shared GPU while idle. Reclaim scale with load (~0.7 GB; ~1.6 GB via long-form test on 4060Ti). (#474)
