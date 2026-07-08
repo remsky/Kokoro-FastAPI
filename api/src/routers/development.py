@@ -423,6 +423,11 @@ async def unload_model(
     The model reloads automatically on the next inference request.
     Useful for homelab deployments where GPU memory is shared across services.
     """
+    if not settings.allow_dev_unload:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "The /dev/unload endpoint is disabled"},
+        )
     try:
         if tts_service.model_manager is None:
             raise HTTPException(status_code=503, detail={"error": "Model manager not initialized"})
