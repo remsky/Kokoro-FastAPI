@@ -6,13 +6,13 @@
         "gpt-4o-mini-tts": "kokoro-v1_0"
     },
     "voices": {
-        "alloy": "am_v0adam",
-        "ash": "af_v0nicole",
-        "coral": "bf_v0emma",
-        "echo": "af_v0bella",
+        "alloy": "am_adam",
+        "ash": "af_nicole",
+        "coral": "bf_emma",
+        "echo": "af_bella",
         "fable": "af_sarah",
         "onyx": "bm_george",
-        "nova": "bf_v0isabella",
+        "nova": "bf_isabella",
         "sage": "am_michael",
         "shimmer": "af_sky"
     }

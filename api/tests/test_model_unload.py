@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from fastapi.testclient import TestClient
 
+from api.src.core.config import settings
 from api.src.inference.base import AudioChunk
 from api.src.inference.model_manager import ModelManager
 from api.src.main import app
@@ -28,6 +29,12 @@ def override_tts_service(service):
         yield
     finally:
         app.dependency_overrides.pop(get_tts_service, None)
+
+
+@pytest.fixture(autouse=True)
+def _enable_dev_unload(monkeypatch):
+    """Enable the /dev/unload gate for the endpoint tests in this module."""
+    monkeypatch.setattr(settings, "allow_dev_unload", True)
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +207,20 @@ def test_unload_endpoint_returns_200():
     assert response.status_code == 200
     assert response.json() == {"status": "unloaded"}
     mock_manager.unload.assert_called_once()
+
+
+def test_unload_endpoint_403_when_disabled(monkeypatch):
+    """Returns 403 without touching the model when the gate is off."""
+    monkeypatch.setattr(settings, "allow_dev_unload", False)
+    mock_manager = AsyncMock()
+    mock_manager.unload = AsyncMock()
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/unload")
+
+    assert response.status_code == 403
+    mock_manager.unload.assert_not_called()
 
 
 def test_unload_endpoint_idempotent():

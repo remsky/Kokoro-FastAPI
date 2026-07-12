@@ -3,14 +3,14 @@
 </p>
 
 # <sub><sub>_`FastKoko`_ </sub></sub> 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-81-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-52%25-tan)]()
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6) 
 
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.4M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.8M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
 
 
 
@@ -582,14 +582,16 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 <details>
 <summary>Debug Endpoints</summary>
 
-Monitor system state and resource usage with these endpoints:
+Monitor system state and resource usage with these endpoints. The `/debug/*` routes expose host and process internals, so they are off by default; set `ENABLE_DEBUG_ENDPOINTS=true` to enable.
 
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Monitor temp file and output directory usage
 - `/debug/system` - Get system information (CPU, memory, GPU)
-- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 
 Useful for debugging resource exhaustion or performance issues.
+
+Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
 </details>
 
 <details>
