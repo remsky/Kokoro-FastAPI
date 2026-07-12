@@ -4,7 +4,7 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [v0.6.0] - Unreleased
+## [v0.6.0] - 2026-07-12
 ### Breaking changes
 - `POST /dev/unload` is off by default; set `ALLOW_DEV_UNLOAD=true` to enable, otherwise returns 403. Shipped open in v0.5.0, now opt-in (#483).
 - `/debug/*` routes also set off by default, continuation of above; to avoid unintentional exposure of internals (stack traces, temp storage, CPU/mem/GPU); set `ENABLE_DEBUG_ENDPOINTS=true` to enable, otherwise 403's.
