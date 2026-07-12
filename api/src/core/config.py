@@ -41,6 +41,9 @@ class Settings(BaseSettings):
         False  # Whether to allow saving combined voices locally
     )
     allow_dev_unload: bool = False  # Whether to expose the POST /dev/unload endpoint
+    enable_debug_endpoints: bool = (
+        False  # Whether to expose /debug/* host and process introspection routes
+    )
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container

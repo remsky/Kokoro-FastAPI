@@ -135,7 +135,7 @@ if settings.cors_enabled:
 # Include routers
 app.include_router(openai_router, prefix="/v1")
 app.include_router(dev_router)  # Development endpoints
-app.include_router(debug_router)  # Debug endpoints
+app.include_router(debug_router)  # Debug endpoints (403 unless enabled)
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 
