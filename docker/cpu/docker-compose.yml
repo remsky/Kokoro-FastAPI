@@ -20,7 +20,9 @@ services:
       - ONNX_ARENA_EXTEND_STRATEGY=kNextPowerOfTwo
       - API_LOG_LEVEL=DEBUG
       - DOWNLOAD_MODEL=true
-      
+      # - ALLOW_DEV_UNLOAD=true
+      # - ENABLE_DEBUG_ENDPOINTS=true
+
   # # Gradio UI service [Comment out everything below if you don't need it]
   # gradio-ui:
   #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}

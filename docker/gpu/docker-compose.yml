@@ -21,6 +21,8 @@ services:
       - PYTHONUNBUFFERED=1
       - API_LOG_LEVEL=DEBUG
       - DOWNLOAD_MODEL=true
+      # - ALLOW_DEV_UNLOAD=true
+      # - ENABLE_DEBUG_ENDPOINTS=true
     deploy:
       resources:
         reservations:
