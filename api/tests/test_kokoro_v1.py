@@ -158,3 +158,66 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
             voice_arg = Path(mock_pipeline.call_args[1]["voice"])
             assert voice_arg.name == "temp_voice_ef_voice"
             assert voice_arg.parent == Path(tempfile.gettempdir())
+
+
+def test_espeak_word_timestamps_basic():
+    """Word times derived from pred_dur for an espeak (non-English) result."""
+    from api.src.inference.kokoro_v1 import _espeak_word_timestamps
+
+    # phonemes "ab cd": BOS=8, a=4, b=4, space=8, c=4, d=4, EOS=0
+    # scale is 2/80 s per unit -> BOS 0.2s, each char 0.1s, space 0.2s
+    pred_dur = torch.tensor([8, 4, 4, 8, 4, 4, 0])
+    ts = _espeak_word_timestamps("hola mundo", "ab cd", pred_dur)
+
+    assert [t.word for t in ts] == ["hola", "mundo"]
+    assert ts[0].start_time == pytest.approx(0.2)
+    assert ts[0].end_time == pytest.approx(0.4)
+    assert ts[1].start_time == pytest.approx(0.6)
+    assert ts[1].end_time == pytest.approx(0.8)
+
+
+def test_espeak_word_timestamps_expansion():
+    """Words espeak expands (numbers) are merged back via per-word g2p."""
+    from api.src.inference.kokoro_v1 import _espeak_word_timestamps
+
+    # Three text words but four phoneme groups ("1863" speaks as two words).
+    phonemes = "a bb cc d"
+    pred_dur = torch.tensor([0, 4] + [8, 4, 4] + [8, 4, 4] + [8, 4] + [0])
+
+    def g2p(word):
+        return ("bb cc" if word == "1863" else "x", None)
+
+    ts = _espeak_word_timestamps("en 1863 el", phonemes, pred_dur, g2p=g2p)
+
+    assert [t.word for t in ts] == ["en", "1863", "el"]
+    # "1863" spans both expanded groups.
+    assert ts[1].start_time == pytest.approx(0.3)
+    assert ts[1].end_time == pytest.approx(0.9)
+    # Whole-string timing stays monotonic and inside the clip.
+    assert ts[0].end_time <= ts[1].start_time <= ts[2].start_time
+
+
+def test_espeak_word_timestamps_unreconcilable():
+    """Group/word count mismatch that g2p can't explain yields None."""
+    from api.src.inference.kokoro_v1 import _espeak_word_timestamps
+
+    phonemes = "a b c"
+    pred_dur = torch.tensor([0, 4, 8, 4, 8, 4, 0])
+
+    # g2p says every word is a single group: 2 != 3 -> give up.
+    ts = _espeak_word_timestamps("uno dos", phonemes, pred_dur, g2p=lambda w: (w, None))
+    assert ts is None
+
+    # No g2p available -> also None.
+    assert _espeak_word_timestamps("uno dos", phonemes, pred_dur) is None
+
+
+def test_espeak_word_timestamps_degenerate_inputs():
+    """Missing durations or empty text return None instead of raising."""
+    from api.src.inference.kokoro_v1 import _espeak_word_timestamps
+
+    assert _espeak_word_timestamps("hola", "abc", None) is None
+    assert _espeak_word_timestamps("hola", "", torch.tensor([0, 0])) is None
+    assert _espeak_word_timestamps("", "abc", torch.tensor([0, 4, 4, 4, 0])) is None
+    # pred_dur too short for the phoneme string.
+    assert _espeak_word_timestamps("hola", "abcdef", torch.tensor([0, 4])) is None

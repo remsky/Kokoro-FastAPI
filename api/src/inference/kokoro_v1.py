@@ -14,6 +14,69 @@ from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
 from .base import AudioChunk, BaseModelBackend
 
+_ESPEAK_TS_SCALE = 2.0 / 80.0  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+
+
+def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
+    """Derive word timestamps for espeak-based (non-English) pipelines.
+
+    KPipeline attaches timed tokens only for English (misaki G2P) voices, but
+    the model predicts a duration for every phoneme in every language — the
+    audio is rendered from exactly those durations. pred_dur[0] is BOS and
+    pred_dur[1 + i] covers phonemes[i], so summing per-character durations and
+    splitting at the phoneme string's spaces yields exact word times.
+
+    Words espeak expands into several spoken words (numbers, some
+    abbreviations) are reconciled by re-phonemizing per word via `g2p`; if the
+    counts still disagree, returns None so the caller emits no timestamps and
+    clients can fall back to their own handling.
+    """
+    try:
+        if pred_dur is None or not phonemes or len(pred_dur) < len(phonemes) + 1:
+            return None
+        words = graphemes.split()
+        if not words:
+            return None
+        groups = []  # [start, end) seconds per space-separated phoneme group
+        t = float(pred_dur[0]) * _ESPEAK_TS_SCALE
+        start = None
+        for i, ch in enumerate(phonemes):
+            d = float(pred_dur[1 + i]) * _ESPEAK_TS_SCALE
+            if ch.isspace():
+                if start is not None:
+                    groups.append((start, t))
+                    start = None
+            elif start is None:
+                start = t
+            t += d
+        if start is not None:
+            groups.append((start, t))
+
+        if len(groups) != len(words):
+            if g2p is None:
+                return None
+            counts = []
+            for w in words:
+                ps = g2p(w)
+                if isinstance(ps, tuple):
+                    ps = ps[0]
+                counts.append(max(len((ps or "").split()), 1))
+            if sum(counts) != len(groups):
+                return None
+            merged, gi = [], 0
+            for c in counts:
+                merged.append((groups[gi][0], groups[gi + c - 1][1]))
+                gi += c
+            groups = merged
+
+        return [
+            WordTimestamp(word=w, start_time=round(s, 3), end_time=round(e, 3))
+            for w, (s, e) in zip(words, groups)
+        ]
+    except Exception as e:
+        logger.warning(f"espeak timestamp mapping failed: {e}")
+        return None
+
 
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
@@ -326,6 +389,29 @@ class KokoroV1(BaseModelBackend):
                                 logger.error(
                                     f"Failed to process timestamps for chunk: {e}"
                                 )
+                    elif (
+                        return_timestamps
+                        and result.phonemes
+                        and type(getattr(pipeline, "g2p", None)).__name__
+                        == "EspeakG2P"
+                    ):
+                        # espeak pipelines (es/fr/it/hi/pt) yield no timed
+                        # tokens; derive word times from the model's own
+                        # phoneme durations instead. Espeak-only: other
+                        # non-English G2Ps (ja/zh) have no space-separated
+                        # word groups to map.
+                        pred_dur = getattr(result, "pred_dur", None)
+                        if (
+                            pred_dur is None
+                            and getattr(result, "output", None) is not None
+                        ):
+                            pred_dur = getattr(result.output, "pred_dur", None)
+                        word_timestamps = _espeak_word_timestamps(
+                            result.graphemes,
+                            result.phonemes,
+                            pred_dur,
+                            g2p=getattr(pipeline, "g2p", None),
+                        )
 
                     yield AudioChunk(
                         result.audio.numpy(), word_timestamps=word_timestamps
