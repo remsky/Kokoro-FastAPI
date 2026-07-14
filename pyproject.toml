@@ -3,7 +3,7 @@ name = "kokoro-fastapi"
 version = "0.6.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     # Core dependencies
     "fastapi==0.115.6",

@@ -49,7 +49,7 @@ try:
     data = response.json()
     if "voices" not in data:
         raise Exception(f"Unexpected response format: {data}")
-    voices = data["voices"]
+    voices = [v["id"] if isinstance(v, dict) else v for v in data["voices"]]
     print(f"Found {len(voices)} voices: {', '.join(voices)}")
 
     # Test each voice

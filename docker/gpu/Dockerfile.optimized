@@ -5,9 +5,9 @@ ARG CUDA_VERSION=12.6.3
 # Stage 1: Builder - Use devel image for compilation
 FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-devel-ubuntu24.04 AS builder
 
-# Install Python and build dependencies
+# Install build dependencies (python itself is uv-managed at /opt/uv-python)
 RUN apt-get update -y && \
-    apt-get install -y python3.10 python3-venv python3-dev git curl && \
+    apt-get install -y python3-venv python3-dev git curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/ && \
@@ -29,15 +29,16 @@ ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
 # per target in docker-bake.hcl.
 ARG GPU_EXTRA=gpu
 
-RUN uv venv --python 3.10 && \
+# --managed-python: noble ships a system 3.12; without the flag uv would pick it and skip /opt/uv-python, breaking the runtime COPY
+RUN uv venv --python 3.12 --managed-python && \
     uv sync --extra ${GPU_EXTRA} --no-cache --no-install-project
 
-# Stage 2: Runtime - Use smaller runtime image
-FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-cudnn-runtime-ubuntu24.04
+# Stage 2: Runtime - `base` variant: cudart + NVIDIA_* env only; torch uses its pip CUDA/cuDNN copies, system ones were dead weight (#482)
+FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04
 
 # Install runtime dependencies + uv (needed by entrypoint.sh)
 RUN apt-get update -y && \
-    apt-get install -y python3.10 espeak-ng espeak-ng-data libsndfile1 ffmpeg curl && \
+    apt-get install -y --no-install-recommends espeak-ng espeak-ng-data libsndfile1 ffmpeg curl && \
     curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/ && \
     mv /root/.local/bin/uvx /usr/local/bin/ && \
