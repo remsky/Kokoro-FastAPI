@@ -13,6 +13,7 @@ On Windows, run_long_form.bat wraps this with logging and named modes
 
 Env overrides:
     KOKORO_BASE_URL  default http://localhost:8880/v1
+    KOKORO_DEVICE    default gpu (label only; picks long_form_report_{device}.json)
     LONGFORM_VOICE   default af_heart
     LONGFORM_INPUT   default input/journey_all.txt.gz (relative to this script; .gz auto-decoded)
     LONGFORM_CHARS   default unset (full file); int caps cleaned input length
@@ -30,12 +31,14 @@ import os
 import re
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 import openai
 
 
 BASE_URL = os.environ.get("KOKORO_BASE_URL", "http://localhost:8880/v1")
+KOKORO_DEVICE = os.environ.get("KOKORO_DEVICE", "gpu").lower()
 VOICE = os.environ.get("LONGFORM_VOICE", "af_heart")
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base.en")
 WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "cpu").lower()
@@ -232,6 +235,7 @@ def main() -> int:
     char_count = len(text)
 
     print(f"Server:      {BASE_URL}")
+    print(f"Kokoro:      {KOKORO_DEVICE} (label)")
     print(f"Voice:       {VOICE}")
     if char_cap is not None and char_count < full_chars:
         print(f"Input:       {INPUT_PATH.name} ({word_count} words, {char_count} chars; capped at {char_cap} of {full_chars})")
@@ -276,6 +280,8 @@ def main() -> int:
         print()
 
     report = {
+        "kokoro_device": KOKORO_DEVICE,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "voice": VOICE,
         "input_file": rel(INPUT_PATH),
         "input_words": word_count,
@@ -289,7 +295,7 @@ def main() -> int:
     }
 
     if args.synth_only:
-        report_path = OUTPUT_DIR / "long_form_report.json"
+        report_path = OUTPUT_DIR / f"long_form_report_{KOKORO_DEVICE}.json"
         report_path.write_text(json.dumps(report, indent=2))
         print("Summary (synth-only)")
         print(f"  generated {fmt_time(audio_s)} of audio in {fmt_time(synth_s)} ({synth_rtf:.1f}x rt)")
@@ -335,7 +341,7 @@ def main() -> int:
         "wer": round(score, 4),
         "transcript_file": rel(transcript_path),
     })
-    report_path = OUTPUT_DIR / "long_form_report.json"
+    report_path = OUTPUT_DIR / f"long_form_report_{KOKORO_DEVICE}.json"
     report_path.write_text(json.dumps(report, indent=2))
 
     print("Summary")

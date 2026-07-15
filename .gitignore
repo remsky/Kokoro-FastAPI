@@ -76,6 +76,8 @@ examples/*.ogg
 examples/speech.mp3
 examples/phoneme_examples/output/*.wav
 examples/assorted_checks/benchmarks/output_audio/*
+examples/assorted_checks/benchmarks/output_audio_stream/*
+examples/assorted_checks/benchmarks/output_audio_stream_openai/*
 examples/assorted_checks/test_transcription/output/*.wav
 examples/assorted_checks/test_transcription/output_long_form/*.log
 examples/assorted_checks/test_transcription/output_long_form/*.transcript.txt

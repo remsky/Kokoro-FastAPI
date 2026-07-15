@@ -169,7 +169,7 @@ def measure_first_token_openai(
 
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    prefix = "cpu"
+    prefix = os.environ.get("BENCH_PREFIX", "cpu")
     # Run requests benchmark
     print("\n=== Running Direct Requests Benchmark ===")
     run_benchmark(

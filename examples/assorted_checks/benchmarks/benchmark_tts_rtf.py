@@ -68,7 +68,7 @@ def main():
     # Initialize system monitor
     monitor = SystemMonitor(interval=1.0)  # 1 second interval
     # Set prefix for output files (e.g. "gpu", "cpu", "onnx", etc.)
-    prefix = "gpu"
+    prefix = os.environ.get("BENCH_PREFIX", "gpu")
     # Generate token sizes
     if "gpu" in prefix:
         token_sizes = generate_token_sizes(

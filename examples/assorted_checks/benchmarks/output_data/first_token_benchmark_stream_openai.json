@@ -3,11 +3,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.638200044631958,
-      "time_to_first_chunk": 1.6232295036315918,
+      "total_time": 0.6725378036499023,
+      "time_to_first_chunk": 0.6635432243347168,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens10_run1_stream_openai.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.2380416666666667,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 1
@@ -15,11 +15,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.4960439205169678,
-      "time_to_first_chunk": 1.4854960441589355,
+      "total_time": 0.17245197296142578,
+      "time_to_first_chunk": 0.16149258613586426,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens10_run2_stream_openai.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 2
@@ -27,11 +27,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.5055279731750488,
-      "time_to_first_chunk": 1.4948456287384033,
+      "total_time": 0.18905901908874512,
+      "time_to_first_chunk": 0.1811363697052002,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens10_run3_stream_openai.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.2385,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 3
@@ -39,11 +39,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.496837854385376,
-      "time_to_first_chunk": 1.4835176467895508,
+      "total_time": 0.2567286491394043,
+      "time_to_first_chunk": 0.2477123737335205,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens10_run4_stream_openai.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 4
@@ -51,11 +51,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.7330272197723389,
-      "time_to_first_chunk": 1.7219843864440918,
+      "total_time": 0.19848942756652832,
+      "time_to_first_chunk": 0.18387508392333984,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens10_run5_stream_openai.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 5
@@ -63,11 +63,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.865253925323486,
-      "time_to_first_chunk": 3.1809072494506836,
+      "total_time": 0.4730355739593506,
+      "time_to_first_chunk": 0.4663822650909424,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens50_run1_stream_openai.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 1
@@ -75,11 +75,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 7.975425720214844,
-      "time_to_first_chunk": 3.2910428047180176,
+      "total_time": 0.2792398929595947,
+      "time_to_first_chunk": 0.26985979080200195,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens50_run2_stream_openai.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 2
@@ -87,11 +87,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.793715715408325,
-      "time_to_first_chunk": 3.210068464279175,
+      "total_time": 0.28635501861572266,
+      "time_to_first_chunk": 0.2688157558441162,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens50_run3_stream_openai.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 3
@@ -99,11 +99,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.639606237411499,
-      "time_to_first_chunk": 3.0641400814056396,
+      "total_time": 0.4013035297393799,
+      "time_to_first_chunk": 0.39278078079223633,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens50_run4_stream_openai.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 4
@@ -111,11 +111,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 8.100529193878174,
-      "time_to_first_chunk": 3.3910109996795654,
+      "total_time": 0.30783557891845703,
+      "time_to_first_chunk": 0.29668331146240234,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens50_run5_stream_openai.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 5
@@ -123,11 +123,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 15.246968984603882,
-      "time_to_first_chunk": 3.1980819702148438,
+      "total_time": 0.5092895030975342,
+      "time_to_first_chunk": 0.26807117462158203,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens100_run1_stream_openai.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.108125,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 1
@@ -135,11 +135,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 15.934760332107544,
-      "time_to_first_chunk": 4.23082709312439,
+      "total_time": 0.4967949390411377,
+      "time_to_first_chunk": 0.27076220512390137,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens100_run2_stream_openai.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.108083333333333,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 2
@@ -147,11 +147,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 13.799078226089478,
-      "time_to_first_chunk": 3.42996883392334,
+      "total_time": 0.5626282691955566,
+      "time_to_first_chunk": 0.2559316158294678,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens100_run3_stream_openai.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.108083333333333,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 3
@@ -159,11 +159,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 13.400063037872314,
-      "time_to_first_chunk": 3.2097883224487305,
+      "total_time": 0.5396747589111328,
+      "time_to_first_chunk": 0.2782447338104248,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens100_run4_stream_openai.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.107833333333332,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 4
@@ -171,11 +171,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 14.833694219589233,
-      "time_to_first_chunk": 3.1589744091033936,
+      "total_time": 0.507286787033081,
+      "time_to_first_chunk": 0.25611019134521484,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens100_run5_stream_openai.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.107791666666667,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 5
@@ -183,11 +183,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 35.49378156661987,
-      "time_to_first_chunk": 3.852027177810669,
+      "total_time": 1.3046748638153076,
+      "time_to_first_chunk": 0.2859218120574951,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens250_run1_stream_openai.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.81220833333333,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 1
@@ -195,11 +195,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 33.59433174133301,
-      "time_to_first_chunk": 3.2059006690979004,
+      "total_time": 1.2738304138183594,
+      "time_to_first_chunk": 0.3031001091003418,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens250_run2_stream_openai.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.81175,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 2
@@ -207,11 +207,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 34.23120045661926,
-      "time_to_first_chunk": 3.1464977264404297,
+      "total_time": 1.249662160873413,
+      "time_to_first_chunk": 0.2834441661834717,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens250_run3_stream_openai.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.81108333333333,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 3
@@ -219,11 +219,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 36.18487215042114,
-      "time_to_first_chunk": 3.188844919204712,
+      "total_time": 1.4088263511657715,
+      "time_to_first_chunk": 0.27703046798706055,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens250_run4_stream_openai.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.806625,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 4
@@ -231,11 +231,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 38.142744302749634,
-      "time_to_first_chunk": 3.6997063159942627,
+      "total_time": 1.3771345615386963,
+      "time_to_first_chunk": 0.2761549949645996,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens250_run5_stream_openai.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.8105,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 5
@@ -243,11 +243,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 71.48920440673828,
-      "time_to_first_chunk": 3.148237943649292,
+      "total_time": 2.3119561672210693,
+      "time_to_first_chunk": 0.27806901931762695,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens500_run1_stream_openai.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37679166666666,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 1
@@ -255,11 +255,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 73.53017520904541,
-      "time_to_first_chunk": 3.464594841003418,
+      "total_time": 2.3983585834503174,
+      "time_to_first_chunk": 0.2794520854949951,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens500_run2_stream_openai.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37516666666667,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 2
@@ -267,11 +267,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 75.52278685569763,
-      "time_to_first_chunk": 3.5506417751312256,
+      "total_time": 2.5195670127868652,
+      "time_to_first_chunk": 0.3980844020843506,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens500_run3_stream_openai.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37875,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 3
@@ -279,11 +279,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 69.45922994613647,
-      "time_to_first_chunk": 3.495962619781494,
+      "total_time": 2.4327847957611084,
+      "time_to_first_chunk": 0.30141758918762207,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens500_run4_stream_openai.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.374625,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 4
@@ -291,11 +291,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 66.66928672790527,
-      "time_to_first_chunk": 3.301323175430298,
+      "total_time": 2.4075827598571777,
+      "time_to_first_chunk": 0.29151272773742676,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream_openai\\benchmark_tokens500_run5_stream_openai.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37579166666666,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 5
@@ -303,35 +303,35 @@
   ],
   "summary": {
     "10": {
-      "avg_time_to_first_chunk": 1.562,
-      "avg_total_time": 1.574,
-      "avg_audio_length": 3.45,
+      "avg_time_to_first_chunk": 0.288,
+      "avg_total_time": 0.298,
+      "avg_audio_length": 2.238,
       "num_successful_runs": 5
     },
     "50": {
-      "avg_time_to_first_chunk": 3.227,
-      "avg_total_time": 7.275,
-      "avg_audio_length": 15.825,
+      "avg_time_to_first_chunk": 0.339,
+      "avg_total_time": 0.35,
+      "avg_audio_length": 13.358,
       "num_successful_runs": 5
     },
     "100": {
-      "avg_time_to_first_chunk": 3.446,
-      "avg_total_time": 14.643,
-      "avg_audio_length": 30.35,
+      "avg_time_to_first_chunk": 0.266,
+      "avg_total_time": 0.523,
+      "avg_audio_length": 27.108,
       "num_successful_runs": 5
     },
     "250": {
-      "avg_time_to_first_chunk": 3.419,
-      "avg_total_time": 35.529,
-      "avg_audio_length": 78.175,
+      "avg_time_to_first_chunk": 0.285,
+      "avg_total_time": 1.323,
+      "avg_audio_length": 68.81,
       "num_successful_runs": 5
     },
     "500": {
-      "avg_time_to_first_chunk": 3.392,
-      "avg_total_time": 71.334,
-      "avg_audio_length": 155.125,
+      "avg_time_to_first_chunk": 0.31,
+      "avg_total_time": 2.414,
+      "avg_audio_length": 135.376,
       "num_successful_runs": 5
     }
   },
-  "timestamp": "2025-01-06 03:42:32"
+  "timestamp": "2026-07-14 22:19:05"
 }
