@@ -721,6 +721,8 @@ If you run into trouble, you may have to roll back a version on the release tags
 
 Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
 
+Working on the code, or pointing an AI agent at it? [AGENTS.md](AGENTS.md) covers the repo layout, commands, and conventions.
+
   <a href="https://www.buymeacoffee.com/remsky" target="_blank">
     <img
       src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png"

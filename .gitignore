@@ -44,6 +44,11 @@ ENV/
 # Other project files
 .env
 .claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/api-contrib/
+!.claude/skills/web-contrib/
+!.claude/skills/readme-benchmarks/
 .agents/*
 Kokoro-82M/
 ui/data/
