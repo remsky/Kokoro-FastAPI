@@ -357,8 +357,8 @@ def plot_timeline(df, output_path, suffix="", prefix=""):
     plt.close()
 
 
-def plot_correlation(df, x, y, title, xlabel, ylabel, output_path):
-    """Create correlation plot with regression line and correlation coefficient.
+def plot_correlation(df, x, y, title, xlabel, ylabel, output_path, show_trend=True):
+    """Create scatter plot summarizing a metric against input size.
 
     Args:
         df: pandas DataFrame containing the data
@@ -368,6 +368,10 @@ def plot_correlation(df, x, y, title, xlabel, ylabel, output_path):
         xlabel: str, x-axis label
         ylabel: str, y-axis label
         output_path: str, path to save the output plot
+        show_trend: bool, fit a regression line and annotate correlation when the
+            relationship is genuinely linear (e.g. processing time vs tokens). Set
+            False for ratio metrics like RTF that hover around a constant, where a
+            fitted slope over-reads noise; a mean line with a std band is drawn instead.
     """
     plt.style.use("dark_background")
 
@@ -378,22 +382,37 @@ def plot_correlation(df, x, y, title, xlabel, ylabel, output_path):
         data=df, x=x, y=y, s=100, alpha=0.6, color=STYLE_CONFIG["primary_color"]
     )
 
-    # Regression line
-    sns.regplot(
-        data=df,
-        x=x,
-        y=y,
-        scatter=False,
-        color=STYLE_CONFIG["secondary_color"],
-        line_kws={"linewidth": 2},
-    )
+    if show_trend:
+        # Regression line
+        sns.regplot(
+            data=df,
+            x=x,
+            y=y,
+            scatter=False,
+            color=STYLE_CONFIG["secondary_color"],
+            line_kws={"linewidth": 2},
+        )
+        corr = df[x].corr(df[y])
+        annotation = f"Correlation: {corr:.2f}"
+    else:
+        # Mean line with std band, no fitted slope
+        mean = df[y].mean()
+        std = df[y].std()
+        ax.axhline(
+            y=mean, color=STYLE_CONFIG["secondary_color"], linewidth=2, alpha=0.9
+        )
+        ax.axhspan(
+            mean - std,
+            mean + std,
+            color=STYLE_CONFIG["secondary_color"],
+            alpha=0.15,
+        )
+        annotation = f"Mean: {mean:.4f} ± {std:.4f}"
 
-    # Add correlation coefficient
-    corr = df[x].corr(df[y])
     plt.text(
         0.05,
         0.95,
-        f"Correlation: {corr:.2f}",
+        annotation,
         transform=ax.transAxes,
         fontsize=STYLE_CONFIG["font_sizes"]["text"],
         color=STYLE_CONFIG["text_color"],

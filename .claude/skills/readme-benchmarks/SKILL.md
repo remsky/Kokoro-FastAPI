@@ -61,6 +61,8 @@ For a CPU capture: swap to the CPU image, then rerun with `KOKORO_DEVICE=cpu` / 
 - Reports are split `_gpu` / `_cpu` with a `meta` header. Don't let a cpu run clobber a gpu file. If you see a bare `report.json` / `long_form_report.json`, it predates the split.
 - `transcribe_seconds` is constant across kokoro cpu/gpu unless you change `WHISPER_DEVICE`. Only `synth_seconds` tracks the kokoro device.
 - Regression bands live in `test_transcription/BASELINE.md` (WER < 0.07, synth >= 25x rt warm, transcribe >= 40x CUDA / 13-17x CPU int8).
+- **Replotting doesn't need a server.** `{prefix}_benchmark_results_rtf.json` keeps `processing_time` + `output_length` at full precision, so you can rebuild any RTF plot from the saved data (recompute `rtf = processing_time / output_length`, feed `plot_correlation`). No re-synth. Note the stored `rtf` field is rounded to 2 decimals for the stats text, too coarse to plot, recompute it.
+- **RTF gets a mean line, not a regression.** `plot_correlation(..., show_trend=False)` for the RTF plot: rtf is ~constant vs input size, so a fitted slope over-reads single-run noise (each token count is n=1). Processing-time keeps `show_trend=True`, it's genuinely linear (corr ~0.99). First-token plots use `plot_timeline` and impose no trend at all.
 
 ## Output paths
 
