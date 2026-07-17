@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="githubbanner.png" alt="Kokoro TTS Banner">
-</p>
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=10&detail=21&weight=files&prefix=1&border=1&text=1.1&skip_dirs=dev)
 
 # <sub><sub>_`FastKoko`_ </sub></sub> 
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
