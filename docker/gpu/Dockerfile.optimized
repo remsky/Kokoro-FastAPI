@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # CUDA_VERSION is overridden per-arch in docker-bake.hcl (amd64=12.6.3, arm64=12.9.1).
 # The arm64 bump is required because pytorch.org/whl/cu126 has no aarch64 wheels.
 ARG CUDA_VERSION=12.6.3
@@ -59,6 +61,8 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Download model in runtime stage so download_model.py is present for runtime re-downloads via entrypoint
 COPY --chown=appuser:appuser docker/scripts/download_model.py ./download_model.py
+# local model bakes here so the download no-ops; clean checkouts carry only config.json (cache-stable)
+COPY --chown=appuser:appuser api/src/models ./api/src/models
 ARG DOWNLOAD_MODEL=true
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     /app/.venv/bin/python download_model.py --output api/src/models/v1_0 && \
@@ -76,7 +80,8 @@ RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
 
 # Copy project files
 COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
-COPY --chown=appuser:appuser api ./api
+# model already baked above
+COPY --exclude=src/models --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
 COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh

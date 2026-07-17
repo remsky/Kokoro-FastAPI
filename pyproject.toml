@@ -28,7 +28,6 @@ dependencies = [
     "loguru==0.7.3",
     "openai>=1.59.6",
     "pydub>=0.25.1",
-    "matplotlib>=3.10.0",
     "mutagen>=1.47.0",
     "psutil>=6.1.1",
     "espeakng-loader==0.2.4",

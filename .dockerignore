@@ -1,13 +1,13 @@
 # Version control
 .git
 
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+# Python (** needed to match nested dirs)
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
 .Python
-*.py[cod]
+**/*.py[cod]
 *$py.class
 .pytest_cache
 .coverage

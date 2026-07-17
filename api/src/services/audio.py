@@ -10,7 +10,6 @@ import numpy as np
 import scipy.io.wavfile as wavfile
 import soundfile as sf
 from loguru import logger
-from pydub import AudioSegment
 from torch import norm
 
 from ..core.config import settings

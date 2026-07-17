@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 # Stage 1: Builder
 FROM python:3.12 AS builder
 
@@ -42,6 +44,8 @@ COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 
 # Download model in runtime stage so download_model.py is present for runtime re-downloads via entrypoint
 COPY --chown=appuser:appuser docker/scripts/download_model.py ./download_model.py
+# local model bakes here so the download no-ops; clean checkouts carry only config.json (cache-stable)
+COPY --chown=appuser:appuser api/src/models ./api/src/models
 ARG DOWNLOAD_MODEL=true
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     /app/.venv/bin/python download_model.py --output api/src/models/v1_0 && \
@@ -58,7 +62,8 @@ RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
     fi
 
 # Copy project files
-COPY --chown=appuser:appuser api ./api
+# model already baked above
+COPY --exclude=src/models --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
 COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/entrypoint.sh ./entrypoint.sh
