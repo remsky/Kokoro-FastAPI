@@ -155,11 +155,19 @@ SYMBOL_REPLACEMENTS = {
 MONEY_UNITS = {"$": ("dollar", "cent"), "£": ("pound", "pence"), "€": ("euro", "cent")}
 
 # Pre-compiled regex patterns for performance
+# Local part and domain are bounded at their RFC limits (64 / 253 chars):
+# unbounded runs made every word boundary in an 'a.a.a...' flood scan the
+# whole remaining string looking for '@' — O(n^2) catastrophic backtracking.
 EMAIL_PATTERN = re.compile(
-    r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b", re.IGNORECASE
+    r"\b[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-z]{2,}\b", re.IGNORECASE
 )
 URL_PATTERN = re.compile(
-    r"(https?://|www\.|)+(localhost|[a-zA-Z0-9.-]+(\.(?:"
+    # Negative lookbehind: only attempt a match at token starts. Without it the
+    # domain branch re-scans from every position inside a long word-char run,
+    # which is O(n^2) (a 100KB run of 'a' hung the normalizer). The domain run
+    # is also bounded at 253 chars, the DNS name length limit.
+    r"(?<![a-zA-Z0-9.-])"
+    r"(https?://|www\.|)+(localhost|[a-zA-Z0-9.-]{1,253}(\.(?:"
     + "|".join(VALID_TLDS)
     + r"))+|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]+)?([/?][^\s]*)?",
     re.IGNORECASE,
@@ -492,7 +500,11 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"(?<=[BCDFGHJ-NP-TV-Z])'?s\b", "'S", text)
     text = re.sub(r"(?<=X')S\b", "s", text)
     text = re.sub(
-        r"(?:[A-Za-z]\.){2,} [a-z]", lambda m: m.group().replace(".", "-"), text
+        # Bound the acronym run (real dotted acronyms are short): an unbounded
+        # '{2,}' backtracks O(n) from every position of an 'a.a.a...' flood.
+        r"(?:[A-Za-z]\.){2,12} [a-z]",
+        lambda m: m.group().replace(".", "-"),
+        text,
     )
     text = re.sub(r"(?i)(?<=[A-Z])\.(?=[A-Z])", "-", text)
 
