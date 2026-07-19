@@ -155,21 +155,15 @@ SYMBOL_REPLACEMENTS = {
 MONEY_UNITS = {"$": ("dollar", "cent"), "£": ("pound", "pence"), "€": ("euro", "cent")}
 
 # Pre-compiled regex patterns for performance
-# Local part and domain are bounded at their RFC limits (64 / 253 chars):
-# unbounded runs made every word boundary in an 'a.a.a...' flood scan the
-# whole remaining string looking for '@' — O(n^2) catastrophic backtracking.
+# Lengths bounded to RFC limits (64/253) to prevent O(n^2) backtracking on floods.
 EMAIL_PATTERN = re.compile(
     r"\b[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-z]{2,}\b", re.IGNORECASE
 )
 URL_PATTERN = re.compile(
-    # Negative lookbehind: only attempt a match at token starts. Without it the
-    # domain branch re-scans from every position inside a long word-char run,
-    # which is O(n^2) (a 100KB run of 'a' hung the normalizer). The domain run
-    # is also bounded at 253 chars, the DNS name length limit.
+    # Token-start lookbehind + 253-char domain bound: without them the domain
+    # branch rescans from every position of a long word run (O(n^2)).
     r"(?<![a-zA-Z0-9.-])"
-    # Optional scheme/host prefix. Written as two optionals rather than
-    # (https?://|www\.|)+ — a '+' over a group with an empty alternative is a
-    # ReDoS smell and needlessly non-deterministic.
+    # Two optionals, not (https?://|www\.|)+ — '+' over an empty alternative is a ReDoS smell.
     r"(?:https?://)?(?:www\.)?(localhost|[a-zA-Z0-9.-]{1,253}(\.(?:"
     + "|".join(VALID_TLDS)
     + r"))+|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]+)?([/?][^\s]*)?",
@@ -503,8 +497,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"(?<=[BCDFGHJ-NP-TV-Z])'?s\b", "'S", text)
     text = re.sub(r"(?<=X')S\b", "s", text)
     text = re.sub(
-        # Bound the acronym run (real dotted acronyms are short): an unbounded
-        # '{2,}' backtracks O(n) from every position of an 'a.a.a...' flood.
+        # {2,12} not {2,} — real acronyms are short; unbounded backtracks O(n^2) on floods.
         r"(?:[A-Za-z]\.){2,12} [a-z]",
         lambda m: m.group().replace(".", "-"),
         text,
