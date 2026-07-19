@@ -167,7 +167,10 @@ URL_PATTERN = re.compile(
     # which is O(n^2) (a 100KB run of 'a' hung the normalizer). The domain run
     # is also bounded at 253 chars, the DNS name length limit.
     r"(?<![a-zA-Z0-9.-])"
-    r"(https?://|www\.|)+(localhost|[a-zA-Z0-9.-]{1,253}(\.(?:"
+    # Optional scheme/host prefix. Written as two optionals rather than
+    # (https?://|www\.|)+ — a '+' over a group with an empty alternative is a
+    # ReDoS smell and needlessly non-deterministic.
+    r"(?:https?://)?(?:www\.)?(localhost|[a-zA-Z0-9.-]{1,253}(\.(?:"
     + "|".join(VALID_TLDS)
     + r"))+|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]+)?([/?][^\s]*)?",
     re.IGNORECASE,
