@@ -12,6 +12,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Docker images build on Python 3.12 (project floor stays 3.10 for local installs). Rust dropped from the CPU builder.
 - GPU runtime base switched from `cudnn-runtime` to `base` CUDA image; using the torch shipped cuDNN/etc via pip wheels (#482).
 - Model bake path reworked to ensure weights stay in a single image layer
+- ROCm image now bakes the model at build like CPU/GPU (instead of a first-run fetch)
 - Builds now explicitly require BuildKit (default since Docker 23, ~Jan 2023); utilizing `COPY --exclude`
 - Runtime dependencies trimmed to remove deprecated imports
 - Transcription benchmark reports split by device; RTF and first-token baselines refreshed.

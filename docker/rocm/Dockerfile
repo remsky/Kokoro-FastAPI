@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 FROM rocm/dev-ubuntu-24.04:6.4.4-complete
 ENV DEBIAN_FRONTEND=noninteractive \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
@@ -70,8 +72,17 @@ RUN cd /tmp && wget https://archive.archlinux.org/packages/r/rocblas/rocblas-${R
     && rm -rf /app/.venv/lib/python3.12/site-packages/torch/lib/rocblas/library/ \
     && mv ./opt/rocm/lib/rocblas/library/ /app/.venv/lib/python3.12/site-packages/torch/lib/rocblas/
 
-# Copy project files including models
-COPY --chown=appuser:appuser api ./api
+# download_model.py re-downloads via entrypoint
+COPY --chown=appuser:appuser docker/scripts/download_model.py ./download_model.py
+# local model bakes here so the download no-ops;
+COPY --chown=appuser:appuser api/src/models ./api/src/models
+ARG DOWNLOAD_MODEL=true
+RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
+    .venv/bin/python download_model.py --output api/src/models/v1_0; \
+    fi
+
+# model already baked above
+COPY --exclude=src/models --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
 COPY --chown=appuser:appuser VERSION ./VERSION
 COPY --chown=appuser:appuser docker/scripts/ ./
