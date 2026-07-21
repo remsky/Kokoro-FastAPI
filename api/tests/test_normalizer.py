@@ -334,3 +334,30 @@ def test_remaining_symbol():
         )
         == "I love buying products at good store here and at other store"
     )
+
+
+def test_re_contraction_expansion():
+    """Wh-word "'re" contractions are expanded so espeak does not voice a
+    spurious "-ray" ending (e.g. "how're" was phonemized like "harry")."""
+    assert (
+        normalize_text(
+            "Hello there, how're you doing this fine day?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Hello there, how are you doing this fine day?"
+    )
+    assert (
+        normalize_text(
+            "What're these and where're they going?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "What are these and where are they going?"
+    )
+    # Contractions that already phonemize correctly must be left untouched.
+    assert (
+        normalize_text(
+            "You're sure we're not late and they're here?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "You're sure we're not late and they're here?"
+    )
