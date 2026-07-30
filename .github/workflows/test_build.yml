@@ -31,6 +31,9 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: read
+
 concurrency:
   group: test-build-${{ inputs.branch_name }}
   cancel-in-progress: true

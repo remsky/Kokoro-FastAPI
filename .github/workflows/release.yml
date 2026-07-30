@@ -14,6 +14,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 concurrency:
   group: release-${{ github.event_name == 'workflow_dispatch' && inputs.branch_name || github.ref_name }}
   cancel-in-progress: false
@@ -68,6 +71,7 @@ jobs:
   build-images:
     needs: prepare-release
     permissions:
+      contents: read
       packages: write
     env:
       DOCKER_BUILDKIT: 1
