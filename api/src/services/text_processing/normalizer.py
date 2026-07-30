@@ -487,6 +487,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     # Handle numbers and money BEFORE replacing special characters
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
 
     text = MONEY_PATTERN.sub(
         handle_money,
@@ -503,7 +504,6 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
             text = text.replace(symbol, replacement)
 
     # Handle various formatting
-    text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
     text = re.sub(r"(?<=\d)S", " S", text)
     text = re.sub(r"(?<=[BCDFGHJ-NP-TV-Z])'?s\b", "'S", text)
     text = re.sub(r"(?<=X')S\b", "s", text)
