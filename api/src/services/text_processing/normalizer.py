@@ -415,6 +415,17 @@ def handle_time(t: re.Match[str]) -> str:
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
 
+    # Expand the "'re" contractions that espeak mis-phonemizes with a spurious
+    # /ɹeɪ/ ("-ray") ending, e.g. "how're" -> /haʊɹeɪ/ which sounds like "harry".
+    # Only the wh-words and there/these/those break this way; "you're", "we're"
+    # and "they're" already phonemize correctly and are left untouched.
+    text = re.sub(
+        r"\b(how|what|where|who|when|why|there|these|those)['’]re\b",
+        r"\1 are",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
