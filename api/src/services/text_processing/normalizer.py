@@ -426,6 +426,15 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
         flags=re.IGNORECASE,
     )
 
+    # apostrophe-less variants ("howre", "theyre"); word list differs from above
+    # because some forms like "were" and "whore" are real words, not contractions
+    text = re.sub(
+        r"\b(how|what|where|when|why|there|these|those|you|they)re\b",
+        r"\1 are",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
