@@ -305,6 +305,11 @@ def handle_decimal(num: re.Match[str]) -> str:
     return " point ".join([a, " ".join(b)])
 
 
+def handle_version(m: re.Match[str]) -> str:
+    parts = m.group().split(".")
+    return " point ".join(INFLECT_ENGINE.number_to_words(int(p)) for p in parts)
+
+
 def handle_email(m: re.Match[str]) -> str:
     """Convert email addresses into speakable format"""
     email = m.group(0)
@@ -488,6 +493,9 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     # Handle numbers and money BEFORE replacing special characters
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
     text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
+
+    # version-like sequences (2.0.1, 10.3.2) before NUMBER_PATTERN eats the first decimal
+    text = re.sub(r"\d+(?:\.\d+){2,}", handle_version, text)
 
     text = MONEY_PATTERN.sub(
         handle_money,
