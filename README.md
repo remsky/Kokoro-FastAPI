@@ -1,5 +1,5 @@
 # <sub><sub>_`FastKoko`_ </sub></sub> 
-![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=neon&commits=50&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=neon&commits=10&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
 
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
