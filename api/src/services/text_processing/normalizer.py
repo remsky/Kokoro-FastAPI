@@ -495,7 +495,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     text = NUMBER_PATTERN.sub(handle_numbers, text)
 
-    text = re.sub(r"\d*\.\d+", handle_decimal, text)
+    text = re.sub(r"(?<!\d)\d*\.\d+", handle_decimal, text)
 
     # Handle other problematic symbols AFTER money/number processing
     if normalization_options.replace_remaining_symbols:

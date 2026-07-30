@@ -42,6 +42,23 @@ def test_scaling_is_linear():
     assert large / max(small, 1e-3) < 9.0
 
 
+def test_digit_flood_is_fast():
+    """r'\\d*\\.\\d+' backtracked quadratically on long digit runs."""
+    import re
+
+    pattern = re.compile(r"(?<!\d)\d*\.\d+")
+    text = "9" * 80_000
+    start = time.monotonic()
+    pattern.findall(text)
+    assert time.monotonic() - start < BUDGET_S
+
+
+def test_decimal_normalization_preserved():
+    """the lookbehind must not break normal decimal rendering."""
+    out = normalize_text("costs 3.14 dollars", OPTS)
+    assert "point" in out
+
+
 def test_url_normalization_preserved():
     """The hardened patterns must still normalize real URLs and emails."""
     assert "google" in normalize_text("visit https://google.com now", OPTS)
