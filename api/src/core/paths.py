@@ -28,21 +28,22 @@ async def _find_file(
         filter_fn: Optional function to filter files
 
     Returns:
-        Absolute path to file
+        Resolved absolute path to file
 
     Raises:
-        RuntimeError: If file not found
+        FileNotFoundError: If no readable file is found inside a search path
     """
-    if os.path.isabs(filename) and await aiofiles.os.path.exists(filename):
-        return filename
-
     for path in search_paths:
-        full_path = os.path.join(path, filename)
-        if await aiofiles.os.path.exists(full_path):
+        root = os.path.realpath(path)
+        full_path = os.path.realpath(os.path.join(path, filename))
+        if not Path(full_path).is_relative_to(root):
+            logger.warning(f"Rejected path outside {root}: {filename}")
+            continue
+        if await aiofiles.os.path.isfile(full_path):
             if filter_fn is None or filter_fn(full_path):
                 return full_path
 
-    raise FileNotFoundError(f"File not found: {filename} in paths: {search_paths}")
+    raise FileNotFoundError(f"File not found: {filename}")
 
 
 async def _scan_directories(
@@ -86,7 +87,7 @@ async def get_model_path(model_name: str) -> str:
         Absolute path to model file
 
     Raises:
-        RuntimeError: If model not found
+        FileNotFoundError: If model not found
     """
     # Get api directory path (two levels up from core)
     api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -114,7 +115,7 @@ async def get_voice_path(voice_name: str) -> str:
         Absolute path to voice file
 
     Raises:
-        RuntimeError: If voice not found
+        FileNotFoundError: If voice not found
     """
     # Get api directory path
     api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -293,7 +294,7 @@ async def get_web_file_path(filename: str) -> str:
         Absolute path to file
 
     Raises:
-        RuntimeError: If file not found
+        FileNotFoundError: If file not found
     """
     # Get project root directory (four levels up from core to get to project root)
     root_dir = os.path.dirname(
