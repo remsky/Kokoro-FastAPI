@@ -18,7 +18,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Transcription benchmark reports split by device; RTF and first-token baselines refreshed.
 
 ### Fixed
-- Model download validation rejects files under 100MB, avoids false pass results (e.g. a 9-byte "Not found"), allowingcome  a re-download instead of passing (#301).
+- Model download validation rejects files under 100MB, avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
 - `.dockerignore` Fixed pycache ignore pattern to `**/`  to ensure nested .pyc/etc stay out of build contexts.
 - Removed dead `pydub` imports from the audio services.
 
