@@ -768,16 +768,16 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.115.6"
+version = "0.116.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/93/72/d83b98cd106541e8f5e5bfab8ef2974ab45a62e8a6c5b5e6940f26d2ed4b/fastapi-0.115.6.tar.gz", hash = "sha256:9ec46f7addc14ea472958a96aae5b5de65f39721a46aaf5705c480d9a8b76654", size = 301336, upload-time = "2024-12-03T22:46:01.629Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/78/d7/6c8b3bfe33eeffa208183ec037fee0cce9f7f024089ab1c5d12ef04bd27c/fastapi-0.116.1.tar.gz", hash = "sha256:ed52cbf946abfd70c5a0dccb24673f0670deeb517a88b3544d03c2a6bf283143", size = 296485, upload-time = "2025-07-11T16:22:32.057Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/52/b3/7e4df40e585df024fac2f80d1a2d579c854ac37109675db2b0cc22c0bb9e/fastapi-0.115.6-py3-none-any.whl", hash = "sha256:e9240b29e36fa8f4bb7290316988e90c381e5092e0cbe84e7818cc3713bcf305", size = 94843, upload-time = "2024-12-03T22:45:59.368Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/47/d63c60f59a59467fda0f93f46335c9d18526d7071f025cb5b89d5353ea42/fastapi-0.116.1-py3-none-any.whl", hash = "sha256:c46ac7c312df840f0c9e220f7964bada936781bc4e2e6eb71f1c4d7553786565", size = 95631, upload-time = "2025-07-11T16:22:30.485Z" },
 ]
 
 [[package]]
@@ -1252,6 +1252,7 @@ dependencies = [
     { name = "soundfile" },
     { name = "spacy" },
     { name = "sqlalchemy" },
+    { name = "starlette" },
     { name = "text2num" },
     { name = "tiktoken" },
     { name = "tqdm" },
@@ -1292,7 +1293,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0.0" },
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "espeakng-loader", specifier = "==0.2.4" },
-    { name = "fastapi", specifier = "==0.115.6" },
+    { name = "fastapi", specifier = "==0.116.1" },
     { name = "httpx", marker = "extra == 'test'", specifier = "==0.26.0" },
     { name = "inflect", specifier = ">=7.5.0" },
     { name = "jinja2", marker = "extra == 'test'", specifier = ">=3.1.6" },
@@ -1319,6 +1320,7 @@ requires-dist = [
     { name = "soundfile", specifier = "==0.13.0" },
     { name = "spacy", specifier = "==3.8.5" },
     { name = "sqlalchemy", specifier = "==2.0.27" },
+    { name = "starlette", specifier = ">=0.47.2" },
     { name = "text2num", specifier = ">=2.5.1" },
     { name = "tiktoken", specifier = "==0.8.0" },
     { name = "tomli", marker = "extra == 'test'", specifier = ">=2.0.1" },
@@ -3321,14 +3323,15 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "0.41.3"
+version = "0.47.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
+    { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1a/4c/9b5764bd22eec91c4039ef4c55334e9187085da2d8a2df7bd570869aae18/starlette-0.41.3.tar.gz", hash = "sha256:0e4ab3d16522a255be6b28260b938eae2482f98ce5cc934cb08dce8dc3ba5835", size = 2574159, upload-time = "2024-11-18T19:45:04.283Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/15/b9/cc3017f9a9c9b6e27c5106cc10cc7904653c3eec0729793aec10479dd669/starlette-0.47.3.tar.gz", hash = "sha256:6bc94f839cc176c4858894f1f8908f0ab79dfec1a6b8402f6da9be26ebea52e9", size = 2584144, upload-time = "2025-08-24T13:36:42.122Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/96/00/2b325970b3060c7cecebab6d295afe763365822b1306a12eeab198f74323/starlette-0.41.3-py3-none-any.whl", hash = "sha256:44cedb2b7c77a9de33a8b74b2b90e9f50d11fcf25d8270ea525ad71a25374ff7", size = 73225, upload-time = "2024-11-18T19:45:02.027Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/fd/901cfa59aaa5b30a99e16876f11abe38b59a1a2c51ffb3d7142bb6089069/starlette-0.47.3-py3-none-any.whl", hash = "sha256:89c0778ca62a76b826101e7c709e70680a1699ca7da6b44d38eb0a7e61fe4b51", size = 72991, upload-time = "2025-08-24T13:36:40.887Z" },
 ]
 
 [[package]]

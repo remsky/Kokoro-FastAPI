@@ -6,7 +6,8 @@ readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     # Core dependencies
-    "fastapi==0.115.6",
+    "fastapi==0.116.1",
+    "starlette>=0.47.2",  # TODO: drop pin when fastapi bumped past 0.116 next release (CVE-2025-54121)
     "uvicorn==0.34.0",
     "click>=8.0.0",
     "pydantic==2.10.4",
