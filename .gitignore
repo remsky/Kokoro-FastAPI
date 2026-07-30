@@ -88,8 +88,7 @@ examples/assorted_checks/benchmarks/output_data/model_unload_stats.txt
 examples/assorted_checks/benchmarks/output_data/model_unload_results.json
 examples/assorted_checks/benchmarks/output_plots/model_unload_longform.png
 examples/assorted_checks/benchmarks/output_plots/model_unload_short.png
-uv.lock
-!docker/test-client/uv.lock
+examples/uv.lock
 
 # Mac MPS virtualenv for dual testing
 .venv-mps

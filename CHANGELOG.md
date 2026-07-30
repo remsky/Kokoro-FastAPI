@@ -16,11 +16,14 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Builds now explicitly require BuildKit (default since Docker 23, ~Jan 2023); utilizing `COPY --exclude`
 - Runtime dependencies trimmed to remove deprecated imports
 - Transcription benchmark reports split by device; RTF and first-token baselines refreshed.
+- Dropped dead `docs/` pin set, unpinned `regex`, bumped `requests` and `python-dotenv`, capped `transformers<6`, tracked root `uv.lock`.
 
 ### Fixed
 - Model download validation rejects files under 100MB, avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
 - `.dockerignore` Fixed pycache ignore pattern to `**/`  to ensure nested .pyc/etc stay out of build contexts.
 - Removed dead `pydub` imports from the audio services.
+- `_find_file` now resolves symlinks and rejects paths that escape search roots (path traversal via `/../` sequences).
+- Text normalizer: anchored decimal regex to prevent quadratic backtracking on digit floods, reordered range substitution so `NUMBER_PATTERN` no longer swallows hyphens meant as range separators, added version-number handling (`2.0.1` renders as "two point zero point one" instead of being split).
 
 ## [v0.6.0] - 2026-07-12
 ### Breaking changes
