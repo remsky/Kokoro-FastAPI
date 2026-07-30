@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "kokoro_device": "cpu",
+    "kokoro_base_url": "http://localhost:8880/v1",
+    "whisper_model": "base.en",
+    "whisper_device": "cpu",
+    "whisper_compute": "int8",
+    "generated_at": "2026-07-14T21:19:26-06:00"
+  },
+  "results": [
+    {
+      "voice": "af_heart",
+      "expected": "The quick brown fox jumps over the lazy dog.",
+      "transcript": "The quick brown fox jumps over the lazy dog.",
+      "wer": 0.0,
+      "passed": true,
+      "audio_path": "output/af_heart.wav",
+      "synth_seconds": 1.719077799999468,
+      "transcribe_seconds": 1.0369334000006347
+    },
+    {
+      "voice": "af_bella",
+      "expected": "She sells seashells by the seashore.",
+      "transcript": "She sells seashells by the seashore.",
+      "wer": 0.0,
+      "passed": true,
+      "audio_path": "output/af_bella.wav",
+      "synth_seconds": 1.120611700000154,
+      "transcribe_seconds": 0.8505752000000939
+    },
+    {
+      "voice": "am_adam",
+      "expected": "Pack my box with five dozen liquor jugs.",
+      "transcript": "Pack my box with 5 dozen liquor jugs.",
+      "wer": 0.0,
+      "passed": true,
+      "audio_path": "output/am_adam.wav",
+      "synth_seconds": 1.2826193999999305,
+      "transcribe_seconds": 0.8328787000000375
+    },
+    {
+      "voice": "af_nicole",
+      "expected": "The five boxing wizards jump quickly across the field.",
+      "transcript": "the five boxing wizards.  Jump quickly across the field.",
+      "wer": 0.0,
+      "passed": true,
+      "audio_path": "output/af_nicole.wav",
+      "synth_seconds": 2.2694001999998363,
+      "transcribe_seconds": 0.8716184999993857
+    }
+  ]
+}

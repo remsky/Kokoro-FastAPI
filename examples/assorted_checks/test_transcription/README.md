@@ -31,6 +31,7 @@ the HF cache.
 | Var | Default | Notes |
 | --- | --- | --- |
 | `KOKORO_BASE_URL` | `http://localhost:8880/v1` | Running Kokoro server |
+| `KOKORO_DEVICE` | `gpu` | Label for the server's device (the server doesn't report it). Sets the report filename (`report_{device}.json`) and metadata header so a cpu capture can't be mistaken for a gpu one. Short tests only. |
 | `WHISPER_MODEL` | `base.en` | Try `tiny.en` for speed, `small.en` for accuracy |
 | `WHISPER_DEVICE` | `cpu` (script) / `cuda` (bat) | Whisper device |
 | `WHISPER_COMPUTE` | `int8` on cpu, `float16` on cuda | CTranslate2 compute type |
@@ -41,7 +42,7 @@ the HF cache.
 
 ## Output
 
-- Short test → `output/` (WAVs + `report.json`).
+- Short tests → `output/` and `output_multilingual/` (WAVs + `report_{device}.json`, e.g. `report_gpu.json`, with a `meta` header recording the run's devices).
 - Long-form → `output_long_form/` (WAV, transcript, `long_form_report.json`,
   and a `*.synth_meta.json` sidecar so `transcribe`-only runs inherit the
   exact char cap from the prior synth).

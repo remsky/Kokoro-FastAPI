@@ -2,6 +2,8 @@
 
 Always appreciate community involvement in making this project better. 
 
+For the repo layout, common commands, and conventions, see [AGENTS.md](AGENTS.md).
+
 ## Development Setup
 
 We use `uv` for managing Python environments and dependencies, and `ruff` for linting and formatting.

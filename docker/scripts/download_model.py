@@ -44,8 +44,8 @@ def verify_files(model_path: str, config_path: str) -> bool:
         with open(config_path) as f:
             json.load(f)
 
-        # Check model file size (should be non-zero)
-        if os.path.getsize(model_path) == 0:
+        # rejects error-page bodies saved as the model (#301)
+        if os.path.getsize(model_path) < 100 * 1024 * 1024:
             return False
 
         return True
