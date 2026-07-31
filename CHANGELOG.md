@@ -19,7 +19,8 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Dropped dead `docs/` pin set, unpinned `regex`, bumped `requests` and `python-dotenv`, capped `transformers<6`, tracked root `uv.lock`.
 
 ### Fixed
-- Model download validation rejects files under 100MB, avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
+- Model validation checksums against downloaded release artifact to ensure consistency, downloads first to a temp dir to avoid clobbering pre-existing models in the case of network issues/corrupted downloads.
+- Model validation also rejects any custom files under 100MB to avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
 - `.dockerignore` Fixed pycache ignore pattern to `**/`  to ensure nested .pyc/etc stay out of build contexts.
 - Removed dead `pydub` imports from the audio services.
 - `_find_file` now resolves symlinks and rejects paths that escape search roots (path traversal via `/../` sequences).
