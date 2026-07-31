@@ -39,6 +39,7 @@ ENV/
 
 *.pth
 *.tar*
+api/src/models/**/*.download
 
 
 # Other project files
