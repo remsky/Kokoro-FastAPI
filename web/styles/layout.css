@@ -26,7 +26,7 @@ main {
     overflow: auto;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.35rem;
     padding: 0.75rem;
 }
 
@@ -62,7 +62,7 @@ main {
     width: 100%;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.25rem;
     padding: 0.75rem;
 }
 
@@ -70,7 +70,7 @@ main {
 .player-container {
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: 0.35rem;
     padding: 0.75rem;
 }
 

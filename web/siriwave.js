@@ -4,12 +4,11 @@ function SiriWave(opt) {
 
   this.phase = 0;
   this.run = false;
+  this._frameId = null;
+  this._boundDraw = this._draw.bind(this);
 
   // UI vars
   this.ratio = opt.ratio || window.devicePixelRatio || 1;
-  this.width = this.ratio * (opt.width || 320);
-  this.width_2 = this.width / 2;
-  this.width_4 = this.width / 4;
   this.height = this.ratio * (opt.height || 50);
   this.height_2 = this.height / 2;
   this.MAX = (this.height_2) - 4;
@@ -29,9 +28,8 @@ function SiriWave(opt) {
 
   // Canvas
   this.canvas = document.createElement('canvas');
-  this.canvas.width = this.width;
   this.canvas.height = this.height;
-  
+
   this.canvas.style.width = '100%';
   this.canvas.style.height = '100%';
   this.canvas.style.borderRadius = '4px';
@@ -39,7 +37,10 @@ function SiriWave(opt) {
   this.container = opt.container || document.body;
   this.container.appendChild(this.canvas);
   this.ctx = this.canvas.getContext('2d');
-  
+
+  // width must stay equal to canvas.width, _clear() erases exactly that box
+  this.setWidth(opt.width || 320);
+
   // Start
   if (opt.autostart) {
     this.start();
@@ -97,14 +98,22 @@ SiriWave.prototype._draw = function() {
   this._drawLine(2, 'rgba(' + this.color + ',0.6)');
   this._drawLine(1, 'rgba(' + this.color + ',1)', 1.5);
 
-  if (window.requestAnimationFrame) {
-    requestAnimationFrame(this._draw.bind(this));
-    return;
-  };
-  setTimeout(this._draw.bind(this), 20);
+  this._schedule();
+};
+
+SiriWave.prototype._schedule = function() {
+  this._frameId = requestAnimationFrame(this._boundDraw);
+};
+
+SiriWave.prototype._cancelFrame = function() {
+  if (this._frameId == null) return;
+  cancelAnimationFrame(this._frameId);
+  this._frameId = null;
 };
 
 SiriWave.prototype.start = function() {
+  // not idempotent without this guard, a second call would spawn a second loop
+  if (this.run) return;
   this.phase = 0;
   this.run = true;
   this._draw();
@@ -113,6 +122,23 @@ SiriWave.prototype.start = function() {
 SiriWave.prototype.stop = function() {
   this.phase = 0;
   this.run = false;
+  this._cancelFrame();
+};
+
+SiriWave.prototype.setWidth = function(cssWidth) {
+  var px = Math.max(1, Math.round(this.ratio * (cssWidth || 0)));
+  if (px === this.width) return;
+  this.width = px;
+  this.width_2 = px / 2;
+  this.width_4 = px / 4;
+  this.canvas.width = px;
+};
+
+SiriWave.prototype.dispose = function() {
+  this.stop();
+  if (this.canvas && this.canvas.parentNode) {
+    this.canvas.parentNode.removeChild(this.canvas);
+  }
 };
 
 SiriWave.prototype.setSpeed = function(v) {

@@ -18,7 +18,8 @@ export class App {
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
             cancelBtn: document.getElementById('cancel-btn'),
-            streamingNotice: document.getElementById('streaming-notice')
+            streamingNotice: document.getElementById('streaming-notice'),
+            cup: document.querySelector('.logo-container .cup')
         };
 
         this.initialize();
@@ -40,11 +41,7 @@ export class App {
         // Initialize text editor
         const editorContainer = document.getElementById('text-editor');
         this.textEditor = new TextEditor(editorContainer, {
-            linesPerPage: 20,
-            onTextChange: (text) => {
-                // Optional: Handle text changes here if needed
-                console.log('Text changed:', text);
-            }
+            linesPerPage: 20
         });
 
         // Initialize voice selector
@@ -144,16 +141,9 @@ export class App {
             
             // Show preparing status
             this.showStatus('Preparing file...', 'info');
-            
-            // Trigger coffee steam animation
-            const steamElement = document.querySelector('.cup .steam');
-            if (steamElement) {
-                // Remove and re-add the element to restart animation
-                const parent = steamElement.parentNode;
-                const clone = steamElement.cloneNode(true);
-                parent.removeChild(steamElement);
-                parent.appendChild(clone);
-            }
+
+            // Flash the coffee cup
+            this.elements.cup.classList.add('done');
         });
 
         // Handle download ready
@@ -190,7 +180,9 @@ export class App {
     showStatus(message, type = 'info') {
         this.elements.status.textContent = message;
         this.elements.status.className = 'status ' + type;
-        setTimeout(() => {
+        // an uncleared timer from an earlier status would blank this one early
+        clearTimeout(this._statusTimer);
+        this._statusTimer = setTimeout(() => {
             this.elements.status.className = 'status';
         }, 5000);
     }
@@ -202,6 +194,10 @@ export class App {
         this.elements.generateBtnLoader.style.display = isGenerating ? 'block' : 'none';
         this.elements.generateBtnText.style.visibility = isGenerating ? 'hidden' : 'visible';
         this.elements.cancelBtn.style.display = isGenerating ? 'block' : 'none';
+        this.elements.cup.classList.toggle('brewing', isGenerating);
+        if (isGenerating) {
+            this.elements.cup.classList.remove('done');
+        }
     }
 
     validateInput() {
@@ -240,9 +236,8 @@ export class App {
         this.waveVisualizer.updateProgress(0, 1);
         
         try {
-            console.log('Starting audio generation...', { text, voice, speed });
-            
-            // Ensure we have valid input
+            console.log('Starting audio generation...', { chars: text.length, voice, speed });
+
             if (!text || !voice) {
                 console.error('Invalid input:', { text, voice, speed });
                 throw new Error('Invalid input parameters');
@@ -252,10 +247,7 @@ export class App {
                 text,
                 voice,
                 speed,
-                (loaded, total) => {
-                    console.log('Progress update:', { loaded, total });
-                    this.waveVisualizer.updateProgress(loaded, total);
-                }
+                (loaded, total) => this.waveVisualizer.updateProgress(loaded, total)
             );
         } catch (error) {
             console.error('Generation error:', error);

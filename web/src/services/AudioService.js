@@ -52,7 +52,7 @@ export class AudioService {
     async streamAudio(text, voice, speed, onProgress) {
         try {
             const canStreamMp3 = this.supportsMSEMp3();
-            console.log('AudioService: Starting stream...', { text, voice, speed, canStreamMp3 });
+            console.log('AudioService: Starting stream...', { chars: text.length, voice, speed, canStreamMp3 });
 
             if (this.controller) {
                 this.controller.abort();
@@ -561,6 +561,11 @@ export class AudioService {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.objectUrl = null;
+
+        // without a source buffer nothing can settle these, the feeder would await forever
+        this.rejectPendingOperations(new Error('AudioService swapped to file source'));
+        this.chunkQueue = [];
+        this.wakeFeeder();
 
         return await new Promise((resolve) => {
             const detach = () => {

@@ -4,6 +4,11 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- Web UI waveform lifecycle cleanup: resize listeners/canvases no longer stack across generations, animation loop is start/stop safe, canvas resizes with the window.
+- Web UI stream-to-file swap settles pending buffer operations so playback can't hang after seeking.
+
 ## [v0.7.0] - 2026-07-31
 ### Added
 - `AGENTS.md` contributor guidelines, plus `SKILL.md` notes for the API, benchmarks, and web areas.
