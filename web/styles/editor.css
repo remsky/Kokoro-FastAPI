@@ -1,0 +1,227 @@
+/* card chrome lives on the static wrapper so the status row renders inside it */
+.editor-card {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-width: 0;
+    min-height: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: clamp(0.75rem, 2vw, 1.25rem);
+}
+
+.text-editor {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+}
+
+.text-editor::-webkit-scrollbar {
+    width: 6px;
+}
+
+.text-editor::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 3px;
+}
+
+.text-editor::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.editor-view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-height: 0;
+}
+
+.page-content {
+    flex: 1 1 auto;  /* flex-basis 0 breaks the resize grip */
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+    min-height: 200px;
+    box-sizing: border-box;
+    min-width: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.page-content:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.page-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+}
+
+/* single page: both nav buttons disabled, hide the whole row */
+.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) {
+    display: none;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.pagination button {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+}
+
+.pagination button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.page-info {
+    color: var(--text-light);
+    font-size: 0.875rem;
+    min-width: 100px;
+    text-align: center;
+}
+
+/* text buttons absorb the free space so the row fills edge to edge */
+.editor-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.file-controls {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.upload-btn,
+.clear-btn {
+    flex: 1;
+    text-align: center;
+}
+
+.upload-btn,
+.clear-btn,
+.format-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    padding: 0.4rem 0.9rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+.upload-btn:hover,
+.clear-btn:hover,
+.format-btn:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.chars-per-page {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chars-input {
+    width: 70px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.chars-input:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.chars-label {
+    color: var(--text-light);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+/* counter left, messages right; wraps at high zoom */
+.editor-status-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 1rem;
+}
+
+.editor-status-row .char-count {
+    margin-right: auto;
+    /* match the button text inset above (1px border + 0.9rem padding) */
+    padding-left: calc(0.9rem + 1px);
+}
+
+.char-count {
+    color: var(--text-light);
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .text-editor {
+        overflow: visible;
+    }
+
+    .page-content {
+        min-height: 260px;
+    }
+
+    .chars-per-page {
+        justify-content: center;
+    }
+}
