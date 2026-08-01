@@ -107,3 +107,16 @@ h1 {
         border-color: #312e81;
     }
 }
+
+@media (prefers-reduced-motion: reduce) {
+    .cup.brewing .steam::before,
+    .cup.brewing .steam::after {
+        animation: none;
+        opacity: 0.5;
+    }
+
+    .cup.done,
+    .cup.done .handle {
+        animation: none;
+    }
+}

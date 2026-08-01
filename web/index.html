@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f172a">
     <title>FastKoko: Kokoro-based TTS</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,7 +17,7 @@
     <link rel="stylesheet" href="styles/responsive.css">
     <link rel="stylesheet" href="styles/badges.css">
     <link rel="stylesheet" href="styles/controls.css">
-    <script src="./siriwave.js"></script>
+    <script src="./siriwave.js" defer></script>
     <script async defer src="https://buttons.github.io/buttons.js"></script>
 </head>
 <body>
@@ -47,21 +48,21 @@
                 <div class="player-container">
                     <div class="player-controls">
                         <button id="play-pause-btn" class="player-btn">Play</button>
-                        <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" value="0">
+                        <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" value="0" aria-label="Playback position">
                         <div class="volume-control">
-                            <svg class="volume-icon" viewBox="0 0 24 24" width="20" height="20">
+                            <svg class="volume-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
                                 <path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z"/>
                             </svg>
-                            <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100">
+                            <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100" aria-label="Volume">
                         </div>
                         <span id="time-display" class="time-display">0:00</span>
                     </div>
                     <div id="wave-container" class="wave-container"></div>
                     <div class="download-placeholder"></div>
-                    <div id="download-btn" class="download-button">
+                    <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download audio">
                         <div class="download-glow"></div>
                         <div class="download-icon">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                                 <path d="M8 11L4 7h8l-4 4z" fill="currentColor"/>
                                 <path d="M8 3v8M4 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                             </svg>
@@ -78,6 +79,7 @@
                             class="voice-search" 
                             placeholder="Search voices..."
                             autocomplete="off"
+                            aria-label="Search voices"
                         >
                         <div class="voice-dropdown" id="voice-dropdown">
                             <div class="voice-options" id="voice-options">
@@ -119,7 +121,7 @@
                             <input type="checkbox" id="autoplay-toggle" checked>
                             Auto-play
                         </label>
-                        <select id="format-select" class="format-select">
+                        <select id="format-select" class="format-select" aria-label="Audio format">
                             <option value="mp3">MP3</option>
                             <option value="wav">WAV</option>
                             <option value="pcm">PCM</option>
@@ -129,8 +131,8 @@
                         Cancel
                     </button>
                 </div>
-                <div id="streaming-notice" class="streaming-notice" hidden></div>
-                <div id="status" class="status"></div>
+                <div id="streaming-notice" class="streaming-notice" role="status" hidden></div>
+                <div id="status" class="status" role="status"></div>
             </div>
         </main>
     </div>

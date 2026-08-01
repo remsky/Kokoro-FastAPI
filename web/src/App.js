@@ -101,8 +101,14 @@ export class App {
         // Generate button
         this.elements.generateBtn.addEventListener('click', () => this.generateSpeech());
 
-        // Download button
+        // Download button (div with role=button, so handle keyboard activation too)
         this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+        this.elements.downloadBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.downloadAudio();
+            }
+        });
 
         // Keep browser/output warning aligned with the selected format and autoplay state
         this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());

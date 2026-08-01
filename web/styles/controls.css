@@ -231,6 +231,7 @@
     width: 100%;
     height: 4px;
     -webkit-appearance: none;
+    appearance: none;
     background: rgba(99, 102, 241, 0.2);
     border-radius: 2px;
     outline: none;
@@ -238,6 +239,7 @@
 
 .speed-control input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 16px;
     height: 16px;
     background: var(--fg-color);
@@ -338,6 +340,15 @@
 #generate-btn:hover {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+#generate-btn:disabled {
+    cursor: default;
+}
+
+#generate-btn:disabled:hover {
+    transform: none;
+    box-shadow: none;
 }
 
 .generation-options {

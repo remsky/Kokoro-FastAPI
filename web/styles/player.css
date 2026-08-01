@@ -76,6 +76,7 @@
 .seek-slider,
 .volume-slider {
     -webkit-appearance: none;
+    appearance: none;
     height: 4px;
     border-radius: 2px;
     background: rgba(99, 102, 241, 0.2);
@@ -96,6 +97,7 @@
 .seek-slider::-webkit-slider-thumb,
 .volume-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 12px;
     height: 12px;
     border-radius: 50%;
@@ -373,13 +375,21 @@
     justify-content: center;
     transition: transform 0.2s ease;
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
     z-index: 10;
 }
 
 .download-button.ready {
     opacity: 1;
+    visibility: visible;
     pointer-events: auto;
+}
+
+.download-button:focus-visible {
+    outline: 2px solid var(--fg-color);
+    outline-offset: 2px;
+    border-radius: 4px;
 }
 
 .download-glow {
@@ -423,4 +433,10 @@
 @keyframes rotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .download-glow {
+        animation: none;
+    }
 }

@@ -8,6 +8,8 @@
     --error: #ef4444;
     --success: #22c55e;
     --font-family: 'Inter', system-ui, sans-serif;
+    color-scheme: dark;
+    accent-color: var(--fg-color);
 }
 
 html {

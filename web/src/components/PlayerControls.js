@@ -70,12 +70,16 @@ export class PlayerControls {
             }
         });
 
-        // Seek slider
-        this.elements.seekSlider.addEventListener('mousedown', () => {
+        // Seek slider (pointer events cover mouse and touch drags)
+        this.elements.seekSlider.addEventListener('pointerdown', () => {
             this.elements.seekSlider.dragging = true;
         });
 
-        this.elements.seekSlider.addEventListener('mouseup', () => {
+        this.elements.seekSlider.addEventListener('pointerup', () => {
+            this.elements.seekSlider.dragging = false;
+        });
+
+        this.elements.seekSlider.addEventListener('pointercancel', () => {
             this.elements.seekSlider.dragging = false;
         });
 
