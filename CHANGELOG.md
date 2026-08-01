@@ -18,6 +18,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - GPU runtime now only uses torch shipped cuDNN/etc via pip wheels (#482). (see table below for size changes)
 - Transcription benchmark reports split by device; RTF and first-token baselines refreshed.
 
+Compressed image sizes + new bases:
 <div align="center">
 
 | Image       |  v0.6.0  |  v0.7.0  | Runtime base                                        |
