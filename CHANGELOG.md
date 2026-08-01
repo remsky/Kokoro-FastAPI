@@ -10,13 +10,24 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed / Optimizations
 - Docker images build on Python 3.12 (project floor stays 3.10 for local installs). Rust dropped from the CPU builder.
-- GPU runtime base switched from `cudnn-runtime` to `base` CUDA image; using the torch shipped cuDNN/etc via pip wheels (#482).
-- Model bake path reworked to ensure weights stay in a single image layer
-- ROCm image now bakes the model at build like CPU/GPU (instead of a first-run fetch)
-- Builds now explicitly require BuildKit (default since Docker 23, ~Jan 2023); utilizing `COPY --exclude`
 - Runtime dependencies trimmed to remove deprecated imports
+- bumped `requests`,`python-dotenv`, capped `transformers<6`
+- Builds now explicitly require BuildKit (default since Docker 23, ~Jan 2023); utilizing `COPY --exclude`
+- Model bake reworked to ensure weights land exactly once (whether prexisting or downloaded at build)
+- ROCm image now bakes the model at build like CPU/GPU (instead of a first-run fetch)
+- GPU runtime now only uses torch shipped cuDNN/etc via pip wheels (#482). (see table below for size changes)
 - Transcription benchmark reports split by device; RTF and first-token baselines refreshed.
-- Dropped dead `docs/` pin set, unpinned `regex`, bumped `requests` and `python-dotenv`, capped `transformers<6`, tracked root `uv.lock`.
+
+<div align="center">
+
+| Image       |  v0.6.0  |  v0.7.0  | Runtime base                                        |
+|:------------|---------:|---------:|:----------------------------------------------------|
+| cpu         |  1.66 GB |  1.56 GB | `python:3.10-slim` -> `python:3.12-slim`             |
+| gpu         |  6.81 GB |  4.68 GB | `cuda:12.6.3-cudnn-runtime` -> `cuda:12.6.3-base`    |
+| gpu (cu128) |  8.11 GB |  5.23 GB | `cuda:12.8.1-cudnn-runtime` -> `cuda:12.8.1-base`    |
+| rocm        | 13.08 GB | 13.36 GB | unchanged; model now baked in                        |
+
+</div>
 
 ### Fixed
 - Model validation checksums against downloaded release artifact to ensure consistency, downloads first to a temp dir to avoid clobbering pre-existing models in the case of network issues/corrupted downloads.
