@@ -77,6 +77,48 @@ async def test_find_file_skips_directories(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_find_file_follows_symlinked_files(tmp_path):
+    """A file symlinked into a search root resolves to its target (K8s/NAS voice setups)."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    target = outside / "voice.pt"
+    target.write_bytes(b"tensor")
+    root = tmp_path / "voices"
+    root.mkdir()
+    try:
+        (root / "af_custom.pt").symlink_to(target)
+    except OSError:
+        pytest.skip("symlink creation not permitted on this host")  # ty: ignore[too-many-positional-arguments]
+    path = await _find_file("af_custom.pt", [str(root)])
+    assert Path(path) == Path(os.path.realpath(target))
+
+
+@pytest.mark.asyncio
+async def test_find_file_rejects_traversal_through_symlinked_dir(tmp_path):
+    """../ collapses lexically before symlinks are followed, so a linked dir can't widen the root."""
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (tmp_path / "secret.txt").write_text("secret")
+    root = tmp_path / "voices"
+    root.mkdir()
+    try:
+        (root / "linkdir").symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation not permitted on this host")  # ty: ignore[too-many-positional-arguments]
+    with pytest.raises(FileNotFoundError):
+        await _find_file("linkdir/../../secret.txt", [str(root)])
+
+
+@pytest.mark.asyncio
+async def test_find_file_handles_separator_terminated_root():
+    """A root like '/' already ends in os.sep, so the prefix must not double it."""
+    with patch("aiofiles.os.path.isfile") as mock_isfile:
+        mock_isfile.return_value = True
+        path = await _find_file("test.txt", [os.sep])
+        assert Path(path) == Path(os.path.realpath(os.sep + "test.txt"))
+
+
+@pytest.mark.asyncio
 async def test_find_file_with_filter():
     """Test finding file with filter function."""
     with patch("aiofiles.os.path.isfile") as mock_isfile:

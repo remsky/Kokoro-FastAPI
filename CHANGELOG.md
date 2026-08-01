@@ -23,7 +23,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Model validation also rejects any custom files under 100MB to avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
 - `.dockerignore` Fixed pycache ignore pattern to `**/`  to ensure nested .pyc/etc stay out of build contexts.
 - Removed dead `pydub` imports from the audio services.
-- `_find_file` now resolves symlinks and rejects paths that escape search roots (path traversal via `/../` sequences).
+- `_find_file` rejects lookups that escape its search roots (`../` sequences, absolute paths) to avoid unintentional exposure of files outside the voices/models/web dirs. Symlinks placed inside those dirs resolve as before.
 - Text normalizer: anchored decimal regex to prevent quadratic backtracking on digit floods, reordered range substitution so `NUMBER_PATTERN` no longer swallows hyphens meant as range separators, added version-number handling (`2.0.1` renders as "two point zero point one" instead of being split).
 
 ## [v0.6.0] - 2026-07-12

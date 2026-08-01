@@ -4,8 +4,7 @@ import io
 import json
 import os
 import time
-from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional, Set
+from typing import Callable, List, Optional, Set
 
 import aiofiles
 import aiofiles.os
@@ -35,10 +34,12 @@ async def _find_file(
     """
     for path in search_paths:
         root = os.path.realpath(path)
-        full_path = os.path.realpath(os.path.join(path, filename))
-        if not Path(full_path).is_relative_to(root):
+        prefix = root if root.endswith(os.sep) else root + os.sep
+        candidate = os.path.normpath(os.path.join(root, filename))
+        if not candidate.startswith(prefix):
             logger.warning(f"Rejected path outside {root}: {filename}")
             continue
+        full_path = os.path.realpath(candidate)
         if await aiofiles.os.path.isfile(full_path):
             if filter_fn is None or filter_fn(full_path):
                 return full_path
