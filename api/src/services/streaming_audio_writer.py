@@ -8,7 +8,6 @@ import av
 import numpy as np
 import soundfile as sf
 from loguru import logger
-from pydub import AudioSegment
 
 
 class StreamingAudioWriter:

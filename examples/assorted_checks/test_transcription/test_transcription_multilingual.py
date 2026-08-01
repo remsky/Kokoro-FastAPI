@@ -12,6 +12,7 @@ Usage (from repo root):
 
 Env overrides:
     KOKORO_BASE_URL   default http://localhost:8880/v1
+    KOKORO_DEVICE     default gpu (label only; picks report_{device}.json + meta)
     WHISPER_MODEL     default small (multilingual; ~470MB int8)
     WHISPER_DEVICE    default cpu
     WHISPER_COMPUTE   default int8 on cpu, float16 on cuda
@@ -30,6 +31,7 @@ import sys
 import time
 import unicodedata
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
 # Windows stdout defaults to cp1252 — re-encode so Devanagari / CJK
@@ -52,6 +54,7 @@ from jiwer.transforms import (
 
 
 BASE_URL = os.environ.get("KOKORO_BASE_URL", "http://localhost:8880/v1")
+KOKORO_DEVICE = os.environ.get("KOKORO_DEVICE", "gpu").lower()
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "small")
 WHISPER_DEVICE = os.environ.get("WHISPER_DEVICE", "cpu")
 WHISPER_COMPUTE = os.environ.get(
@@ -133,6 +136,17 @@ def rel(path: Path) -> str:
     return path.resolve().relative_to(SCRIPT_DIR.resolve()).as_posix()
 
 
+def run_meta() -> dict:
+    return {
+        "kokoro_device": KOKORO_DEVICE,
+        "kokoro_base_url": BASE_URL,
+        "whisper_model": WHISPER_MODEL,
+        "whisper_device": WHISPER_DEVICE,
+        "whisper_compute": WHISPER_COMPUTE,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+
+
 def synthesize(client: openai.OpenAI, voice: str, text: str, out_path: Path) -> float:
     start = time.perf_counter()
     response = client.audio.speech.create(
@@ -160,6 +174,7 @@ def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Server:    {BASE_URL}")
+    print(f"Kokoro:    {KOKORO_DEVICE} (label)")
     print(f"Whisper:   {WHISPER_MODEL} ({WHISPER_DEVICE}, {WHISPER_COMPUTE})")
     print()
 
@@ -227,9 +242,12 @@ def main() -> int:
             )
         )
 
-    report_path = OUTPUT_DIR / "report.json"
+    report_path = OUTPUT_DIR / f"report_{KOKORO_DEVICE}.json"
     report_path.write_text(
-        json.dumps([asdict(r) for r in results], indent=2, ensure_ascii=False),
+        json.dumps(
+            {"meta": run_meta(), "results": [asdict(r) for r in results]},
+            indent=2, ensure_ascii=False,
+        ),
         encoding="utf-8",
     )
 

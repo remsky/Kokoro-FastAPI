@@ -10,6 +10,7 @@ Usage (from repo root):
 
 Env overrides:
     KOKORO_BASE_URL  default http://localhost:8880/v1
+    KOKORO_DEVICE    default gpu (label only; picks report_{device}.json + meta)
     WHISPER_MODEL    default base.en
     WER_THRESHOLD    default 0.2
 """
@@ -21,6 +22,7 @@ import os
 import sys
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
 import openai
@@ -66,7 +68,10 @@ def _normalized_wer(reference: str, hypothesis: str) -> float:
 
 
 BASE_URL = os.environ.get("KOKORO_BASE_URL", "http://localhost:8880/v1")
+KOKORO_DEVICE = os.environ.get("KOKORO_DEVICE", "gpu").lower()
 WHISPER_MODEL = os.environ.get("WHISPER_MODEL", "base.en")
+WHISPER_DEVICE = "cpu"
+WHISPER_COMPUTE = "int8"
 WER_THRESHOLD = float(os.environ.get("WER_THRESHOLD", "0.2"))
 
 SCRIPT_DIR = Path(__file__).parent
@@ -76,6 +81,17 @@ OUTPUT_DIR = SCRIPT_DIR / "output"
 def rel(path: Path) -> str:
     """Path relative to the script dir, posix-style."""
     return path.resolve().relative_to(SCRIPT_DIR.resolve()).as_posix()
+
+
+def run_meta() -> dict:
+    return {
+        "kokoro_device": KOKORO_DEVICE,
+        "kokoro_base_url": BASE_URL,
+        "whisper_model": WHISPER_MODEL,
+        "whisper_device": WHISPER_DEVICE,
+        "whisper_compute": WHISPER_COMPUTE,
+        "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
 
 CASES: list[tuple[str, str]] = [
     ("af_heart", "The quick brown fox jumps over the lazy dog."),
@@ -120,14 +136,15 @@ def main() -> int:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     print(f"Server:    {BASE_URL}")
-    print(f"Whisper:   {WHISPER_MODEL} (CPU, int8)")
+    print(f"Kokoro:    {KOKORO_DEVICE} (label)")
+    print(f"Whisper:   {WHISPER_MODEL} ({WHISPER_DEVICE}, {WHISPER_COMPUTE})")
     print(f"Threshold: WER < {WER_THRESHOLD}")
     print()
 
     client = openai.OpenAI(base_url=BASE_URL, api_key="not-needed", timeout=60)
 
     print("Loading Whisper model (first run downloads ~150MB)...")
-    model = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+    model = WhisperModel(WHISPER_MODEL, device=WHISPER_DEVICE, compute_type=WHISPER_COMPUTE)
     print("Loaded.\n")
 
     results: list[Result] = []
@@ -161,8 +178,10 @@ def main() -> int:
             )
         )
 
-    report_path = OUTPUT_DIR / "report.json"
-    report_path.write_text(json.dumps([asdict(r) for r in results], indent=2))
+    report_path = OUTPUT_DIR / f"report_{KOKORO_DEVICE}.json"
+    report_path.write_text(
+        json.dumps({"meta": run_meta(), "results": [asdict(r) for r in results]}, indent=2)
+    )
 
     total = len(results)
     passed_count = sum(1 for r in results if r.passed)

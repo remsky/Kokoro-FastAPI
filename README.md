@@ -1,8 +1,6 @@
-<p align="center">
-  <img src="githubbanner.png" alt="Kokoro TTS Banner">
-</p>
-
 # <sub><sub>_`FastKoko`_ </sub></sub> 
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=neon&commits=25&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
 
@@ -10,7 +8,7 @@
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6) 
 
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.8M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.9M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
 
 
 
@@ -39,23 +37,37 @@ Pre-built multi-arch images with models baked in.
 
 `:latest` is available, but please pin to a release tag for stable usage.
 
-| Your hardware | Image |
-|---|---|
-| No GPU (any laptop, VPS, CPU-only server) | `kokoro-fastapi-cpu:latest` |
-| Apple Silicon (M1/M2/M3) | `kokoro-fastapi-cpu:latest` in Docker, or `./start-gpu_mac.sh` natively for MPS |
-| NVIDIA GTX 9xx, 10xx, 20xx, 30xx, 40xx (x86_64) | `kokoro-fastapi-gpu:latest-cu126` or `kokoro-fastapi-gpu:latest` |
-| NVIDIA RTX 50-series / Blackwell (x86_64) | `kokoro-fastapi-gpu:latest-cu128` |
-| NVIDIA on arm64 (Jetson, GH200) | `kokoro-fastapi-gpu:latest` (ships cu129, no cu126 arm64 wheels upstream) |
-| AMD GPU | `kokoro-fastapi-rocm:latest` (experimental, x86_64 only) |
-
+**No GPU** (laptop, CPU-only server)
 ```bash
-docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest                                       # CPU
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest                            # NVIDIA (x86_64 or arm64)
-docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128                      # NVIDIA Blackwell / RTX 50-series
-docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest  # AMD
+docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 ```
 
-Configuration via environment variables, see `core/config.py`. The `:latest` and `:latest-cu126` tags resolve to the same multi-arch image.
+**NVIDIA** (GTX 900-series through RTX 40; ships cu126)
+```bash
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
+```
+
+**NVIDIA RTX 50-series / Blackwell** (ships cu128)
+```bash
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128
+```
+
+**NVIDIA arm64** (Jetson, GH200; same tag, ships cu129)
+```bash
+docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
+```
+
+**AMD GPU** (ROCm, experimental, x86_64 only)
+```bash
+docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest
+```
+
+**Apple Silicon** (native MPS, from a clone; the CPU image also works in Docker)
+```bash
+./start-gpu_mac.sh
+```
+
+`gpu:latest` is the same image as `gpu:latest-cu126`. Configuration via environment variables, see `core/config.py`.
 
 </details>
 
@@ -721,6 +733,8 @@ If you run into trouble, you may have to roll back a version on the release tags
 
 Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
 
+Working on the code, or pointing an AI agent at it? [AGENTS.md](AGENTS.md) covers the repo layout, commands, and conventions.
+
   <a href="https://www.buymeacoffee.com/remsky" target="_blank">
     <img
       src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png"
@@ -752,9 +766,7 @@ The full Apache 2.0 license text can be found at: https://www.apache.org/license
 
 </details open>
 
-## Contributor Stats
-![Alt](https://repobeats.axiom.co/api/embed/f9694366bf96febc749d592316ff0a275fe77219.svg "Repobeats analytics image")
-</details>
+## Contributors
 
 <a href="https://github.com/remsky/Kokoro-FastAPI/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=remsky/Kokoro-FastAPI" />

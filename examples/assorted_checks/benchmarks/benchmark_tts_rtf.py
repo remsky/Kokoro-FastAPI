@@ -68,7 +68,7 @@ def main():
     # Initialize system monitor
     monitor = SystemMonitor(interval=1.0)  # 1 second interval
     # Set prefix for output files (e.g. "gpu", "cpu", "onnx", etc.)
-    prefix = "gpu"
+    prefix = os.environ.get("BENCH_PREFIX", "gpu")
     # Generate token sizes
     if "gpu" in prefix:
         token_sizes = generate_token_sizes(
@@ -131,8 +131,8 @@ def main():
             print("Breaking loop due to error")
             break
 
-        # Calculate RTF using the correct formula
-        rtf = real_time_factor(processing_time, audio_length)
+        # keep full precision, else rtf quantizes onto 0.02/0.03 and the fit breaks
+        rtf = real_time_factor(processing_time, audio_length, decimals=5)
         print(f"Real-Time Factor: {rtf:.5f}")
 
         results.append(
@@ -208,6 +208,7 @@ def main():
         "Number of Input Tokens",
         "Real-Time Factor (processing time / audio length)",
         prefix_path(output_plots_dir, "realtime_factor_rtf.png"),
+        show_trend=False,  # rtf is ~constant vs size; a fitted slope over-reads noise
     )
 
     # Stop monitoring and get final metrics

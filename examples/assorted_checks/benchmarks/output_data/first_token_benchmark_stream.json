@@ -3,11 +3,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.818483829498291,
-      "time_to_first_chunk": 1.8067498207092285,
+      "total_time": 0.27503132820129395,
+      "time_to_first_chunk": 0.27503132820129395,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens10_run1_stream.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 1
@@ -15,11 +15,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.6271553039550781,
-      "time_to_first_chunk": 1.610968828201294,
+      "total_time": 0.1282355785369873,
+      "time_to_first_chunk": 0.12620210647583008,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens10_run2_stream.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.2380416666666667,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 2
@@ -27,11 +27,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.5759549140930176,
-      "time_to_first_chunk": 1.561316967010498,
+      "total_time": 0.11367583274841309,
+      "time_to_first_chunk": 0.10835599899291992,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens10_run3_stream.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 3
@@ -39,11 +39,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.615680456161499,
-      "time_to_first_chunk": 1.6035709381103516,
+      "total_time": 0.1212162971496582,
+      "time_to_first_chunk": 0.11011409759521484,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens10_run4_stream.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 4
@@ -51,11 +51,11 @@
     {
       "text_length": 37,
       "token_count": null,
-      "total_time": 1.6515357494354248,
-      "time_to_first_chunk": 1.6268820762634277,
+      "total_time": 0.11555671691894531,
+      "time_to_first_chunk": 0.10644316673278809,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens10_run5_stream.wav",
-      "audio_length": 3.45,
+      "audio_length": 2.238,
       "target_tokens": 10,
       "actual_tokens": 10,
       "run_number": 5
@@ -63,11 +63,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 7.368175268173218,
-      "time_to_first_chunk": 3.4540352821350098,
+      "total_time": 0.2933342456817627,
+      "time_to_first_chunk": 0.2825446128845215,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens50_run1_stream.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.359416666666666,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 1
@@ -75,11 +75,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.931752443313599,
-      "time_to_first_chunk": 3.1553661823272705,
+      "total_time": 0.26378321647644043,
+      "time_to_first_chunk": 0.25426363945007324,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens50_run2_stream.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 2
@@ -87,11 +87,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.867500066757202,
-      "time_to_first_chunk": 3.127124309539795,
+      "total_time": 0.2968635559082031,
+      "time_to_first_chunk": 0.2914254665374756,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens50_run3_stream.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 3
@@ -99,11 +99,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 6.933881521224976,
-      "time_to_first_chunk": 3.1872360706329346,
+      "total_time": 0.2880702018737793,
+      "time_to_first_chunk": 0.27852606773376465,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens50_run4_stream.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 4
@@ -111,11 +111,11 @@
     {
       "text_length": 212,
       "token_count": null,
-      "total_time": 7.605916738510132,
-      "time_to_first_chunk": 3.6397976875305176,
+      "total_time": 0.26943278312683105,
+      "time_to_first_chunk": 0.25249171257019043,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens50_run5_stream.wav",
-      "audio_length": 15.825,
+      "audio_length": 13.35825,
       "target_tokens": 50,
       "actual_tokens": 50,
       "run_number": 5
@@ -123,11 +123,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 14.777218580245972,
-      "time_to_first_chunk": 3.625889778137207,
+      "total_time": 0.49794983863830566,
+      "time_to_first_chunk": 0.24326467514038086,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens100_run1_stream.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.108333333333334,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 1
@@ -135,11 +135,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 13.911701202392578,
-      "time_to_first_chunk": 3.298157215118408,
+      "total_time": 0.5323121547698975,
+      "time_to_first_chunk": 0.2615931034088135,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens100_run2_stream.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.108083333333333,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 2
@@ -147,11 +147,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 14.451806783676147,
-      "time_to_first_chunk": 3.8353848457336426,
+      "total_time": 0.4792778491973877,
+      "time_to_first_chunk": 0.22577142715454102,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens100_run3_stream.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.107833333333332,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 3
@@ -159,11 +159,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 13.941124200820923,
-      "time_to_first_chunk": 3.3754897117614746,
+      "total_time": 0.4781460762023926,
+      "time_to_first_chunk": 0.23748064041137695,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens100_run4_stream.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.107791666666667,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 4
@@ -171,11 +171,11 @@
     {
       "text_length": 448,
       "token_count": null,
-      "total_time": 15.717307329177856,
-      "time_to_first_chunk": 3.6421003341674805,
+      "total_time": 0.5513854026794434,
+      "time_to_first_chunk": 0.2508504390716553,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens100_run5_stream.wav",
-      "audio_length": 30.35,
+      "audio_length": 27.095666666666666,
       "target_tokens": 100,
       "actual_tokens": 100,
       "run_number": 5
@@ -183,11 +183,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 41.16162133216858,
-      "time_to_first_chunk": 3.7044918537139893,
+      "total_time": 1.4589898586273193,
+      "time_to_first_chunk": 0.2774472236633301,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens250_run1_stream.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.80958333333334,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 1
@@ -195,11 +195,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 35.43009877204895,
-      "time_to_first_chunk": 3.1040024757385254,
+      "total_time": 1.2844734191894531,
+      "time_to_first_chunk": 0.27109289169311523,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens250_run2_stream.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.80970833333333,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 2
@@ -207,11 +207,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 35.285505294799805,
-      "time_to_first_chunk": 3.657808780670166,
+      "total_time": 1.28043532371521,
+      "time_to_first_chunk": 0.2745656967163086,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens250_run3_stream.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.80645833333334,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 3
@@ -219,11 +219,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 34.47842836380005,
-      "time_to_first_chunk": 3.2033851146698,
+      "total_time": 1.2022511959075928,
+      "time_to_first_chunk": 0.2613496780395508,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens250_run4_stream.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.81270833333333,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 4
@@ -231,11 +231,11 @@
     {
       "text_length": 1140,
       "token_count": null,
-      "total_time": 36.50936222076416,
-      "time_to_first_chunk": 3.1159815788269043,
+      "total_time": 1.3067212104797363,
+      "time_to_first_chunk": 0.2377643585205078,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens250_run5_stream.wav",
-      "audio_length": 78.175,
+      "audio_length": 68.81183333333334,
       "target_tokens": 250,
       "actual_tokens": 250,
       "run_number": 5
@@ -243,11 +243,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 86.84899735450745,
-      "time_to_first_chunk": 5.405678987503052,
+      "total_time": 2.6125614643096924,
+      "time_to_first_chunk": 0.2965879440307617,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens500_run1_stream.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.380125,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 1
@@ -255,11 +255,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 74.72578477859497,
-      "time_to_first_chunk": 3.966891050338745,
+      "total_time": 2.4865479469299316,
+      "time_to_first_chunk": 0.2899167537689209,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens500_run2_stream.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.374875,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 2
@@ -267,11 +267,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 68.1974081993103,
-      "time_to_first_chunk": 3.27712082862854,
+      "total_time": 2.5398142337799072,
+      "time_to_first_chunk": 0.2602524757385254,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens500_run3_stream.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.366875,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 3
@@ -279,11 +279,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 72.68819260597229,
-      "time_to_first_chunk": 3.153608560562134,
+      "total_time": 2.5486557483673096,
+      "time_to_first_chunk": 0.26415514945983887,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens500_run4_stream.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37879166666667,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 4
@@ -291,11 +291,11 @@
     {
       "text_length": 2232,
       "token_count": null,
-      "total_time": 67.94887590408325,
-      "time_to_first_chunk": 3.954728841781616,
+      "total_time": 2.5025322437286377,
+      "time_to_first_chunk": 0.3280761241912842,
       "error": null,
       "audio_path": "assorted_checks\\benchmarks\\output_audio_stream\\benchmark_tokens500_run5_stream.wav",
-      "audio_length": 155.125,
+      "audio_length": 135.37579166666666,
       "target_tokens": 500,
       "actual_tokens": 500,
       "run_number": 5
@@ -303,35 +303,35 @@
   ],
   "summary": {
     "10": {
-      "avg_time_to_first_chunk": 1.642,
-      "avg_total_time": 1.658,
-      "avg_audio_length": 3.45,
+      "avg_time_to_first_chunk": 0.145,
+      "avg_total_time": 0.151,
+      "avg_audio_length": 2.238,
       "num_successful_runs": 5
     },
     "50": {
-      "avg_time_to_first_chunk": 3.313,
-      "avg_total_time": 7.141,
-      "avg_audio_length": 15.825,
+      "avg_time_to_first_chunk": 0.272,
+      "avg_total_time": 0.282,
+      "avg_audio_length": 13.358,
       "num_successful_runs": 5
     },
     "100": {
-      "avg_time_to_first_chunk": 3.555,
-      "avg_total_time": 14.56,
-      "avg_audio_length": 30.35,
+      "avg_time_to_first_chunk": 0.244,
+      "avg_total_time": 0.508,
+      "avg_audio_length": 27.106,
       "num_successful_runs": 5
     },
     "250": {
-      "avg_time_to_first_chunk": 3.357,
-      "avg_total_time": 36.573,
-      "avg_audio_length": 78.175,
+      "avg_time_to_first_chunk": 0.264,
+      "avg_total_time": 1.307,
+      "avg_audio_length": 68.81,
       "num_successful_runs": 5
     },
     "500": {
-      "avg_time_to_first_chunk": 3.952,
-      "avg_total_time": 74.082,
-      "avg_audio_length": 155.125,
+      "avg_time_to_first_chunk": 0.288,
+      "avg_total_time": 2.538,
+      "avg_audio_length": 135.375,
       "num_successful_runs": 5
     }
   },
-  "timestamp": "2025-01-06 03:31:37"
+  "timestamp": "2026-07-14 22:18:39"
 }

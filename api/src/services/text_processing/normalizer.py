@@ -155,11 +155,16 @@ SYMBOL_REPLACEMENTS = {
 MONEY_UNITS = {"$": ("dollar", "cent"), "£": ("pound", "pence"), "€": ("euro", "cent")}
 
 # Pre-compiled regex patterns for performance
+# Lengths bounded to RFC limits (64/253) to prevent O(n^2) backtracking on floods.
 EMAIL_PATTERN = re.compile(
-    r"\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b", re.IGNORECASE
+    r"\b[a-zA-Z0-9._%+-]{1,64}@[a-zA-Z0-9.-]{1,253}\.[a-z]{2,}\b", re.IGNORECASE
 )
 URL_PATTERN = re.compile(
-    r"(https?://|www\.|)+(localhost|[a-zA-Z0-9.-]+(\.(?:"
+    # Token-start lookbehind + 253-char domain bound: without them the domain
+    # branch rescans from every position of a long word run (O(n^2)).
+    r"(?<![a-zA-Z0-9.-])"
+    # Two optionals, not (https?://|www\.|)+ — '+' over an empty alternative is a ReDoS smell.
+    r"(?:https?://)?(?:www\.)?(localhost|[a-zA-Z0-9.-]{1,253}(\.(?:"
     + "|".join(VALID_TLDS)
     + r"))+|[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})(:[0-9]+)?([/?][^\s]*)?",
     re.IGNORECASE,
@@ -300,6 +305,11 @@ def handle_decimal(num: re.Match[str]) -> str:
     return " point ".join([a, " ".join(b)])
 
 
+def handle_version(m: re.Match[str]) -> str:
+    parts = m.group().split(".")
+    return " point ".join(INFLECT_ENGINE.number_to_words(int(p)) for p in parts)
+
+
 def handle_email(m: re.Match[str]) -> str:
     """Convert email addresses into speakable format"""
     email = m.group(0)
@@ -410,6 +420,26 @@ def handle_time(t: re.Match[str]) -> str:
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
 
+    # Expand the "'re" contractions that espeak mis-phonemizes with a spurious
+    # /ɹeɪ/ ("-ray") ending, e.g. "how're" -> /haʊɹeɪ/ which sounds like "harry".
+    # Only the wh-words and there/these/those break this way; "you're", "we're"
+    # and "they're" already phonemize correctly and are left untouched.
+    text = re.sub(
+        r"\b(how|what|where|who|when|why|there|these|those)['’]re\b",
+        r"\1 are",
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    # apostrophe-less variants ("howre", "theyre"); word list differs from above
+    # because some forms like "were" and "whore" are real words, not contractions
+    text = re.sub(
+        r"\b(how|what|where|when|why|there|these|those|you|they)re\b",
+        r"\1 are",
+        text,
+        flags=re.IGNORECASE,
+    )
+
     # Handle email addresses first if enabled
     if normalization_options.email_normalization:
         text = EMAIL_PATTERN.sub(handle_email, text)
@@ -471,6 +501,10 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     # Handle numbers and money BEFORE replacing special characters
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
+
+    # version-like sequences (2.0.1, 10.3.2) before NUMBER_PATTERN eats the first decimal
+    text = re.sub(r"\d+(?:\.\d+){2,}", handle_version, text)
 
     text = MONEY_PATTERN.sub(
         handle_money,
@@ -479,7 +513,7 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
 
     text = NUMBER_PATTERN.sub(handle_numbers, text)
 
-    text = re.sub(r"\d*\.\d+", handle_decimal, text)
+    text = re.sub(r"(?<!\d)\d*\.\d+", handle_decimal, text)
 
     # Handle other problematic symbols AFTER money/number processing
     if normalization_options.replace_remaining_symbols:
@@ -487,12 +521,14 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
             text = text.replace(symbol, replacement)
 
     # Handle various formatting
-    text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
     text = re.sub(r"(?<=\d)S", " S", text)
     text = re.sub(r"(?<=[BCDFGHJ-NP-TV-Z])'?s\b", "'S", text)
     text = re.sub(r"(?<=X')S\b", "s", text)
     text = re.sub(
-        r"(?:[A-Za-z]\.){2,} [a-z]", lambda m: m.group().replace(".", "-"), text
+        # {2,12} not {2,} — real acronyms are short; unbounded backtracks O(n^2) on floods.
+        r"(?:[A-Za-z]\.){2,12} [a-z]",
+        lambda m: m.group().replace(".", "-"),
+        text,
     )
     text = re.sub(r"(?i)(?<=[A-Z])\.(?=[A-Z])", "-", text)
 

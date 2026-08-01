@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Download and prepare Kokoro v1.0 model."""
 
+import hashlib
 import json
 import os
 import sys
-from pathlib import Path
 from urllib.request import urlretrieve
+
+# sha256 of the release assets, update alongside base_url
+EXPECTED_SHA256 = {
+    "kokoro-v1_0.pth": "496dba118d1a58f5f3db2efc88dbdc216e0483fc89fe6e47ee1f2c53f18ad1e4",
+    "config.json": "5abb01e2403b072bf03d04fde160443e209d7a0dad49a423be15196b9b43c17f",
+}
 
 
 def _log(msg: str) -> None:
@@ -21,6 +27,14 @@ class _Logger:
 
 
 logger = _Logger()
+
+
+def _sha256(path: str) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def verify_files(model_path: str, config_path: str) -> bool:
@@ -41,11 +55,11 @@ def verify_files(model_path: str, config_path: str) -> bool:
             return False
 
         # Verify config file is valid JSON
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             json.load(f)
 
-        # Check model file size (should be non-zero)
-        if os.path.getsize(model_path) == 0:
+        # rejects error-page bodies saved in lieu of model (#301)
+        if os.path.getsize(model_path) < 100 * 1024 * 1024:
             return False
 
         return True
@@ -76,21 +90,34 @@ def download_model(output_dir: str) -> None:
 
         logger.info("Downloading Kokoro v1.0 model files")
 
-        # GitHub release URLs (to be updated with v0.2.0 release)
+        # GitHub release URLs (updated if/when new model weights released)
         base_url = "https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4"
         model_url = f"{base_url}/{model_file}"
         config_url = f"{base_url}/{config_file}"
 
-        # Download files
-        logger.info("Downloading model file...")
-        urlretrieve(model_url, model_path)
+        # download to temp paths, move into place only after checksums pass
+        model_tmp = model_path + ".download"
+        config_tmp = config_path + ".download"
+        try:
+            logger.info("Downloading model file...")
+            urlretrieve(model_url, model_tmp)
 
-        logger.info("Downloading config file...")
-        urlretrieve(config_url, config_path)
+            logger.info("Downloading config file...")
+            urlretrieve(config_url, config_tmp)
 
-        # Verify downloaded files
-        if not verify_files(model_path, config_path):
-            raise RuntimeError("Failed to verify downloaded files")
+            for name, tmp in ((model_file, model_tmp), (config_file, config_tmp)):
+                got = _sha256(tmp)
+                if got != EXPECTED_SHA256[name]:
+                    raise RuntimeError(
+                        f"checksum mismatch for {name}: expected {EXPECTED_SHA256[name]}, got {got}"
+                    )
+
+            os.replace(model_tmp, model_path)
+            os.replace(config_tmp, config_path)
+        finally:
+            for tmp in (model_tmp, config_tmp):
+                if os.path.exists(tmp):
+                    os.remove(tmp)
 
         logger.info(f"✓ Model files prepared in {output_dir}")
 

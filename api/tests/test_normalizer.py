@@ -334,3 +334,63 @@ def test_remaining_symbol():
         )
         == "I love buying products at good store here and at other store"
     )
+
+
+def test_re_contraction_expansion():
+    """Wh-word "'re" contractions are expanded so espeak does not voice a
+    spurious "-ray" ending (e.g. "how're" was phonemized like "harry")."""
+    assert (
+        normalize_text(
+            "Hello there, how're you doing this fine day?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Hello there, how are you doing this fine day?"
+    )
+    assert (
+        normalize_text(
+            "What're these and where're they going?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "What are these and where are they going?"
+    )
+    # Contractions that already phonemize correctly must be left untouched.
+    assert (
+        normalize_text(
+            "You're sure we're not late and they're here?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "You're sure we're not late and they're here?"
+    )
+
+
+def test_re_contraction_expansion_without_apostrophe():
+    """Apostrophe-less spellings expand too, over a different word list —
+    "were" and "whore" are real words and must not be rewritten."""
+    assert (
+        normalize_text(
+            "Howre you doing and whatre these?",
+            normalization_options=NormalizationOptions(),
+        )
+        == "How are you doing and what are these?"
+    )
+    assert (
+        normalize_text(
+            "Youre early and theyre already here.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "You are early and they are already here."
+    )
+    assert (
+        normalize_text(
+            "They were early, and there were more.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "They were early, and there were more."
+    )
+    assert (
+        normalize_text(
+            "Therefore the genre was hardcore before more.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Therefore the genre was hardcore before more."
+    )

@@ -4,6 +4,28 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [v0.7.0] - 2026-07-31
+### Added
+- `AGENTS.md` contributor guidelines, plus `SKILL.md` notes for the API, benchmarks, and web areas.
+
+### Changed / Optimizations
+- Docker images build on Python 3.12 (project floor stays 3.10 for local installs). Rust dropped from the CPU builder.
+- GPU runtime base switched from `cudnn-runtime` to `base` CUDA image; using the torch shipped cuDNN/etc via pip wheels (#482).
+- Model bake path reworked to ensure weights stay in a single image layer
+- ROCm image now bakes the model at build like CPU/GPU (instead of a first-run fetch)
+- Builds now explicitly require BuildKit (default since Docker 23, ~Jan 2023); utilizing `COPY --exclude`
+- Runtime dependencies trimmed to remove deprecated imports
+- Transcription benchmark reports split by device; RTF and first-token baselines refreshed.
+- Dropped dead `docs/` pin set, unpinned `regex`, bumped `requests` and `python-dotenv`, capped `transformers<6`, tracked root `uv.lock`.
+
+### Fixed
+- Model validation checksums against downloaded release artifact to ensure consistency, downloads first to a temp dir to avoid clobbering pre-existing models in the case of network issues/corrupted downloads.
+- Model validation also rejects any custom files under 100MB to avoids false pass results (e.g. a 9-byte "Not found"), allowing a re-download instead of passing (#301).
+- `.dockerignore` Fixed pycache ignore pattern to `**/`  to ensure nested .pyc/etc stay out of build contexts.
+- Removed dead `pydub` imports from the audio services.
+- `_find_file` rejects lookups that escape its search roots (`../` sequences, absolute paths) to avoid unintentional exposure of files outside the voices/models/web dirs. Symlinks placed inside those dirs resolve as before.
+- Text normalizer: anchored decimal regex to prevent quadratic backtracking on digit floods, reordered range substitution so `NUMBER_PATTERN` no longer swallows hyphens meant as range separators, added version-number handling (`2.0.1` renders as "two point zero point one" instead of being split).
+
 ## [v0.6.0] - 2026-07-12
 ### Breaking changes
 - `POST /dev/unload` is off by default; set `ALLOW_DEV_UNLOAD=true` to enable, otherwise returns 403. Shipped open in v0.5.0, now opt-in (#483).

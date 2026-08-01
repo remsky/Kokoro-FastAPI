@@ -435,6 +435,16 @@ async def download_audio_file(filename: str):
             },
         )
 
+    except FileNotFoundError:
+        logger.warning(f"Download file not found: {filename}")
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "not_found",
+                "message": "Audio file not found",
+                "type": "invalid_request_error",
+            },
+        )
     except Exception as e:
         logger.error(f"Error serving download file {filename}: {e}")
         raise HTTPException(
