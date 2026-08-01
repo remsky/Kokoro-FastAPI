@@ -101,3 +101,4 @@ pyproject.toml.bkp
 examples/assorted_checks/test_silence/out/*
 playwright-report/
 test-results/
+ROCM_TRIM.md

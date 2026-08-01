@@ -4,7 +4,7 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [v0.7.0] - 2026-07-31
 ### Added
 - `AGENTS.md` contributor guidelines, plus `SKILL.md` notes for the API, benchmarks, and web areas.
 
