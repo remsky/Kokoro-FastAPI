@@ -41,6 +41,8 @@ def speech(text: str, voice: str = "af_heart", **extra) -> requests.Response:
         "voice": voice,
         "response_format": "wav",
         "stream": False,
+        # opt in, since tags are off unless the request asks for them
+        "allow_voice_tags": True,
     }
     body.update(extra)
     return post("/v1/audio/speech", body)
@@ -186,9 +188,26 @@ def check_voice_actually_switches() -> tuple[bool, str]:
 def check_unknown_voice_rejected() -> tuple[bool, str]:
     """A bad speaker should fail up front, not part way through the stream."""
     tagged = speech("Narrator. [voice:not_a_real_voice] Nope.", voice="af_heart")
+    streamed = speech(
+        "Narrator. [voice:not_a_real_voice] Nope.", voice="af_heart", stream=True
+    )
     structured = dialogue([("af_bella", "Fine."), ("not_a_real_voice", "Nope.")])
-    ok = tagged.status_code == 400 and structured.status_code == 400
-    return ok, f"inline {tagged.status_code}, structured {structured.status_code}"
+    ok = all(r.status_code == 400 for r in (tagged, streamed, structured))
+    return ok, (
+        f"inline {tagged.status_code}, streamed {streamed.status_code}, "
+        f"structured {structured.status_code}"
+    )
+
+
+def check_tags_ignored_unless_requested() -> tuple[bool, str]:
+    """The same text is a 400 opted in and plain speech when it isn't."""
+    text = "Array index [voice:not_a_real_voice] is out of range."
+    off = speech(text, allow_voice_tags=False)
+    on = speech(text)
+    ok = off.status_code == 200 and on.status_code == 400
+    if off.status_code == 200:
+        save("tags_off_by_default", off.content)
+    return ok, f"off {off.status_code}, on {on.status_code}"
 
 
 CHECKS: list[tuple[str, Callable[[], tuple[bool, str]]]] = [
@@ -199,6 +218,7 @@ CHECKS: list[tuple[str, Callable[[], tuple[bool, str]]]] = [
     ("pause_between_turns", check_pause_between_turns),
     ("voice_actually_switches", check_voice_actually_switches),
     ("unknown_voice_rejected", check_unknown_voice_rejected),
+    ("tags_ignored_unless_requested", check_tags_ignored_unless_requested),
 ]
 
 

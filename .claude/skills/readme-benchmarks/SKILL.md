@@ -84,5 +84,6 @@ Copy plot outputs to `assets/` under the README's names (No stamp):
 | `assets/gpu_realtime_factor.png` | `output_plots/gpu_realtime_factor_rtf.png` |
 | `assets/gpu_first_token_timeline_openai.png` | `output_plots/first_token_timeline_stream_openai.png` (GPU run; name drops "stream") |
 | `assets/cpu_first_token_timeline_stream_openai.png` | `output_plots/first_token_timeline_stream_openai.png` (CPU run) |
+| `assets/cpu_dialogue_throughput.png` | `test_dialogue/output/dialogue_throughput.png` (CPU run) |
 
 The README displays these four in the perf blocks (`README.md` ~line 338 first-token, ~383 RTF). Other `gpu_first_token_*` assets exist but aren't shown there.

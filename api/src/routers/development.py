@@ -177,8 +177,8 @@ async def create_dialogue(
     """Generate multi-speaker audio from an ordered list of turns.
 
     Thin wrapper over /v1/audio/speech: turns are rendered to the inline
-    [voice:...] and [pause:Xs] tags the text pipeline already understands, so
-    streaming, formats and download links behave identically.
+    [voice:...] and [pause:Xs] existing tags so
+    streaming, formats and download links should behave identically.
     """
     speech_request = OpenAISpeechRequest(
         model=request.model,
@@ -192,6 +192,7 @@ async def create_dialogue(
         lang_code=request.lang_code,
         volume_multiplier=request.volume_multiplier,
         normalization_options=request.normalization_options,
+        allow_voice_tags=True, # always on here
     )
     return await create_speech(
         request=speech_request,
@@ -213,6 +214,10 @@ async def create_captioned_speech(
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
         voice_name = await process_and_validate_voices(request.voice, tts_service)
+        # resolved here, not in the generator, so a bad tag 400s before the stream opens
+        request.input = await process_and_validate_voice_tags(
+            request.input, tts_service, request.allow_voice_tags
+        )
 
         # Set content type based on format
         content_type = {
@@ -357,7 +362,7 @@ async def create_captioned_speech(
         else:
             # Generate complete audio using public interface
             audio_data = await tts_service.generate_audio(
-                text=await process_and_validate_voice_tags(request.input, tts_service),
+                text=request.input,
                 voice=voice_name,
                 writer=writer,
                 speed=request.speed,
@@ -365,6 +370,7 @@ async def create_captioned_speech(
                 volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
+                allow_voice_tags=request.allow_voice_tags,
             )
 
             audio_data = await AudioService.convert_audio(

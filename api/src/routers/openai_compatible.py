@@ -133,12 +133,17 @@ async def process_and_validate_voices(
     return "".join(voices)
 
 
-async def process_and_validate_voice_tags(text: str, tts_service: TTSService) -> str:
+async def process_and_validate_voice_tags(
+    text: str, tts_service: TTSService, allow_voice_tags: bool = False
+) -> str:
     """Validate inline [voice:...] tags, rewriting them to resolved voice names.
 
     Runs the same mapping and validation as the voice parameter so a bad speaker
     tag fails the request up front rather than part way through the stream.
     """
+    if not allow_voice_tags:
+        return text
+
     tags = VOICE_TAG_PATTERN.findall(text)
     if not tags:
         return text
@@ -158,14 +163,13 @@ async def stream_audio_chunks(
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
     voice_name = await process_and_validate_voices(request.voice, tts_service)
-    input_text = await process_and_validate_voice_tags(request.input, tts_service)
     unique_properties = {"return_timestamps": False}
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"] = request.return_timestamps
 
     try:
         async for chunk_data in tts_service.generate_audio_stream(
-            text=input_text,
+            text=request.input,
             voice=voice_name,
             writer=writer,
             speed=request.speed,
@@ -174,6 +178,7 @@ async def stream_audio_chunks(
             volume_multiplier=request.volume_multiplier,
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
+            allow_voice_tags=request.allow_voice_tags,
         ):
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
@@ -212,6 +217,10 @@ async def create_speech(
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
         voice_name = await process_and_validate_voices(request.voice, tts_service)
+        # resolved here, not in the generator, so a bad tag 400s before the stream opens
+        request.input = await process_and_validate_voice_tags(
+            request.input, tts_service, request.allow_voice_tags
+        )
 
         # Set content type based on format
         content_type = {
@@ -316,13 +325,14 @@ async def create_speech(
 
             # Generate complete audio using public interface
             audio_data = await tts_service.generate_audio(
-                text=await process_and_validate_voice_tags(request.input, tts_service),
+                text=request.input,
                 voice=voice_name,
                 writer=writer,
                 speed=request.speed,
                 volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
+                allow_voice_tags=request.allow_voice_tags,
             )
 
             audio_data = await AudioService.convert_audio(

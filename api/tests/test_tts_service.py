@@ -158,7 +158,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
             _text,
             _tokens,
             _pause,
-        ) in service._split_multi_voice(text, "af_heart", None, None):
+        ) in service._split_multi_voice(text, "af_heart", None, None, allow_voice_tags=True):
             speakers.append(voice_name)
 
         assert speakers == ["af_bella", "bm_george", "af_bella"]
@@ -187,7 +187,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         langs = [
             lang
             async for _name, _path, lang, _text, _tokens, _pause in (
-                service._split_multi_voice(text, "af_heart", None, None)
+                service._split_multi_voice(text, "af_heart", None, None, allow_voice_tags=True)
             )
         ]
 
@@ -216,7 +216,9 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         langs = [
             lang
             async for _name, _path, lang, _text, _tokens, _pause in (
-                service._split_multi_voice(text, "af_heart", "e", None)
+                service._split_multi_voice(
+                    text, "af_heart", "e", None, allow_voice_tags=True
+                )
             )
         ]
 

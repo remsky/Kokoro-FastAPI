@@ -585,7 +585,7 @@ Three tokens can be embedded in the `input` text and are parsed server-side (API
 
 - **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
-- **Voice**: `[voice:am_michael]` switches speaker for everything that follows. Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), and an unknown name is a 400.
+- **Voice**: `[voice:am_michael]` switches speaker for everything that follows. Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), and an unknown name is a 400. Off unless the request sets `allow_voice_tags: true`, so bracketed text is spoken as written by default.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
@@ -595,7 +595,7 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 <details>
 <summary>Multi-Speaker / Dialogue</summary>
 
-Inline `[voice:...]` tags work anywhere `input` is accepted, so dialogue is just text. Text ahead of the first tag uses the request's `voice`:
+Inline `[voice:...]` tags work anywhere `input` is accepted, so dialogue is just text. Text ahead of the first tag uses the request's `voice`. Set `allow_voice_tags` to turn the parsing on for that request:
 
 ```bash
 curl -X POST http://localhost:8880/v1/audio/speech \
@@ -604,8 +604,20 @@ curl -X POST http://localhost:8880/v1/audio/speech \
     "model": "kokoro",
     "voice": "af_heart",
     "input": "The narrator opens. [voice:af_bella] Did it land? [pause:0.3s] [voice:am_michael] It did.",
+    "allow_voice_tags": true,
     "response_format": "mp3"
   }' --output dialogue.mp3
+```
+
+With the official OpenAI client, that goes in `extra_body`:
+
+```python
+client.audio.speech.create(
+    model="kokoro",
+    voice="af_heart",
+    input="The narrator opens. [voice:af_bella] Did it land?",
+    extra_body={"allow_voice_tags": True},
+)
 ```
 
 `POST /dev/dialogue` takes the same thing as structured turns, if you would rather not build the string yourself. It accepts the `/v1/audio/speech` options (`response_format`, `speed`, `stream`, `return_download_link`, etc) plus `pause_between_turns`:
@@ -624,9 +636,16 @@ curl -X POST http://localhost:8880/dev/dialogue \
 ```
 
 Notes:
+- `/dev/dialogue` builds the tags itself, so it needs no opt in. Only the inline form on `/v1/audio/speech` reads `allow_voice_tags`.
 - Each speaker keeps its own language pipeline, so mixing `af_*` with `bm_*` or `jf_*` in one request works without setting `lang_code`. An explicit `lang_code` still overrides every speaker.
 - Speaker count is not capped. Each distinct voice is resolved once per request and its tensor and pipeline are cached, so switching between speakers costs no extra model work.
 - Consecutive turns sharing a voice are merged before chunking, so tagging every paragraph in a long single-voice document doesn't fragment it.
+
+<div align="center">
+  <img src="assets/cpu_dialogue_throughput.png" width="80%" alt="Multi-speaker throughput against the single-voice baseline" style="border: 2px solid #333; padding: 10px;">
+</div>
+
+Four speakers land inside the single-voice baseline's own run to run spread, so speaker count doesn't cost throughput. Regenerate with `examples/assorted_checks/test_dialogue/`.
 </details>
 
 <details>

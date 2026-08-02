@@ -644,6 +644,38 @@ def test_dialogue_request_no_pause_between_turns():
     assert request.to_tagged_input() == "[voice:af_bella] One. [voice:am_michael] Two."
 
 
+def test_dialogue_request_accepts_elevenlabs_field_names():
+    """inputs/voice_id are accepted as aliases for turns/voice"""
+    from api.src.structures.schemas import DialogueRequest
+
+    request = DialogueRequest.model_validate(
+        {
+            "inputs": [
+                {"voice_id": "af_bella", "text": "One."},
+                {"voice_id": "am_michael", "text": "Two."},
+            ]
+        }
+    )
+    assert [turn.voice for turn in request.turns] == ["af_bella", "am_michael"]
+    assert request.to_tagged_input() == "[voice:af_bella] One. [voice:am_michael] Two."
+
+
+def test_dialogue_endpoint_accepts_elevenlabs_field_names(mock_tts_service):
+    """The alias form reaches the endpoint, not just the model"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "inputs": [
+                {"voice_id": "voice1", "text": "One."},
+                {"voice_id": "voice2", "text": "Two."},
+            ],
+            "response_format": "mp3",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+
+
 @pytest.mark.asyncio
 async def test_process_and_validate_voice_tags_maps_openai_names(
     mock_openai_mappings,
@@ -655,7 +687,7 @@ async def test_process_and_validate_voice_tags_maps_openai_names(
     service.list_voices.return_value = ["am_adam", "bf_isabella"]
 
     result = await process_and_validate_voice_tags(
-        "[voice:alloy] Hello. [voice:nova] Hi.", service
+        "[voice:alloy] Hello. [voice:nova] Hi.", service, allow_voice_tags=True
     )
     assert result == "[voice:am_adam] Hello. [voice:bf_isabella] Hi."
 
@@ -669,7 +701,9 @@ async def test_process_and_validate_voice_tags_rejects_unknown():
     service.list_voices.return_value = ["af_heart"]
 
     with pytest.raises(ValueError, match="not found"):
-        await process_and_validate_voice_tags("[voice:nope] Hello.", service)
+        await process_and_validate_voice_tags(
+            "[voice:nope] Hello.", service, allow_voice_tags=True
+        )
 
 
 @pytest.mark.asyncio
@@ -710,7 +744,55 @@ def test_speech_endpoint_rejects_unknown_inline_voice(mock_tts_service):
             "voice": "test_voice",
             "response_format": "mp3",
             "stream": False,
+            "allow_voice_tags": True,
         },
     )
     assert response.status_code == 400
     assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_speech_endpoint_ignores_voice_tags_by_default(mock_tts_service):
+    """Bracketed text is spoken as written unless the request opts in"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "He said [voice:not_a_voice] and left.",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+    kwargs = mock_tts_service.generate_audio.call_args.kwargs
+    assert kwargs["text"] == "He said [voice:not_a_voice] and left."
+    assert kwargs["allow_voice_tags"] is False
+
+
+@pytest.mark.asyncio
+async def test_process_and_validate_voice_tags_disabled_skips_validation():
+    """With tags off the text is untouched and the voice list is never read"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    result = await process_and_validate_voice_tags("[voice:nope] Hello.", service)
+
+    assert result == "[voice:nope] Hello."
+    service.list_voices.assert_not_called()
+
+
+def test_dialogue_endpoint_opts_into_voice_tags(mock_tts_service):
+    """/dev/dialogue builds its own tags, so it opts in on the caller's behalf"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "turns": [
+                {"voice": "voice1", "text": "One."},
+                {"voice": "voice2", "text": "Two."},
+            ],
+            "response_format": "mp3",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+    assert mock_tts_service.generate_audio.call_args.kwargs["allow_voice_tags"] is True

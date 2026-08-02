@@ -2,7 +2,7 @@ from email.policy import default
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 
 class VoiceCombineRequest(BaseModel):
@@ -120,20 +120,29 @@ class OpenAISpeechRequest(BaseModel):
         default=NormalizationOptions(),
         description="Options for the normalization system",
     )
+    allow_voice_tags: bool = Field(
+        default=False,
+        description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
+    )
 
 
 class DialogueTurn(BaseModel):
     """A single speaker turn in a dialogue request"""
 
+    model_config = ConfigDict(populate_by_name=True)
+
     voice: str = Field(
         ...,
-        description="The voice for this turn. Can be a base voice or a combined voice name.",
+        validation_alias=AliasChoices("voice", "voice_id"),
+        description="The voice for this turn. Can be a base voice or a combined voice name. Accepts voice_id as an alias.",
     )
     text: str = Field(..., description="The text this speaker says")
 
 
 class DialogueRequest(BaseModel):
     """Request schema for the multi-speaker dialogue endpoint"""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     model: str = Field(
         default="kokoro",
@@ -142,7 +151,8 @@ class DialogueRequest(BaseModel):
     turns: List[DialogueTurn] = Field(
         ...,
         min_length=1,
-        description="Speaker turns rendered in order. Consecutive turns sharing a voice are merged.",
+        validation_alias=AliasChoices("turns", "inputs"),
+        description="Speaker turns rendered in order. Consecutive turns sharing a voice are merged. Accepts inputs as an alias.",
     )
     pause_between_turns: float = Field(
         default=0.0,
@@ -242,4 +252,8 @@ class CaptionedSpeechRequest(BaseModel):
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
         description="Options for the normalization system",
+    )
+    allow_voice_tags: bool = Field(
+        default=False,
+        description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
     )

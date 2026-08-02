@@ -6,7 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
-- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`.
+- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`. Opt in per request with `allow_voice_tags: true` (`extra_body` from the OpenAI client), so bracketed text in existing callers is still spoken as written.
 - `POST /dev/dialogue` takes the same thing as ordered `turns` with an optional `pause_between_turns`, and supports the `/v1/audio/speech` options.
 
 ### Fixed

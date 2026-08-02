@@ -266,6 +266,7 @@ class TTSService:
         voice: str,
         lang_code: Optional[str],
         normalization_options: Optional[NormalizationOptions],
+        allow_voice_tags: bool = False,
     ) -> AsyncGenerator[Tuple[str, str, str, str, List[int], Optional[float]], None]:
         """Chunk text across [voice:...] segments.
 
@@ -273,11 +274,15 @@ class TTSService:
         Each distinct speaker is resolved once per request; the backend then
         caches its tensor and pipeline, so switching voices between chunks costs
         no extra model work.
+
+        With allow_voice_tags off the text is one segment on the request voice,
+        so a bracketed word is spoken rather than read as a speaker change.
         """
         resolved: Dict[str, Tuple[str, str]] = {}
         normalization_options = normalization_options or NormalizationOptions()
+        segments = split_by_voice(text, voice) if allow_voice_tags else [(voice, text)]
 
-        for segment_voice, segment_text in split_by_voice(text, voice):
+        for segment_voice, segment_text in segments:
             if segment_voice not in resolved:
                 resolved[segment_voice] = await self._get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
@@ -313,6 +318,7 @@ class TTSService:
         volume_multiplier: Optional[float] = 1.0,
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         return_timestamps: Optional[bool] = False,
+        allow_voice_tags: bool = False,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
@@ -330,7 +336,9 @@ class TTSService:
                 chunk_text,
                 tokens,
                 pause_duration_s,
-            ) in self._split_multi_voice(text, voice, lang_code, normalization_options):
+            ) in self._split_multi_voice(
+                text, voice, lang_code, normalization_options, allow_voice_tags
+            ):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
                     try:
@@ -464,6 +472,7 @@ class TTSService:
         volume_multiplier: Optional[float] = 1.0,
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         lang_code: Optional[str] = None,
+        allow_voice_tags: bool = False,
     ) -> AudioChunk:
         """Generate complete audio for text using streaming internally."""
         audio_data_chunks = []
@@ -479,6 +488,7 @@ class TTSService:
                 return_timestamps=return_timestamps,
                 lang_code=lang_code,
                 output_format=None,
+                allow_voice_tags=allow_voice_tags,
             ):
                 if len(audio_stream_data.audio) > 0:
                     audio_data_chunks.append(audio_stream_data)
