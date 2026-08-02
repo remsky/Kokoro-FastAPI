@@ -50,6 +50,26 @@ export class AudioService {
         this.audio.addEventListener('canplay', dispatchReady);
     }
 
+    attachAudioErrorEvents(mode) {
+        this.audio.addEventListener('error', (event) => {
+            const audioElement = event.target;
+            const errorCode = audioElement?.error?.code;
+
+            console.error(`Audio error (${mode}):`, {
+                code: errorCode,
+                message: audioElement?.error?.message || 'Unknown audio error',
+                src: audioElement?.src,
+                networkState: audioElement?.networkState,
+                readyState: audioElement?.readyState
+            });
+
+            // an abort is user-initiated, not a playback failure
+            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
+                this.dispatchEvent('playbackUnavailable');
+            }
+        });
+    }
+
     async streamAudio(text, voice, speed, onProgress) {
         try {
             const canStreamMp3 = this.supportsMSEMp3();
@@ -161,24 +181,7 @@ export class AudioService {
         this.audio.src = this.objectUrl;
         this.audio.load();
 
-        this.audio.addEventListener('error', (event) => {
-            const audioElement = event.target;
-            const errorCode = audioElement?.error?.code;
-            const errorMessage = audioElement?.error?.message || 'Unknown audio error';
-
-            console.error('Audio error (block mode):', {
-                code: errorCode,
-                message: errorMessage,
-                src: audioElement?.src,
-                networkState: audioElement?.networkState,
-                readyState: audioElement?.readyState
-            });
-
-            // Don't dispatch playbackUnavailable for abort errors
-            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
-                this.dispatchEvent('playbackUnavailable');
-            }
-        });
+        this.attachAudioErrorEvents('block mode');
 
         this.audio.addEventListener('ended', () => {
             this.dispatchEvent('ended');
@@ -210,24 +213,7 @@ export class AudioService {
         this.objectUrl = URL.createObjectURL(this.mediaSource);
         this.audio.src = this.objectUrl;
 
-        this.audio.addEventListener('error', (event) => {
-            const audioElement = event.target;
-            const errorCode = audioElement?.error?.code;
-            const errorMessage = audioElement?.error?.message || 'Unknown audio error';
-
-            console.error('Audio error:', {
-                code: errorCode,
-                message: errorMessage,
-                src: audioElement?.src,
-                networkState: audioElement?.networkState,
-                readyState: audioElement?.readyState
-            });
-
-            // Don't dispatch playbackUnavailable for abort errors
-            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
-                this.dispatchEvent('playbackUnavailable');
-            }
-        });
+        this.attachAudioErrorEvents('stream');
 
         this.audio.addEventListener('ended', () => {
             this.dispatchEvent('ended');
