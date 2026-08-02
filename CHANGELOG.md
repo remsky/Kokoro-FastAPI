@@ -6,8 +6,9 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Fixed
-- Web UI waveform lifecycle cleanup: resize listeners/canvases no longer stack across generations, animation loop is start/stop safe, canvas resizes with the window.
-- Web UI stream-to-file swap settles pending buffer operations so playback can't hang after seeking.
+- Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
+- Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.
+- Downloads save as `{voice}_{timestamp}.{format}` instead of the temp name (#338). `/v1/download/{filename}` takes an optional `?name=` (sanitized, stored extension kept) and sets it in `Content-Disposition`, which also covers right-click "Save audio as".
 
 ## [v0.7.0] - 2026-07-31
 ### Added

@@ -13,6 +13,7 @@ export class AudioService {
         this.CHARS_PER_CHUNK = 150;
         this.MAX_LEAD_SECONDS = 60;
         this.serverDownloadPath = null;
+        this.downloadName = null;
         this.pendingOperations = [];
         this.objectUrl = null;
         this.chunkQueue = [];
@@ -49,6 +50,26 @@ export class AudioService {
         this.audio.addEventListener('canplay', dispatchReady);
     }
 
+    attachAudioErrorEvents(mode) {
+        this.audio.addEventListener('error', (event) => {
+            const audioElement = event.target;
+            const errorCode = audioElement?.error?.code;
+
+            console.error(`Audio error (${mode}):`, {
+                code: errorCode,
+                message: audioElement?.error?.message || 'Unknown audio error',
+                src: audioElement?.src,
+                networkState: audioElement?.networkState,
+                readyState: audioElement?.readyState
+            });
+
+            // an abort is user-initiated, not a playback failure
+            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
+                this.dispatchEvent('playbackUnavailable');
+            }
+        });
+    }
+
     async streamAudio(text, voice, speed, onProgress) {
         try {
             const canStreamMp3 = this.supportsMSEMp3();
@@ -68,6 +89,7 @@ export class AudioService {
             const estimatedChunks = Math.max(1, Math.ceil(this.textLength / this.CHARS_PER_CHUNK));
             const responseFormat = document.getElementById('format-select').value || 'mp3';
             const canUseMseStream = this.shouldUseMseStream(responseFormat, canStreamMp3);
+            this.downloadName = this.buildDownloadName(voice, responseFormat);
 
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
             const response = await fetch(apiUrl, {
@@ -105,7 +127,7 @@ export class AudioService {
 
             const downloadPath = response.headers.get('x-download-path');
             if (downloadPath) {
-                this.serverDownloadPath = `/v1${downloadPath}`;
+                await this.setDownloadPath(downloadPath);
                 console.log('Download path received:', this.serverDownloadPath);
             }
 
@@ -146,7 +168,7 @@ export class AudioService {
         const headers = Object.fromEntries(response.headers.entries());
         const downloadPath = headers['x-download-path'];
         if (downloadPath) {
-            this.serverDownloadPath = await config.getApiUrl(`/v1${downloadPath}`);
+            await this.setDownloadPath(downloadPath);
         }
 
         onProgress?.(estimatedChunks, estimatedChunks);
@@ -159,24 +181,7 @@ export class AudioService {
         this.audio.src = this.objectUrl;
         this.audio.load();
 
-        this.audio.addEventListener('error', (event) => {
-            const audioElement = event.target;
-            const errorCode = audioElement?.error?.code;
-            const errorMessage = audioElement?.error?.message || 'Unknown audio error';
-
-            console.error('Audio error (block mode):', {
-                code: errorCode,
-                message: errorMessage,
-                src: audioElement?.src,
-                networkState: audioElement?.networkState,
-                readyState: audioElement?.readyState
-            });
-
-            // Don't dispatch playbackUnavailable for abort errors
-            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
-                this.dispatchEvent('playbackUnavailable');
-            }
-        });
+        this.attachAudioErrorEvents('block mode');
 
         this.audio.addEventListener('ended', () => {
             this.dispatchEvent('ended');
@@ -208,24 +213,7 @@ export class AudioService {
         this.objectUrl = URL.createObjectURL(this.mediaSource);
         this.audio.src = this.objectUrl;
 
-        this.audio.addEventListener('error', (event) => {
-            const audioElement = event.target;
-            const errorCode = audioElement?.error?.code;
-            const errorMessage = audioElement?.error?.message || 'Unknown audio error';
-
-            console.error('Audio error:', {
-                code: errorCode,
-                message: errorMessage,
-                src: audioElement?.src,
-                networkState: audioElement?.networkState,
-                readyState: audioElement?.readyState
-            });
-
-            // Don't dispatch playbackUnavailable for abort errors
-            if (errorCode !== MediaError.MEDIA_ERR_ABORTED) {
-                this.dispatchEvent('playbackUnavailable');
-            }
-        });
+        this.attachAudioErrorEvents('stream');
 
         this.audio.addEventListener('ended', () => {
             this.dispatchEvent('ended');
@@ -279,7 +267,7 @@ export class AudioService {
 
                     const downloadPath = headers['x-download-path'];
                     if (downloadPath) {
-                        this.serverDownloadPath = await config.getApiUrl(`/v1${downloadPath}`);
+                        await this.setDownloadPath(downloadPath);
                         console.log('Download path received:', this.serverDownloadPath);
                     } else {
                         console.warn('No X-Download-Path header found. Available headers:',
@@ -745,6 +733,7 @@ export class AudioService {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
+        this.downloadName = null;
         this.rejectPendingOperations(new Error('AudioService cancelled'));
         this.chunkQueue = [];
         this.streamFinished = true;
@@ -777,6 +766,7 @@ export class AudioService {
         this.mediaSource = null;
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
+        this.downloadName = null;
         this.rejectPendingOperations(new Error('AudioService cleanup'));
         this.chunkQueue = [];
         this.streamFinished = true;
@@ -786,12 +776,32 @@ export class AudioService {
         this.revokeObjectUrl();
     }
 
+    // sent to the server so Content-Disposition carries it, which outranks a.download (#338)
+    buildDownloadName(voice, format) {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const safeVoice = String(voice || '')
+            .replace(/[^A-Za-z0-9._-]+/g, '_')
+            .replace(/^[._-]+|[._-]+$/g, '');
+        return `${safeVoice || 'speech'}_${stamp}.${format}`;
+    }
+
+    async setDownloadPath(rawPath) {
+        const url = await config.getApiUrl(`/v1${rawPath}`);
+        this.serverDownloadPath = this.downloadName
+            ? `${url}?name=${encodeURIComponent(this.downloadName)}`
+            : url;
+    }
+
     getDownloadUrl() {
         if (!this.serverDownloadPath) {
             console.warn('No download path available');
             return null;
         }
         return this.serverDownloadPath;
+    }
+
+    getDownloadName() {
+        return this.downloadName;
     }
 }
 

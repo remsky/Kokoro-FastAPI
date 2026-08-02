@@ -5,6 +5,7 @@ function SiriWave(opt) {
   this.phase = 0;
   this.run = false;
   this._frameId = null;
+  this._lastTs = null;
   this._boundDraw = this._draw.bind(this);
 
   // UI vars
@@ -86,10 +87,16 @@ SiriWave.prototype._clear = function() {
   this.ctx.globalCompositeOperation = 'source-over';
 };
 
-SiriWave.prototype._draw = function() {
+SiriWave.prototype._draw = function(ts) {
   if (this.run === false) return;
 
-  this.phase = (this.phase + Math.PI*this.speed) % (2*Math.PI);
+  // speed is cycles/sec, a fixed per-frame step ran 2x on 120Hz displays
+  var dt = 1/60;
+  if (typeof ts === 'number') {
+    if (this._lastTs !== null) dt = Math.min((ts - this._lastTs) / 1000, 0.05);
+    this._lastTs = ts;
+  }
+  this.phase = (this.phase + 2*Math.PI*this.speed*dt) % (2*Math.PI);
 
   this._clear();
   this._drawLine(-2, 'rgba(' + this.color + ',0.1)');
@@ -115,12 +122,14 @@ SiriWave.prototype.start = function() {
   // not idempotent without this guard, a second call would spawn a second loop
   if (this.run) return;
   this.phase = 0;
+  this._lastTs = null;
   this.run = true;
   this._draw();
 };
 
 SiriWave.prototype.stop = function() {
   this.phase = 0;
+  this._lastTs = null;
   this.run = false;
   this._cancelFrame();
 };

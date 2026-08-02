@@ -19,6 +19,7 @@ export class App {
             status: document.getElementById('status'),
             cancelBtn: document.getElementById('cancel-btn'),
             streamingNotice: document.getElementById('streaming-notice'),
+            charCount: document.getElementById('char-count'),
             cup: document.querySelector('.logo-container .cup')
         };
 
@@ -32,16 +33,20 @@ export class App {
         this.voiceService = new VoiceService();
 
         this.renderVersionBadge();
+        this.renderStarBadge();
 
         // Initialize components
         this.playerControls = new PlayerControls(this.audioService, this.playerState);
         this.voiceSelector = new VoiceSelector(this.voiceService);
         this.waveVisualizer = new WaveVisualizer(this.playerState);
         
-        // Initialize text editor
+        // counter lives outside the component, in the editor status row
         const editorContainer = document.getElementById('text-editor');
         this.textEditor = new TextEditor(editorContainer, {
-            linesPerPage: 20
+            linesPerPage: 20,
+            onTextChange: (text) => {
+                this.elements.charCount.textContent = `${text.length} characters`;
+            }
         });
 
         // Initialize voice selector
@@ -55,6 +60,21 @@ export class App {
         this.setupEventListeners();
         this.setupAudioEvents();
         this.applyBrowserStreamingNotice();
+    }
+
+    async renderStarBadge() {
+        const count = document.getElementById('gh-star-count');
+        if (!count) return;
+        try {
+            const response = await fetch('https://api.github.com/repos/remsky/Kokoro-FastAPI');
+            if (!response.ok) return;
+            const stars = (await response.json()).stargazers_count;
+            if (typeof stars !== 'number') return;
+            count.textContent = stars >= 1000 ? `${(stars / 1000).toFixed(1).replace(/\.0$/, '')}k` : `${stars}`;
+            count.hidden = false;
+        } catch (_) {
+            // leave hidden on failure
+        }
     }
 
     async renderVersionBadge() {
@@ -82,15 +102,15 @@ export class App {
         let message = '';
 
         if (format === 'pcm') {
-            message = 'PCM output can be generated, but in-browser playback may be unsupported.';
+            message = 'PCM may not play in-browser; download still works.';
         } else if (format !== 'mp3') {
-            message = `${formatLabel} output will be generated, playback and/or download will be available when generation finishes.`;
+            message = `${formatLabel} plays/downloads once generation finishes.`;
         } else if (!this.audioService.supportsMSEMp3()) {
             message = isFirefox
-                ? 'Audio streaming is not currently supported in Firefox. Playback and/or download should stilll be available when generation finishes.'
-                : 'This browser may not support streaming. Playback and/or download should still be available when generation finishes.';
+                ? 'No streaming in Firefox; playback/download ready once generation finishes.'
+                : 'Streaming may be unsupported here; playback/download ready once generation finishes.';
         } else if (this.elements.autoplayToggle?.checked) {
-            message = 'Auto-play on: pause after generation completes to enable full seek/scrub.';
+            message = 'Auto-play on; pause when done for full seek.';
         }
 
         notice.textContent = message;
@@ -101,8 +121,14 @@ export class App {
         // Generate button
         this.elements.generateBtn.addEventListener('click', () => this.generateSpeech());
 
-        // Download button
+        // Download button (div with role=button, so handle keyboard activation too)
         this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+        this.elements.downloadBtn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                this.downloadAudio();
+            }
+        });
 
         // Keep browser/output warning aligned with the selected format and autoplay state
         this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());
@@ -266,14 +292,15 @@ export class App {
         }
 
         console.log('Starting download from:', downloadUrl);
-        
-        const format = this.elements.formatSelect.value;
-        const voice = this.voiceService.getSelectedVoiceString();
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        
+
+        // fallback only: the server's Content-Disposition wins when it's present
+        const name = this.audioService.getDownloadName();
+
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `${voice}_${timestamp}.${format}`;
+        if (name) {
+            a.download = name;
+        }
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);

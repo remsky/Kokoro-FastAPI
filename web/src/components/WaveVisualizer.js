@@ -19,8 +19,8 @@ export class WaveVisualizer {
             width: this.container.clientWidth,
             height: 100,
             autostart: false,
-            amplitude: 1,
-            speed: 0.03
+            amplitude: 0.65,
+            speed: 0.25
         });
 
         // setWidth keeps the canvas and the clear rect in sync, a stale width leaves the uncovered strip un-erased
@@ -63,7 +63,9 @@ export class WaveVisualizer {
 
             // start/stop only on transitions, a repeat start would reset the wave phase
             if (state.isPlaying && !this.wasPlaying) {
-                this.wave?.start();
+                if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                    this.wave?.start();
+                }
             } else if (!state.isPlaying && this.wasPlaying) {
                 this.wave?.stop();
             }

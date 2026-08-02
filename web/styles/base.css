@@ -2,18 +2,16 @@
     --bg-color: #0f172a;
     --fg-color: #6366f1;
     --surface: rgba(30, 41, 59, 1);
+    --card: rgba(30, 41, 59, 0.55);
     --text: #f8fafc;
     --text-light: #cbd5e1;
     --border: rgba(148, 163, 184, 0.2);
+    --border-accent: rgba(99, 102, 241, 0.25);
     --error: #ef4444;
     --success: #22c55e;
     --font-family: 'Inter', system-ui, sans-serif;
-}
-
-html {
-    width: 100%;
-    height: 100%;
-    overflow-x: hidden;
+    color-scheme: dark;
+    accent-color: var(--fg-color);
 }
 
 * {
@@ -22,34 +20,62 @@ html {
     box-sizing: border-box;
 }
 
+html {
+    height: 100%;
+}
+
 body {
     font-family: var(--font-family);
     line-height: 1.6;
     color: var(--text);
     background: var(--bg-color);
-    min-height: 100vh;
-    position: relative;
-    padding: 0;
     width: 100%;
-    max-width: 100vw;
     overflow-x: hidden;
-    display: flex;
-    flex-direction: column;
 }
 
-.overlay {
+/* ── scene */
+.scene {
     position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+
+.scene .overlay {
+    position: absolute;
     inset: 0;
     background:
         radial-gradient(circle at top right,
             var(--fg-color) 0%,
             var(--bg-color) 100%);
-    pointer-events: none;
-    z-index: 0;
+    opacity: 0.9;
 }
 
-.grid-overlay {
-    position: fixed;
+/* sits low so the player dock reads as the horizon it sets behind */
+.scene .sun {
+    position: absolute;
+    left: 50%;
+    bottom: -140px;
+    transform: translateX(-50%);
+    width: min(48vw, 520px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 30%,
+        rgba(165, 180, 252, 0.85) 0%,
+        rgba(99, 102, 241, 0.55) 45%,
+        rgba(99, 102, 241, 0) 72%);
+    -webkit-mask-image: repeating-linear-gradient(to bottom,
+        black 0 13px,
+        transparent 13px 18px);
+    mask-image: repeating-linear-gradient(to bottom,
+        black 0 13px,
+        transparent 13px 18px);
+    opacity: 0.25;
+}
+
+.scene .grid-overlay {
+    position: absolute;
     inset: 0;
     background-image:
         repeating-linear-gradient(0deg,
@@ -62,123 +88,90 @@ body {
             rgba(255,255,255,0.03) 1px,
             transparent 1px,
             transparent 20px);
-    pointer-events: none;
-    z-index: 0;
 }
 
-.container {
-    width: 100%;
-    max-width: min(1400px, 98vw);
-    margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    padding: clamp(5rem, 8vh, 7rem) clamp(0.75rem, 2vw, 2rem) 2rem;
-    flex: 1;
+.scene .scanline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -120px;
+    height: 120px;
+    background: linear-gradient(to bottom,
+        transparent,
+        rgba(148, 163, 184, 0.045),
+        transparent);
+    animation: scan 14s linear infinite;
 }
 
-@media (max-width: 768px) {
-    .container {
-        padding-top: clamp(6rem, 10vh, 8rem);
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
+@keyframes scan {
+    to {
+        transform: translateY(calc(100vh + 120px));
     }
 }
 
-main {
-    display: flex;
-    flex-direction: column;
-    gap: clamp(1rem, 2vh, 2rem);
-    min-width: 0;
-    width: 100%;
-    position: relative;
-    flex: 1;
+/* ── shared bits */
+:focus-visible {
+    outline: 2px solid var(--fg-color);
+    outline-offset: 2px;
 }
 
+.card-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+/* takes no space until App.js applies a state class */
 .status {
-    padding: 0.75rem 1rem;
-    border-radius: 0.25rem;
-    margin-bottom: 1rem;
-    transition: all 0.3s ease;
-    opacity: 0;
+    display: none;
+    width: 100%;
+    padding: 0.45rem 0.75rem;
+    border-radius: 0.35rem;
     font-weight: 500;
+    font-size: 0.8125rem;
     text-align: center;
+}
+
+.status.info,
+.status.error,
+.status.success {
+    display: block;
 }
 
 .status.info {
     background: rgba(99, 102, 241, 0.1);
     border: 1px solid rgba(99, 102, 241, 0.2);
-    opacity: 1;
 }
 
 .status.error {
     background: rgba(239, 68, 68, 0.1);
     border: 1px solid rgba(239, 68, 68, 0.2);
-    opacity: 1;
 }
 
 .status.success {
     background: rgba(34, 197, 94, 0.1);
     border: 1px solid rgba(34, 197, 94, 0.2);
-    opacity: 1;
 }
 
 .streaming-notice {
-    padding: 0.625rem 0.875rem;
-    border-radius: 0.25rem;
-    background: rgba(234, 179, 8, 0.08);
-    border: 1px solid rgba(234, 179, 8, 0.25);
-    color: var(--text-light, #b9bcc7);
-    font-size: 0.8125rem;
-    line-height: 1.4;
-    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 2px solid rgba(234, 179, 8, 0.45);
+    color: var(--text-light);
+    font-size: 0.75rem;
+    line-height: 1.35;
+    opacity: 0.85;
 }
 
 .streaming-notice[hidden] {
     display: none;
 }
 
-.page-footer {
-    width: 100%;
-    padding: clamp(0.5rem, 1vh, 0.75rem) clamp(1rem, 2vw, 2rem);
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    background: rgba(15, 23, 42, 0.6);
-    border-top: 1px solid rgba(99, 102, 241, 0.15);
-    min-height: clamp(2.75rem, 5vh, 3.5rem);
-    position: relative;
-    z-index: 1;
-}
-
-.bmc-link {
-    display: inline-block;
-    line-height: 0;
-    opacity: 0.85;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    border-radius: 8px;
-}
-
-.bmc-link:hover,
-.bmc-link:focus-visible {
-    opacity: 1;
-    transform: translateY(-1px);
-    outline: none;
-}
-
-.bmc-link img {
-    height: 28px;
-    width: auto;
-    display: block;
-}
-
-@media (max-width: 768px) {
-    .page-footer {
-        padding: 0.5rem 0.75rem;
-        min-height: 2.5rem;
-        justify-content: center;
-    }
-    .bmc-link img {
-        height: 24px;
+@media (prefers-reduced-motion: reduce) {
+    .scene .scanline {
+        animation: none;
+        display: none;
     }
 }
