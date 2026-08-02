@@ -5,7 +5,14 @@ from importlib.metadata import (
 from pathlib import Path
 
 import torch
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
+
+# upstream HF repos per model version; the repo id drives kokoro's zh g2p selection
+MODEL_REPOS = {
+    "v1_0": "hexgrad/Kokoro-82M",
+    "v1_1-zh": "hexgrad/Kokoro-82M-v1.1-zh",
+}
 
 
 def _read_version() -> str:
@@ -44,6 +51,9 @@ class Settings(BaseSettings):
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )
+
+    # Model selection
+    model_version: str = "v1_0"  # "v1_0" (baked default) or "v1_1-zh" (Chinese-focused, downloaded at startup)
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
@@ -86,6 +96,28 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+
+    @model_validator(mode="after")
+    def _apply_model_version(self):
+        if self.model_version not in MODEL_REPOS:
+            raise ValueError(
+                f"Unknown model_version '{self.model_version}', expected one of {sorted(MODEL_REPOS)}"
+            )
+        if self.model_version != "v1_0":
+            # follow the selected version unless the user set these explicitly
+            if "voices_dir" not in self.model_fields_set:
+                self.voices_dir = self.voices_dir.replace("v1_0", self.model_version)
+            if "default_voice" not in self.model_fields_set:
+                self.default_voice = "zf_001"
+        return self
+
+    @property
+    def model_repo_id(self) -> str:
+        return MODEL_REPOS[self.model_version]
+
+    @property
+    def model_file(self) -> str:
+        return f"{self.model_version}/kokoro-{self.model_version}.pth"
 
     def get_device(self) -> str:
         """Get the appropriate device based on settings and availability"""

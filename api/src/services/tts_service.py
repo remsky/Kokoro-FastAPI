@@ -15,8 +15,10 @@ from loguru import logger
 from ..core.config import settings
 from ..inference.base import AudioChunk
 from ..inference.kokoro_v1 import KokoroV1
-from ..inference.model_manager import ModelManager
-from ..inference.model_manager import get_manager as get_model_manager
+from ..inference.model_manager import (
+    ModelManager,
+    get_manager as get_model_manager,
+)
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions
 from .audio import AudioNormalizer, AudioService

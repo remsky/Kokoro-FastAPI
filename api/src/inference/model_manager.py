@@ -65,7 +65,7 @@ class ModelManager:
             await self.initialize()
 
             # Load model
-            model_path = self._config.pytorch_kokoro_v1_file
+            model_path = settings.model_file
             await self.load_model(model_path)
 
             # Use paths module to get voice path
@@ -88,11 +88,11 @@ class ModelManager:
 
             return self._device, "kokoro_v1", len(voices)
         except FileNotFoundError as e:
-            logger.error("""
+            logger.error(f"""
 Model files not found! You need to download the Kokoro V1 model:
 
 1. Download model using the script:
-   python docker/scripts/download_model.py --output api/src/models/v1_0
+   python docker/scripts/download_model.py --version {settings.model_version} --output api/src/models/{settings.model_version} --voices-output api/src/voices/{settings.model_version}
 
 2. Or set environment variable in docker-compose:
    DOWNLOAD_MODEL=true
@@ -108,7 +108,7 @@ Model files not found! You need to download the Kokoro V1 model:
         async with self._lock:
             if not self._backend:
                 await self.initialize()
-                await self.load_model(self._config.pytorch_kokoro_v1_file)
+                await self.load_model(settings.model_file)
 
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.

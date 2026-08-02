@@ -14,7 +14,12 @@ from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
 from .base import AudioChunk, BaseModelBackend
 
-_ESPEAK_TS_SCALE = 2.0 / 80.0  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+_ESPEAK_TS_SCALE = (
+    2.0 / 80.0
+)  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+
+# English g2p is version-independent, so the helper pipeline always uses the v1_0 repo
+_EN_G2P_REPO_ID = "hexgrad/Kokoro-82M"
 
 
 def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
@@ -88,6 +93,9 @@ class KokoroV1(BaseModelBackend):
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
+        self._en_g2p: Optional[KPipeline] = (
+            None  # model-free English g2p for zh mixed text
+        )
         self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
 
     async def _get_voice_tensor(self, voice_path: str) -> torch.Tensor:
@@ -129,7 +137,9 @@ class KokoroV1(BaseModelBackend):
             logger.info(f"Model path: {model_path}")
 
             # Load model and let KModel handle device mapping
-            self._model = KModel(config=config_path, model=model_path).eval()
+            self._model = KModel(
+                config=config_path, model=model_path, repo_id=settings.model_repo_id
+            ).eval()
             # For MPS, manually move ISTFT layers to CPU while keeping rest on MPS
             if self._device == "mps":
                 logger.info(
@@ -160,10 +170,27 @@ class KokoroV1(BaseModelBackend):
 
         if lang_code not in self._pipelines:
             logger.info(f"Creating new pipeline for language code: {lang_code}")
+            kwargs = {}
+            if lang_code == "z":
+                # v1.1-zh g2p drops embedded English spans unless it can phonemize them
+                kwargs["en_callable"] = self._en_phonemes
             self._pipelines[lang_code] = KPipeline(
-                lang_code=lang_code, model=self._model, device=self._device
+                lang_code=lang_code,
+                model=self._model,
+                device=self._device,
+                repo_id=settings.model_repo_id,
+                **kwargs,
             )
         return self._pipelines[lang_code]
+
+    def _en_phonemes(self, text: str) -> str:
+        """Phonemize English spans embedded in non-English text (zh en_callable)."""
+        if self._en_g2p is None:
+            self._en_g2p = KPipeline(
+                lang_code="a", model=False, repo_id=_EN_G2P_REPO_ID
+            )
+        result = next(self._en_g2p(text), None)
+        return result.phonemes if result is not None and result.phonemes else ""
 
     async def generate_from_tokens(
         self,
@@ -392,8 +419,7 @@ class KokoroV1(BaseModelBackend):
                     elif (
                         return_timestamps
                         and result.phonemes
-                        and type(getattr(pipeline, "g2p", None)).__name__
-                        == "EspeakG2P"
+                        and type(getattr(pipeline, "g2p", None)).__name__ == "EspeakG2P"
                     ):
                         # espeak pipelines (es/fr/it/hi/pt) yield no timed
                         # tokens; derive word times from the model's own
@@ -457,6 +483,7 @@ class KokoroV1(BaseModelBackend):
         for pipeline in self._pipelines.values():
             del pipeline
         self._pipelines.clear()
+        self._en_g2p = None
         self._voice_cache.clear()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

@@ -430,7 +430,9 @@ async def unload_model(
         )
     try:
         if tts_service.model_manager is None:
-            raise HTTPException(status_code=503, detail={"error": "Model manager not initialized"})
+            raise HTTPException(
+                status_code=503, detail={"error": "Model manager not initialized"}
+            )
         await tts_service.model_manager.unload()
         return JSONResponse({"status": "unloaded"})
     except HTTPException:

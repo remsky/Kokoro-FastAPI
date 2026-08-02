@@ -21,6 +21,7 @@ client = TestClient(app)
 @contextmanager
 def override_tts_service(service):
     """Override the get_tts_service FastAPI dependency for the duration of the block."""
+
     async def _override():
         return service
 
@@ -153,7 +154,7 @@ async def test_generate_lazy_reinit_when_backend_none():
             chunks.append(chunk)
 
     mock_init.assert_called_once()
-    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    mock_load.assert_called_once_with(settings.model_file)
     assert len(chunks) == 1
     assert chunks[0] is audio_chunk
 

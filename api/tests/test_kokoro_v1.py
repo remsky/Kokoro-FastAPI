@@ -56,6 +56,7 @@ def test_unload_with_pipelines(kokoro_backend):
     pipeline_a = MagicMock()
     pipeline_e = MagicMock()
     kokoro_backend._pipelines = {"a": pipeline_a, "e": pipeline_e}
+    kokoro_backend._en_g2p = MagicMock()
     kokoro_backend._voice_cache = {"af_heart.pt:cpu": MagicMock()}
     assert kokoro_backend.is_loaded
 
@@ -64,6 +65,7 @@ def test_unload_with_pipelines(kokoro_backend):
     assert not kokoro_backend.is_loaded
     assert kokoro_backend._model is None
     assert kokoro_backend._pipelines == {}  # All pipelines should be cleared
+    assert kokoro_backend._en_g2p is None
     assert kokoro_backend._voice_cache == {}  # Voice tensors should be released
 
 
@@ -98,10 +100,60 @@ def test_get_pipeline_creates_new(kokoro_backend):
 
         # Should create new pipeline with correct params
         mock_kpipeline.assert_called_once_with(
-            lang_code="e", model=kokoro_backend._model, device=kokoro_backend._device
+            lang_code="e",
+            model=kokoro_backend._model,
+            device=kokoro_backend._device,
+            repo_id="hexgrad/Kokoro-82M",
         )
         assert pipeline_e == mock_pipeline
         assert kokoro_backend._pipelines["e"] == mock_pipeline
+
+
+def test_get_pipeline_zh_wires_en_callable(kokoro_backend):
+    """Chinese pipeline gets an en_callable so mixed English isn't dropped."""
+    kokoro_backend._model = MagicMock()
+
+    with patch(
+        "api.src.inference.kokoro_v1.KPipeline", return_value=MagicMock()
+    ) as mock_kpipeline:
+        kokoro_backend._get_pipeline("z")
+
+        mock_kpipeline.assert_called_once_with(
+            lang_code="z",
+            model=kokoro_backend._model,
+            device=kokoro_backend._device,
+            repo_id="hexgrad/Kokoro-82M",
+            en_callable=kokoro_backend._en_phonemes,
+        )
+
+
+def test_en_phonemes_lazy_creation_and_output(kokoro_backend):
+    """_en_phonemes builds one model-free English pipeline and returns phonemes."""
+    mock_result = MagicMock(phonemes="həlˈoʊ")
+    mock_g2p = MagicMock(side_effect=lambda text: iter([mock_result]))
+
+    with patch(
+        "api.src.inference.kokoro_v1.KPipeline", return_value=mock_g2p
+    ) as mock_kpipeline:
+        assert kokoro_backend._en_phonemes("hello") == "həlˈoʊ"
+        assert kokoro_backend._en_phonemes("hello") == "həlˈoʊ"
+
+        # Created once, without a model, and kept out of _pipelines.
+        mock_kpipeline.assert_called_once_with(
+            lang_code="a", model=False, repo_id="hexgrad/Kokoro-82M"
+        )
+        assert kokoro_backend._pipelines == {}
+
+
+def test_en_phonemes_empty_result(kokoro_backend):
+    """Empty or missing g2p output yields an empty string, not an exception."""
+    kokoro_backend._en_g2p = MagicMock(side_effect=lambda text: iter([]))
+    assert kokoro_backend._en_phonemes("hello") == ""
+
+    kokoro_backend._en_g2p = MagicMock(
+        side_effect=lambda text: iter([MagicMock(phonemes=None)])
+    )
+    assert kokoro_backend._en_phonemes("hello") == ""
 
 
 def test_get_pipeline_reuses_existing(kokoro_backend):

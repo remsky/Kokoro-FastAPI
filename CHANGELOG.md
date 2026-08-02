@@ -5,6 +5,9 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- Opt-in `MODEL_VERSION=v1_1-zh` support for hexgrad's [Kokoro-82M-v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh): weights, config, and 103-voice pack download checksum-pinned at startup; voices dir and default voice follow the selection. Mixed zh/en text phonemizes embedded English via `en_callable` instead of dropping it (#237, thanks @chai51). Baked v1.0 images unchanged.
+
 ### Fixed
 - Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
 - Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.

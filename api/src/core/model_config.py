@@ -34,11 +34,6 @@ class ModelConfig(BaseModel):
     cache_voices: bool = Field(True, description="Whether to cache voice tensors")
     voice_cache_size: int = Field(2, description="Maximum number of cached voices")
 
-    # Model filename
-    pytorch_kokoro_v1_file: str = Field(
-        "v1_0/kokoro-v1_0.pth", description="PyTorch Kokoro V1 model filename"
-    )
-
     # Backend config
     pytorch_gpu: PyTorchConfig = Field(default_factory=PyTorchConfig)
 

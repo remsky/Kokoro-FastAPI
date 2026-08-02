@@ -361,6 +361,20 @@ Key Streaming Metrics:
 *Note: Artifacts in intonation can increase with smaller chunks*
 </details>
 
+<details>
+<summary>Chinese Model (v1.1-zh)</summary>
+
+Opt-in alternate weights: [Kokoro-82M-v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh), hexgrad's Chinese-focused release (~100 zh voices plus af_maple, af_sol, bf_vale). Better Mandarin, and mixed zh/en text speaks the embedded English properly instead of dropping it.
+
+```bash
+docker run -p 8880:8880 -e MODEL_VERSION=v1_1-zh -e DOWNLOAD_MODEL=true ghcr.io/remsky/kokoro-fastapi-cpu:latest
+# or from a clone:
+MODEL_VERSION=v1_1-zh ./start-gpu.sh
+```
+
+Weights and voice pack (~370MB, checksum-pinned release assets) download on first start; the baked v1.0 images are unchanged. One model per instance: selecting v1.1-zh replaces v1.0, so other languages and most English voices are unavailable while active (not a strict upgrade, per the model page). Default voice becomes `zf_001`, override with `DEFAULT_VOICE`.
+</details>
+
 ## Processing Details
 <details>
 <summary>Performance & Benchmarks</summary>
@@ -749,7 +763,7 @@ Working on the code, or pointing an AI agent at it? [AGENTS.md](AGENTS.md) cover
 <details open>
 <summary>Model</summary>
 
-This API uses the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) model from HuggingFace. 
+This API uses the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) model from HuggingFace, with optional support for the [Kokoro-82M-v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh) Chinese release via `MODEL_VERSION=v1_1-zh`. 
 
 Visit the model page for more details about training, architecture, and capabilities. I have no affiliation with any of their work, and produced this wrapper for ease of use and personal projects.
 </details>
