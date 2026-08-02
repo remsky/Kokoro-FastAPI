@@ -1,3 +1,22 @@
+.app-header {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border-accent);
+    position: relative;
+    z-index: 10;
+}
+
+/* same width cap and padding as .app-shell so the badges end at the sidebar's edge */
+.header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    max-width: 1500px;
+    margin: 0 auto;
+    padding: 0.6rem clamp(1rem, 2vw, 2rem);
+}
+
 .logo-container {
     display: flex;
     align-items: center;
@@ -5,7 +24,7 @@
 }
 
 h1 {
-    font-size: 1.75rem;
+    font-size: 1.6rem;
     font-weight: 700;
     margin: 0;
     line-height: 1;
@@ -15,33 +34,109 @@ h1 {
     -webkit-background-clip: text;
     background-clip: text;
     color: var(--text);
-    text-shadow: 
-        -1px -1px 0 rgba(0,0,0,0.5),  
+    text-shadow:
+        -1px -1px 0 rgba(0,0,0,0.5),
         1px -1px 0 rgba(0,0,0,0.5),
         -1px 1px 0 rgba(0,0,0,0.5),
         1px 1px 0 rgba(0,0,0,0.5),
         2px 2px var(--fg-color);
 }
 
-@media (max-width: 768px) {
-    .logo-container {
-        gap: 0.5rem;
-    }
-    
-    h1 {
-        font-size: 1.5rem;
-    }
+.version-badge {
+    padding: 0.15rem 0.5rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.7rem;
+    color: rgba(226, 232, 240, 0.7);
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid var(--border-accent);
+    border-radius: 999px;
+    text-decoration: none;
+    transition: color 0.15s ease, border-color 0.15s ease;
 }
 
+.version-badge:hover {
+    color: rgba(226, 232, 240, 1);
+    border-color: rgba(99, 102, 241, 0.6);
+}
+
+.header-links {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+/* fixed width keeps the two badges matched */
+.badge {
+    width: 250px;
+    display: flex;
+    align-items: center;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
+}
+
+.badge:hover {
+    opacity: 0.9;
+}
+
+.badge img {
+    width: 100%;
+    height: auto;
+    border-radius: 4px;
+    display: block;
+}
+
+/* github star badge, primer dark-mode grays */
+.gh-star-badge {
+    --gh-gray-100: #c9d1d9;
+    --gh-gray-500: #484f58;
+    --gh-gray-600: #30363d;
+    --gh-gray-700: #21262d;
+    height: 22px;
+    /* grow past the matched width rather than ellipsize the full name */
+    min-width: max-content;
+    align-items: stretch;
+    overflow: hidden;
+    border-radius: 4px;
+    border: 1px solid var(--gh-gray-500);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+    color: var(--gh-gray-100);
+}
+
+.gh-star-label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 0.6rem;
+    background: var(--gh-gray-700);
+}
+
+.gh-repo {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gh-star-count {
+    display: flex;
+    align-items: center;
+    padding: 0 0.55rem;
+    background: var(--gh-gray-600);
+    border-left: 1px solid var(--gh-gray-500);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── coffee cup */
 .cup {
     width: 16px;
     height: 20px;
     border: 2px solid var(--text);
     border-radius: 0 0 8px 8px;
     position: relative;
-    animation: float 3s ease-in-out;
-    animation-iteration-count: 3;
-    animation-fill-mode: forwards;
 }
 
 .handle {
@@ -71,23 +166,108 @@ h1 {
     height: 100%;
     background: rgba(255,255,255,0.7);
     border-radius: 3px;
-    animation: steam 2s;
-    animation-iteration-count: 3;
-    animation-fill-mode: forwards;
+    opacity: 0;
 }
 
 @keyframes steam {
-    to {
+    0% {
+        transform: none;
+        opacity: 0;
+    }
+    25% {
+        opacity: 0.7;
+    }
+    60% {
+        opacity: 0.25;
+    }
+    100% {
         transform: translateY(-6px) scale(1.3);
         opacity: 0;
     }
 }
 
-@keyframes float {
-    50% {
-        transform: translateY(-2px);
+.cup.brewing .steam::before,
+.cup.brewing .steam::after {
+    animation: steam 2.2s ease-in-out infinite;
+}
+
+.cup.brewing .steam::after {
+    animation-delay: 1.1s;
+}
+
+.cup.done,
+.cup.done .handle {
+    animation: cup-flash 0.45s ease-in-out 2;
+}
+
+@keyframes cup-flash {
+    30% {
+        border-color: #312e81;
     }
-    100% {
-        transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cup.brewing .steam::before,
+    .cup.brewing .steam::after {
+        animation: none;
+        opacity: 0.5;
+    }
+
+    .cup.done,
+    .cup.done .handle {
+        animation: none;
+    }
+}
+
+@media (max-width: 900px) {
+    .header-inner {
+        gap: 0.6rem;
+        padding: 0.5rem 0.75rem;
+    }
+
+    h1 {
+        font-size: 1.4rem;
+    }
+
+    .logo-container {
+        gap: 0.5rem;
+    }
+
+    .header-links {
+        flex: 0 1 205px;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
+    }
+
+    .badge {
+        width: 100%;
+    }
+
+    /* the stacked column can't grow, the owner prefix goes instead */
+    .gh-star-badge {
+        height: 20px;
+        min-width: 0;
+        font-size: 0.625rem;
+    }
+
+    .gh-owner {
+        display: none;
+    }
+
+    .gh-star-label svg {
+        width: 13px;
+        height: 13px;
+    }
+}
+
+@media (max-width: 360px) {
+    h1 {
+        font-size: 1.25rem;
+    }
+
+    .version-badge {
+        display: none;
     }
 }

@@ -15,6 +15,8 @@ export default class TextEditor {
         
         this.setupDOM();
         this.bindEvents();
+        // sync nav button disabled state so CSS can hide the row while single-page
+        this.updatePageDisplay();
     }
 
     setupDOM() {
@@ -47,10 +49,9 @@ export default class TextEditor {
                                 max="2000"
                                 title="Characters per page"
                             >
-                            <span class="chars-label">chars/page</span>
-                            <button class="format-btn">Format Pages</button>
+                            <span class="chars-label">/page</span>
+                            <button class="format-btn">Format</button>
                         </div>
-                        <div class="char-count">0 characters</div>
                     </div>
                 </div>
             </div>
@@ -65,7 +66,6 @@ export default class TextEditor {
             fileInput: this.container.querySelector('.file-input'),
             uploadBtn: this.container.querySelector('.upload-btn'),
             clearBtn: this.container.querySelector('.clear-btn'),
-            charCount: this.container.querySelector('.char-count'),
             charsPerPage: this.container.querySelector('.chars-input'),
             formatBtn: this.container.querySelector('.format-btn')
         };
@@ -88,10 +88,9 @@ export default class TextEditor {
                 this.updatePageDisplay();
             }
             
-            // Update full text and char count - join with space since pages are just for UI
+            // pages are only a display split, join back into the full text
             this.fullText = this.pages.join(' ');
-            this.updateCharCount();
-            
+
             if (this.options.onTextChange) {
                 this.options.onTextChange(this.fullText);
             }
@@ -156,6 +155,9 @@ export default class TextEditor {
             if (value >= 100 && value <= 2000) {
                 this.options.charsPerPage = value;
                 this.splitIntoPages(this.fullText);
+                if (this.options.onTextChange) {
+                    this.options.onTextChange(this.fullText);
+                }
             }
         });
     }
@@ -166,7 +168,6 @@ export default class TextEditor {
             this.fullText = '';
             this.currentPage = 1;
             this.updatePageDisplay();
-            this.updateCharCount();
             return;
         }
 
@@ -199,9 +200,8 @@ export default class TextEditor {
             // Keep current page in bounds
             this.currentPage = Math.min(this.currentPage, this.pages.length);
         }
-        
+
         this.updatePageDisplay();
-        this.updateCharCount();
     }
 
     setText(text) {
@@ -210,7 +210,6 @@ export default class TextEditor {
         this.pages = [text];
         this.currentPage = 1;
         this.updatePageDisplay();
-        this.updateCharCount();
     }
 
     updatePageDisplay() {
@@ -220,11 +219,6 @@ export default class TextEditor {
         // Update button states
         this.elements.prevBtn.disabled = this.currentPage === 1;
         this.elements.nextBtn.disabled = this.currentPage === this.pages.length;
-    }
-
-    updateCharCount() {
-        const totalChars = this.fullText.length;
-        this.elements.charCount.textContent = `${totalChars} characters`;
     }
 
     prevPage() {

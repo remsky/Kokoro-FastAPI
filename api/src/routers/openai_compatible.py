@@ -11,7 +11,7 @@ from urllib import response
 import aiofiles
 import numpy as np
 import torch
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
@@ -411,8 +411,37 @@ async def create_speech(
         )
 
 
+# everything outside this set is collapsed out of a client-supplied save-as name
+_DOWNLOAD_NAME_UNSAFE = re.compile(r"[^A-Za-z0-9._-]+")
+_DOWNLOAD_NAME_EXT = re.compile(r"\.[A-Za-z0-9]{1,5}$")
+_DOWNLOAD_NAME_MAX_STEM = 100
+
+
+def _resolve_download_name(requested: str | None, stored_name: str) -> str:
+    """Resolve the save-as name for a download.
+
+    Strips a client-supplied name to a safe charset and always keeps the stored
+    file's real extension. Falls back to the stored (temp) name.
+    """
+    if not requested:
+        return stored_name
+
+    stem = _DOWNLOAD_NAME_EXT.sub("", _DOWNLOAD_NAME_UNSAFE.sub("_", requested))
+    stem = stem.strip("._-")[:_DOWNLOAD_NAME_MAX_STEM].strip("._-")
+    if not stem:
+        return stored_name
+
+    return f"{stem}{os.path.splitext(stored_name)[1]}"
+
+
 @router.get("/download/{filename}")
-async def download_audio_file(filename: str):
+async def download_audio_file(
+    filename: str,
+    name: str | None = Query(
+        None,
+        description="Preferred save-as name. Sanitized; the stored file's extension is kept.",
+    ),
+):
     """Download a generated audio file from temp storage"""
     try:
         from ..core.paths import _find_file, get_content_type
@@ -425,14 +454,14 @@ async def download_audio_file(filename: str):
         # Get content type from path helper
         content_type = await get_content_type(file_path)
 
+        # browsers honor Content-Disposition over an anchor's download attribute
+        download_name = _resolve_download_name(name, os.path.basename(file_path))
+
         return FileResponse(
             file_path,
             media_type=content_type,
-            filename=filename,
-            headers={
-                "Cache-Control": "no-cache",
-                "Content-Disposition": f"attachment; filename={filename}",
-            },
+            filename=download_name,
+            headers={"Cache-Control": "no-cache"},
         )
 
     except FileNotFoundError:

@@ -1,5 +1,5 @@
 # <sub><sub>_`FastKoko`_ </sub></sub> 
-![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=neon&commits=25&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
 
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
@@ -157,9 +157,9 @@ with client.audio.speech.with_streaming_response.create(
 
 - Web Interface: http://localhost:8880/web
 
-<div align="center" style="display: flex; justify-content: center; gap: 10px;">
-  <img src="assets/docs-screenshot.png" width="42%" alt="API Documentation" style="border: 2px solid #333; padding: 10px;">
-  <img src="assets/webui-screenshot.png" width="42%" alt="Web UI Screenshot" style="border: 2px solid #333; padding: 10px;">
+<div align="center">
+  <img src="assets/webui-screenshot.png" width="47.3%" alt="Web UI Screenshot">
+  <img src="assets/docs-screenshot.png" width="50.7%" alt="API Documentation">
 </div>
 
 </details>
@@ -708,6 +708,65 @@ services:
 Prerequisites: NVIDIA GPU, drivers, and container toolkit must be properly configured.
 
 Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more detailed information
+
+</details>
+
+<details>
+<summary>AMD GPU (ROCm) troubleshooting</summary>
+
+The ROCm image is experimental, x86_64 only. Findings below are largely from [discussion #151](https://github.com/remsky/Kokoro-FastAPI/discussions/151).
+
+### Native Linux host required
+
+`/dev/kfd` and `/dev/dri` passthrough does not work through Docker Desktop on Windows, or through WSL2. Reports of it working are all on a native Linux host.
+
+### "HIP error: invalid device function" / card not detected
+
+Set `HSA_OVERRIDE_GFX_VERSION` to the LLVM target of the closest officially supported architecture. Common values:
+
+| Card | Value |
+| --- | --- |
+| RX 7900 XTX / XT | `11.0.0` |
+| RDNA 3 iGPU (780M, 7840HS) | `11.0.2` or `11.0.3` |
+| RX 6700 XT / 6600 (gfx1031, gfx1032) | `10.3.0` |
+| RX 5700 XT (unofficial, mixed reports) | `10.3.0` |
+
+The RX 6800/6900 (gfx1030) are supported directly and need no override.
+
+```yaml
+services:
+  kokoro-tts:
+    environment:
+      - HSA_OVERRIDE_GFX_VERSION=11.0.0
+```
+
+Check what your card reports with `rocminfo | grep gfx`.
+
+### Slow or unstable matmuls
+
+hipBLASLt does not cover every architecture. Falling back to hipBLAS is slower on paper but more reliable on consumer cards:
+
+```yaml
+      - TORCH_BLAS_PREFER_HIPBLASLT=0
+      - PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0
+```
+
+### First request is slow
+
+MIOpen searches for a kernel per unique tensor shape, which costs 5-60s a shape. The image ships `MIOPEN_FIND_MODE=2` and prebaked kernel databases, but only for the architectures listed in `docker/rocm/kdb_install.sh` (CDNA plus gfx1030). RDNA 3 has no prebaked database, so the search runs on first use.
+
+To pre-populate the on-disk cache, which `docker/rocm/docker-compose.yml` persists in named volumes:
+
+```bash
+cd docker/rocm
+docker compose run --rm \
+  -e MIOPEN_FIND_MODE=3 -e MIOPEN_FIND_ENFORCE=3 \
+  kokoro-tts python docker/rocm/warmup_miopen.py
+```
+
+This sweeps every phoneme length up to 340 and takes hours (~2 on Strix Halo). Run it once per ROCm or PyTorch upgrade. Then start normally: the default `MIOPEN_FIND_MODE=2` reuses the cache. `docker compose down -v` clears it.
+
+Generating audio for a few paragraphs of varied length under the same overrides is the cheaper, partial version.
 
 </details>
 

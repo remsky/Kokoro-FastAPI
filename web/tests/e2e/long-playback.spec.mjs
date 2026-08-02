@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+// TODO: wire this suite into CI, nothing under .github/workflows runs playwright today
+
 function longText() {
     return Array.from({ length: 2000 }, (_, index) => `word${index}`).join(' ');
 }
@@ -68,6 +70,13 @@ test('long MP3 generation uses MediaSource streaming', async ({ page }) => {
             configurable: true,
             value: MockMediaSource,
         });
+
+        // createObjectURL does real WebIDL overload resolution, a look-alike MediaSource throws
+        const mockObjectUrl = 'blob:mock-mediasource';
+        const realCreateObjectURL = URL.createObjectURL.bind(URL);
+        const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
+        URL.createObjectURL = (obj) => (obj instanceof MockMediaSource ? mockObjectUrl : realCreateObjectURL(obj));
+        URL.revokeObjectURL = (url) => (url === mockObjectUrl ? undefined : realRevokeObjectURL(url));
     });
 
     await page.route('**/web/config', async (route) => {

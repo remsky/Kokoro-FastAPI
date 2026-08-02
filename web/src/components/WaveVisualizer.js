@@ -3,8 +3,10 @@ export class WaveVisualizer {
         this.playerState = playerState;
         this.wave = null;
         this.progressBar = null;
+        this.onResize = null;
+        this.resizeFrame = null;
         this.container = document.getElementById('wave-container');
-        
+
         this.setupWave();
         this.setupProgressBar();
         this.setupStateSubscription();
@@ -15,18 +17,23 @@ export class WaveVisualizer {
             container: this.container,
             style: 'ios9',
             width: this.container.clientWidth,
-            height: 100,  // Increased height
+            height: 100,
             autostart: false,
-            amplitude: 1,
-            speed: 0.03
+            amplitude: 0.65,
+            speed: 0.25
         });
 
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            if (this.wave) {
-                this.wave.width = this.container.clientWidth;
-            }
-        });
+        // setWidth keeps the canvas and the clear rect in sync, a stale width leaves the uncovered strip un-erased
+        this.onResize = () => {
+            if (this.resizeFrame !== null) return;
+            this.resizeFrame = requestAnimationFrame(() => {
+                this.resizeFrame = null;
+                if (this.wave && typeof this.wave.setWidth === 'function') {
+                    this.wave.setWidth(this.container.clientWidth);
+                }
+            });
+        };
+        window.addEventListener('resize', this.onResize);
     }
 
     setupProgressBar() {
@@ -34,7 +41,6 @@ export class WaveVisualizer {
         this.progressBar.max = 100;
         this.progressBar.value = 0;
         this.progressBar.className = 'generation-progress';
-        // Insert inside wave-container at the bottom
         this.container.appendChild(this.progressBar);
         this.progressBar.style.display = 'none';
     }
@@ -42,36 +48,36 @@ export class WaveVisualizer {
     setupStateSubscription() {
         this.wasPlaying = false;
         this.playerState.subscribe(state => {
-            // Handle generation progress
-            if (state.isGenerating) {
-                this.progressBar.style.display = 'block';
-                this.progressBar.value = state.progress;
-            } else if (state.progress >= 100) {
-                // Hide progress bar after completion
-                setTimeout(() => {
-                    this.progressBar.style.display = 'none';
-                    this.progressBar.value = 0;
-                }, 500);
+            if (this.progressBar) {
+                if (state.isGenerating) {
+                    this.progressBar.style.display = 'block';
+                    this.progressBar.value = state.progress;
+                } else if (state.progress >= 100) {
+                    setTimeout(() => {
+                        if (!this.progressBar) return;
+                        this.progressBar.style.display = 'none';
+                        this.progressBar.value = 0;
+                    }, 500);
+                }
             }
 
-            // SiriWave.start() is not idempotent — each call spawns a new RAF
-            // loop. Only call start/stop on isPlaying transitions.
+            // start/stop only on transitions, a repeat start would reset the wave phase
             if (state.isPlaying && !this.wasPlaying) {
-                this.wave.start();
+                if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+                    this.wave?.start();
+                }
             } else if (!state.isPlaying && this.wasPlaying) {
-                this.wave.stop();
+                this.wave?.stop();
             }
             this.wasPlaying = state.isPlaying;
         });
     }
 
     updateProgress(receivedChunks, totalChunks) {
-        if (!totalChunks) return;
-        
-        // Calculate progress percentage based on chunks
+        if (!totalChunks || !this.progressBar) return;
+
         const progress = Math.min((receivedChunks / totalChunks) * 100, 99);
-        
-        // Always update on 0 progress or when progress increases
+
         if (receivedChunks === 0 || progress > this.progressBar.value) {
             this.progressBar.style.display = 'block';
             this.progressBar.value = progress;
@@ -79,28 +85,48 @@ export class WaveVisualizer {
         }
     }
 
-    cleanup() {
+    teardownWave() {
+        if (this.onResize) {
+            window.removeEventListener('resize', this.onResize);
+            this.onResize = null;
+        }
+
+        if (this.resizeFrame !== null) {
+            cancelAnimationFrame(this.resizeFrame);
+            this.resizeFrame = null;
+        }
+
         if (this.wave) {
             if (typeof this.wave.stop === 'function') this.wave.stop();
+            // dispose detaches the canvas, without it every cleanup stacks another one
             if (typeof this.wave.dispose === 'function') this.wave.dispose();
+            else if (this.wave.canvas && this.wave.canvas.parentNode) {
+                this.wave.canvas.parentNode.removeChild(this.wave.canvas);
+            }
             this.wave = null;
         }
-        
-        if (this.progressBar) {
-            this.progressBar.style.display = 'none';
-            this.progressBar.value = 0;
-            if (this.progressBar.parentNode) {
-                this.progressBar.parentNode.removeChild(this.progressBar);
-            }
-            this.progressBar = null;
+    }
+
+    teardownProgressBar() {
+        if (!this.progressBar) return;
+        this.progressBar.style.display = 'none';
+        this.progressBar.value = 0;
+        if (this.progressBar.parentNode) {
+            this.progressBar.parentNode.removeChild(this.progressBar);
         }
-        
-        // Re-setup wave and progress bar
+        this.progressBar = null;
+    }
+
+    cleanup() {
+        this.teardownWave();
+        this.teardownProgressBar();
+
         this.setupWave();
         this.setupProgressBar();
-        
+        this.wasPlaying = false;
+
         if (this.playerState) {
-            this.playerState.setProgress(0, 1); // Reset progress in state
+            this.playerState.setProgress(0, 1);
         }
     }
 }
