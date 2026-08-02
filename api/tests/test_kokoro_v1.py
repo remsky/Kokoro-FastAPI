@@ -145,6 +145,18 @@ def test_en_phonemes_lazy_creation_and_output(kokoro_backend):
         assert kokoro_backend._pipelines == {}
 
 
+def test_en_phonemes_joins_split_results(kokoro_backend):
+    """A span split across results is joined, not truncated to the first chunk."""
+    results = [
+        MagicMock(phonemes="həlˈoʊ"),
+        MagicMock(phonemes=None),
+        MagicMock(phonemes="wˈɜɹld"),
+    ]
+    kokoro_backend._en_g2p = MagicMock(side_effect=lambda text: iter(results))
+
+    assert kokoro_backend._en_phonemes("hello world") == "həlˈoʊwˈɜɹld"
+
+
 def test_en_phonemes_empty_result(kokoro_backend):
     """Empty or missing g2p output yields an empty string, not an exception."""
     kokoro_backend._en_g2p = MagicMock(side_effect=lambda text: iter([]))

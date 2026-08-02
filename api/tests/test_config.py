@@ -3,7 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from api.src.core.config import Settings
+from api.src.core.config import Settings, settings
+from api.src.structures.schemas import CaptionedSpeechRequest, OpenAISpeechRequest
 
 
 def test_default_model_version():
@@ -34,6 +35,14 @@ def test_v1_1_zh_respects_explicit_overrides():
     )
     assert s.voices_dir == "/custom/voices"
     assert s.default_voice == "zf_010"
+
+
+def test_request_voice_default_follows_settings():
+    """Request schemas default to the configured voice, not a hardcoded v1.0 one."""
+    assert OpenAISpeechRequest.model_fields["voice"].default == settings.default_voice
+    assert (
+        CaptionedSpeechRequest.model_fields["voice"].default == settings.default_voice
+    )
 
 
 def test_unknown_model_version_rejected():

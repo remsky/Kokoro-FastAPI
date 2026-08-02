@@ -4,6 +4,8 @@ from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
+from ..core.config import settings
+
 
 class VoiceCombineRequest(BaseModel):
     """Request schema for voice combination endpoint that accepts either a string with + or a list"""
@@ -82,7 +84,7 @@ class OpenAISpeechRequest(BaseModel):
     )
     input: str = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
+        default=settings.default_voice,
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
@@ -131,7 +133,7 @@ class CaptionedSpeechRequest(BaseModel):
     )
     input: str = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
+        default=settings.default_voice,
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(

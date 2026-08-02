@@ -189,8 +189,8 @@ class KokoroV1(BaseModelBackend):
             self._en_g2p = KPipeline(
                 lang_code="a", model=False, repo_id=_EN_G2P_REPO_ID
             )
-        result = next(self._en_g2p(text), None)
-        return result.phonemes if result is not None and result.phonemes else ""
+        # long spans split across results, so join rather than take the first
+        return "".join(r.phonemes for r in self._en_g2p(text) if r.phonemes)
 
     async def generate_from_tokens(
         self,

@@ -2,7 +2,6 @@
 """Download and prepare Kokoro model weights from GitHub release assets."""
 
 import hashlib
-import json
 import os
 import sys
 import tarfile
@@ -70,7 +69,8 @@ def _sha256(path: str) -> str:
 
 def _fetch_verified(asset: str, expected_sha256: str, dest: str) -> None:
     """Download a release asset to dest, checksum-verified via a temp path."""
-    tmp = dest + ".download"
+    # pid-scoped so concurrent starts on a shared volume don't collide
+    tmp = f"{dest}.{os.getpid()}.download"
     try:
         urlretrieve(f"{BASE_URL}/{asset}", tmp)
         got = _sha256(tmp)
@@ -84,31 +84,22 @@ def _fetch_verified(asset: str, expected_sha256: str, dest: str) -> None:
             os.remove(tmp)
 
 
-def verify_files(model_path: str, config_path: str) -> bool:
-    """Verify that model files exist and are valid.
+def verify_files(output_dir: str, version: str) -> bool:
+    """Check on-disk model files against the pinned checksums.
 
     Args:
-        model_path: Path to model file
-        config_path: Path to config file
+        output_dir: Directory holding the model files
+        version: Model version key in MODEL_FILES
 
     Returns:
-        True if files exist and are valid
+        True if every file is present and matches its sha256
     """
+    # checksums also reject truncated files and error-page bodies (#301)
     try:
-        # Check files exist
-        if not os.path.exists(model_path):
-            return False
-        if not os.path.exists(config_path):
-            return False
-
-        # Verify config file is valid JSON
-        with open(config_path, encoding="utf-8") as f:
-            json.load(f)
-
-        # rejects error-page bodies saved in lieu of model (#301)
-        if os.path.getsize(model_path) < 100 * 1024 * 1024:
-            return False
-
+        for local_name, (_asset, sha256) in MODEL_FILES[version].items():
+            path = os.path.join(output_dir, local_name)
+            if not os.path.exists(path) or _sha256(path) != sha256:
+                return False
         return True
     except Exception:
         return False
@@ -160,13 +151,8 @@ def download_model(output_dir: str, version: str = "v1_0") -> None:
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
 
-        # Define file paths
-        model_file = next(name for name in files if name.endswith(".pth"))
-        model_path = os.path.join(output_dir, model_file)
-        config_path = os.path.join(output_dir, "config.json")
-
         # Check if files already exist and are valid
-        if verify_files(model_path, config_path):
+        if verify_files(output_dir, version):
             logger.info("Model files already exist and are valid")
             return
 
