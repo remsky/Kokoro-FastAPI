@@ -12,6 +12,7 @@ from api.src.core.config import settings
 from api.src.inference.base import AudioChunk
 from api.src.main import app
 from api.src.routers.openai_compatible import (
+    _resolve_download_name,
     get_tts_service,
     load_openai_mappings,
     stream_audio_chunks,
@@ -500,3 +501,77 @@ async def test_streaming_initialization_error():
 
     writer.close()
     assert "Failed to initialize stream" in str(exc.value)
+
+
+@pytest.mark.parametrize(
+    "requested,expected",
+    [
+        (None, "tmprloey00i.mp3"),
+        ("", "tmprloey00i.mp3"),
+        (
+            "af_bella_2026-08-01T12-30-00-000Z.mp3",
+            "af_bella_2026-08-01T12-30-00-000Z.mp3",
+        ),
+        ("af_bella+af_sky", "af_bella_af_sky.mp3"),
+        ("report.wav", "report.mp3"),  # extension always comes from the stored file
+        ("../../etc/passwd", "etc_passwd.mp3"),
+        ("sub/dir/name", "sub_dir_name.mp3"),
+        ('bad";name', "bad_name.mp3"),
+        ("...", "tmprloey00i.mp3"),
+        ("x" * 200, f"{'x' * 100}.mp3"),
+    ],
+)
+def test_resolve_download_name(requested, expected):
+    """Client-supplied save-as names are sanitized and keep the stored extension"""
+    assert _resolve_download_name(requested, "tmprloey00i.mp3") == expected
+
+
+@pytest.fixture
+def temp_download_file(tmp_path):
+    """A stored temp audio file plus its patched temp dir"""
+    audio_file = tmp_path / "tmprloey00i.mp3"
+    audio_file.write_bytes(b"fake mp3 bytes")
+    with patch("api.src.routers.openai_compatible.settings") as mock_settings:
+        mock_settings.temp_file_dir = str(tmp_path)
+        yield audio_file
+
+
+def test_download_uses_temp_name_by_default(temp_download_file):
+    """Without ?name= the stored temp name is served"""
+    response = client.get("/v1/download/tmprloey00i.mp3")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/mpeg"
+    assert "tmprloey00i.mp3" in response.headers["content-disposition"]
+
+
+def test_download_honors_requested_name(temp_download_file):
+    """?name= drives Content-Disposition so the save dialog shows a friendly name"""
+    response = client.get(
+        "/v1/download/tmprloey00i.mp3",
+        params={"name": "af_bella_2026-08-01T12-30-00-000Z.mp3"},
+    )
+
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "af_bella_2026-08-01T12-30-00-000Z.mp3" in disposition
+    assert "tmprloey00i" not in disposition
+
+
+def test_download_rejects_traversal_in_requested_name(temp_download_file):
+    """A path-like ?name= can't escape into a directory or swap the extension"""
+    response = client.get(
+        "/v1/download/tmprloey00i.mp3", params={"name": "../../evil.sh"}
+    )
+
+    assert response.status_code == 200
+    disposition = response.headers["content-disposition"]
+    assert "evil.mp3" in disposition
+    assert "/" not in disposition and ".." not in disposition
+
+
+def test_download_missing_file_returns_404(temp_download_file):
+    """Unknown temp names still 404"""
+    response = client.get("/v1/download/nope.mp3")
+
+    assert response.status_code == 404

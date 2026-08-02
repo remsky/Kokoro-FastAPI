@@ -157,9 +157,9 @@ with client.audio.speech.with_streaming_response.create(
 
 - Web Interface: http://localhost:8880/web
 
-<div align="center" style="display: flex; justify-content: center; gap: 10px;">
-  <img src="assets/docs-screenshot.png" width="46%" alt="API Documentation" style="border: 2px solid #333; padding: 10px;">
-  <img src="assets/webui-screenshot.png" width="54%" alt="Web UI Screenshot" style="border: 2px solid #333; padding: 10px;">
+<div align="center">
+  <img src="assets/docs-screenshot.png" width="49%" alt="API Documentation">
+  <img src="assets/webui-screenshot.png" width="49%" alt="Web UI Screenshot">
 </div>
 
 </details>

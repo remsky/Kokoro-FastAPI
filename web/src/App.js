@@ -292,14 +292,15 @@ export class App {
         }
 
         console.log('Starting download from:', downloadUrl);
-        
-        const format = this.elements.formatSelect.value;
-        const voice = this.voiceService.getSelectedVoiceString();
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        
+
+        // fallback only: the server's Content-Disposition wins when it's present
+        const name = this.audioService.getDownloadName();
+
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = `${voice}_${timestamp}.${format}`;
+        if (name) {
+            a.download = name;
+        }
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
