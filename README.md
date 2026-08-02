@@ -581,14 +581,52 @@ See `examples/phoneme_examples/generate_phonemes.py` for a sample script.
 <details>
 <summary>Inline Control Tokens</summary>
 
-Two tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
+Three tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
 
 - **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
+- **Voice**: `[voice:am_michael]` switches speaker for everything that follows. Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), and an unknown name is a 400.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 ```
+</details>
+
+<details>
+<summary>Multi-Speaker / Dialogue</summary>
+
+Inline `[voice:...]` tags work anywhere `input` is accepted, so dialogue is just text. Text ahead of the first tag uses the request's `voice`:
+
+```bash
+curl -X POST http://localhost:8880/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kokoro",
+    "voice": "af_heart",
+    "input": "The narrator opens. [voice:af_bella] Did it land? [pause:0.3s] [voice:am_michael] It did.",
+    "response_format": "mp3"
+  }' --output dialogue.mp3
+```
+
+`POST /dev/dialogue` takes the same thing as structured turns, if you would rather not build the string yourself. It accepts the `/v1/audio/speech` options (`response_format`, `speed`, `stream`, `return_download_link`, etc) plus `pause_between_turns`:
+
+```bash
+curl -X POST http://localhost:8880/dev/dialogue \
+  -H "Content-Type: application/json" \
+  -d '{
+    "turns": [
+      {"voice": "af_bella", "text": "Did the multi speaker support land?"},
+      {"voice": "am_michael", "text": "It did. Turns switch voices inline."}
+    ],
+    "pause_between_turns": 0.4,
+    "response_format": "mp3"
+  }' --output dialogue.mp3
+```
+
+Notes:
+- Each speaker keeps its own language pipeline, so mixing `af_*` with `bm_*` or `jf_*` in one request works without setting `lang_code`. An explicit `lang_code` still overrides every speaker.
+- Speaker count is not capped. Each distinct voice is resolved once per request and its tensor and pipeline are cached, so switching between speakers costs no extra model work.
+- Consecutive turns sharing a voice are merged before chunking, so tagging every paragraph in a long single-voice document doesn't fragment it.
 </details>
 
 <details>

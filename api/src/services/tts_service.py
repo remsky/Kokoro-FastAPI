@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 import time
-from typing import AsyncGenerator, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -22,7 +22,11 @@ from ..structures.schemas import NormalizationOptions
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
-from .text_processing.text_processor import process_text_chunk, smart_split
+from .text_processing.text_processor import (
+    process_text_chunk,
+    smart_split,
+    split_by_voice,
+)
 
 
 class TTSService:
@@ -256,6 +260,48 @@ class TTSService:
             logger.error(f"Failed to get voice path: {e}")
             raise
 
+    async def _split_multi_voice(
+        self,
+        text: str,
+        voice: str,
+        lang_code: Optional[str],
+        normalization_options: Optional[NormalizationOptions],
+    ) -> AsyncGenerator[Tuple[str, str, str, str, List[int], Optional[float]], None]:
+        """Chunk text across [voice:...] segments.
+
+        Yields (voice_name, voice_path, lang_code, chunk_text, tokens, pause_s).
+        Each distinct speaker is resolved once per request; the backend then
+        caches its tensor and pipeline, so switching voices between chunks costs
+        no extra model work.
+        """
+        resolved: Dict[str, Tuple[str, str]] = {}
+        normalization_options = normalization_options or NormalizationOptions()
+
+        for segment_voice, segment_text in split_by_voice(text, voice):
+            if segment_voice not in resolved:
+                resolved[segment_voice] = await self._get_voices_path(segment_voice)
+            voice_name, voice_path = resolved[segment_voice]
+
+            # request lang_code wins, else each speaker gets the pipeline their prefix implies
+            segment_lang = lang_code if lang_code else segment_voice[:1].lower()
+            logger.debug(
+                f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"
+            )
+
+            async for chunk_text, tokens, pause_duration_s in smart_split(
+                segment_text,
+                lang_code=segment_lang,
+                normalization_options=normalization_options,
+            ):
+                yield (
+                    voice_name,
+                    voice_path,
+                    segment_lang,
+                    chunk_text,
+                    tokens,
+                    pause_duration_s,
+                )
+
     async def generate_audio_stream(
         self,
         text: str,
@@ -276,22 +322,15 @@ class TTSService:
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
-            # Get voice path, handling combined voices
-            voice_name, voice_path = await self._get_voices_path(voice)
-            logger.debug(f"Using voice path: {voice_path}")
-
-            # Use provided lang_code or determine from voice name
-            pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-            logger.info(
-                f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
-            )
-
-            # Process text in chunks with smart splitting, handling pause tags
-            async for chunk_text, tokens, pause_duration_s in smart_split(
-                text,
-                lang_code=pipeline_lang_code,
-                normalization_options=normalization_options,
-            ):
+            # Process text in chunks with smart splitting, handling voice and pause tags
+            async for (
+                voice_name,
+                voice_path,
+                pipeline_lang_code,
+                chunk_text,
+                tokens,
+                pause_duration_s,
+            ) in self._split_multi_voice(text, voice, lang_code, normalization_options):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
                     try:

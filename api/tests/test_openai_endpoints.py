@@ -575,3 +575,142 @@ def test_download_missing_file_returns_404(temp_download_file):
     response = client.get("/v1/download/nope.mp3")
 
     assert response.status_code == 404
+
+
+def test_dialogue_endpoint(mock_tts_service, mock_audio_bytes):
+    """Test the multi-speaker dialogue endpoint streams audio"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "model": "kokoro",
+            "turns": [
+                {"voice": "voice1", "text": "Hello there."},
+                {"voice": "voice2", "text": "Hi back."},
+            ],
+            "response_format": "mp3",
+            "stream": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/mpeg"
+    assert response.content == mock_audio_bytes
+
+
+def test_dialogue_endpoint_rejects_unknown_voice(mock_tts_service):
+    """An unknown turn voice fails validation before generation starts"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "turns": [{"voice": "not_a_voice", "text": "Hello."}],
+            "stream": False,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_dialogue_endpoint_requires_turns(mock_tts_service):
+    """An empty turn list is a schema error"""
+    response = client.post("/dev/dialogue", json={"turns": []})
+    assert response.status_code == 422
+
+
+def test_dialogue_request_to_tagged_input():
+    """Turns render to the inline tag form the text pipeline consumes"""
+    from api.src.structures.schemas import DialogueRequest
+
+    request = DialogueRequest(
+        turns=[
+            {"voice": "af_bella", "text": "One."},
+            {"voice": "am_michael", "text": "Two."},
+        ],
+        pause_between_turns=0.5,
+    )
+    assert request.to_tagged_input() == (
+        "[voice:af_bella] One. [pause:0.5s] [voice:am_michael] Two."
+    )
+
+
+def test_dialogue_request_no_pause_between_turns():
+    """Zero pause joins turns with a plain space"""
+    from api.src.structures.schemas import DialogueRequest
+
+    request = DialogueRequest(
+        turns=[
+            {"voice": "af_bella", "text": "One."},
+            {"voice": "am_michael", "text": "Two."},
+        ],
+    )
+    assert request.to_tagged_input() == "[voice:af_bella] One. [voice:am_michael] Two."
+
+
+@pytest.mark.asyncio
+async def test_process_and_validate_voice_tags_maps_openai_names(
+    mock_openai_mappings,
+):
+    """Inline tags get the same OpenAI voice mapping as the voice parameter"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["am_adam", "bf_isabella"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:alloy] Hello. [voice:nova] Hi.", service
+    )
+    assert result == "[voice:am_adam] Hello. [voice:bf_isabella] Hi."
+
+
+@pytest.mark.asyncio
+async def test_process_and_validate_voice_tags_rejects_unknown():
+    """An unknown inline voice raises rather than failing mid stream"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_heart"]
+
+    with pytest.raises(ValueError, match="not found"):
+        await process_and_validate_voice_tags("[voice:nope] Hello.", service)
+
+
+@pytest.mark.asyncio
+async def test_process_and_validate_voice_tags_passthrough():
+    """Untagged text is returned untouched without hitting the voice list"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    result = await process_and_validate_voice_tags("Plain text.", service)
+
+    assert result == "Plain text."
+    service.list_voices.assert_not_called()
+
+
+def test_speech_endpoint_with_inline_voice_tags(mock_tts_service, mock_audio_bytes):
+    """Inline voice tags are accepted on the standard speech endpoint"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:voice1] Hello. [voice:voice2] Hi.",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": True,
+        },
+    )
+    assert response.status_code == 200
+    assert response.content == mock_audio_bytes
+
+
+def test_speech_endpoint_rejects_unknown_inline_voice(mock_tts_service):
+    """A bad inline voice is a 400, not a mid stream failure"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:not_a_voice] Hello.",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"

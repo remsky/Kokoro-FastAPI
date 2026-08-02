@@ -19,14 +19,25 @@ from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
 from ..services.text_processing import smart_split
 from ..services.tts_service import TTSService
-from ..structures import CaptionedSpeechRequest, CaptionedSpeechResponse, WordTimestamp
+from ..structures import (
+    CaptionedSpeechRequest,
+    CaptionedSpeechResponse,
+    DialogueRequest,
+    OpenAISpeechRequest,
+    WordTimestamp,
+)
 from ..structures.custom_responses import JSONStreamingResponse
 from ..structures.text_schemas import (
     GenerateFromPhonemesRequest,
     PhonemeRequest,
     PhonemeResponse,
 )
-from .openai_compatible import process_and_validate_voices, stream_audio_chunks
+from .openai_compatible import (
+    create_speech,
+    process_and_validate_voice_tags,
+    process_and_validate_voices,
+    stream_audio_chunks,
+)
 
 router = APIRouter(tags=["text processing"])
 
@@ -156,6 +167,37 @@ async def generate_from_phonemes(
                 "type": "server_error",
             },
         )
+
+
+@router.post("/dev/dialogue")
+async def create_dialogue(
+    request: DialogueRequest,
+    client_request: Request,
+):
+    """Generate multi-speaker audio from an ordered list of turns.
+
+    Thin wrapper over /v1/audio/speech: turns are rendered to the inline
+    [voice:...] and [pause:Xs] tags the text pipeline already understands, so
+    streaming, formats and download links behave identically.
+    """
+    speech_request = OpenAISpeechRequest(
+        model=request.model,
+        input=request.to_tagged_input(),
+        voice=request.turns[0].voice,
+        response_format=request.response_format,
+        download_format=request.download_format,
+        speed=request.speed,
+        stream=request.stream,
+        return_download_link=request.return_download_link,
+        lang_code=request.lang_code,
+        volume_multiplier=request.volume_multiplier,
+        normalization_options=request.normalization_options,
+    )
+    return await create_speech(
+        request=speech_request,
+        client_request=client_request,
+        x_raw_response=None,
+    )
 
 
 @router.post("/dev/captioned_speech")
@@ -315,7 +357,7 @@ async def create_captioned_speech(
         else:
             # Generate complete audio using public interface
             audio_data = await tts_service.generate_audio(
-                text=request.input,
+                text=await process_and_validate_voice_tags(request.input, tts_service),
                 voice=voice_name,
                 writer=writer,
                 speed=request.speed,

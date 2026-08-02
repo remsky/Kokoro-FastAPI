@@ -5,6 +5,10 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`.
+- `POST /dev/dialogue` takes the same thing as ordered `turns` with an optional `pause_between_turns`, and supports the `/v1/audio/speech` options.
+
 ### Fixed
 - Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
 - Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.

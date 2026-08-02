@@ -122,6 +122,82 @@ class OpenAISpeechRequest(BaseModel):
     )
 
 
+class DialogueTurn(BaseModel):
+    """A single speaker turn in a dialogue request"""
+
+    voice: str = Field(
+        ...,
+        description="The voice for this turn. Can be a base voice or a combined voice name.",
+    )
+    text: str = Field(..., description="The text this speaker says")
+
+
+class DialogueRequest(BaseModel):
+    """Request schema for the multi-speaker dialogue endpoint"""
+
+    model: str = Field(
+        default="kokoro",
+        description="The model to use for generation. Supported models: tts-1, tts-1-hd, kokoro",
+    )
+    turns: List[DialogueTurn] = Field(
+        ...,
+        min_length=1,
+        description="Speaker turns rendered in order. Consecutive turns sharing a voice are merged.",
+    )
+    pause_between_turns: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=10.0,
+        description="Seconds of silence inserted between turns.",
+    )
+    response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
+        default="mp3",
+        description="The format to return audio in. Supported formats: mp3, opus, flac, wav, pcm. PCM format returns raw 16-bit samples without headers. AAC is not currently supported.",
+    )
+    download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = (
+        Field(
+            default=None,
+            description="Optional different format for the final download. If not provided, uses response_format.",
+        )
+    )
+    speed: float = Field(
+        default=1.0,
+        ge=0.25,
+        le=4.0,
+        description="The speed of the generated audio. Select a value from 0.25 to 4.0.",
+    )
+    stream: bool = Field(
+        default=True,
+        description="If true (default), audio will be streamed as it's generated.",
+    )
+    return_download_link: bool = Field(
+        default=False,
+        description="If true, returns a download link in X-Download-Path header after streaming completes",
+    )
+    lang_code: Optional[str] = Field(
+        default=None,
+        description="Optional language code override. If not provided, each turn uses the language implied by its own voice.",
+    )
+    volume_multiplier: Optional[float] = Field(
+        default=1.0, description="A volume multiplier to multiply the output audio by."
+    )
+    normalization_options: Optional[NormalizationOptions] = Field(
+        default=NormalizationOptions(),
+        description="Options for the normalization system",
+    )
+
+    def to_tagged_input(self) -> str:
+        """Render turns as the inline [voice:...] form the text pipeline consumes."""
+        separator = (
+            f" [pause:{self.pause_between_turns}s] "
+            if self.pause_between_turns > 0
+            else " "
+        )
+        return separator.join(
+            f"[voice:{turn.voice}] {turn.text.strip()}" for turn in self.turns
+        )
+
+
 class CaptionedSpeechRequest(BaseModel):
     """Request schema for captioned speech endpoint"""
 

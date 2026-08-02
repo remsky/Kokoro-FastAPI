@@ -5,7 +5,7 @@ import json
 import os
 import re
 import tempfile
-from typing import AsyncGenerator, Dict, List, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 from urllib import response
 
 import aiofiles
@@ -19,6 +19,7 @@ from ..core.config import settings
 from ..inference.base import AudioChunk
 from ..services.audio import AudioService
 from ..services.streaming_audio_writer import StreamingAudioWriter
+from ..services.text_processing.text_processor import VOICE_TAG_PATTERN
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
 from ..structures.schemas import CaptionedSpeechRequest
@@ -132,6 +133,23 @@ async def process_and_validate_voices(
     return "".join(voices)
 
 
+async def process_and_validate_voice_tags(text: str, tts_service: TTSService) -> str:
+    """Validate inline [voice:...] tags, rewriting them to resolved voice names.
+
+    Runs the same mapping and validation as the voice parameter so a bad speaker
+    tag fails the request up front rather than part way through the stream.
+    """
+    tags = VOICE_TAG_PATTERN.findall(text)
+    if not tags:
+        return text
+
+    resolved = {
+        tag: await process_and_validate_voices(tag, tts_service)
+        for tag in dict.fromkeys(tags)
+    }
+    return VOICE_TAG_PATTERN.sub(lambda m: f"[voice:{resolved[m.group(1)]}]", text)
+
+
 async def stream_audio_chunks(
     tts_service: TTSService,
     request: Union[OpenAISpeechRequest, CaptionedSpeechRequest],
@@ -140,13 +158,14 @@ async def stream_audio_chunks(
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
     voice_name = await process_and_validate_voices(request.voice, tts_service)
+    input_text = await process_and_validate_voice_tags(request.input, tts_service)
     unique_properties = {"return_timestamps": False}
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"] = request.return_timestamps
 
     try:
         async for chunk_data in tts_service.generate_audio_stream(
-            text=request.input,
+            text=input_text,
             voice=voice_name,
             writer=writer,
             speed=request.speed,
@@ -175,7 +194,7 @@ async def stream_audio_chunks(
 async def create_speech(
     request: OpenAISpeechRequest,
     client_request: Request,
-    x_raw_response: str = Header(None, alias="x-raw-response"),
+    x_raw_response: Optional[str] = Header(None, alias="x-raw-response"),
 ):
     """OpenAI-compatible endpoint for text-to-speech"""
     # Validate model before processing request
@@ -297,7 +316,7 @@ async def create_speech(
 
             # Generate complete audio using public interface
             audio_data = await tts_service.generate_audio(
-                text=request.input,
+                text=await process_and_validate_voice_tags(request.input, tts_service),
                 voice=voice_name,
                 writer=writer,
                 speed=request.speed,

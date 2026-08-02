@@ -129,3 +129,95 @@ async def test_list_voices():
         voices = await service.list_voices()
         assert voices == ["voice1", "voice2"]
         voice_manager.list_voices.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_split_multi_voice_resolves_each_speaker_once():
+    """Repeated speakers reuse their resolved path instead of reloading tensors."""
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+
+        service = await TTSService.create("test_output")
+        service._get_voices_path = AsyncMock(
+            side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+        )
+
+        text = "[voice:af_bella] One. [voice:bm_george] Two. [voice:af_bella] Three."
+        speakers = []
+        async for (
+            voice_name,
+            _path,
+            _lang,
+            _text,
+            _tokens,
+            _pause,
+        ) in service._split_multi_voice(text, "af_heart", None, None):
+            speakers.append(voice_name)
+
+        assert speakers == ["af_bella", "bm_george", "af_bella"]
+        assert service._get_voices_path.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_split_multi_voice_lang_code_per_speaker():
+    """Each speaker gets the pipeline implied by its own voice prefix."""
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+
+        service = await TTSService.create("test_output")
+        service._get_voices_path = AsyncMock(
+            side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+        )
+
+        text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
+        langs = [
+            lang
+            async for _name, _path, lang, _text, _tokens, _pause in (
+                service._split_multi_voice(text, "af_heart", None, None)
+            )
+        ]
+
+        assert langs == ["a", "b"]
+
+
+@pytest.mark.asyncio
+async def test_split_multi_voice_explicit_lang_code_wins():
+    """An explicit request lang_code overrides every speaker's prefix."""
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+
+        service = await TTSService.create("test_output")
+        service._get_voices_path = AsyncMock(
+            side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+        )
+
+        text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
+        langs = [
+            lang
+            async for _name, _path, lang, _text, _tokens, _pause in (
+                service._split_multi_voice(text, "af_heart", "e", None)
+            )
+        ]
+
+        assert langs == ["e", "e"]
