@@ -30,6 +30,11 @@ services:
         # - ALLOW_DEV_UNLOAD=true
         # - ENABLE_DEBUG_ENDPOINTS=true
         - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+        # Uncomment on "HIP error: invalid device function", value per card (README).
+        # - HSA_OVERRIDE_GFX_VERSION=11.0.0
+        # Uncomment if matmuls are slow or unstable; falls back to hipBLAS.
+        # - TORCH_BLAS_PREFER_HIPBLASLT=0
+        # - PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0
         # MIOPEN_FIND_MODE=2 is set by default in the Dockerfile. It reuses the
         # on-disk find DB and skips the expensive per-process kernel search.
         # The named volumes above persist that cache across runs.
