@@ -527,6 +527,8 @@ for chunk in response.iter_lines(decode_unicode=True):
         # Print word level timestamps
         print(chunk_json["timestamps"])
 ```
+
+With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is `null`.
 </details>
 
 <details>

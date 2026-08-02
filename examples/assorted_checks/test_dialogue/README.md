@@ -8,6 +8,9 @@ inline `[voice:...]` tokens on `/v1/audio/speech` and the structured
   language pipelines, combined voice tags, `pause_between_turns`, unknown
   voice rejection, and that tags stay literal without `allow_voice_tags`.
   Exits non-zero if any check fails.
+- `caption_dialogue.py`: builds speaker-labelled subtitles. Renders through
+  `/dev/captioned_speech` with `allow_voice_tags`, groups the word timestamps
+  into cues on speaker changes, writes an SRT beside the audio.
 - `bench_dialogue.py`: timing. Renders a ~3.5 minute corpus four ways and
   reports throughput against a single-voice baseline.
 - `plot_dialogue_bench.py`: renders `bench_report.json` in the shared benchmark
@@ -20,6 +23,7 @@ From the repo root, with a server already up on `localhost:8880`:
 ```bash
 uv sync --project examples
 uv run --project examples python examples/assorted_checks/test_dialogue/test_dialogue.py
+uv run --project examples python examples/assorted_checks/test_dialogue/caption_dialogue.py
 uv run --project examples python examples/assorted_checks/test_dialogue/bench_dialogue.py
 ```
 
@@ -47,6 +51,7 @@ Everything lands in `output/` (gitignored):
 
 - one WAV per functional check, so the switches can be listened to
 - `report.json`: pass/fail and timing per check
+- `dialogue_captions.mp3` + `dialogue_captions.srt`: the labelled subtitle demo
 - `bench_report.json`: wall clock, audio seconds and realtime factor per case
 - `dialogue_throughput.png`: the bench plotted, throughput against the baseline
   band on top, per-run wall clock underneath

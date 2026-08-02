@@ -405,6 +405,8 @@ class TTSService:
                                 for timestamp in chunk_data.word_timestamps:
                                     timestamp.start_time += current_offset
                                     timestamp.end_time += current_offset
+                                    if allow_voice_tags:
+                                        timestamp.voice = voice_name
 
                             # Update offset based on the actual duration of the generated audio chunk
                             chunk_duration = 0

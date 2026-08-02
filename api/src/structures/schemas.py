@@ -29,6 +29,10 @@ class WordTimestamp(BaseModel):
     word: str = Field(..., description="The word or token")
     start_time: float = Field(..., description="Start time in seconds")
     end_time: float = Field(..., description="End time in seconds")
+    voice: Optional[str] = Field(
+        None,
+        description="Resolved voice that spoke the word, set only when allow_voice_tags is on",
+    )
 
 
 class CaptionedSpeechResponse(BaseModel):

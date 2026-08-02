@@ -6,7 +6,9 @@ import numpy as np
 import pytest
 import torch
 
+from api.src.inference.base import AudioChunk
 from api.src.services.tts_service import TTSService
+from api.src.structures.schemas import WordTimestamp
 
 
 @pytest.fixture
@@ -223,3 +225,76 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         ]
 
         assert langs == ["e", "e"]
+
+
+async def _stubbed_service():
+    """A service whose inference yields one 0.1s chunk timestamped with the chunk's first word."""
+    model_manager = AsyncMock()
+    model_manager.get_backend = MagicMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = AsyncMock()
+        service = await TTSService.create("test_output")
+
+    service._get_voices_path = AsyncMock(
+        side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+    )
+
+    def fake_process_chunk(text, *args, **kwargs):
+        async def _gen():
+            if not text:
+                return
+            yield AudioChunk(
+                audio=np.zeros(2400, dtype=np.int16),
+                word_timestamps=[
+                    WordTimestamp(word=text.split()[0], start_time=0.0, end_time=0.05)
+                ],
+            )
+
+        return _gen()
+
+    service._process_chunk = fake_process_chunk
+    return service
+
+
+async def _stamped_words(service, allow_voice_tags):
+    text = "[voice:af_bella] One. [voice:bm_george] Two."
+    return [
+        (t.word, t.voice, t.start_time)
+        async for chunk in service.generate_audio_stream(
+            text,
+            "af_heart",
+            MagicMock(),
+            return_timestamps=True,
+            allow_voice_tags=allow_voice_tags,
+        )
+        for t in chunk.word_timestamps
+    ]
+
+
+@pytest.mark.asyncio
+async def test_timestamps_carry_speaker_when_tags_allowed():
+    """Each word names the voice that said it, and offsets still run across the switch."""
+    service = await _stubbed_service()
+
+    stamped = await _stamped_words(service, allow_voice_tags=True)
+
+    assert [(word, voice) for word, voice, _ in stamped] == [
+        ("One.", "af_bella"),
+        ("Two.", "bm_george"),
+    ]
+    assert [start for _, _, start in stamped] == [0.0, 0.1]
+
+
+@pytest.mark.asyncio
+async def test_timestamps_omit_speaker_by_default():
+    """Without the opt in the field stays unset, so existing callers see the same shape."""
+    service = await _stubbed_service()
+
+    stamped = await _stamped_words(service, allow_voice_tags=False)
+
+    assert stamped and all(voice is None for _, voice, _ in stamped)
