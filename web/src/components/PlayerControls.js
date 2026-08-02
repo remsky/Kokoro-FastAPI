@@ -167,7 +167,8 @@ export class PlayerControls {
             this.elements.volumeSlider.value = state.volume * 100;
         }
         
-        if (parseFloat(this.elements.speedInput.value) !== state.speed) {
+        if (document.activeElement !== this.elements.speedInput
+            && parseFloat(this.elements.speedInput.value) !== state.speed) {
             this.elements.speedInput.value = state.speed.toFixed(1);
         }
     }

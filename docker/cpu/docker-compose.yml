@@ -7,7 +7,6 @@ services:
       dockerfile: docker/cpu/Dockerfile.optimized
     volumes:
       - ../../api:/app/api
-      - ../../web:/app/web
     ports:
       - "8880:8880"
     environment:

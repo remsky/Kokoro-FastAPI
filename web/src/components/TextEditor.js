@@ -155,6 +155,9 @@ export default class TextEditor {
             if (value >= 100 && value <= 2000) {
                 this.options.charsPerPage = value;
                 this.splitIntoPages(this.fullText);
+                if (this.options.onTextChange) {
+                    this.options.onTextChange(this.fullText);
+                }
             }
         });
     }

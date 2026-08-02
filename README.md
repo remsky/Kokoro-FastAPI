@@ -1,5 +1,5 @@
 # <sub><sub>_`FastKoko`_ </sub></sub> 
-![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=neon&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
 
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
@@ -158,8 +158,8 @@ with client.audio.speech.with_streaming_response.create(
 - Web Interface: http://localhost:8880/web
 
 <div align="center">
-  <img src="assets/docs-screenshot.png" width="49%" alt="API Documentation">
-  <img src="assets/webui-screenshot.png" width="49%" alt="Web UI Screenshot">
+  <img src="assets/webui-screenshot.png" width="47.3%" alt="Web UI Screenshot">
+  <img src="assets/docs-screenshot.png" width="50.7%" alt="API Documentation">
 </div>
 
 </details>

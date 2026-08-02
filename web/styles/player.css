@@ -68,7 +68,6 @@
     border-radius: 0.5rem;
     background: rgba(15, 23, 42, 0.55);
     border: 1px solid var(--border);
-    backdrop-filter: blur(6px);
     min-width: 0;
 }
 
@@ -100,8 +99,7 @@
 }
 
 .seek-slider,
-.volume-slider,
-.speed-slider {
+.volume-slider {
     -webkit-appearance: none;
     appearance: none;
     height: 4px;
