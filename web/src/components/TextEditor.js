@@ -88,7 +88,7 @@ export default class TextEditor {
                 this.updatePageDisplay();
             }
             
-            // Update full text - join with space since pages are just for UI
+            // pages are only a display split, join back into the full text
             this.fullText = this.pages.join(' ');
 
             if (this.options.onTextChange) {

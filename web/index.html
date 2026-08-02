@@ -43,7 +43,7 @@
                 <a href="https://github.com/remsky/Kokoro-FastAPI" target="_blank" rel="noopener" class="badge gh-star-badge" aria-label="Star remsky/Kokoro-FastAPI on GitHub">
                     <span class="gh-star-label">
                         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-                        remsky/Kokoro-FastAPI
+                        <span class="gh-repo"><span class="gh-owner">remsky/</span>Kokoro-FastAPI</span>
                     </span>
                     <span id="gh-star-count" class="gh-star-count" hidden></span>
                 </a>
@@ -84,11 +84,11 @@
             </section>
 
             <section class="settings-card">
-                <div class="speed-control">
-                    <label for="speed-slider">Speed <span class="speed-readout"><span id="speed-value">1.0</span>x</span></label>
-                    <input type="range" id="speed-slider" class="speed-slider" min="0.1" max="4" step="0.1" value="1.0">
-                </div>
                 <div class="settings-split">
+                    <div class="setting-field">
+                        <label for="speed-input">Speed</label>
+                        <input type="number" id="speed-input" class="speed-input" min="0.1" max="4" step="0.1" value="1.0" title="Playback speed (0.1 to 4)">
+                    </div>
                     <div class="setting-field">
                         <label for="lang-select">Language</label>
                         <select id="lang-select" class="lang-select">
@@ -131,14 +131,12 @@
         <div id="wave-container" class="wave-container"></div>
         <div class="player-controls">
             <button id="play-pause-btn" class="player-btn">Play</button>
+            <label class="autoplay-toggle">
+                <input type="checkbox" id="autoplay-toggle" aria-label="Auto-play" checked>
+                <span class="autoplay-text">Auto</span>
+            </label>
             <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" value="0" aria-label="Playback position">
             <span id="time-display" class="time-display">0:00</span>
-            <div class="volume-control">
-                <svg class="volume-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                    <path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z"/>
-                </svg>
-                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100" aria-label="Volume">
-            </div>
             <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download audio">
                 <div class="download-glow"></div>
                 <div class="download-icon">
@@ -148,12 +146,14 @@
                     </svg>
                 </div>
             </div>
-            <label class="autoplay-toggle">
-                <input type="checkbox" id="autoplay-toggle" checked>
-                Auto-play
-            </label>
+            <div class="volume-control">
+                <svg class="volume-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path fill="currentColor" d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z"/>
+                </svg>
+                <input type="range" id="volume-slider" class="volume-slider" min="0" max="100" value="100" aria-label="Volume">
+            </div>
             <a href="https://www.buymeacoffee.com/remsky" target="_blank" rel="noopener" class="bmc-link" aria-label="Buy me a coffee">
-                <img src="bmc-button.png" alt="Buy me a coffee">
+                <img src="bmc-logo.svg" alt="Buy me a coffee">
             </a>
         </div>
     </footer>

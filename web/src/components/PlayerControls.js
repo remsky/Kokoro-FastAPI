@@ -1,3 +1,6 @@
+const SPEED_MIN = 0.1;
+const SPEED_MAX = 4;
+
 export class PlayerControls {
     constructor(audioService, playerState) {
         this.audioService = audioService;
@@ -6,8 +9,7 @@ export class PlayerControls {
             playPauseBtn: document.getElementById('play-pause-btn'),
             seekSlider: document.getElementById('seek-slider'),
             volumeSlider: document.getElementById('volume-slider'),
-            speedSlider: document.getElementById('speed-slider'),
-            speedValue: document.getElementById('speed-value'),
+            speedInput: document.getElementById('speed-input'),
             timeDisplay: document.getElementById('time-display'),
             cancelBtn: document.getElementById('cancel-btn')
         };
@@ -97,11 +99,20 @@ export class PlayerControls {
             this.playerState.setVolume(volume);
         });
 
-        // Speed slider
-        this.elements.speedSlider.addEventListener('input', (e) => {
+        this.elements.speedInput.addEventListener('input', (e) => {
             const speed = parseFloat(e.target.value);
-            this.elements.speedValue.textContent = speed.toFixed(1);
+            if (speed >= SPEED_MIN && speed <= SPEED_MAX) {
+                this.playerState.setSpeed(speed);
+            }
+        });
+
+        this.elements.speedInput.addEventListener('change', (e) => {
+            const parsed = parseFloat(e.target.value);
+            const speed = Number.isFinite(parsed)
+                ? Math.min(SPEED_MAX, Math.max(SPEED_MIN, parsed))
+                : this.playerState.getState().speed;
             this.playerState.setSpeed(speed);
+            e.target.value = speed.toFixed(1);
         });
 
         // Cancel button
@@ -156,9 +167,8 @@ export class PlayerControls {
             this.elements.volumeSlider.value = state.volume * 100;
         }
         
-        if (this.elements.speedSlider.value !== state.speed.toString()) {
-            this.elements.speedSlider.value = state.speed;
-            this.elements.speedValue.textContent = state.speed.toFixed(1);
+        if (parseFloat(this.elements.speedInput.value) !== state.speed) {
+            this.elements.speedInput.value = state.speed.toFixed(1);
         }
     }
 

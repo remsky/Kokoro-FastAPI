@@ -71,9 +71,16 @@
     z-index: 50;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.35);
     padding: 0.5rem;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
     transform: translateY(-10px);
     pointer-events: none;
+}
+
+.voice-dropdown:not(.show) {
+    max-height: 0;
+    padding-block: 0;
+    border-width: 0;
+    overflow: hidden;
 }
 
 .voice-dropdown.show {

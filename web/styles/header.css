@@ -65,8 +65,9 @@ h1 {
     gap: 0.9rem;
 }
 
+/* fixed width keeps the two badges matched */
 .badge {
-    height: 28px;
+    width: 250px;
     display: flex;
     align-items: center;
     transition: opacity 0.2s ease;
@@ -78,7 +79,8 @@ h1 {
 }
 
 .badge img {
-    height: 100%;
+    width: 100%;
+    height: auto;
     border-radius: 4px;
     display: block;
 }
@@ -89,6 +91,9 @@ h1 {
     --gh-gray-500: #484f58;
     --gh-gray-600: #30363d;
     --gh-gray-700: #21262d;
+    height: 22px;
+    /* grow past the matched width rather than ellipsize the full name */
+    min-width: max-content;
     align-items: stretch;
     overflow: hidden;
     border-radius: 4px;
@@ -97,15 +102,23 @@ h1 {
     font-weight: 600;
     line-height: 1;
     text-decoration: none;
+    white-space: nowrap;
     color: var(--gh-gray-100);
 }
 
 .gh-star-label {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0 0.6rem;
     background: var(--gh-gray-700);
+}
+
+.gh-repo {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .gh-star-count {
@@ -208,22 +221,53 @@ h1 {
 
 @media (max-width: 900px) {
     .header-inner {
-        flex-direction: column;
         gap: 0.6rem;
-        padding: 0.6rem 0.75rem;
+        padding: 0.5rem 0.75rem;
     }
 
     h1 {
         font-size: 1.4rem;
     }
 
+    .logo-container {
+        gap: 0.5rem;
+    }
+
     .header-links {
-        gap: 0.6rem;
-        flex-wrap: wrap;
-        justify-content: center;
+        flex: 0 1 205px;
+        min-width: 0;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.3rem;
     }
 
     .badge {
-        height: 24px;
+        width: 100%;
+    }
+
+    /* the stacked column can't grow, the owner prefix goes instead */
+    .gh-star-badge {
+        height: 20px;
+        min-width: 0;
+        font-size: 0.625rem;
+    }
+
+    .gh-owner {
+        display: none;
+    }
+
+    .gh-star-label svg {
+        width: 13px;
+        height: 13px;
+    }
+}
+
+@media (max-width: 360px) {
+    h1 {
+        font-size: 1.25rem;
+    }
+
+    .version-badge {
+        display: none;
     }
 }

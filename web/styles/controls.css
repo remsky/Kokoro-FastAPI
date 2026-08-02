@@ -4,70 +4,10 @@
     gap: 0.6rem;
 }
 
-.speed-control {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-}
-
-.speed-control label {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    color: var(--text-light);
-    font-size: 0.8125rem;
-}
-
-.speed-readout {
-    font-variant-numeric: tabular-nums;
-    color: var(--text);
-}
-
-.speed-slider {
-    width: 100%;
-    height: 4px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: rgba(99, 102, 241, 0.2);
-    border-radius: 2px;
-    outline: none;
-    cursor: pointer;
-}
-
-/* rectangular knob to set it apart from the round playback thumbs */
-.speed-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 8px;
-    height: 16px;
-    border-radius: 2px;
-    background: var(--fg-color);
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.speed-slider::-webkit-slider-thumb:hover {
-    transform: scaleY(1.15);
-}
-
-.speed-slider::-moz-range-thumb {
-    width: 8px;
-    height: 16px;
-    border: none;
-    border-radius: 2px;
-    background: var(--fg-color);
-    cursor: pointer;
-    transition: transform 0.2s ease;
-}
-
-.speed-slider::-moz-range-thumb:hover {
-    transform: scaleY(1.15);
-}
-
 .settings-split {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    grid-template-columns: 4.25rem minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0.6rem;
 }
 
 .setting-field {
@@ -82,6 +22,7 @@
     font-size: 0.8125rem;
 }
 
+.speed-input,
 .lang-select,
 .format-select {
     background: rgba(15, 23, 42, 0.3);
@@ -97,16 +38,23 @@
     min-width: 0;
 }
 
+.speed-input:hover,
 .lang-select:hover,
 .format-select:hover {
     border-color: var(--fg-color);
 }
 
+.speed-input:focus,
 .lang-select:focus,
 .format-select:focus {
     outline: none;
     border-color: var(--fg-color);
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.speed-input {
+    font-variant-numeric: tabular-nums;
+    padding-right: 0.2rem;
 }
 
 .lang-select option,
