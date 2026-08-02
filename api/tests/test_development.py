@@ -32,3 +32,22 @@ def test_generate_captioned_speech():
         # Verify we got both audio and timestamps
         assert audio == b"mock audio data"
         assert timestamps == [{"word": "test", "start_time": 0.0, "end_time": 1.0}]
+
+
+@pytest.mark.asyncio
+async def test_phonemize_uses_configured_repo_id():
+    """The phonemize endpoint must match synthesis, since repo_id picks the zh g2p version."""
+    from api.src.core.config import settings
+    from api.src.routers.development import phonemize_text
+    from api.src.structures.text_schemas import PhonemeRequest
+
+    mock_pipeline = MagicMock(return_value=iter([MagicMock(phonemes="ni˨˩ hao˨˩")]))
+    with patch(
+        "api.src.routers.development.KPipeline", return_value=mock_pipeline
+    ) as mock_kpipeline:
+        response = await phonemize_text(PhonemeRequest(text="你好", language="z"))
+
+    mock_kpipeline.assert_called_once_with(
+        lang_code="z", model=False, repo_id=settings.model_repo_id
+    )
+    assert response.phonemes == "ni˨˩ hao˨˩"

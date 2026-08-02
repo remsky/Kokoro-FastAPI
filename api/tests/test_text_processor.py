@@ -240,3 +240,17 @@ async def test_smart_split_with_two_pause():
     assert chunks[2][2] is None  # No pause
     assert "zero point five" in chunks[2][0]
     assert len(chunks[2][1]) > 0
+
+
+def test_create_phonemizer_maps_chinese_to_espeak_cmn():
+    """'z' is not an espeak voice name; Mandarin is 'cmn'."""
+    from unittest.mock import patch
+
+    from api.src.services.text_processing.phonemizer import create_phonemizer
+
+    with patch(
+        "api.src.services.text_processing.phonemizer.EspeakBackend"
+    ) as mock_backend:
+        create_phonemizer("z")
+
+    mock_backend.assert_called_once_with("cmn")

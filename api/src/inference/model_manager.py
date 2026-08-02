@@ -73,10 +73,14 @@ class ModelManager:
                 voices = await paths.list_voices()
                 voice_path = await paths.get_voice_path(settings.default_voice)
 
-                # Warm up with short text
-                warmup_text = "Warmup text for initialization."
                 # Use default voice name for warmup
                 voice_name = settings.default_voice
+                # warm the pipeline the default voice will actually use
+                warmup_text = (
+                    "初始化的预热文本。"
+                    if voice_name[:1].lower() == "z"
+                    else "Warmup text for initialization."
+                )
                 logger.debug(f"Using default voice '{voice_name}' for warmup")
                 async for _ in self.generate(warmup_text, (voice_name, voice_path)):
                     pass

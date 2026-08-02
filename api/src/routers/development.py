@@ -52,8 +52,10 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
         if not request.text:
             raise ValueError("Text cannot be empty")
 
-        # Initialize Kokoro pipeline in quiet mode (no model)
-        pipeline = KPipeline(lang_code=request.language, model=False)
+        # quiet mode (no model); repo_id must match synthesis or zh g2p differs
+        pipeline = KPipeline(
+            lang_code=request.language, model=False, repo_id=settings.model_repo_id
+        )
 
         # Get first result from pipeline (we only need one since we're not chunking)
         for result in pipeline(request.text):

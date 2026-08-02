@@ -373,6 +373,8 @@ MODEL_VERSION=v1_1-zh ./start-gpu.sh
 ```
 
 Weights and voice pack (~370MB, checksum-pinned release assets) download on first start; the baked v1.0 images are unchanged. One model per instance: selecting v1.1-zh replaces v1.0, so other languages and most English voices are unavailable while active (not a strict upgrade, per the model page). Default voice becomes `zf_001`, override with `DEFAULT_VOICE`. The OpenAI voice aliases (`alloy`, `nova`, etc) map to v1.0 English voices and return 400 here; request v1.1-zh voices by name.
+
+Prior art: [chai51](https://github.com/remsky/Kokoro-FastAPI/pull/237), [kamjin3086/Kokoro-FastAPI-Chinese](https://github.com/kamjin3086/Kokoro-FastAPI-Chinese), [hsiang-han/Kokoro-FastAPI-zh](https://github.com/hsiang-han/Kokoro-FastAPI-zh).
 </details>
 
 ## Processing Details
