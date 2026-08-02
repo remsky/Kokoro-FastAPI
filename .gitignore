@@ -40,6 +40,8 @@ ENV/
 *.pth
 *.tar*
 api/src/models/**/*.download
+api/src/models/v1_1-zh/
+api/src/voices/v1_1-zh/
 
 
 # Other project files
