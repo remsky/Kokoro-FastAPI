@@ -65,6 +65,7 @@ examples/ebook_test/parse_epub.py
 api/src/voices/af_jadzia.pt
 examples/assorted_checks/test_combinations/output/*
 examples/assorted_checks/test_openai/output/*
+examples/assorted_checks/test_dialogue/output/*
 
 
 # Audio files
