@@ -637,7 +637,7 @@ curl -X POST http://localhost:8880/v1/audio/speech \
   }' --output dialogue.mp3
 ```
 
-An alias pointing at a voice that does not exist is a 400 like any other unknown voice.
+Alias names are matched case-insensitively, so `[voice:Narrator]` and `[voice:narrator]` resolve alike. An alias pointing at a voice that does not exist is a 400 like any other unknown voice.
 
 `POST /dev/dialogue` takes the same thing as structured turns, if you would rather not build the string yourself. It accepts the `/v1/audio/speech` options (`response_format`, `speed`, `stream`, `return_download_link`, etc) plus `pause_between_turns`:
 

@@ -6,6 +6,7 @@ import {
     castAliases,
     countVoiceTags,
     formatVoiceTag,
+    hasVoiceTagFor,
     hasVoiceTags,
     insertVoiceTag,
     leadingVoiceTag,
@@ -152,6 +153,15 @@ test('an empty mix never reaches the cast', () => {
     assert.deepEqual(addToCast([], '   '), []);
 });
 
+test('a member is only spoken while a tag names it', () => {
+    const text = '[voice:narrator] One. [voice:af_sky] Two.';
+    assert.equal(hasVoiceTagFor(text, 'narrator'), true);
+    // the tag pattern is case-insensitive, so what the server would resolve counts as placed
+    assert.equal(hasVoiceTagFor(text, 'NARRATOR'), true);
+    assert.equal(hasVoiceTagFor(text, 'villain'), false);
+    assert.equal(hasVoiceTagFor(text, 'af_bella(2)+af_sky'), false);
+});
+
 test('removing a cast member leaves the rest in order', () => {
     const cast = [
         { name: 'af_bella', mix: 'af_bella' },
@@ -160,6 +170,16 @@ test('removing a cast member leaves the rest in order', () => {
     ];
     assert.deepEqual(removeFromCast(cast, 'narrator').map((m) => m.name), ['af_bella', 'af_sky']);
     assert.deepEqual(removeFromCast(cast, 'not_there'), cast);
+});
+
+test('resetting an alias is a rename back to the mix, so nothing is left to define', () => {
+    const cast = [
+        { name: 'af_bella', mix: 'af_bella' },
+        { name: 'narrator', mix: 'am_michael(2)' }
+    ];
+    const reset = renameCastMember(cast, 'narrator', 'am_michael(2)');
+    assert.deepEqual(reset.map((m) => m.name), ['af_bella', 'am_michael(2)']);
+    assert.deepEqual(castAliases(reset), {});
 });
 
 test('only names that stand for something else are sent as aliases', () => {

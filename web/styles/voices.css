@@ -301,11 +301,6 @@
     border-color: var(--fg-color);
 }
 
-/* the first member speaks anything ahead of the first tag, so it reads as the default */
-.cast-member.is-default {
-    border-color: rgba(99, 102, 241, 0.5);
-}
-
 .cast-menu-btn {
     padding: 0 0.15rem;
     background: none;
@@ -366,6 +361,16 @@
 .cast-menu-item:hover {
     background: rgba(99, 102, 241, 0.2);
     color: var(--text);
+}
+
+.cast-menu-item[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.cast-menu-item[aria-disabled="true"]:hover {
+    background: none;
+    color: var(--text-light);
 }
 
 .voice-tag-notice {

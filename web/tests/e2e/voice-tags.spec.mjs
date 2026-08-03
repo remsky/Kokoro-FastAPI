@@ -146,13 +146,44 @@ test('no tag can be created until something is mixed', async ({ page }) => {
     await expect(page.locator('#create-tag-btn')).toBeEnabled();
 });
 
-test('a cast member can be dropped again', async ({ page }) => {
+test('a chip is placed from the keyboard through its own menu', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+
+    await page.locator('.cast-menu-btn').first().focus();
+    await page.keyboard.press('Enter');
+    // the menu sits after every chip in the DOM, so opening it has to hand focus over
+    await expect(page.locator('.cast-menu-item[data-action="insert"]')).toBeFocused();
+
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#cast-menu')).toBeHidden();
+    expect((await editor(page).inputValue()).match(/\[voice:/g)).toHaveLength(2);
+
+    await page.locator('.cast-menu-btn').first().focus();
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#cast-menu')).toBeHidden();
+    await expect(page.locator('.cast-menu-btn').first()).toBeFocused();
+});
+
+test('a chip leaves the cast once nothing in the text speaks with it', async ({ page }) => {
+    await editor(page).fill('First line.');
     await tagsTab(page).click();
     await expect(castNames(page)).toHaveCount(1);
 
+    // the seeded tag still answers to it, so there is nothing safe to drop yet
     await page.locator('.cast-menu-btn').first().click();
+    await expect(page.locator('.cast-menu-item[data-action="remove"]')).toHaveAttribute('aria-disabled', 'true');
+    await page.locator('.cast-menu-item[data-action="remove"]').click({ force: true });
+    await expect(castNames(page)).toHaveCount(1);
+
+    await page.locator('.cast-menu-item[data-action="strip"]').click();
+
+    await page.locator('.cast-menu-btn').first().click();
+    await expect(page.locator('.cast-menu-item[data-action="strip"]')).toHaveAttribute('aria-disabled', 'true');
     await page.locator('.cast-menu-item[data-action="remove"]').click();
     await expect(castNames(page)).toHaveCount(0);
+    await expect(editor(page)).toHaveValue('First line.');
 });
 
 test('a cast member can be renamed, and the tags follow', async ({ page }) => {
@@ -170,6 +201,49 @@ test('a cast member can be renamed, and the tags follow', async ({ page }) => {
 
     await expect(castNames(page)).toHaveText(['narrator']);
     expect((await editor(page).inputValue()).match(/\[voice:narrator\]/g)).toHaveLength(2);
+});
+
+test('resetting an alias hands its tags back to the mix, chip and all', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+
+    const mix = await page.locator('.cast-member').first().getAttribute('data-mix');
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill('narrator');
+    await page.locator('.cast-rename-input').press('Enter');
+    await expect(editor(page)).toHaveValue(`[voice:narrator] First line.`);
+
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="reset"]').click();
+
+    // the definition goes with the name, so a tag still naming it would reach the server undefined
+    await expect(castNames(page)).toHaveText([mix]);
+    await expect(editor(page)).toHaveValue(`[voice:${mix}] First line.`);
+
+    await page.locator('.cast-menu-btn').first().click();
+    await expect(page.locator('.cast-menu-item[data-action="reset"]')).toHaveAttribute('aria-disabled', 'true');
+});
+
+test('a rename opened over another one lands the first rather than replacing it', async ({ page }) => {
+    await tagsTab(page).click();
+    await page.locator('#voice-search').click();
+    await page.locator('.voice-option').nth(2).click();
+    await editor(page).click();
+    await page.locator('#create-tag-btn').click();
+    await expect(castNames(page)).toHaveCount(2);
+
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill('narrator');
+
+    await page.locator('.cast-menu-btn').nth(1).click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await expect(page.locator('.cast-rename-input')).toBeVisible();
+    await page.locator('.cast-rename-input').fill('villain');
+    await page.locator('.cast-rename-input').press('Enter');
+
+    await expect(castNames(page)).toHaveText(['narrator', 'villain']);
 });
 
 test('a name that would shadow a real voice is refused', async ({ page }) => {

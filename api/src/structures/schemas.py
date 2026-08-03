@@ -121,7 +121,7 @@ class OpenAISpeechRequest(BaseModel):
     )
     voice_aliases: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags.",
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags, matched case-insensitively.",
     )
 
 
@@ -258,5 +258,5 @@ class CaptionedSpeechRequest(BaseModel):
     )
     voice_aliases: Optional[Dict[str, str]] = Field(
         default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags.",
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags, matched case-insensitively.",
     )

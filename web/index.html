@@ -92,14 +92,16 @@
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
                             <span class="voice-cast-title">Cast</span>
-                            <span id="voice-tag-hint" class="voice-tag-hint"></span>
+                            <span class="voice-tag-hint">Click to insert at cursor</span>
                         </div>
                         <div id="voice-cast-list" class="voice-cast-list"></div>
-                        <div id="cast-menu" class="cast-menu" hidden>
-                            <button type="button" class="cast-menu-item" data-action="rename">Rename</button>
-                            <button type="button" class="cast-menu-item" data-action="edit">Edit mix</button>
-                            <button type="button" class="cast-menu-item" data-action="strip">Remove from text</button>
-                            <button type="button" class="cast-menu-item" data-action="remove">Remove from cast</button>
+                        <div id="cast-menu" class="cast-menu" role="menu" hidden>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="insert">Insert at cursor</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="rename">Rename</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="reset">Reset alias</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="edit">Edit mix</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="strip">Remove from text</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="remove">Remove from cast</button>
                         </div>
                     </div>
                     <div id="voice-tag-notice" class="voice-tag-notice" role="status" hidden>

@@ -82,11 +82,24 @@ def get_model_name(model: str) -> str:
 
 
 def resolve_voice_alias(voice: str, aliases: Optional[Dict[str, str]] = None) -> str:
-    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone."""
+    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone.
+
+    Matching is case-insensitive, since VOICE_TAG_PATTERN already is: a tag written
+    [voice:Narrator] has to reach the same alias as [voice:narrator].
+    """
     if not aliases:
         return voice
 
-    return aliases.get(str(voice).strip(), voice)
+    name = str(voice).strip()
+    if name in aliases:
+        return aliases[name]
+
+    folded = name.casefold()
+    for alias, mix in aliases.items():
+        if str(alias).strip().casefold() == folded:
+            return mix
+
+    return voice
 
 
 async def process_and_validate_voices(

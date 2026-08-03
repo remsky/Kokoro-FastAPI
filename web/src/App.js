@@ -11,6 +11,7 @@ import {
     addToCast,
     castAliases,
     countVoiceTags,
+    hasVoiceTagFor,
     insertVoiceTag,
     leadingVoiceTag,
     removeFromCast,
@@ -44,7 +45,6 @@ export class App {
             voiceTabs: document.querySelector('.card-tabs'),
             voicesTab: document.getElementById('voices-tab'),
             voiceTagsTab: document.getElementById('voice-tags-tab'),
-            voiceTagHint: document.getElementById('voice-tag-hint'),
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
             removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn')
@@ -123,11 +123,16 @@ export class App {
     setVoiceTagMode(enabled) {
         this.tagMode = enabled;
         this.renderVoiceTabs();
+        if (!enabled) {
+            // an edit only exists while the pane is open, so it cannot survive into the next visit
+            this.setEditing(null);
+        }
         this.voiceSelector.setTagMode(enabled, {
             onCommit: () => this.commitMix(),
             onInsert: (name) => this.insertVoiceTag(name),
             onRename: (name, next) => this.renameCastMember(name, next),
-            onMenuAction: (action, name) => this.castMenuAction(action, name)
+            onMenuAction: (action, name) => this.castMenuAction(action, name),
+            isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
         });
 
         if (enabled) {
@@ -143,7 +148,6 @@ export class App {
             this.voiceSelector.setMix(this.cast[0].mix);
         }
 
-        this.updateVoiceTagHint();
         this.updateVoiceTagNotice();
     }
 
@@ -204,7 +208,14 @@ export class App {
         } else if (action === 'strip') {
             this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
             this.updateVoiceTagNotice();
-        } else if (action === 'remove') {
+        } else if (action === 'reset' && member.name !== member.mix) {
+            // the tags stay where they are, so the name they answer to becomes the mix again
+            if (this.editing === name) {
+                this.setEditing(member.mix);
+            }
+            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, member.mix));
+            this.setCast(renameCastMember(this.cast, name, member.mix));
+        } else if (action === 'remove' && !hasVoiceTagFor(this.textEditor.getText(), name)) {
             if (this.editing === name) {
                 this.setEditing(null);
                 this.voiceSelector.setMix('');
@@ -224,8 +235,21 @@ export class App {
      */
     renameCastMember(name, requested) {
         const next = String(requested || '').trim();
-        if (next === name) {
+        // re-rendering is what puts the chip back, so it also ends the edit that was refused
+        const keepName = (message) => {
+            if (message) {
+                this.showStatus(message, 'error');
+            }
             this.setCast(this.cast);
+        };
+
+        if (next === name) {
+            keepName();
+            return;
+        }
+
+        if (!CAST_NAME_PATTERN.test(next)) {
+            keepName('A cast name is 1 to 24 letters, numbers, dashes or underscores');
             return;
         }
 
@@ -234,15 +258,8 @@ export class App {
             ...this.voiceService.getAvailableVoices()
         ];
 
-        if (!CAST_NAME_PATTERN.test(next)) {
-            this.showStatus('A cast name is 1 to 24 letters, numbers, dashes or underscores', 'error');
-            this.setCast(this.cast);
-            return;
-        }
-
         if (taken.includes(next)) {
-            this.showStatus(`"${next}" is already taken`, 'error');
-            this.setCast(this.cast);
+            keepName(`"${next}" is already taken`);
             return;
         }
 
@@ -256,16 +273,6 @@ export class App {
     setCast(cast) {
         this.cast = cast;
         this.voiceSelector.renderCast(cast);
-        this.updateVoiceTagHint();
-    }
-
-    updateVoiceTagHint() {
-        const hint = this.elements.voiceTagHint;
-        if (!hint) {
-            return;
-        }
-
-        hint.textContent = this.voiceTagsEnabled() ? 'Click to insert at cursor' : '';
     }
 
     insertVoiceTag(voice) {
@@ -274,8 +281,8 @@ export class App {
     }
 
     /**
-     * Tags left in the text with the toggle off are sent as prose and read aloud,
-     * so the count is offered with a way out rather than a warning to act on.
+     * Tags left in the text outside tag mode are sent as prose and read aloud, so the
+     * count is offered with a way out rather than a warning to act on.
      */
     updateVoiceTagNotice() {
         const notice = this.elements.voiceTagNotice;
@@ -454,17 +461,13 @@ export class App {
         });
     }
 
-    voiceTagsEnabled() {
-        return this.tagMode;
-    }
-
     /**
      * The voice parameter speaks anything ahead of the first tag, so in tag mode the
      * text has to open with one and that tag is the voice. Neither a staged mix nor a
      * cast member stands in for it, so what is spoken is only ever what the text says.
      */
     requestVoice() {
-        if (this.voiceTagsEnabled()) {
+        if (this.tagMode) {
             return leadingVoiceTag(this.textEditor.getText());
         }
         return this.voiceService.getSelectedVoiceString();
@@ -496,7 +499,7 @@ export class App {
     validateInput() {
         const text = this.textEditor.getText().trim();
         // a seeded tag on its own is not something to speak
-        const spoken = this.voiceTagsEnabled() ? stripVoiceTags(text).trim() : text;
+        const spoken = this.tagMode ? stripVoiceTags(text).trim() : text;
         if (!spoken) {
             this.showStatus('Please enter some text', 'error');
             return false;
@@ -504,7 +507,7 @@ export class App {
 
         if (!this.requestVoice()) {
             this.showStatus(
-                this.voiceTagsEnabled() ? 'Start the text with a voice tag' : 'Please select a voice',
+                this.tagMode ? 'Start the text with a voice tag' : 'Please select a voice',
                 'error'
             );
             return false;
@@ -522,7 +525,7 @@ export class App {
         const text = this.textEditor.getText().trim();
         const voice = this.requestVoice();
         const speed = this.playerState.getState().speed;
-        const allowVoiceTags = this.voiceTagsEnabled();
+        const allowVoiceTags = this.tagMode;
 
         this.playerState.setReady(false);
         this.playerState.setPlaying(false);

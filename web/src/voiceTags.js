@@ -42,6 +42,11 @@ export function stripVoiceTags(text) {
     return stripPattern(text, TAG_SOURCE);
 }
 
+/** Whether one speaker is still spoken anywhere, so dropping it can be refused while it is. */
+export function hasVoiceTagFor(text, voice) {
+    return new RegExp(String.raw`\[voice:\s*${escapeRegExp(voice)}\s*\]`, 'i').test(String(text));
+}
+
 /** Drops one speaker's tags and leaves everyone else's alone. */
 export function removeVoiceTagsFor(text, voice) {
     return stripPattern(text, String.raw`\[voice:\s*${escapeRegExp(voice)}\s*\]`);

@@ -821,6 +821,33 @@ async def test_unaliased_names_are_left_to_normal_validation():
 
 
 @pytest.mark.asyncio
+async def test_alias_names_are_matched_regardless_of_case():
+    """The tag pattern is case-insensitive, so a capitalised name has to find its alias"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "am_michael"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:Narrator] One. [voice:VILLAIN] Two.",
+        service,
+        allow_voice_tags=True,
+        aliases={"narrator": "af_bella", "villain": "am_michael"},
+    )
+    assert result == "[voice:af_bella] One. [voice:am_michael] Two."
+
+
+@pytest.mark.asyncio
+async def test_an_exactly_spelled_alias_wins_over_a_folded_one():
+    """Two names differing only in case stay distinct rather than collapsing by map order"""
+    from api.src.routers.openai_compatible import resolve_voice_alias
+
+    aliases = {"Bob": "af_bella", "bob": "am_michael"}
+    assert resolve_voice_alias("bob", aliases) == "am_michael"
+    assert resolve_voice_alias("Bob", aliases) == "af_bella"
+
+
+@pytest.mark.asyncio
 async def test_voice_alias_applies_to_the_voice_parameter():
     """The default speaker can be named too, since it is just another cast member"""
     from api.src.routers.openai_compatible import process_and_validate_voices

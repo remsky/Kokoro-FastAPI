@@ -16,6 +16,7 @@ export class VoiceSelector {
         };
         this.menuFor = null;
         this.editing = null;
+        this.settleRename = () => {};
 
         this.setupEventListeners();
         this.setupCastListeners();
@@ -35,7 +36,7 @@ export class VoiceSelector {
             this.elements.createTagBtn.hidden = !enabled;
         }
         if (!enabled) {
-            this.editing = null;
+            this.settleRename();
             this.closeCastMenu();
         }
         this.updateCreateTagButton();
@@ -58,13 +59,14 @@ export class VoiceSelector {
 
         this.closeCastMenu();
         list.innerHTML = cast
-            .map((member, index) => `
-                <span class="cast-member${index === 0 ? ' is-default' : ''}"
+            .map((member) => `
+                <span class="cast-member"
                       data-name="${member.name}"
                       data-mix="${member.mix}"
-                      title="Insert [voice:${member.name}]${member.name === member.mix ? '' : ` (${member.mix})`}${index === 0 ? ', the voice for anything ahead of the first tag' : ''}">
+                      title="Insert [voice:${member.name}]${member.name === member.mix ? '' : ` (${member.mix})`}">
                     <span class="cast-name">${member.name}</span>
-                    <button type="button" class="cast-menu-btn" data-name="${member.name}" title="More">⋯</button>
+                    <button type="button" class="cast-menu-btn" data-name="${member.name}" title="More"
+                            aria-label="Options for ${member.name}" aria-haspopup="menu" aria-expanded="false">⋯</button>
                 </span>
             `)
             .join('');
@@ -94,7 +96,8 @@ export class VoiceSelector {
         this.elements.voiceCastList.addEventListener('click', (e) => {
             const menuButton = e.target.closest('.cast-menu-btn');
             if (menuButton) {
-                this.toggleCastMenu(menuButton.closest('.cast-member'));
+                // a click with no pointer behind it came from Enter or Space, so the menu takes focus
+                this.toggleCastMenu(menuButton.closest('.cast-member'), e.detail === 0);
                 return;
             }
 
@@ -107,17 +110,48 @@ export class VoiceSelector {
 
         this.elements.castMenu.addEventListener('click', (e) => {
             const item = e.target.closest('.cast-menu-item');
-            if (!item) {
+            if (!item || item.getAttribute('aria-disabled') === 'true') {
                 return;
             }
 
             const name = this.menuFor;
             this.closeCastMenu();
+            // a rename open on another chip lands before this action re-renders the list under it
+            this.settleRename();
             if (item.dataset.action === 'rename') {
                 this.startRename(name);
                 return;
             }
+            if (item.dataset.action === 'insert') {
+                this.handlers.onInsert?.(name);
+                return;
+            }
             this.handlers.onMenuAction?.(item.dataset.action, name);
+        });
+
+        // the menu is the keyboard route to a chip, so it has to be escapable and walkable
+        cast.addEventListener('keydown', (e) => {
+            if (!this.menuFor) {
+                return;
+            }
+            if (e.key === 'Escape') {
+                this.closeCastMenu({ restoreFocus: true });
+                return;
+            }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+                return;
+            }
+            e.preventDefault();
+            const items = [...this.elements.castMenu.querySelectorAll('.cast-menu-item')];
+            const from = Math.max(items.indexOf(document.activeElement), 0);
+            const step = e.key === 'ArrowDown' ? 1 : items.length - 1;
+            items[(from + step) % items.length]?.focus();
+        });
+
+        this.elements.castMenu.addEventListener('focusout', (e) => {
+            if (!this.elements.castMenu.contains(e.relatedTarget)) {
+                this.closeCastMenu();
+            }
         });
 
         document.addEventListener('mousedown', (e) => {
@@ -127,28 +161,53 @@ export class VoiceSelector {
         });
     }
 
-    toggleCastMenu(chip) {
+    toggleCastMenu(chip, focusFirstItem = false) {
         const menu = this.elements.castMenu;
         if (!chip || this.menuFor === chip.dataset.name) {
             this.closeCastMenu();
             return;
         }
 
+        const placed = this.handlers.isPlaced?.(chip.dataset.name) !== false;
         this.menuFor = chip.dataset.name;
+        chip.querySelector('.cast-menu-btn')?.setAttribute('aria-expanded', 'true');
+        // a member standing for its own mix has no alias to undo, and one still spoken cannot leave
+        this.setMenuItem('reset', chip.dataset.name !== chip.dataset.mix, 'This name is its own mix, so there is no alias to undo');
+        this.setMenuItem('strip', placed, 'No tag in the text names this one');
+        this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
         menu.hidden = false;
         menu.style.left = `${chip.offsetLeft}px`;
         menu.style.top = `${chip.offsetTop + chip.offsetHeight + 4}px`;
+        if (focusFirstItem) {
+            menu.querySelector('.cast-menu-item')?.focus();
+        }
     }
 
-    closeCastMenu() {
+    /** An option that cannot be taken yet greys out and says why, rather than leaving the menu. */
+    setMenuItem(action, enabled, reason) {
+        const item = this.elements.castMenu.querySelector(`[data-action="${action}"]`);
+        item.setAttribute('aria-disabled', String(!enabled));
+        item.title = enabled ? '' : reason;
+    }
+
+    closeCastMenu({ restoreFocus = false } = {}) {
+        const button = this.menuFor && this.elements.voiceCastList
+            ?.querySelector(`.cast-menu-btn[data-name="${this.menuFor}"]`);
+        button?.setAttribute('aria-expanded', 'false');
         this.menuFor = null;
         if (this.elements.castMenu) {
             this.elements.castMenu.hidden = true;
+        }
+        if (restoreFocus) {
+            button?.focus();
         }
     }
 
     /** Renames in the chip itself, so the name is edited where it is read. */
     startRename(name) {
+        // an open rename lands first, otherwise its blur wipes the input this one is about to make
+        this.settleRename();
+
         const chip = this.elements.voiceCastList.querySelector(`.cast-member[data-name="${name}"]`);
         const label = chip?.querySelector('.cast-name');
         if (!label) {
@@ -171,8 +230,10 @@ export class VoiceSelector {
                 return;
             }
             settled = true;
+            this.settleRename = () => {};
             this.handlers.onRename?.(name, next);
         };
+        this.settleRename = () => commit(input.value);
 
         input.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
