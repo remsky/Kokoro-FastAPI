@@ -81,8 +81,18 @@ def get_model_name(model: str) -> str:
     return base_name + ".pth"
 
 
+def resolve_voice_alias(voice: str, aliases: Optional[Dict[str, str]] = None) -> str:
+    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone."""
+    if not aliases:
+        return voice
+
+    return aliases.get(str(voice).strip(), voice)
+
+
 async def process_and_validate_voices(
-    voice_input: Union[str, List[str]], tts_service: TTSService
+    voice_input: Union[str, List[str]],
+    tts_service: TTSService,
+    aliases: Optional[Dict[str, str]] = None,
 ) -> str:
     """Process voice input, handling both string and list formats
 
@@ -92,6 +102,7 @@ async def process_and_validate_voices(
     voices = []
     # Convert input to list of voices
     if isinstance(voice_input, str):
+        voice_input = resolve_voice_alias(voice_input, aliases)
         voice_input = voice_input.replace(" ", "").strip()
 
         if voice_input[-1] in "+-" or voice_input[0] in "+-":
@@ -134,7 +145,10 @@ async def process_and_validate_voices(
 
 
 async def process_and_validate_voice_tags(
-    text: str, tts_service: TTSService, allow_voice_tags: bool = False
+    text: str,
+    tts_service: TTSService,
+    allow_voice_tags: bool = False,
+    aliases: Optional[Dict[str, str]] = None,
 ) -> str:
     """Validate inline [voice:...] tags, rewriting them to resolved voice names.
 
@@ -149,7 +163,7 @@ async def process_and_validate_voice_tags(
         return text
 
     resolved = {
-        tag: await process_and_validate_voices(tag, tts_service)
+        tag: await process_and_validate_voices(tag, tts_service, aliases)
         for tag in dict.fromkeys(tags)
     }
     return VOICE_TAG_PATTERN.sub(lambda m: f"[voice:{resolved[m.group(1)]}]", text)
@@ -162,7 +176,9 @@ async def stream_audio_chunks(
     writer: StreamingAudioWriter,
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
-    voice_name = await process_and_validate_voices(request.voice, tts_service)
+    voice_name = await process_and_validate_voices(
+        request.voice, tts_service, request.voice_aliases
+    )
     unique_properties = {"return_timestamps": False}
     if hasattr(request, "return_timestamps"):
         unique_properties["return_timestamps"] = request.return_timestamps
@@ -216,10 +232,12 @@ async def create_speech(
     try:
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
-        voice_name = await process_and_validate_voices(request.voice, tts_service)
+        voice_name = await process_and_validate_voices(
+            request.voice, tts_service, request.voice_aliases
+        )
         # resolved here, not in the generator, so a bad tag 400s before the stream opens
         request.input = await process_and_validate_voice_tags(
-            request.input, tts_service, request.allow_voice_tags
+            request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
 
         # Set content type based on format

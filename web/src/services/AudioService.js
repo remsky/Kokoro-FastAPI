@@ -55,6 +55,11 @@ export class AudioService {
             const audioElement = event.target;
             const errorCode = audioElement?.error?.code;
 
+            // a torn down element errors as its source is released, long after it mattered
+            if (audioElement !== this.audio) {
+                return;
+            }
+
             console.error(`Audio error (${mode}):`, {
                 code: errorCode,
                 message: audioElement?.error?.message || 'Unknown audio error',
@@ -104,7 +109,11 @@ export class AudioService {
                     speed: speed,
                     return_download_link: true,
                     lang_code: document.getElementById('lang-select').value || undefined,
-                    allow_voice_tags: options.allowVoiceTags || undefined
+                    allow_voice_tags: options.allowVoiceTags || undefined,
+                    // short names only mean something alongside the map that defines them
+                    voice_aliases: Object.keys(options.voiceAliases || {}).length
+                        ? options.voiceAliases
+                        : undefined
                 }),
                 signal: this.controller.signal
             }).catch(error => {
@@ -718,11 +727,7 @@ export class AudioService {
             this.controller = null;
         }
 
-        if (this.audio) {
-            this.audio.pause();
-            this.audio.src = '';
-            this.audio = null;
-        }
+        this.releaseAudioElement();
 
         if (this.mediaSource && this.mediaSource.readyState === 'open') {
             try {
@@ -744,18 +749,21 @@ export class AudioService {
         this.revokeObjectUrl();
     }
 
-    cleanup() {
-        if (this.audio) {
-            this.eventListeners.forEach((listeners, event) => {
-                listeners.forEach((callback) => {
-                    this.audio.removeEventListener(event, callback);
-                });
-            });
-
-            this.audio.pause();
-            this.audio.src = '';
-            this.audio = null;
+    /** Empties the element by removing src rather than blanking it, which browsers load and report as an error. */
+    releaseAudioElement() {
+        if (!this.audio) {
+            return;
         }
+
+        const audio = this.audio;
+        this.audio = null;
+        audio.pause();
+        audio.removeAttribute?.('src');
+        audio.load?.();
+    }
+
+    cleanup() {
+        this.releaseAudioElement();
 
         if (this.mediaSource && this.mediaSource.readyState === 'open') {
             try {

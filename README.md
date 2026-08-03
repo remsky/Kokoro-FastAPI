@@ -587,7 +587,7 @@ Three tokens can be embedded in the `input` text and are parsed server-side (API
 
 - **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
-- **Voice**: `[voice:am_michael]` switches speaker for everything that follows. Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), and an unknown name is a 400. Off unless the request sets `allow_voice_tags: true`, so bracketed text is spoken as written by default.
+- **Voice**: `[voice:am_michael]` switches speaker for everything that follows. Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), or a short name defined in `voice_aliases`, and an unknown name is a 400. Off unless the request sets `allow_voice_tags: true`, so bracketed text is spoken as written by default.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
@@ -621,6 +621,23 @@ client.audio.speech.create(
     extra_body={"allow_voice_tags": True},
 )
 ```
+
+Weighted mixes get long fast, so `voice_aliases` lets a short name stand in for one. It applies to the `voice` field and to tags, and the map travels with the request:
+
+```bash
+curl -X POST http://localhost:8880/v1/audio/speech \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "kokoro",
+    "voice": "narrator",
+    "input": "[voice:narrator] Once upon a time. [voice:villain] Never!",
+    "allow_voice_tags": true,
+    "voice_aliases": {"narrator": "af_bella(2)+af_sky", "villain": "am_michael"},
+    "response_format": "mp3"
+  }' --output dialogue.mp3
+```
+
+An alias pointing at a voice that does not exist is a 400 like any other unknown voice.
 
 `POST /dev/dialogue` takes the same thing as structured turns, if you would rather not build the string yourself. It accepts the `/v1/audio/speech` options (`response_format`, `speed`, `stream`, `return_download_link`, etc) plus `pause_between_turns`:
 

@@ -1,28 +1,212 @@
+import { parseVoiceMix } from '../voiceTags.js';
+
 export class VoiceSelector {
     constructor(voiceService) {
         this.voiceService = voiceService;
         this.tagMode = false;
-        this.onInsertTag = null;
+        this.handlers = {};
         this.elements = {
             voiceSearch: document.getElementById('voice-search'),
             voiceDropdown: document.getElementById('voice-dropdown'),
             voiceOptions: document.getElementById('voice-options'),
-            selectedVoices: document.getElementById('selected-voices')
+            selectedVoices: document.getElementById('selected-voices'),
+            voiceCast: document.getElementById('voice-cast'),
+            voiceCastList: document.getElementById('voice-cast-list'),
+            castMenu: document.getElementById('cast-menu'),
+            createTagBtn: document.getElementById('create-tag-btn')
         };
+        this.menuFor = null;
+        this.editing = null;
 
         this.setupEventListeners();
+        this.setupCastListeners();
     }
 
     /**
-     * In tag mode the list becomes a cast to insert from, so a click writes a tag
-     * instead of changing the selection. The selection stays live either way: it is
-     * still the voice for anything ahead of the first tag.
+     * In tag mode the mixer keeps working exactly as it does otherwise, but as a
+     * staging area: creating a tag moves the mix into the cast below and empties the
+     * mixer for the next voice, so the same handful can be placed over and over.
      */
-    setTagMode(enabled, onInsertTag = null) {
+    setTagMode(enabled, handlers = {}) {
         this.tagMode = enabled;
-        this.onInsertTag = onInsertTag;
-        this.elements.selectedVoices.classList.toggle('as-cast', enabled);
+        this.handlers = handlers;
+        if (this.elements.voiceCast) {
+            this.elements.voiceCast.hidden = !enabled;
+        }
+        if (this.elements.createTagBtn) {
+            this.elements.createTagBtn.hidden = !enabled;
+        }
+        if (!enabled) {
+            this.editing = null;
+            this.closeCastMenu();
+        }
+        this.updateCreateTagButton();
         this.updateSearchPlaceholder();
+    }
+
+    /** Replaces what is staged in the mixer, so a mix can be cleared or sent back to it. */
+    setMix(mix) {
+        this.voiceService.clearSelectedVoices();
+        parseVoiceMix(mix).forEach(({ voice, weight }) => this.voiceService.addVoice(voice, weight));
+        this.renderVoiceOptions(this.voiceService.filterVoices(this.elements.voiceSearch.value));
+        this.updateSelectedVoicesDisplay();
+    }
+
+    renderCast(cast) {
+        const list = this.elements.voiceCastList;
+        if (!list) {
+            return;
+        }
+
+        this.closeCastMenu();
+        list.innerHTML = cast
+            .map((member, index) => `
+                <span class="cast-member${index === 0 ? ' is-default' : ''}"
+                      data-name="${member.name}"
+                      data-mix="${member.mix}"
+                      title="Insert [voice:${member.name}]${member.name === member.mix ? '' : ` (${member.mix})`}${index === 0 ? ', the voice for anything ahead of the first tag' : ''}">
+                    <span class="cast-name">${member.name}</span>
+                    <button type="button" class="cast-menu-btn" data-name="${member.name}" title="More">⋯</button>
+                </span>
+            `)
+            .join('');
+    }
+
+    setupCastListeners() {
+        const cast = this.elements.voiceCast;
+        const create = this.elements.createTagBtn;
+
+        if (create) {
+            create.addEventListener('mousedown', (e) => e.preventDefault());
+            create.addEventListener('click', () => this.handlers.onCommit?.());
+        }
+
+        if (!cast) {
+            return;
+        }
+
+        // the caret is where the tag lands, so clicking in here must not steal focus
+        cast.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('cast-rename-input')) {
+                return;
+            }
+            e.preventDefault();
+        });
+
+        this.elements.voiceCastList.addEventListener('click', (e) => {
+            const menuButton = e.target.closest('.cast-menu-btn');
+            if (menuButton) {
+                this.toggleCastMenu(menuButton.closest('.cast-member'));
+                return;
+            }
+
+            const member = e.target.closest('.cast-member');
+            if (member && !e.target.classList.contains('cast-rename-input')) {
+                this.closeCastMenu();
+                this.handlers.onInsert?.(member.dataset.name);
+            }
+        });
+
+        this.elements.castMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.cast-menu-item');
+            if (!item) {
+                return;
+            }
+
+            const name = this.menuFor;
+            this.closeCastMenu();
+            if (item.dataset.action === 'rename') {
+                this.startRename(name);
+                return;
+            }
+            this.handlers.onMenuAction?.(item.dataset.action, name);
+        });
+
+        document.addEventListener('mousedown', (e) => {
+            if (!cast.contains(e.target)) {
+                this.closeCastMenu();
+            }
+        });
+    }
+
+    toggleCastMenu(chip) {
+        const menu = this.elements.castMenu;
+        if (!chip || this.menuFor === chip.dataset.name) {
+            this.closeCastMenu();
+            return;
+        }
+
+        this.menuFor = chip.dataset.name;
+        menu.hidden = false;
+        menu.style.left = `${chip.offsetLeft}px`;
+        menu.style.top = `${chip.offsetTop + chip.offsetHeight + 4}px`;
+    }
+
+    closeCastMenu() {
+        this.menuFor = null;
+        if (this.elements.castMenu) {
+            this.elements.castMenu.hidden = true;
+        }
+    }
+
+    /** Renames in the chip itself, so the name is edited where it is read. */
+    startRename(name) {
+        const chip = this.elements.voiceCastList.querySelector(`.cast-member[data-name="${name}"]`);
+        const label = chip?.querySelector('.cast-name');
+        if (!label) {
+            return;
+        }
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cast-rename-input';
+        input.value = name;
+        input.maxLength = 24;
+        label.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let settled = false;
+        const commit = (next) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            this.handlers.onRename?.(name, next);
+        };
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                commit(input.value);
+            } else if (e.key === 'Escape') {
+                commit(name);
+            }
+        });
+        input.addEventListener('blur', () => commit(input.value));
+    }
+
+    /** Editing sends a member back to the mixer, so the same button saves it rather than adding another. */
+    setEditing(name) {
+        this.editing = name;
+        this.updateCreateTagButton();
+    }
+
+    updateCreateTagButton() {
+        const button = this.elements.createTagBtn;
+        if (!button) {
+            return;
+        }
+
+        const mix = this.voiceService.getSelectedVoiceString();
+        button.disabled = !mix;
+        button.textContent = this.editing ? 'Save mix' : 'Create tag';
+        if (this.editing) {
+            button.title = mix ? `Retune ${this.editing}` : 'Mix one or more voices first';
+            return;
+        }
+        button.title = mix
+            ? `Add [voice:${mix}] to the cast`
+            : 'Mix one or more voices first';
     }
 
     setupEventListeners() {
@@ -46,13 +230,6 @@ export class VoiceSelector {
             
             const voice = voiceOption.dataset.voice;
             if (!voice) return;
-
-            if (this.tagMode) {
-                // hand focus to the editor where the tag just landed
-                this.elements.voiceDropdown.classList.remove('show');
-                this.onInsertTag?.(voice);
-                return;
-            }
 
             const isSelected = voiceOption.classList.contains('selected');
             
@@ -82,6 +259,7 @@ export class VoiceSelector {
                 e.target.value = weight;
                 
                 this.voiceService.updateWeight(voice, weight);
+                this.updateCreateTagButton();
             }
         });
 
@@ -152,13 +330,14 @@ export class VoiceSelector {
                 </span>
             `)
             .join('');
-        
+
         this.updateSearchPlaceholder();
+        this.updateCreateTagButton();
     }
 
     updateSearchPlaceholder() {
         if (this.tagMode) {
-            this.elements.voiceSearch.placeholder = 'Search voices to insert...';
+            this.elements.voiceSearch.placeholder = 'Search voices to mix...';
             return;
         }
 

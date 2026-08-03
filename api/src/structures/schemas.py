@@ -1,6 +1,6 @@
 from email.policy import default
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
@@ -127,6 +127,10 @@ class OpenAISpeechRequest(BaseModel):
     allow_voice_tags: bool = Field(
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
+    )
+    voice_aliases: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags.",
     )
 
 
@@ -260,4 +264,8 @@ class CaptionedSpeechRequest(BaseModel):
     allow_voice_tags: bool = Field(
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
+    )
+    voice_aliases: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags.",
     )

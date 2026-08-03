@@ -238,9 +238,150 @@
     opacity: 0.75;
 }
 
-/* the mix still speaks anything ahead of the first tag, so it dims rather than disables */
-.selected-voices.as-cast {
+/* shares the toggle row, so it stays small enough to sit beside the checkbox */
+.create-tag-btn {
+    padding: 0.15rem 0.45rem;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.create-tag-btn[hidden] {
+    display: none;
+}
+
+.create-tag-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.create-tag-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.voice-cast {
+    position: relative;
+    margin-top: 0.5rem;
+}
+
+.voice-cast[hidden] {
+    display: none;
+}
+
+.voice-cast-title {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.voice-cast-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.voice-cast-list:empty::before {
+    content: "Mix a voice, then create a tag";
+    color: var(--text-light);
+    font-size: 0.75rem;
+    opacity: 0.7;
+}
+
+.cast-member {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.4rem;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cast-member:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+}
+
+/* the first member speaks anything ahead of the first tag, so it reads as the default */
+.cast-member.is-default {
+    border-color: rgba(99, 102, 241, 0.5);
+}
+
+.cast-menu-btn {
+    padding: 0 0.15rem;
+    background: none;
+    border: none;
+    color: inherit;
+    font-family: inherit;
+    font-size: 1em;
+    line-height: 1;
     opacity: 0.6;
+    cursor: pointer;
+}
+
+.cast-menu-btn:hover {
+    opacity: 1;
+}
+
+.cast-rename-input {
+    width: 7rem;
+    padding: 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--fg-color);
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
+
+.cast-menu {
+    position: absolute;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    min-width: 9.5rem;
+    padding: 0.2rem;
+    background: var(--surface, rgba(15, 23, 42, 0.98));
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+.cast-menu[hidden] {
+    display: none;
+}
+
+.cast-menu-item {
+    padding: 0.3rem 0.45rem;
+    background: none;
+    border: none;
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.75rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.cast-menu-item:hover {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--text);
 }
 
 .voice-tag-notice {
@@ -272,6 +413,12 @@
     flex-shrink: 0;
 }
 
-.link-btn:hover {
+.link-btn:hover:not(:disabled) {
     color: var(--text);
+}
+
+.link-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    text-decoration: none;
 }

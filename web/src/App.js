@@ -6,10 +6,26 @@ import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
 import config from './config.js';
-import { countVoiceTags, insertVoiceTag, seedVoiceTag, stripVoiceTags } from './voiceTags.js';
+import {
+    CAST_NAME_PATTERN,
+    addToCast,
+    castAliases,
+    countVoiceTags,
+    defaultCastName,
+    insertVoiceTag,
+    removeFromCast,
+    removeVoiceTagsFor,
+    renameCastMember,
+    renameVoiceTags,
+    seedVoiceTag,
+    stripVoiceTags,
+    updateCastMix
+} from './voiceTags.js';
 
 export class App {
     constructor() {
+        this.cast = [];
+        this.editing = null;
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
@@ -85,19 +101,142 @@ export class App {
     }
 
     setVoiceTagMode(enabled) {
-        this.voiceSelector.setTagMode(enabled, (voice) => this.insertVoiceTag(voice));
-        this.elements.voiceTagHint.textContent = enabled
-            ? 'Click a voice to insert it at the cursor.'
-            : '';
+        this.voiceSelector.setTagMode(enabled, {
+            onCommit: () => this.commitMix(),
+            onInsert: (name) => this.insertVoiceTag(name),
+            onRename: (name, next) => this.renameCastMember(name, next),
+            onMenuAction: (action, name) => this.castMenuAction(action, name)
+        });
 
         if (enabled) {
+            // whatever is staged joins the cast, so the mixer starts empty for the next voice
+            this.commitMix();
             // the seeded tag is the whole explanation of the syntax
-            const seeded = seedVoiceTag(this.textEditor.getText(), this.voiceService.getSelectedVoiceString());
+            const seeded = seedVoiceTag(this.textEditor.getText(), this.cast[0]?.name);
             if (seeded.changed) {
                 this.textEditor.replaceText(seeded.text);
             }
+        } else if (!this.voiceService.hasSelectedVoices() && this.cast.length) {
+            // the mixer was emptied into the cast, so hand the default back rather than leaving nothing to speak
+            this.voiceSelector.setMix(this.cast[0].mix);
         }
+
+        this.updateVoiceTagHint();
         this.updateVoiceTagNotice();
+    }
+
+    /**
+     * Moves the staged mix into the cast and empties the mixer, so building the next
+     * voice starts from nothing. Placing it in the text stays a separate click.
+     */
+    commitMix() {
+        const mix = this.voiceService.getSelectedVoiceString();
+        if (!mix) {
+            return;
+        }
+
+        if (this.editing) {
+            this.saveEditedMix(this.editing, mix);
+        } else {
+            this.setCast(addToCast(this.cast, mix, this.voiceService.getAvailableVoices()));
+        }
+
+        this.voiceSelector.setMix('');
+    }
+
+    /** A retuned mix keeps its name, so the tags already in the text still point at it. */
+    saveEditedMix(name, mix) {
+        const member = this.cast.find((entry) => entry.name === name);
+        let cast = updateCastMix(this.cast, name, mix);
+
+        // a member named after a plain voice no longer describes itself once mixed
+        if (member && member.name === member.mix && member.mix !== mix) {
+            const next = defaultCastName(mix, [
+                ...this.cast.map((entry) => entry.name),
+                ...this.voiceService.getAvailableVoices()
+            ]);
+            cast = renameCastMember(cast, name, next);
+            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
+        }
+
+        this.setCast(cast);
+        this.setEditing(null);
+    }
+
+    castMenuAction(action, name) {
+        const member = this.cast.find((entry) => entry.name === name);
+        if (!member) {
+            return;
+        }
+
+        if (action === 'edit') {
+            this.setEditing(name);
+            this.voiceSelector.setMix(member.mix);
+        } else if (action === 'strip') {
+            this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
+            this.updateVoiceTagNotice();
+        } else if (action === 'remove') {
+            if (this.editing === name) {
+                this.setEditing(null);
+                this.voiceSelector.setMix('');
+            }
+            this.setCast(removeFromCast(this.cast, name));
+        }
+    }
+
+    setEditing(name) {
+        this.editing = name;
+        this.voiceSelector.setEditing(name);
+    }
+
+    /**
+     * A short name is only a label for the mix, so the rules are the tag syntax plus
+     * anything that would shadow a real voice or another member.
+     */
+    renameCastMember(name, requested) {
+        const next = String(requested || '').trim();
+        if (next === name) {
+            this.setCast(this.cast);
+            return;
+        }
+
+        const taken = [
+            ...this.cast.filter((entry) => entry.name !== name).map((entry) => entry.name),
+            ...this.voiceService.getAvailableVoices()
+        ];
+
+        if (!CAST_NAME_PATTERN.test(next)) {
+            this.showStatus('A cast name is 1 to 24 letters, numbers, dashes or underscores', 'error');
+            this.setCast(this.cast);
+            return;
+        }
+
+        if (taken.includes(next)) {
+            this.showStatus(`"${next}" is already taken`, 'error');
+            this.setCast(this.cast);
+            return;
+        }
+
+        if (this.editing === name) {
+            this.setEditing(next);
+        }
+        this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
+        this.setCast(renameCastMember(this.cast, name, next));
+    }
+
+    setCast(cast) {
+        this.cast = cast;
+        this.voiceSelector.renderCast(cast);
+        this.updateVoiceTagHint();
+    }
+
+    updateVoiceTagHint() {
+        const hint = this.elements.voiceTagHint;
+        if (!hint) {
+            return;
+        }
+
+        hint.textContent = this.voiceTagsEnabled() ? 'Click tag to insert at cursor' : '';
     }
 
     insertVoiceTag(voice) {
@@ -266,6 +405,14 @@ export class App {
         return Boolean(this.elements.voiceTagsToggle?.checked);
     }
 
+    /**
+     * The voice parameter speaks anything ahead of the first tag, so in tag mode it is
+     * the first cast member rather than whatever happens to be staged in the mixer.
+     */
+    requestVoice() {
+        return (this.voiceTagsEnabled() && this.cast[0]?.name) || this.voiceService.getSelectedVoiceString();
+    }
+
     showStatus(message, type = 'info') {
         this.elements.status.textContent = message;
         this.elements.status.className = 'status ' + type;
@@ -298,7 +445,7 @@ export class App {
             return false;
         }
 
-        if (!this.voiceService.hasSelectedVoices()) {
+        if (!this.requestVoice()) {
             this.showStatus('Please select a voice', 'error');
             return false;
         }
@@ -313,8 +460,7 @@ export class App {
         }
 
         const text = this.textEditor.getText().trim();
-        // still sent with tags on, where it becomes the voice for anything ahead of the first tag
-        const voice = this.voiceService.getSelectedVoiceString();
+        const voice = this.requestVoice();
         const speed = this.playerState.getState().speed;
         const allowVoiceTags = this.voiceTagsEnabled();
 
@@ -341,7 +487,7 @@ export class App {
                 voice,
                 speed,
                 (loaded, total) => this.waveVisualizer.updateProgress(loaded, total),
-                { allowVoiceTags }
+                { allowVoiceTags, voiceAliases: allowVoiceTags ? castAliases(this.cast) : null }
             );
         } catch (error) {
             console.error('Generation error:', error);

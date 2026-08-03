@@ -770,6 +770,109 @@ def test_speech_endpoint_ignores_voice_tags_by_default(mock_tts_service):
 
 
 @pytest.mark.asyncio
+async def test_voice_aliases_stand_in_for_a_mix_in_tags():
+    """A short name keeps the mix out of the text without changing what is spoken"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "af_sky", "am_michael"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:narrator] Once. [voice:villain] Never.",
+        service,
+        allow_voice_tags=True,
+        aliases={"narrator": "af_bella(2)+af_sky", "villain": "am_michael"},
+    )
+    assert result == "[voice:af_bella(2)+af_sky] Once. [voice:am_michael] Never."
+
+
+@pytest.mark.asyncio
+async def test_voice_alias_pointing_at_an_unknown_voice_still_fails():
+    """Aliases are a naming layer, not a way around validation"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_heart"]
+
+    with pytest.raises(ValueError, match="not found"):
+        await process_and_validate_voice_tags(
+            "[voice:narrator] Hello.",
+            service,
+            allow_voice_tags=True,
+            aliases={"narrator": "af_nope"},
+        )
+
+
+@pytest.mark.asyncio
+async def test_unaliased_names_are_left_to_normal_validation():
+    """A tag with no alias behaves exactly as it did before aliases existed"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_heart", "am_michael"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:af_heart] One. [voice:narrator] Two.",
+        service,
+        allow_voice_tags=True,
+        aliases={"narrator": "am_michael"},
+    )
+    assert result == "[voice:af_heart] One. [voice:am_michael] Two."
+
+
+@pytest.mark.asyncio
+async def test_voice_alias_applies_to_the_voice_parameter():
+    """The default speaker can be named too, since it is just another cast member"""
+    from api.src.routers.openai_compatible import process_and_validate_voices
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "af_sky"]
+
+    resolved = await process_and_validate_voices(
+        "narrator", service, {"narrator": "af_bella(2)+af_sky"}
+    )
+    assert resolved == "af_bella(2)+af_sky"
+
+
+def test_speech_endpoint_accepts_voice_aliases(mock_tts_service, mock_audio_bytes):
+    """The alias map travels with the request, so the payload is self contained"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:narrator] Hello. [voice:villain] Never.",
+            "voice": "narrator",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "voice_aliases": {"narrator": "voice1", "villain": "voice2"},
+        },
+    )
+    assert response.status_code == 200
+    kwargs = mock_tts_service.generate_audio.call_args.kwargs
+    assert kwargs["text"] == "[voice:voice1] Hello. [voice:voice2] Never."
+    assert kwargs["voice"] == "voice1"
+
+
+def test_speech_endpoint_rejects_an_alias_to_nowhere(mock_tts_service):
+    """A mistyped alias target is a 400 like any other unknown voice"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:narrator] Hello.",
+            "voice": "voice1",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "voice_aliases": {"narrator": "not_a_voice"},
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+@pytest.mark.asyncio
 async def test_process_and_validate_voice_tags_disabled_skips_validation():
     """With tags off the text is untouched and the voice list is never read"""
     from api.src.routers.openai_compatible import process_and_validate_voice_tags

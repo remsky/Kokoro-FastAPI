@@ -213,10 +213,12 @@ async def create_captioned_speech(
     try:
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
-        voice_name = await process_and_validate_voices(request.voice, tts_service)
+        voice_name = await process_and_validate_voices(
+            request.voice, tts_service, request.voice_aliases
+        )
         # resolved here, not in the generator, so a bad tag 400s before the stream opens
         request.input = await process_and_validate_voice_tags(
-            request.input, tts_service, request.allow_voice_tags
+            request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
 
         # Set content type based on format
