@@ -128,6 +128,33 @@ export function castAliases(cast) {
     }, {});
 }
 
+/**
+ * The cast as the request field it becomes, so a saved file drops straight into a call.
+ * A member standing for its own mix is written out too, since a name meaning itself
+ * resolves to itself and is the only way that chip comes back.
+ */
+export function exportCast(cast) {
+    return {
+        voice_aliases: cast.reduce((aliases, member) => {
+            aliases[member.name] = member.mix;
+            return aliases;
+        }, {})
+    };
+}
+
+/** Anything carrying that field reads back, so a saved request body imports too. */
+export function parseCastFile(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        return [];
+    }
+
+    const aliases = data.voice_aliases && typeof data.voice_aliases === 'object' ? data.voice_aliases : data;
+    return Object.entries(aliases)
+        .filter(([, mix]) => typeof mix === 'string')
+        .map(([name, mix]) => ({ name: String(name).trim(), mix: mix.trim() }))
+        .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
+}
+
 /** Reads a mix string back into voice/weight pairs, so a cast member can return to the mixer. */
 export function parseVoiceMix(mix) {
     return String(mix || '')

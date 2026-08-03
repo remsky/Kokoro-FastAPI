@@ -208,12 +208,6 @@
     opacity: 1;
 }
 
-.voice-tag-hint {
-    color: var(--text-light);
-    font-size: 0.7rem;
-    opacity: 0.75;
-}
-
 .create-tag-btn {
     align-self: flex-end;
     margin-top: -0.15rem;
@@ -257,8 +251,8 @@
 
 .voice-cast-head {
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.3rem;
     margin-bottom: 0.35rem;
 }
 
@@ -268,6 +262,50 @@
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+}
+
+.cast-file-menu {
+    position: relative;
+}
+
+.cast-file-toggle {
+    padding: 0.1rem 0.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-size: 0.95rem;
+    line-height: 1;
+    list-style: none;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cast-file-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.cast-file-toggle:hover,
+.cast-file-menu[open] .cast-file-toggle {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.25);
+    opacity: 1;
+}
+
+.cast-file-panel {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: -0.3rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 7rem;
+    margin-top: 0.25rem;
+    padding: 0.2rem;
+    background: var(--surface, rgba(15, 23, 42, 0.98));
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
 .voice-cast-list {

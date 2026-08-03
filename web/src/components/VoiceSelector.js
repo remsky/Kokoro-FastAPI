@@ -1,3 +1,4 @@
+import { closeOnOutsidePress } from '../dismiss.js';
 import { parseVoiceMix } from '../voiceTags.js';
 
 export class VoiceSelector {
@@ -40,7 +41,6 @@ export class VoiceSelector {
             this.closeCastMenu();
         }
         this.updateCreateTagButton();
-        this.updateSearchPlaceholder();
     }
 
     /** Replaces what is staged in the mixer, so a mix can be cleared or sent back to it. */
@@ -154,11 +154,7 @@ export class VoiceSelector {
             }
         });
 
-        document.addEventListener('mousedown', (e) => {
-            if (!cast.contains(e.target)) {
-                this.closeCastMenu();
-            }
-        });
+        closeOnOutsidePress(cast, () => this.closeCastMenu());
     }
 
     toggleCastMenu(chip, focusFirstItem = false) {
@@ -335,28 +331,13 @@ export class VoiceSelector {
             }
         });
 
-        // Handle clicks outside to close dropdown
-        document.addEventListener('mousedown', (e) => {
-            // Don't handle clicks in selected voices area
-            if (this.elements.selectedVoices.contains(e.target)) {
-                return;
+        closeOnOutsidePress(
+            [this.elements.selectedVoices, this.elements.voiceSearch, this.elements.voiceDropdown],
+            () => {
+                this.elements.voiceDropdown.classList.remove('show');
+                this.elements.voiceSearch.blur();
             }
-            
-            // Don't close if clicking in search or dropdown
-            if (this.elements.voiceSearch.contains(e.target) || 
-                this.elements.voiceDropdown.contains(e.target)) {
-                return;
-            }
-            
-            this.elements.voiceDropdown.classList.remove('show');
-            this.elements.voiceSearch.blur();
-        });
-
-        this.elements.voiceSearch.addEventListener('blur', () => {
-            if (!this.elements.voiceSearch.value) {
-                this.updateSearchPlaceholder();
-            }
-        });
+        );
     }
 
     renderVoiceOptions(voices) {
@@ -391,16 +372,9 @@ export class VoiceSelector {
             `)
             .join('');
 
-        this.updateSearchPlaceholder();
         this.updateCreateTagButton();
     }
 
-    updateSearchPlaceholder() {
-        const hasSelected = this.voiceService.hasSelectedVoices();
-        this.elements.voiceSearch.placeholder = hasSelected ?
-            'Search voices...' :
-            'Search and select voices...';
-    }
 
     updateVoiceOptionState(voice, selected) {
         const voiceOption = this.elements.voiceOptions

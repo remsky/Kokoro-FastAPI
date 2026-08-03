@@ -6,14 +6,18 @@ import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
 import config from './config.js';
+import { closeOnOutsidePress } from './dismiss.js';
 import {
     CAST_NAME_PATTERN,
     addToCast,
     castAliases,
     countVoiceTags,
+    exportCast,
     hasVoiceTagFor,
     insertVoiceTag,
     leadingVoiceTag,
+    parseCastFile,
+    parseVoiceMix,
     removeFromCast,
     removeVoiceTagsFor,
     renameCastMember,
@@ -47,7 +51,11 @@ export class App {
             voiceTagsTab: document.getElementById('voice-tags-tab'),
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
-            removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn')
+            removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn'),
+            castFileMenu: document.getElementById('cast-file-menu'),
+            saveCastBtn: document.getElementById('save-cast-btn'),
+            importCastBtn: document.getElementById('import-cast-btn'),
+            importCastInput: document.getElementById('import-cast-input')
         };
 
         this.initialize();
@@ -116,6 +124,10 @@ export class App {
         this.elements.removeVoiceTagsBtn.addEventListener('click', () => {
             this.textEditor.replaceText(stripVoiceTags(this.textEditor.getText()));
         });
+
+        if (this.elements.castFileMenu) {
+            this.setupCastFileMenu();
+        }
 
         this.setVoiceTagMode(this.tagMode);
     }
@@ -273,6 +285,87 @@ export class App {
     setCast(cast) {
         this.cast = cast;
         this.voiceSelector.renderCast(cast);
+    }
+
+    setupCastFileMenu() {
+        const menu = this.elements.castFileMenu;
+        const close = () => {
+            menu.open = false;
+        };
+
+        this.elements.saveCastBtn.addEventListener('click', () => {
+            close();
+            this.saveCast();
+        });
+        this.elements.importCastBtn.addEventListener('click', () => {
+            close();
+            this.elements.importCastInput.click();
+        });
+        this.elements.importCastInput.addEventListener('change', (e) => {
+            const [file] = e.target.files;
+            // the same file picked twice has to fire again, so the input is emptied either way
+            e.target.value = '';
+            if (file) {
+                this.importCast(file);
+            }
+        });
+
+        menu.addEventListener('toggle', () => {
+            if (menu.open) {
+                this.voiceSelector.closeCastMenu();
+            }
+        });
+        closeOnOutsidePress(menu, close);
+        menu.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                close();
+                menu.querySelector('summary').focus();
+            }
+        });
+    }
+
+    saveCast() {
+        if (!this.cast.length) {
+            this.showStatus('There is no cast to save yet', 'error');
+            return;
+        }
+
+        const blob = new Blob([`${JSON.stringify(exportCast(this.cast), null, 2)}\n`], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        Object.assign(document.createElement('a'), { href: url, download: 'voice-tags.json' }).click();
+        URL.revokeObjectURL(url);
+    }
+
+    /** Imports join the cast rather than replace it, and a mix this server cannot speak is dropped rather than left to 400. */
+    async importCast(file) {
+        let members = [];
+        try {
+            members = parseCastFile(JSON.parse(await file.text()));
+        } catch {
+            this.showStatus('That file is not readable JSON', 'error');
+            return;
+        }
+
+        const available = this.voiceService.getAvailableVoices();
+        let cast = this.cast;
+        for (const { name, mix } of members) {
+            const known = parseVoiceMix(mix).every(({ voice }) => available.includes(voice));
+            const taken = cast.some((entry) => entry.name === name || entry.mix === mix)
+                || (name !== mix && available.includes(name));
+            if (known && !taken) {
+                cast = [...cast, { name, mix }];
+            }
+        }
+
+        const added = cast.length - this.cast.length;
+        if (!added) {
+            this.showStatus('Nothing in that file could join the cast', 'error');
+            return;
+        }
+
+        const skipped = members.length - added;
+        this.setCast(cast);
+        this.showStatus(`Added ${added} to the cast${skipped ? `, skipped ${skipped}` : ''}`, 'success');
     }
 
     insertVoiceTag(voice) {

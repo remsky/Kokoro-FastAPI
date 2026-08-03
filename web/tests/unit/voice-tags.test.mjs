@@ -5,11 +5,13 @@ import {
     addToCast,
     castAliases,
     countVoiceTags,
+    exportCast,
     formatVoiceTag,
     hasVoiceTagFor,
     hasVoiceTags,
     insertVoiceTag,
     leadingVoiceTag,
+    parseCastFile,
     parseVoiceMix,
     removeFromCast,
     removeVoiceTagsFor,
@@ -180,6 +182,34 @@ test('resetting an alias is a rename back to the mix, so nothing is left to defi
     const reset = renameCastMember(cast, 'narrator', 'am_michael(2)');
     assert.deepEqual(reset.map((m) => m.name), ['af_bella', 'am_michael(2)']);
     assert.deepEqual(castAliases(reset), {});
+});
+
+test('the cast saves as the alias map a request carries', () => {
+    const cast = [
+        { name: 'af_bella', mix: 'af_bella' },
+        { name: 'narrator', mix: 'am_michael(2)+af_sky(1)' }
+    ];
+    assert.deepEqual(exportCast(cast), {
+        voice_aliases: { af_bella: 'af_bella', narrator: 'am_michael(2)+af_sky(1)' }
+    });
+    assert.deepEqual(exportCast([]), { voice_aliases: {} });
+});
+
+test('a saved cast reads back out of a whole request body just as well', () => {
+    const saved = exportCast([{ name: 'narrator', mix: 'am_michael(2)' }]);
+    const member = [{ name: 'narrator', mix: 'am_michael(2)' }];
+
+    assert.deepEqual(parseCastFile(saved), member);
+    assert.deepEqual(parseCastFile({ input: 'Hello.', allow_voice_tags: true, ...saved }), member);
+    assert.deepEqual(parseCastFile({ narrator: 'am_michael(2)' }), member);
+});
+
+test('an entry that could never be a tag is left out of the import', () => {
+    assert.deepEqual(parseCastFile({ voice_aliases: { 'not a name': 'af_bella' } }), []);
+    assert.deepEqual(parseCastFile({ voice_aliases: { narrator: '  ' } }), []);
+    assert.deepEqual(parseCastFile({ voice_aliases: { narrator: 12 } }), []);
+    assert.deepEqual(parseCastFile(['narrator']), []);
+    assert.deepEqual(parseCastFile(null), []);
 });
 
 test('only names that stand for something else are sent as aliases', () => {

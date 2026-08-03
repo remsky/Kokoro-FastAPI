@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+
 import { expect, test } from '@playwright/test';
 
 // editor and selector behaviour only, so nothing here asks the server to render
@@ -184,6 +186,41 @@ test('a chip leaves the cast once nothing in the text speaks with it', async ({ 
     await page.locator('.cast-menu-item[data-action="remove"]').click();
     await expect(castNames(page)).toHaveCount(0);
     await expect(editor(page)).toHaveValue('First line.');
+});
+
+test('the cast saves as a map the API takes, and joins the cast already there on the way back', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+    const seeded = (await castNames(page).first().textContent()).trim();
+
+    await page.locator('#voice-search').click();
+    const other = page.locator('.voice-option').nth(2);
+    const mix = (await other.textContent()).trim();
+    await other.click();
+    await editor(page).click();
+    await page.locator('#create-tag-btn').click();
+
+    await page.locator(`.cast-member[data-mix="${mix}"] .cast-menu-btn`).click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill('narrator');
+    await page.locator('.cast-rename-input').press('Enter');
+
+    await page.locator('#cast-file-menu summary').click();
+    const [download] = await Promise.all([
+        page.waitForEvent('download'),
+        page.locator('#save-cast-btn').click()
+    ]);
+    const file = await download.path();
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({ voice_aliases: { [seeded]: seeded, narrator: mix } });
+
+    await page.reload();
+    await expect(page.locator('.selected-voice-tag').first()).toBeVisible({ timeout: 15_000 });
+    await tagsTab(page).click();
+    await expect(castNames(page)).toHaveText([seeded]);
+
+    await page.locator('#import-cast-input').setInputFiles(file);
+    await expect(castNames(page)).toHaveText([seeded, 'narrator']);
+    await expect(page.locator('#status')).toHaveText('Added 1 to the cast, skipped 1');
 });
 
 test('a cast member can be renamed, and the tags follow', async ({ page }) => {

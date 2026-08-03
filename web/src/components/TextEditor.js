@@ -97,19 +97,8 @@ export default class TextEditor {
         });
 
         // Navigation
-        this.elements.prevBtn.addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.updatePageDisplay();
-            }
-        });
-
-        this.elements.nextBtn.addEventListener('click', () => {
-            if (this.currentPage < this.pages.length) {
-                this.currentPage++;
-                this.updatePageDisplay();
-            }
-        });
+        this.elements.prevBtn.addEventListener('click', () => this.prevPage());
+        this.elements.nextBtn.addEventListener('click', () => this.nextPage());
 
         // File upload
         this.elements.uploadBtn.addEventListener('click', () => {

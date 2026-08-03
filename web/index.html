@@ -92,7 +92,14 @@
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
                             <span class="voice-cast-title">Cast</span>
-                            <span class="voice-tag-hint">Click to insert at cursor</span>
+                            <details id="cast-file-menu" class="cast-file-menu">
+                                <summary class="cast-file-toggle" title="Save or load the cast" aria-label="Cast file options">▾</summary>
+                                <div class="cast-file-panel">
+                                    <button type="button" id="save-cast-btn" class="cast-menu-item">Save tags</button>
+                                    <button type="button" id="import-cast-btn" class="cast-menu-item">Import tags</button>
+                                </div>
+                            </details>
+                            <input type="file" id="import-cast-input" accept="application/json,.json" hidden>
                         </div>
                         <div id="voice-cast-list" class="voice-cast-list"></div>
                         <div id="cast-menu" class="cast-menu" role="menu" hidden>
