@@ -32,6 +32,11 @@ class FakeElement {
         this.value = 0;
         this.textContent = '';
         this.dragging = false;
+        this.attributes = new Map();
+    }
+
+    setAttribute(name, value) {
+        this.attributes.set(name, value);
     }
 
     addEventListener(event, callback) {
@@ -108,6 +113,30 @@ test('PlayerControls enables playback when audio readiness fires without duratio
 
     assert.equal(playPauseBtn.disabled, false);
     assert.equal(seekSlider.disabled, true);
+
+    controls.cleanup();
+});
+
+test('PlayerControls swaps the play/pause icon and its label', async () => {
+    const elements = setupDocument();
+    const { PlayerState } = await import('../../src/state/PlayerState.js');
+    const { PlayerControls } = await import('../../src/components/PlayerControls.js');
+
+    const audioService = new FakeAudioService();
+    const controls = new PlayerControls(audioService, new PlayerState());
+    const playPauseBtn = elements.get('play-pause-btn');
+
+    audioService.emit('play');
+    assert.equal(playPauseBtn.classList.classes.has('playing'), true);
+    assert.equal(playPauseBtn.attributes.get('aria-label'), 'Pause');
+
+    audioService.emit('pause');
+    assert.equal(playPauseBtn.classList.classes.has('playing'), false);
+    assert.equal(playPauseBtn.attributes.get('aria-label'), 'Play');
+
+    audioService.emit('play');
+    audioService.emit('ended');
+    assert.equal(playPauseBtn.classList.classes.has('playing'), false);
 
     controls.cleanup();
 });

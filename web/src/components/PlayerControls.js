@@ -124,21 +124,29 @@ export class PlayerControls {
         });
     }
 
+    // css picks the glyph off .playing, the label is all that changes here
+    setPlayIcon(playing) {
+        const btn = this.elements.playPauseBtn;
+        btn.classList.toggle('playing', playing);
+        btn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
+        btn.setAttribute('title', playing ? 'Pause' : 'Play');
+    }
+
     setupAudioEvents() {
         this.audioService.addEventListener('play', () => {
-            this.elements.playPauseBtn.textContent = 'Pause';
+            this.setPlayIcon(true);
             this.playerState.setPlaying(true);
             this.startTimeUpdate();
         });
 
         this.audioService.addEventListener('pause', () => {
-            this.elements.playPauseBtn.textContent = 'Play';
+            this.setPlayIcon(false);
             this.playerState.setPlaying(false);
             this.stopTimeUpdate();
         });
 
         this.audioService.addEventListener('ended', () => {
-            this.elements.playPauseBtn.textContent = 'Play';
+            this.setPlayIcon(false);
             this.playerState.setPlaying(false);
             this.stopTimeUpdate();
         });
@@ -182,7 +190,7 @@ export class PlayerControls {
             this.playerState.reset();
         }
         // Reset UI elements
-        this.elements.playPauseBtn.textContent = 'Play';
+        this.setPlayIcon(false);
         this.elements.playPauseBtn.disabled = true;
         this.elements.seekSlider.value = 0;
         this.elements.seekSlider.disabled = true;

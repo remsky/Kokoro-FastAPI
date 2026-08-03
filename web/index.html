@@ -155,7 +155,14 @@
     <footer class="player-dock">
         <div id="wave-container" class="wave-container"></div>
         <div class="player-controls">
-            <button id="play-pause-btn" class="player-btn">Play</button>
+            <button id="play-pause-btn" class="player-btn" aria-label="Play" title="Play">
+                <svg class="icon-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="currentColor" d="M8 5.14v13.72L19 12z"/>
+                </svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="currentColor" d="M6.5 5h3.5v14H6.5zM14 5h3.5v14H14z"/>
+                </svg>
+            </button>
             <label class="autoplay-toggle">
                 <input type="checkbox" id="autoplay-toggle" aria-label="Auto-play" checked>
                 <span class="autoplay-text">Auto</span>

@@ -202,7 +202,6 @@
 
 .editor-status-row .char-count {
     margin-right: auto;
-    /* match the button text inset above (1px border + 0.9rem padding) */
     padding-left: calc(0.9rem + 1px);
 }
 
@@ -223,5 +222,13 @@
 
     .chars-per-page {
         justify-content: center;
+    }
+
+    .editor-footer > .char-count {
+        font-size: 0.75rem;
+    }
+
+    .editor-status-row:not(:has(:not([hidden]))) {
+        display: none;
     }
 }

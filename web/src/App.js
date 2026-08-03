@@ -72,6 +72,9 @@ export class App {
             }
         });
 
+        // after the editor renders, its footer is one of the relocation targets
+        this.setupNarrowLayout();
+
         // Initialize voice selector
         const voicesLoaded = await this.voiceSelector.initialize();
         if (!voicesLoaded) {
@@ -272,6 +275,37 @@ export class App {
             count.hidden = false;
         } catch (_) {
             // leave hidden on failure
+        }
+    }
+
+    // swaps a node between two homes at the narrow breakpoint, a null anchor appends
+    relocateOnNarrow(node, narrowHome, wideHome) {
+        const query = window.matchMedia('(max-width: 900px)');
+        const place = () => {
+            const [parent, anchor] = query.matches ? narrowHome : wideHome;
+            if (node.parentElement !== parent) parent.insertBefore(node, anchor ?? null);
+        };
+
+        place();
+        query.addEventListener('change', place);
+    }
+
+    setupNarrowLayout() {
+        const card = document.querySelector('.generate-card');
+        const sidePane = document.querySelector('.side-pane');
+        const dock = document.querySelector('.player-dock');
+        const controls = dock?.querySelector('.player-controls');
+        if (card && sidePane && controls) {
+            // generate rides with the transport, where the eye already is
+            this.relocateOnNarrow(card, [dock, controls], [sidePane, null]);
+        }
+
+        const count = this.elements.charCount;
+        const statusRow = document.querySelector('.editor-status-row');
+        const footer = document.querySelector('.editor-footer');
+        if (count && statusRow && footer) {
+            // counter tucks in beside Format rather than taking a row of its own
+            this.relocateOnNarrow(count, [footer, null], [statusRow, this.elements.streamingNotice]);
         }
     }
 
