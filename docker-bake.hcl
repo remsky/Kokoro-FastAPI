@@ -115,6 +115,21 @@ target "_rocm_base" {
     ]
 }
 
+# Base settings for Intel builds
+target "_intel_base" {
+    inherits = ["_common"]
+    dockerfile = "docker/intel/Dockerfile"
+    labels = {
+        "org.opencontainers.image.title"       = "Kokoro-FastAPI (Intel)"
+        "org.opencontainers.image.description" = "Kokoro TTS served via FastAPI. Intel GPU build (amd64 only)."
+    }
+    annotations = [
+        "org.opencontainers.image.title=Kokoro-FastAPI (Intel)",
+        "org.opencontainers.image.description=Kokoro TTS served via FastAPI. Intel GPU build (amd64 only).",
+    ]
+}
+
+
 
 # Individual platform targets for debugging/testing
 target "cpu-amd64" {
@@ -183,6 +198,15 @@ target "rocm-amd64" {
     ]
 }
 
+# Intel only supports x86
+target "intel-amd64" {
+    inherits = ["_intel_base"]
+    platforms = ["linux/amd64"]
+    tags = [
+        "${REGISTRY}/${OWNER}/${REPO}-intel:${VERSION}-amd64"
+    ]
+}
+
 # Development targets for faster local builds
 target "cpu-dev" {
     inherits = ["_cpu_base"]
@@ -223,10 +247,14 @@ group "rocm-all" {
     targets = ["rocm-amd64"]
 }
 
+group "intel-all" {
+    targets = ["intel-amd64"]
+}
+
 group "all" {
-    targets = ["cpu", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64"]
+    targets = ["cpu", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64", "intel-amd64"]
 }
 
 group "individual-platforms" {
-    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64"]
+    targets = ["cpu-amd64", "cpu-arm64", "gpu-amd64", "gpu-arm64", "gpu-cu128-amd64", "rocm-amd64", "intel-amd64"]
 }

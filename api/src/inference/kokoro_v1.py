@@ -138,6 +138,8 @@ class KokoroV1(BaseModelBackend):
                 self._model = self._model.to(torch.device("mps"))
             elif self._device == "cuda":
                 self._model = self._model.cuda()
+            elif self._device == "xpu":
+                self._model = self._model.to("xpu")
             else:
                 self._model = self._model.cpu()
 
@@ -436,6 +438,12 @@ class KokoroV1(BaseModelBackend):
         if self._device == "cuda":
             memory_gb = torch.cuda.memory_allocated() / 1e9
             return memory_gb > model_config.pytorch_gpu.memory_threshold
+        elif self._device == "xpu":
+            try:
+                memory_gb = torch.xpu.memory_allocated() / 1e9
+                return memory_gb > model_config.pytorch_gpu.memory_threshold
+            except (RuntimeError, AttributeError):
+                pass
         # MPS doesn't provide memory management APIs
         return False
 
@@ -448,6 +456,12 @@ class KokoroV1(BaseModelBackend):
             # Empty cache if available (future-proofing)
             if hasattr(torch.mps, "empty_cache"):
                 torch.mps.empty_cache()
+        elif self._device == "xpu":
+            try:
+                torch.xpu.empty_cache()
+                torch.xpu.synchronize()
+            except (RuntimeError, AttributeError):
+                pass
 
     def unload(self) -> None:
         """Unload model and free resources."""
@@ -461,6 +475,12 @@ class KokoroV1(BaseModelBackend):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+        try:
+            if hasattr(torch, "xpu") and torch.xpu.is_available():
+                torch.xpu.empty_cache()
+                torch.xpu.synchronize()
+        except Exception:
+            pass
 
     @property
     def is_loaded(self) -> bool:
