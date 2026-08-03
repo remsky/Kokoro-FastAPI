@@ -1,14 +1,28 @@
 export class VoiceSelector {
     constructor(voiceService) {
         this.voiceService = voiceService;
+        this.tagMode = false;
+        this.onInsertTag = null;
         this.elements = {
             voiceSearch: document.getElementById('voice-search'),
             voiceDropdown: document.getElementById('voice-dropdown'),
             voiceOptions: document.getElementById('voice-options'),
             selectedVoices: document.getElementById('selected-voices')
         };
-        
+
         this.setupEventListeners();
+    }
+
+    /**
+     * In tag mode the list becomes a cast to insert from, so a click writes a tag
+     * instead of changing the selection. The selection stays live either way: it is
+     * still the voice for anything ahead of the first tag.
+     */
+    setTagMode(enabled, onInsertTag = null) {
+        this.tagMode = enabled;
+        this.onInsertTag = onInsertTag;
+        this.elements.selectedVoices.classList.toggle('as-cast', enabled);
+        this.updateSearchPlaceholder();
     }
 
     setupEventListeners() {
@@ -32,7 +46,14 @@ export class VoiceSelector {
             
             const voice = voiceOption.dataset.voice;
             if (!voice) return;
-            
+
+            if (this.tagMode) {
+                // hand focus to the editor where the tag just landed
+                this.elements.voiceDropdown.classList.remove('show');
+                this.onInsertTag?.(voice);
+                return;
+            }
+
             const isSelected = voiceOption.classList.contains('selected');
             
             if (!isSelected) {
@@ -136,9 +157,14 @@ export class VoiceSelector {
     }
 
     updateSearchPlaceholder() {
+        if (this.tagMode) {
+            this.elements.voiceSearch.placeholder = 'Search voices to insert...';
+            return;
+        }
+
         const hasSelected = this.voiceService.hasSelectedVoices();
-        this.elements.voiceSearch.placeholder = hasSelected ? 
-            'Search voices...' : 
+        this.elements.voiceSearch.placeholder = hasSelected ?
+            'Search voices...' :
             'Search and select voices...';
     }
 

@@ -212,6 +212,37 @@ export default class TextEditor {
         this.updatePageDisplay();
     }
 
+    getPageText() {
+        return this.pages[this.currentPage - 1] || '';
+    }
+
+    getCursor() {
+        return this.elements.pageContent.selectionStart ?? this.getPageText().length;
+    }
+
+    /** Writes the visible page back, keeping pages, fullText and the caret in step. */
+    setPageText(text, cursor = null) {
+        this.pages[this.currentPage - 1] = text;
+        this.fullText = this.pages.join(' ');
+        this.elements.pageContent.value = text;
+
+        if (cursor !== null) {
+            this.elements.pageContent.focus();
+            this.elements.pageContent.setSelectionRange(cursor, cursor);
+        }
+        this.options.onTextChange?.(this.fullText);
+    }
+
+    /** Rewrites the whole document, keeping whichever page split is in use. */
+    replaceText(text) {
+        if (this.pages.length > 1) {
+            this.splitIntoPages(text);
+        } else {
+            this.setText(text);
+        }
+        this.options.onTextChange?.(this.fullText);
+    }
+
     updatePageDisplay() {
         this.elements.pageContent.value = this.pages[this.currentPage - 1] || '';
         this.elements.pageInfo.textContent = `Page ${this.currentPage} of ${this.pages.length}`;

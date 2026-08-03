@@ -207,3 +207,71 @@
 .remove-voice:hover {
     opacity: 1;
 }
+
+.voice-tag-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.voice-tag-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    color: var(--text-light);
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.voice-tag-toggle input {
+    accent-color: var(--fg-color);
+    cursor: pointer;
+    margin: 0;
+}
+
+.voice-tag-hint {
+    color: var(--text-light);
+    font-size: 0.75rem;
+    opacity: 0.75;
+}
+
+/* the mix still speaks anything ahead of the first tag, so it dims rather than disables */
+.selected-voices.as-cast {
+    opacity: 0.6;
+}
+
+.voice-tag-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 0.4rem;
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--text-light);
+    font-size: 0.75rem;
+}
+
+.voice-tag-notice[hidden] {
+    display: none;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--fg-color);
+    font: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.link-btn:hover {
+    color: var(--text);
+}

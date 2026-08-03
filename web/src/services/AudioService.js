@@ -70,7 +70,7 @@ export class AudioService {
         });
     }
 
-    async streamAudio(text, voice, speed, onProgress) {
+    async streamAudio(text, voice, speed, onProgress, options = {}) {
         try {
             const canStreamMp3 = this.supportsMSEMp3();
             console.log('AudioService: Starting stream...', { chars: text.length, voice, speed, canStreamMp3 });
@@ -103,7 +103,8 @@ export class AudioService {
                     stream: true,
                     speed: speed,
                     return_download_link: true,
-                    lang_code: document.getElementById('lang-select').value || undefined
+                    lang_code: document.getElementById('lang-select').value || undefined,
+                    allow_voice_tags: options.allowVoiceTags || undefined
                 }),
                 signal: this.controller.signal
             }).catch(error => {

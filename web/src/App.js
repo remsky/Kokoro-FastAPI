@@ -6,6 +6,7 @@ import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
 import config from './config.js';
+import { countVoiceTags, insertVoiceTag, seedVoiceTag, stripVoiceTags } from './voiceTags.js';
 
 export class App {
     constructor() {
@@ -20,7 +21,12 @@ export class App {
             cancelBtn: document.getElementById('cancel-btn'),
             streamingNotice: document.getElementById('streaming-notice'),
             charCount: document.getElementById('char-count'),
-            cup: document.querySelector('.logo-container .cup')
+            cup: document.querySelector('.logo-container .cup'),
+            voiceTagsToggle: document.getElementById('voice-tags-toggle'),
+            voiceTagHint: document.getElementById('voice-tag-hint'),
+            voiceTagNotice: document.getElementById('voice-tag-notice'),
+            voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
+            removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn')
         };
 
         this.initialize();
@@ -46,6 +52,7 @@ export class App {
             linesPerPage: 20,
             onTextChange: (text) => {
                 this.elements.charCount.textContent = `${text.length} characters`;
+                this.updateVoiceTagNotice();
             }
         });
 
@@ -59,7 +66,59 @@ export class App {
 
         this.setupEventListeners();
         this.setupAudioEvents();
+        this.setupVoiceTags();
         this.applyBrowserStreamingNotice();
+    }
+
+    setupVoiceTags() {
+        const toggle = this.elements.voiceTagsToggle;
+        if (!toggle) {
+            return;
+        }
+
+        toggle.addEventListener('change', () => this.setVoiceTagMode(toggle.checked));
+        this.elements.removeVoiceTagsBtn.addEventListener('click', () => {
+            this.textEditor.replaceText(stripVoiceTags(this.textEditor.getText()));
+        });
+
+        this.setVoiceTagMode(toggle.checked);
+    }
+
+    setVoiceTagMode(enabled) {
+        this.voiceSelector.setTagMode(enabled, (voice) => this.insertVoiceTag(voice));
+        this.elements.voiceTagHint.textContent = enabled
+            ? 'Click a voice to insert it at the cursor.'
+            : '';
+
+        if (enabled) {
+            // the seeded tag is the whole explanation of the syntax
+            const seeded = seedVoiceTag(this.textEditor.getText(), this.voiceService.getSelectedVoiceString());
+            if (seeded.changed) {
+                this.textEditor.replaceText(seeded.text);
+            }
+        }
+        this.updateVoiceTagNotice();
+    }
+
+    insertVoiceTag(voice) {
+        const { text, cursor } = insertVoiceTag(this.textEditor.getPageText(), this.textEditor.getCursor(), voice);
+        this.textEditor.setPageText(text, cursor);
+    }
+
+    /**
+     * Tags left in the text with the toggle off are sent as prose and read aloud,
+     * so the count is offered with a way out rather than a warning to act on.
+     */
+    updateVoiceTagNotice() {
+        const notice = this.elements.voiceTagNotice;
+        if (!notice) {
+            return;
+        }
+
+        const count = countVoiceTags(this.textEditor.getText());
+        notice.hidden = count === 0 || this.elements.voiceTagsToggle.checked;
+        this.elements.voiceTagNoticeText.textContent =
+            `${count} voice ${count === 1 ? 'tag' : 'tags'} will be read aloud.`;
     }
 
     async renderStarBadge() {
@@ -203,6 +262,10 @@ export class App {
         });
     }
 
+    voiceTagsEnabled() {
+        return Boolean(this.elements.voiceTagsToggle?.checked);
+    }
+
     showStatus(message, type = 'info') {
         this.elements.status.textContent = message;
         this.elements.status.className = 'status ' + type;
@@ -228,11 +291,13 @@ export class App {
 
     validateInput() {
         const text = this.textEditor.getText().trim();
-        if (!text) {
+        // a seeded tag on its own is not something to speak
+        const spoken = this.voiceTagsEnabled() ? stripVoiceTags(text).trim() : text;
+        if (!spoken) {
             this.showStatus('Please enter some text', 'error');
             return false;
         }
-        
+
         if (!this.voiceService.hasSelectedVoices()) {
             this.showStatus('Please select a voice', 'error');
             return false;
@@ -248,8 +313,10 @@ export class App {
         }
 
         const text = this.textEditor.getText().trim();
+        // still sent with tags on, where it becomes the voice for anything ahead of the first tag
         const voice = this.voiceService.getSelectedVoiceString();
         const speed = this.playerState.getState().speed;
+        const allowVoiceTags = this.voiceTagsEnabled();
 
         this.playerState.setReady(false);
         this.playerState.setPlaying(false);
@@ -273,7 +340,8 @@ export class App {
                 text,
                 voice,
                 speed,
-                (loaded, total) => this.waveVisualizer.updateProgress(loaded, total)
+                (loaded, total) => this.waveVisualizer.updateProgress(loaded, total),
+                { allowVoiceTags }
             );
         } catch (error) {
             console.error('Generation error:', error);
