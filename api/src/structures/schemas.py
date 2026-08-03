@@ -1,17 +1,8 @@
 from email.policy import default
 from enum import Enum
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional
 
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field
-
-
-class VoiceCombineRequest(BaseModel):
-    """Request schema for voice combination endpoint that accepts either a string with + or a list"""
-
-    voices: Union[str, List[str]] = Field(
-        ...,
-        description="Either a string with voices separated by + (e.g. 'voice1+voice2') or a list of voice names to combine",
-    )
 
 
 class TTSStatus(str, Enum):

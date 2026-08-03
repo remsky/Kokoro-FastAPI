@@ -11,6 +11,9 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Optional `voice_aliases` map on `/v1/audio/speech` and `/dev/captioned_speech`, so a short name can stand in for a weighted mix in the `voice` field and in tags (`{"narrator": "af_bella(2)+af_sky"}`). Resolved before validation, so an alias to an unknown voice is still a 400.
 - `/dev/captioned_speech` timestamps carry the `voice` that spoke each word when `allow_voice_tags` is on, so multi-speaker captions can be labelled without re-deriving the split client side. `null` otherwise, leaving existing responses unchanged.
 
+### Changed
+- Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.
+
 ### Fixed
 - Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
 - Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.

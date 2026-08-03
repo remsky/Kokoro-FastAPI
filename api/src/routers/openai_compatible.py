@@ -90,29 +90,26 @@ def resolve_voice_alias(voice: str, aliases: Optional[Dict[str, str]] = None) ->
 
 
 async def process_and_validate_voices(
-    voice_input: Union[str, List[str]],
+    voice_input: str,
     tts_service: TTSService,
     aliases: Optional[Dict[str, str]] = None,
 ) -> str:
-    """Process voice input, handling both string and list formats
+    """Process a voice string, resolving any alias and validating every voice in the combination
 
     Returns:
         Voice name to use (with weights if specified)
     """
-    voices = []
-    # Convert input to list of voices
-    if isinstance(voice_input, str):
-        voice_input = resolve_voice_alias(voice_input, aliases)
-        voice_input = voice_input.replace(" ", "").strip()
+    voice_input = resolve_voice_alias(voice_input, aliases)
+    voice_input = voice_input.replace(" ", "").strip()
 
-        if voice_input[-1] in "+-" or voice_input[0] in "+-":
-            raise ValueError(f"Voice combination contains empty combine items")
+    if voice_input[-1] in "+-" or voice_input[0] in "+-":
+        raise ValueError(f"Voice combination contains empty combine items")
 
-        if re.search(r"[+-]{2,}", voice_input) is not None:
-            raise ValueError(f"Voice combination contains empty combine items")
-        voices = re.split(r"([-+])", voice_input)
-    else:
-        voices = [[item, "+"] for item in voice_input][:-1]
+    if re.search(r"[+-]{2,}", voice_input) is not None:
+        raise ValueError(f"Voice combination contains empty combine items")
+
+    # separators are kept, so the loop below steps past them to the voices
+    voices = re.split(r"([-+])", voice_input)
 
     available_voices = await tts_service.list_voices()
 
