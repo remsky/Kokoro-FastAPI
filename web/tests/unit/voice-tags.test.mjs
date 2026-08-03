@@ -5,10 +5,10 @@ import {
     addToCast,
     castAliases,
     countVoiceTags,
-    defaultCastName,
     formatVoiceTag,
     hasVoiceTags,
     insertVoiceTag,
+    leadingVoiceTag,
     parseVoiceMix,
     removeFromCast,
     removeVoiceTagsFor,
@@ -30,6 +30,17 @@ test('tags are counted wherever they sit in the text', () => {
     assert.equal(countVoiceTags(text), 3);
     assert.equal(hasVoiceTags(text), true);
     assert.equal(hasVoiceTags('no tags at all'), false);
+});
+
+test('the leading tag is the one the request speaks with', () => {
+    assert.equal(leadingVoiceTag('[voice:af_bella] Hello.'), 'af_bella');
+    assert.equal(leadingVoiceTag('\n  [voice:af_bella(2)+af_sky(1)] Hello.'), 'af_bella(2)+af_sky(1)');
+});
+
+test('a tag that is not at the front does not lead', () => {
+    assert.equal(leadingVoiceTag('Hello. [voice:af_bella] There.'), '');
+    assert.equal(leadingVoiceTag('Hello there.'), '');
+    assert.equal(leadingVoiceTag(''), '');
 });
 
 test('a bracket that is not a voice tag is left alone', () => {
@@ -121,14 +132,19 @@ test('the cast keeps insertion order and refuses the same mix twice', () => {
 
     assert.deepEqual(cast, [
         { name: 'af_bella', mix: 'af_bella' },
-        { name: 'michael', mix: 'am_michael(2)+af_sky(1)' }
+        { name: 'am_michael(2)+af_sky(1)', mix: 'am_michael(2)+af_sky(1)' }
     ]);
+});
+
+test('a new member invents no name, so there is nothing to define', () => {
+    const cast = addToCast([], 'am_michael(2)+af_sky(1)');
+    assert.deepEqual(castAliases(cast), {});
 });
 
 test('the same voice at a different weight is a different cast member', () => {
     const cast = addToCast(addToCast([], 'af_bella'), 'af_bella(2)');
     assert.deepEqual(cast.map((m) => m.mix), ['af_bella', 'af_bella(2)']);
-    assert.deepEqual(cast.map((m) => m.name), ['af_bella', 'bella']);
+    assert.deepEqual(cast.map((m) => m.name), ['af_bella', 'af_bella(2)']);
 });
 
 test('an empty mix never reaches the cast', () => {
@@ -144,19 +160,6 @@ test('removing a cast member leaves the rest in order', () => {
     ];
     assert.deepEqual(removeFromCast(cast, 'narrator').map((m) => m.name), ['af_bella', 'af_sky']);
     assert.deepEqual(removeFromCast(cast, 'not_there'), cast);
-});
-
-test('a plain voice names itself, a mix is named after its loudest member', () => {
-    assert.equal(defaultCastName('af_bella'), 'af_bella');
-    assert.equal(defaultCastName('af_bella(2)+am_michael(1)'), 'bella');
-    assert.equal(defaultCastName('af_bella(1)+am_michael(3)'), 'michael');
-    // a weight of its own is still a recipe, so it earns a short name
-    assert.equal(defaultCastName('af_bella(2)'), 'bella');
-});
-
-test('a short name that is already spoken for takes a number', () => {
-    assert.equal(defaultCastName('af_bella(2)+af_sky', ['bella']), 'bella2');
-    assert.equal(defaultCastName('af_bella(2)+af_sky', ['bella', 'bella2']), 'bella3');
 });
 
 test('only names that stand for something else are sent as aliases', () => {

@@ -14,18 +14,19 @@ test.beforeEach(async ({ page }) => {
 });
 
 const editor = (page) => page.locator('.page-content');
-const toggle = (page) => page.locator('#voice-tags-toggle');
+const tagsTab = (page) => page.locator('#voice-tags-tab');
+const voicesTab = (page) => page.locator('#voices-tab');
 const castNames = (page) => page.locator('.cast-member .cast-name');
 
-test('the toggle is off until asked for, and seeds from the mixer', async ({ page }) => {
-    await expect(toggle(page)).not.toBeChecked();
+test('the tag tab is off until asked for, and seeds from the mixer', async ({ page }) => {
+    await expect(voicesTab(page)).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#voice-cast')).toBeHidden();
     await expect(page.locator('#create-tag-btn')).toBeHidden();
     await expect(page.locator('#voice-tag-notice')).toBeHidden();
 
     const voice = (await page.locator('.selected-voice-tag .voice-name').first().textContent()).trim();
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     await expect(editor(page)).toHaveValue(`[voice:${voice}] Hello there.`);
     // the staged mix moved into the cast, leaving the mixer free for the next voice
@@ -33,40 +34,40 @@ test('the toggle is off until asked for, and seeds from the mixer', async ({ pag
     await expect(page.locator('.selected-voice-tag')).toHaveCount(0);
 });
 
-test('a weighted mix becomes one cast member under a short name', async ({ page }) => {
+test('a weighted mix becomes one cast member that stands for itself', async ({ page }) => {
     await page.locator('#voice-search').click();
     await page.locator('.voice-option').nth(1).click();
     await expect(page.locator('.selected-voice-tag')).toHaveCount(2);
 
-    // fill() alone leaves the dropdown open over the toggle
+    // fill() alone leaves the dropdown open over the tabs
     await editor(page).click();
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
-    // the recipe stays on the chip, the text only carries the name
+    // no name is invented, so the tag is the recipe itself
     const name = (await castNames(page).first().textContent()).trim();
-    expect(name).toMatch(/^[a-z]+\d*$/);
+    expect(name).toMatch(/^\w+\(1\)\+\w+\(1\)$/);
     await expect(editor(page)).toHaveValue(`[voice:${name}] Hello there.`);
-    await expect(page.locator('.cast-member').first()).toHaveAttribute('data-mix', /^\w+\(1\)\+\w+\(1\)$/);
+    await expect(page.locator('.cast-member').first()).toHaveAttribute('data-mix', name);
 });
 
-test('seeding happens once, not on every toggle', async ({ page }) => {
+test('seeding happens once, not on every switch', async ({ page }) => {
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     const seeded = await editor(page).inputValue();
 
-    await toggle(page).uncheck();
+    await voicesTab(page).click();
     // the default returns to the mixer, so there is still a voice to speak with
     await expect(page.locator('.selected-voice-tag')).toHaveCount(1);
 
-    await toggle(page).check();
+    await tagsTab(page).click();
     await expect(editor(page)).toHaveValue(seeded);
     await expect(castNames(page)).toHaveCount(1);
 });
 
 test('the mixer keeps mixing in tag mode rather than inserting on click', async ({ page }) => {
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     const seeded = await editor(page).inputValue();
 
     await page.locator('#voice-search').click();
@@ -81,7 +82,7 @@ test('the mixer keeps mixing in tag mode rather than inserting on click', async 
 
 test('creating a tag stages the mix without touching the text', async ({ page }) => {
     await editor(page).fill('First line. Second line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     const seeded = await editor(page).inputValue();
 
     await page.locator('#voice-search').click();
@@ -100,7 +101,7 @@ test('creating a tag stages the mix without touching the text', async ({ page })
 
 test('a created tag is placed at the caret when its chip is clicked', async ({ page }) => {
     await editor(page).fill('First line. Second line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     const seeded = await editor(page).inputValue();
 
     await page.locator('#voice-search').click();
@@ -123,7 +124,7 @@ test('a created tag is placed at the caret when its chip is clicked', async ({ p
 
 test('a cast voice is placed again and again from its chip', async ({ page }) => {
     await editor(page).fill('One. Two. Three.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     const chip = page.locator('.cast-member').first();
     await editor(page).click();
@@ -136,7 +137,7 @@ test('a cast voice is placed again and again from its chip', async ({ page }) =>
 });
 
 test('no tag can be created until something is mixed', async ({ page }) => {
-    await toggle(page).check();
+    await tagsTab(page).click();
     await expect(page.locator('#create-tag-btn')).toBeVisible();
     await expect(page.locator('#create-tag-btn')).toBeDisabled();
 
@@ -146,7 +147,7 @@ test('no tag can be created until something is mixed', async ({ page }) => {
 });
 
 test('a cast member can be dropped again', async ({ page }) => {
-    await toggle(page).check();
+    await tagsTab(page).click();
     await expect(castNames(page)).toHaveCount(1);
 
     await page.locator('.cast-menu-btn').first().click();
@@ -156,7 +157,7 @@ test('a cast member can be dropped again', async ({ page }) => {
 
 test('a cast member can be renamed, and the tags follow', async ({ page }) => {
     await editor(page).fill('First line. Second line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     const chip = page.locator('.cast-member').first();
     await editor(page).click();
@@ -172,7 +173,7 @@ test('a cast member can be renamed, and the tags follow', async ({ page }) => {
 });
 
 test('a name that would shadow a real voice is refused', async ({ page }) => {
-    await toggle(page).check();
+    await tagsTab(page).click();
     const taken = (await page.locator('.voice-option').nth(2).textContent()).trim();
     const before = (await castNames(page).first().textContent()).trim();
 
@@ -187,7 +188,7 @@ test('a name that would shadow a real voice is refused', async ({ page }) => {
 
 test('one speaker can be cleared out of the text from its own menu', async ({ page }) => {
     await editor(page).fill('First line.\nSecond line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     await page.locator('#voice-search').click();
     const other = page.locator('.voice-option').nth(2);
@@ -209,7 +210,7 @@ test('one speaker can be cleared out of the text from its own menu', async ({ pa
 
 test('editing a mix retunes the member without disturbing its tags', async ({ page }) => {
     await editor(page).fill('First line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     const name = (await castNames(page).first().textContent()).trim();
 
     await page.locator('.cast-menu-btn').first().click();
@@ -248,17 +249,21 @@ test('the alias map travels with the request', async ({ page }) => {
     await page.locator('.voice-option').nth(1).click();
     await editor(page).click();
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
-    const name = (await castNames(page).first().textContent()).trim();
+    // only a rename makes a name that has to be defined for the server
     const mix = await page.locator('.cast-member').first().getAttribute('data-mix');
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill('narrator');
+    await page.locator('.cast-rename-input').press('Enter');
 
     await page.locator('#generate-btn').click();
     await expect.poll(() => body).not.toBeNull();
 
-    expect(body.voice).toBe(name);
+    expect(body.voice).toBe('narrator');
     expect(body.allow_voice_tags).toBe(true);
-    expect(body.voice_aliases).toEqual({ [name]: mix });
+    expect(body.voice_aliases).toEqual({ narrator: mix });
 });
 
 test('a plain voice needs no alias', async ({ page }) => {
@@ -273,7 +278,7 @@ test('a plain voice needs no alias', async ({ page }) => {
     });
 
     await editor(page).fill('Hello there.');
-    await toggle(page).check();
+    await tagsTab(page).click();
     await page.locator('#generate-btn').click();
     await expect.poll(() => body).not.toBeNull();
 
@@ -281,9 +286,9 @@ test('a plain voice needs no alias', async ({ page }) => {
     expect(body.voice_aliases).toBeUndefined();
 });
 
-test('tags left behind with the toggle off can be removed in one click', async ({ page }) => {
+test('tags left behind on the voices tab can be removed in one click', async ({ page }) => {
     await editor(page).fill('First line.\nSecond line.');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     await page.locator('#voice-search').click();
     const option = page.locator('.voice-option').nth(2);
@@ -294,7 +299,7 @@ test('tags left behind with the toggle off can be removed in one click', async (
     await page.locator(`.cast-member[data-mix="${mix}"]`).click();
     await expect(page.locator('#voice-tag-notice')).toBeHidden();
 
-    await toggle(page).uncheck();
+    await voicesTab(page).click();
     await expect(page.locator('#voice-tag-notice')).toBeVisible();
     await expect(page.locator('#voice-tag-notice-text')).toHaveText('2 voice tags will be read aloud.');
 
@@ -303,16 +308,34 @@ test('tags left behind with the toggle off can be removed in one click', async (
     await expect(editor(page)).toHaveValue('First line.\nSecond line.');
 });
 
-test('pasted tags are noticed without the toggle ever being touched', async ({ page }) => {
+test('pasted tags are noticed without the tabs ever being touched', async ({ page }) => {
     await editor(page).fill('[voice:af_bella] Hello there.');
 
     await expect(page.locator('#voice-tag-notice')).toBeVisible();
     await expect(page.locator('#voice-tag-notice-text')).toHaveText('1 voice tag will be read aloud.');
 });
 
+test('text that does not open with a tag has nothing to speak with', async ({ page }) => {
+    await editor(page).fill('Hello there.');
+    await tagsTab(page).click();
+    await expect(editor(page)).toHaveValue(/^\[voice:/);
+
+    // the seeded tag is taken back out, and the cast member it came from does not stand in for it
+    await editor(page).fill('Hello there.');
+    await page.locator('#generate-btn').click();
+    await expect(page.locator('#status')).toHaveText('Start the text with a voice tag');
+
+    await editor(page).evaluate((el) => {
+        el.focus();
+        el.setSelectionRange(0, 0);
+    });
+    await page.locator('.cast-member').first().click();
+    await expect(editor(page)).toHaveValue(/^\[voice:/);
+});
+
 test('a tag on its own is not enough to generate', async ({ page }) => {
     await editor(page).fill('');
-    await toggle(page).check();
+    await tagsTab(page).click();
 
     await page.locator('#generate-btn').click();
     await expect(page.locator('#status')).toHaveText('Please enter some text');

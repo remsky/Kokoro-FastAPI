@@ -11,8 +11,8 @@ import {
     addToCast,
     castAliases,
     countVoiceTags,
-    defaultCastName,
     insertVoiceTag,
+    leadingVoiceTag,
     removeFromCast,
     removeVoiceTagsFor,
     renameCastMember,
@@ -28,6 +28,7 @@ export class App {
     constructor() {
         this.cast = [];
         this.editing = null;
+        this.tagMode = false;
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
@@ -40,7 +41,9 @@ export class App {
             streamingNotice: document.getElementById('streaming-notice'),
             charCount: document.getElementById('char-count'),
             cup: document.querySelector('.logo-container .cup'),
-            voiceTagsToggle: document.getElementById('voice-tags-toggle'),
+            voiceTabs: document.querySelector('.card-tabs'),
+            voicesTab: document.getElementById('voices-tab'),
+            voiceTagsTab: document.getElementById('voice-tags-tab'),
             voiceTagHint: document.getElementById('voice-tag-hint'),
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
@@ -91,20 +94,35 @@ export class App {
     }
 
     setupVoiceTags() {
-        const toggle = this.elements.voiceTagsToggle;
-        if (!toggle) {
+        const tabs = [this.elements.voicesTab, this.elements.voiceTagsTab];
+        if (tabs.some((tab) => !tab)) {
             return;
         }
 
-        toggle.addEventListener('change', () => this.setVoiceTagMode(toggle.checked));
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => this.setVoiceTagMode(tab === this.elements.voiceTagsTab));
+            tab.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                    return;
+                }
+                e.preventDefault();
+                const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1;
+                const next = tabs[(index + step) % tabs.length];
+                this.setVoiceTagMode(next === this.elements.voiceTagsTab);
+                next.focus();
+            });
+        });
+
         this.elements.removeVoiceTagsBtn.addEventListener('click', () => {
             this.textEditor.replaceText(stripVoiceTags(this.textEditor.getText()));
         });
 
-        this.setVoiceTagMode(toggle.checked);
+        this.setVoiceTagMode(this.tagMode);
     }
 
     setVoiceTagMode(enabled) {
+        this.tagMode = enabled;
+        this.renderVoiceTabs();
         this.voiceSelector.setTagMode(enabled, {
             onCommit: () => this.commitMix(),
             onInsert: (name) => this.insertVoiceTag(name),
@@ -129,6 +147,17 @@ export class App {
         this.updateVoiceTagNotice();
     }
 
+    renderVoiceTabs() {
+        const active = this.tagMode ? this.elements.voiceTagsTab : this.elements.voicesTab;
+        this.elements.voiceTabs?.classList.toggle('is-tags', this.tagMode);
+        for (const tab of [this.elements.voicesTab, this.elements.voiceTagsTab]) {
+            const on = tab === active;
+            tab.classList.toggle('is-active', on);
+            tab.setAttribute('aria-selected', String(on));
+            tab.tabIndex = on ? 0 : -1;
+        }
+    }
+
     /**
      * Moves the staged mix into the cast and empties the mixer, so building the next
      * voice starts from nothing. Placing it in the text stays a separate click.
@@ -142,25 +171,21 @@ export class App {
         if (this.editing) {
             this.saveEditedMix(this.editing, mix);
         } else {
-            this.setCast(addToCast(this.cast, mix, this.voiceService.getAvailableVoices()));
+            this.setCast(addToCast(this.cast, mix));
         }
 
         this.voiceSelector.setMix('');
     }
 
-    /** A retuned mix keeps its name, so the tags already in the text still point at it. */
+    /** A renamed member keeps its name, so the tags already in the text still point at it. */
     saveEditedMix(name, mix) {
         const member = this.cast.find((entry) => entry.name === name);
         let cast = updateCastMix(this.cast, name, mix);
 
-        // a member named after a plain voice no longer describes itself once mixed
+        // a member still standing for its own mix has to follow it, tags and all
         if (member && member.name === member.mix && member.mix !== mix) {
-            const next = defaultCastName(mix, [
-                ...this.cast.map((entry) => entry.name),
-                ...this.voiceService.getAvailableVoices()
-            ]);
-            cast = renameCastMember(cast, name, next);
-            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
+            cast = renameCastMember(cast, name, mix);
+            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, mix));
         }
 
         this.setCast(cast);
@@ -240,7 +265,7 @@ export class App {
             return;
         }
 
-        hint.textContent = this.voiceTagsEnabled() ? 'Click tag to insert at cursor' : '';
+        hint.textContent = this.voiceTagsEnabled() ? 'Click to insert at cursor' : '';
     }
 
     insertVoiceTag(voice) {
@@ -259,7 +284,7 @@ export class App {
         }
 
         const count = countVoiceTags(this.textEditor.getText());
-        notice.hidden = count === 0 || this.elements.voiceTagsToggle.checked;
+        notice.hidden = count === 0 || this.tagMode;
         this.elements.voiceTagNoticeText.textContent =
             `${count} voice ${count === 1 ? 'tag' : 'tags'} will be read aloud.`;
     }
@@ -430,15 +455,19 @@ export class App {
     }
 
     voiceTagsEnabled() {
-        return Boolean(this.elements.voiceTagsToggle?.checked);
+        return this.tagMode;
     }
 
     /**
-     * The voice parameter speaks anything ahead of the first tag, so in tag mode it is
-     * the first cast member rather than whatever happens to be staged in the mixer.
+     * The voice parameter speaks anything ahead of the first tag, so in tag mode the
+     * text has to open with one and that tag is the voice. Neither a staged mix nor a
+     * cast member stands in for it, so what is spoken is only ever what the text says.
      */
     requestVoice() {
-        return (this.voiceTagsEnabled() && this.cast[0]?.name) || this.voiceService.getSelectedVoiceString();
+        if (this.voiceTagsEnabled()) {
+            return leadingVoiceTag(this.textEditor.getText());
+        }
+        return this.voiceService.getSelectedVoiceString();
     }
 
     showStatus(message, type = 'info') {
@@ -474,7 +503,10 @@ export class App {
         }
 
         if (!this.requestVoice()) {
-            this.showStatus('Please select a voice', 'error');
+            this.showStatus(
+                this.voiceTagsEnabled() ? 'Start the text with a voice tag' : 'Please select a voice',
+                'error'
+            );
             return false;
         }
         

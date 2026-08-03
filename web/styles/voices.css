@@ -208,38 +208,15 @@
     opacity: 1;
 }
 
-.voice-tag-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    margin-top: 0.75rem;
-    flex-wrap: wrap;
-}
-
-.voice-tag-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    cursor: pointer;
-    color: var(--text-light);
-    font-size: 0.8125rem;
-    white-space: nowrap;
-}
-
-.voice-tag-toggle input {
-    accent-color: var(--fg-color);
-    cursor: pointer;
-    margin: 0;
-}
-
 .voice-tag-hint {
     color: var(--text-light);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     opacity: 0.75;
 }
 
-/* shares the toggle row, so it stays small enough to sit beside the checkbox */
 .create-tag-btn {
+    align-self: flex-end;
+    margin-top: -0.15rem;
     padding: 0.15rem 0.45rem;
     background: rgba(99, 102, 241, 0.12);
     border: 1px solid var(--border);
@@ -269,19 +246,27 @@
 
 .voice-cast {
     position: relative;
-    margin-top: 0.5rem;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid var(--border);
 }
 
 .voice-cast[hidden] {
     display: none;
 }
 
-.voice-cast-title {
-    display: block;
+.voice-cast-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
     margin-bottom: 0.35rem;
+}
+
+.voice-cast-title {
     color: var(--text-light);
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
 }
 
@@ -294,7 +279,7 @@
 .voice-cast-list:empty::before {
     content: "Mix a voice, then create a tag";
     color: var(--text-light);
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     opacity: 0.7;
 }
 
@@ -302,11 +287,11 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.2rem 0.4rem;
+    padding: 0.15rem 0.4rem;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.2rem;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
@@ -338,7 +323,6 @@
 }
 
 .cast-rename-input {
-    width: 7rem;
     padding: 0;
     background: none;
     border: none;
@@ -373,7 +357,7 @@
     border-radius: 0.2rem;
     color: var(--text-light);
     font-family: inherit;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     text-align: left;
     white-space: nowrap;
     cursor: pointer;

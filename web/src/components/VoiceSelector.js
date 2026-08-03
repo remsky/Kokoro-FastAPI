@@ -3,7 +3,6 @@ import { parseVoiceMix } from '../voiceTags.js';
 export class VoiceSelector {
     constructor(voiceService) {
         this.voiceService = voiceService;
-        this.tagMode = false;
         this.handlers = {};
         this.elements = {
             voiceSearch: document.getElementById('voice-search'),
@@ -28,7 +27,6 @@ export class VoiceSelector {
      * mixer for the next voice, so the same handful can be placed over and over.
      */
     setTagMode(enabled, handlers = {}) {
-        this.tagMode = enabled;
         this.handlers = handlers;
         if (this.elements.voiceCast) {
             this.elements.voiceCast.hidden = !enabled;
@@ -162,6 +160,7 @@ export class VoiceSelector {
         input.className = 'cast-rename-input';
         input.value = name;
         input.maxLength = 24;
+        input.size = Math.min(Math.max(name.length, 8), 24);
         label.replaceWith(input);
         input.focus();
         input.select();
@@ -336,11 +335,6 @@ export class VoiceSelector {
     }
 
     updateSearchPlaceholder() {
-        if (this.tagMode) {
-            this.elements.voiceSearch.placeholder = 'Search voices to mix...';
-            return;
-        }
-
         const hasSelected = this.voiceService.hasSelectedVoices();
         this.elements.voiceSearch.placeholder = hasSelected ?
             'Search voices...' :

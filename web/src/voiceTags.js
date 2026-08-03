@@ -17,6 +17,12 @@ export function hasVoiceTags(text) {
     return tagPattern().test(String(text));
 }
 
+/** The tag every word after it answers to, or nothing if the text opens with prose. */
+export function leadingVoiceTag(text) {
+    const match = String(text).match(new RegExp(`^\\s*${TAG_SOURCE}`, 'i'));
+    return match ? match[1] : '';
+}
+
 function escapeRegExp(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -78,53 +84,21 @@ function snapToBoundary(text, cursor) {
     return cursor - back <= forward - cursor ? back : forward;
 }
 
-// the language and gender prefix says nothing a short name needs, so af_bella reads as bella
-const VOICE_PREFIX = /^[a-z]{2}_/;
-
 export const CAST_NAME_PATTERN = /^[A-Za-z0-9_-]{1,24}$/;
 
-/** Highest weight wins, first one on a tie, so the short name points at what dominates the mix. */
-export function dominantVoice(mix) {
-    const parts = parseVoiceMix(mix);
-    if (!parts.length) {
-        return '';
-    }
-    return parts.reduce((best, part) => (part.weight > best.weight ? part : best)).voice;
-}
-
 /**
- * A plain voice is already short enough to stand as its own name. Anything mixed or
- * weighted gets a name off its loudest voice, so the text reads [voice:bella] rather
- * than the whole recipe.
+ * A new member stands for its own mix, so the tag placed in the text is the plain
+ * one the server would take anyway and nothing has to be defined. Renaming is what
+ * turns a member into an alias. Membership is by exact mix string, so af_bella and
+ * af_bella(2) are separate members and the same mix cannot be staged twice.
  */
-export function defaultCastName(mix, taken = []) {
-    const parts = parseVoiceMix(mix);
-    if (parts.length === 1 && parts[0].weight === 1) {
-        return parts[0].voice;
-    }
-
-    const base = dominantVoice(mix).replace(VOICE_PREFIX, '') || 'voice';
-    let name = base;
-    let suffix = 2;
-    while (taken.includes(name)) {
-        name = `${base}${suffix}`;
-        suffix += 1;
-    }
-    return name;
-}
-
-/**
- * Membership is by exact mix string, so af_bella and af_bella(2) are separate
- * members and the same mix cannot be staged into the cast twice.
- */
-export function addToCast(cast, mix, taken = []) {
+export function addToCast(cast, mix) {
     const value = String(mix || '').trim();
     if (!value || cast.some((member) => member.mix === value)) {
         return cast;
     }
 
-    const name = defaultCastName(value, [...cast.map((member) => member.name), ...taken]);
-    return [...cast, { name, mix: value }];
+    return [...cast, { name: value, mix: value }];
 }
 
 export function removeFromCast(cast, name) {
