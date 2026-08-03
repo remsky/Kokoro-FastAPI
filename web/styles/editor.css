@@ -220,15 +220,68 @@
         min-height: 260px;
     }
 
-    .chars-per-page {
-        justify-content: center;
+    .editor-footer,
+    .chars-per-page,
+    .file-controls {
+        gap: 0.4rem;
     }
 
-    .editor-footer > .char-count {
+    .editor-footer {
+        justify-content: flex-start;
+    }
+
+    .file-controls {
+        flex: 0 1 auto;
+    }
+
+    .upload-btn,
+    .clear-btn,
+    .format-btn {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    .chars-input {
+        width: 56px;
+        padding: 0.25rem 0.2rem;
+        font-size: 0.8125rem;
+    }
+
+    .chars-label {
+        font-size: 0.8125rem;
+    }
+
+    .editor-status-row {
+        gap: 0.25rem 0.6rem;
+    }
+
+    .editor-status-row .char-count {
+        padding-left: 0;
+    }
+
+    .char-count {
         font-size: 0.75rem;
     }
 
-    .editor-status-row:not(:has(:not([hidden]))) {
-        display: none;
+    .streaming-notice {
+        font-size: 0.6875rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .editor-footer,
+    .chars-per-page,
+    .file-controls {
+        gap: 0.3rem;
+    }
+
+    .upload-btn,
+    .clear-btn,
+    .format-btn {
+        padding: 0.35rem 0.4rem;
+    }
+
+    .chars-input {
+        width: 50px;
     }
 }

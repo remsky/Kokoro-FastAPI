@@ -124,12 +124,12 @@ export class PlayerControls {
         });
     }
 
-    // css picks the glyph off .playing, the label is all that changes here
     setPlayIcon(playing) {
         const btn = this.elements.playPauseBtn;
+        const label = playing ? 'Pause' : 'Play';
         btn.classList.toggle('playing', playing);
-        btn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
-        btn.setAttribute('title', playing ? 'Pause' : 'Play');
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
     }
 
     setupAudioEvents() {

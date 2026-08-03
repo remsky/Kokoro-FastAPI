@@ -22,6 +22,8 @@ import {
     updateCastMix
 } from './voiceTags.js';
 
+const NARROW_LAYOUT = '(max-width: 900px)';
+
 export class App {
     constructor() {
         this.cast = [];
@@ -72,7 +74,6 @@ export class App {
             }
         });
 
-        // after the editor renders, its footer is one of the relocation targets
         this.setupNarrowLayout();
 
         // Initialize voice selector
@@ -278,12 +279,14 @@ export class App {
         }
     }
 
-    // swaps a node between two homes at the narrow breakpoint, a null anchor appends
     relocateOnNarrow(node, narrowHome, wideHome) {
-        const query = window.matchMedia('(max-width: 900px)');
+        const query = window.matchMedia(NARROW_LAYOUT);
         const place = () => {
             const [parent, anchor] = query.matches ? narrowHome : wideHome;
-            if (node.parentElement !== parent) parent.insertBefore(node, anchor ?? null);
+            if (node.parentElement === parent) return;
+            const focused = node.contains(document.activeElement) ? document.activeElement : null;
+            parent.insertBefore(node, anchor ?? null);
+            focused?.focus();
         };
 
         place();
@@ -296,16 +299,7 @@ export class App {
         const dock = document.querySelector('.player-dock');
         const controls = dock?.querySelector('.player-controls');
         if (card && sidePane && controls) {
-            // generate rides with the transport, where the eye already is
             this.relocateOnNarrow(card, [dock, controls], [sidePane, null]);
-        }
-
-        const count = this.elements.charCount;
-        const statusRow = document.querySelector('.editor-status-row');
-        const footer = document.querySelector('.editor-footer');
-        if (count && statusRow && footer) {
-            // counter tucks in beside Format rather than taking a row of its own
-            this.relocateOnNarrow(count, [footer, null], [statusRow, this.elements.streamingNotice]);
         }
     }
 

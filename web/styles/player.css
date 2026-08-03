@@ -299,7 +299,6 @@
         padding: 1rem 0.75rem 0.75rem;
     }
 
-    /* App.js moves the card in here so generate sits above play */
     .player-dock > .generate-card {
         position: relative;
         z-index: 1;
