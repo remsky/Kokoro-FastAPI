@@ -56,6 +56,7 @@ export class App {
             castFileMenu: document.getElementById('cast-file-menu'),
             saveCastBtn: document.getElementById('save-cast-btn'),
             importCastBtn: document.getElementById('import-cast-btn'),
+            importCastReplaceBtn: document.getElementById('import-cast-replace-btn'),
             importCastInput: document.getElementById('import-cast-input')
         };
 
@@ -305,6 +306,12 @@ export class App {
         });
         this.elements.importCastBtn.addEventListener('click', () => {
             close();
+            this.importReplace = false;
+            this.elements.importCastInput.click();
+        });
+        this.elements.importCastReplaceBtn.addEventListener('click', () => {
+            close();
+            this.importReplace = true;
             this.elements.importCastInput.click();
         });
         this.elements.importCastInput.addEventListener('change', (e) => {
@@ -312,8 +319,9 @@ export class App {
             // the same file picked twice has to fire again, so the input is emptied either way
             e.target.value = '';
             if (file) {
-                this.importCast(file);
+                this.importCast(file, this.importReplace);
             }
+            this.importReplace = false;
         });
 
         menu.addEventListener('toggle', () => {
@@ -342,8 +350,8 @@ export class App {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
-    /** Imports join the cast rather than replace it, and a mix this server cannot speak is dropped rather than left to 400. */
-    async importCast(file) {
+    /** Imports drop mixes this server cannot speak rather than leave them to 400. */
+    async importCast(file, replace = false) {
         let members = [];
         try {
             members = parseCastFile(JSON.parse(await file.text()));
@@ -353,7 +361,8 @@ export class App {
         }
 
         const available = this.voiceService.getAvailableVoices();
-        let cast = this.cast;
+        const base = replace ? [] : this.cast;
+        let cast = base;
         for (const { name, mix } of members) {
             // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
             const folded = name.toLowerCase();
@@ -365,15 +374,22 @@ export class App {
             }
         }
 
-        const added = cast.length - this.cast.length;
+        const added = cast.length - base.length;
         if (!added) {
             this.showStatus('Nothing in that file could join the cast', 'error');
             return;
         }
 
+        if (this.editing && !cast.some((entry) => entry.name === this.editing)) {
+            this.setEditing(null);
+            this.voiceSelector.setMix('');
+        }
+
         const skipped = members.length - added;
         this.setCast(cast);
-        this.showStatus(`Added ${added} to the cast${skipped ? `, skipped ${skipped}` : ''}`, 'success');
+        this.showStatus(replace
+            ? `Cast replaced with ${added}${skipped ? `, skipped ${skipped}` : ''}`
+            : `Added ${added} to the cast${skipped ? `, skipped ${skipped}` : ''}`, 'success');
     }
 
     insertVoiceTag(voice) {

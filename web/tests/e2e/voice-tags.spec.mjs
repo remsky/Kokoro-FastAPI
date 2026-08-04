@@ -241,6 +241,35 @@ test('the cast saves as a map the API takes, and joins the cast already there on
     await expect(page.locator('#status')).toHaveText('Added 1 to the cast, skipped 1');
 });
 
+test('import (replace) swaps the whole cast for the file, tags in the text and all', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+    const seeded = (await castNames(page).first().textContent()).trim();
+
+    // one member tagged in the text and one without, both swapped out alike
+    await page.locator('#voice-search').click();
+    const other = page.locator('.voice-option').nth(2);
+    const mix = (await other.textContent()).trim();
+    await other.click();
+    await editor(page).click();
+    await page.locator('#create-tag-btn').click();
+    await expect(castNames(page)).toHaveText([seeded, mix]);
+
+    const chooser = page.waitForEvent('filechooser');
+    await page.locator('#cast-file-menu summary').click();
+    await page.locator('#import-cast-replace-btn').click();
+    await (await chooser).setFiles({
+        name: 'cast.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify({ voice_aliases: { narrator: mix } }))
+    });
+
+    await expect(castNames(page)).toHaveText(['narrator']);
+    await expect(page.locator('#status')).toHaveText('Cast replaced with 1');
+    // the text is not the import's to rewrite
+    await expect(editor(page)).toHaveValue(`[voice:${seeded}] First line.`);
+});
+
 test('a cast member can be renamed, and the tags follow', async ({ page }) => {
     await editor(page).fill('First line. Second line.');
     await tagsTab(page).click();
