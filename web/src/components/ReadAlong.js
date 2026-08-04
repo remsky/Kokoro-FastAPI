@@ -53,6 +53,10 @@ export class ReadAlong {
             this.renderView();
             // hidden, not torn down, so the editor keeps its pages, caret and listeners
             this.elements.editor.hidden = true;
+            // one swap to the finished file: real duration for the fraction math, plain seeks after
+            if (this.audioService.canSwapToFileSource()) {
+                this.audioService.swapToFileSource(null, this.audioService.isPlaying());
+            }
             this.startSync();
         } else {
             this.stopSync();
