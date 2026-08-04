@@ -25,10 +25,11 @@ export default class TextEditor {
             <div class="text-editor">
                 <div class="editor-view">
                     <div class="page-navigation">
+                        <button type="button" id="read-along-btn" class="read-along-btn" aria-pressed="false" title="Available when generation completes" disabled>Read along</button>
                         <div class="pagination">
-                            <button class="prev-btn">← Previous</button>
+                            <button class="prev-btn">← <span class="nav-word">Previous</span></button>
                             <span class="page-info">Page <input type="number" class="page-jump" min="1" value="1"> of <span class="page-total">1</span></span>
-                            <button class="next-btn">Next →</button>
+                            <button class="next-btn"><span class="nav-word">Next</span> →</button>
                         </div>
                         <details class="find-menu">
                             <summary class="find-toggle" title="Find and replace" aria-label="Find and replace">
@@ -372,7 +373,10 @@ export default class TextEditor {
             position++;
         }
         this.setFindCount(`${position} of ${this.countMatches(term)}`);
+        this.revealOffset(index, needle.length);
+    }
 
+    revealOffset(index, length = 0) {
         let page = 0;
         let offset = index;
         while (page < this.pages.length - 1 && offset > this.pages[page].length) {
@@ -381,8 +385,10 @@ export default class TextEditor {
         }
         this.currentPage = page + 1;
         this.updatePageDisplay();
-        this.elements.pageContent.focus({ preventScroll: true });
-        this.elements.pageContent.setSelectionRange(offset, Math.min(offset + needle.length, this.pages[page].length));
+        const box = this.elements.pageContent;
+        box.focus({ preventScroll: true });
+        box.setSelectionRange(offset, Math.min(offset + length, this.pages[page].length));
+        box.scrollTop = (box.scrollHeight * offset) / Math.max(1, box.value.length) - box.clientHeight / 2;
     }
 
     replaceOne() {

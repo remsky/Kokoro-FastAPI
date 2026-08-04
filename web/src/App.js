@@ -89,7 +89,7 @@ export class App {
             }
         });
 
-        this.readAlong = new ReadAlong(this.audioService);
+        this.readAlong = new ReadAlong(this.audioService, this.textEditor);
 
         this.setupNarrowLayout();
 

@@ -35,9 +35,19 @@ export function totalSpoken(sentences) {
     return sentences.reduce((sum, sentence) => sum + sentence.spoken, 0);
 }
 
+const SENTENCE_PAUSE_WEIGHT = 14;
+
+function weightOf(sentence) {
+    return sentence.spoken > 0 ? sentence.spoken + SENTENCE_PAUSE_WEIGHT : 0;
+}
+
+function totalWeight(sentences) {
+    return sentences.reduce((sum, sentence) => sum + weightOf(sentence), 0);
+}
+
 // the sentence playing at a fraction, skipping unspoken segments; -1 when nothing is speakable
 export function sentenceIndexAt(sentences, fraction) {
-    const total = totalSpoken(sentences);
+    const total = totalWeight(sentences);
     if (total <= 0 || !Number.isFinite(fraction)) {
         return -1;
     }
@@ -50,7 +60,7 @@ export function sentenceIndexAt(sentences, fraction) {
             continue;
         }
         lastSpeakable = i;
-        accumulated += sentences[i].spoken;
+        accumulated += weightOf(sentences[i]);
         if (target < accumulated) {
             return i;
         }
@@ -60,14 +70,14 @@ export function sentenceIndexAt(sentences, fraction) {
 
 // the playback fraction where a sentence begins
 export function sentenceStartFraction(sentences, index) {
-    const total = totalSpoken(sentences);
+    const total = totalWeight(sentences);
     if (total <= 0) {
         return 0;
     }
 
     let accumulated = 0;
     for (let i = 0; i < index && i < sentences.length; i++) {
-        accumulated += sentences[i].spoken;
+        accumulated += weightOf(sentences[i]);
     }
     return accumulated / total;
 }

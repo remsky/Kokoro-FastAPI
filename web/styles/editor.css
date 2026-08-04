@@ -44,6 +44,7 @@
     flex-direction: column;
     gap: 0.75rem;
     min-height: 0;
+    container-type: inline-size;
 }
 
 .page-content {
@@ -333,15 +334,27 @@
 }
 
 .read-along-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-light);
     padding: 0.25rem 0.6rem;
     border-radius: 0.25rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
     font-size: 0.8125rem;
     white-space: nowrap;
+}
+
+.read-along-btn::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.4;
 }
 
 .read-along-btn:disabled {
@@ -362,10 +375,72 @@
 }
 
 .read-along-btn.is-active {
-    background: #fff;
     border-color: #0f172a;
-    color: #0f172a;
     box-shadow: inset 0 0 0 1px #0f172a;
+    color: #0f172a;
+}
+
+.read-along-btn.is-active::after {
+    background: #6ee7b7;
+    opacity: 1;
+    animation: read-along-pulse 5s ease-in-out infinite;
+}
+
+@keyframes read-along-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(110, 231, 183, 0.5); }
+    50% { opacity: 0.55; box-shadow: none; }
+}
+
+.page-navigation .read-along-btn {
+    position: absolute;
+    left: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#text-editor.read-along-active .read-along-btn {
+    position: static;
+    transform: none;
+    margin-right: auto;
+}
+
+#text-editor.read-along-active .page-content,
+#text-editor.read-along-active .editor-footer,
+#text-editor.read-along-active .pagination,
+#text-editor.read-along-active .find-menu {
+    display: none;
+}
+
+@container (max-width: 560px) {
+    .nav-word {
+        display: none;
+    }
+}
+
+@container (max-width: 480px) {
+    .page-navigation {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.25rem;
+    }
+
+    .page-navigation .read-along-btn {
+        position: static;
+        transform: none;
+        order: 1;
+    }
+
+    .find-menu {
+        position: static;
+        transform: none;
+        order: 2;
+    }
+
+    .pagination {
+        order: 3;
+        flex: 1 1 100%;
+        justify-content: center;
+    }
 }
 
 /* stands in for the editor view, so it mirrors the textarea chrome */
@@ -385,6 +460,7 @@
     word-break: break-word;
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+    scroll-padding-block: 25% 45%;
 }
 
 .read-along-view::-webkit-scrollbar {

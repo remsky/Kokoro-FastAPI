@@ -5,8 +5,9 @@ const SYNC_MS = 200;
 const SEEK_LEAD_SECONDS = 0.15;
 
 export class ReadAlong {
-    constructor(audioService) {
+    constructor(audioService, textEditor) {
         this.audioService = audioService;
+        this.textEditor = textEditor;
         this.elements = {
             toggle: document.getElementById('read-along-btn'),
             editor: document.getElementById('text-editor')
@@ -51,8 +52,8 @@ export class ReadAlong {
 
         if (active) {
             this.renderView();
-            // hidden, not torn down, so the editor keeps its pages, caret and listeners
-            this.elements.editor.hidden = true;
+            // css-hidden, not torn down, so the editor keeps its pages, caret and listeners
+            this.elements.editor.classList.add('read-along-active');
             // one swap to the finished file: real duration for the fraction math, plain seeks after
             if (this.audioService.canSwapToFileSource()) {
                 this.audioService.swapToFileSource(null, this.audioService.isPlaying());
@@ -60,11 +61,15 @@ export class ReadAlong {
             this.startSync();
         } else {
             this.stopSync();
+            const sentence = this.sentences[this.activeIndex];
             this.view?.remove();
             this.view = null;
             this.spans = [];
             this.activeIndex = -1;
-            this.elements.editor.hidden = false;
+            this.elements.editor.classList.remove('read-along-active');
+            if (sentence) {
+                this.textEditor?.revealOffset(sentence.start);
+            }
         }
     }
 
@@ -101,7 +106,7 @@ export class ReadAlong {
             }
         });
 
-        this.elements.editor.insertAdjacentElement('afterend', this.view);
+        this.elements.editor.querySelector('.page-navigation').insertAdjacentElement('afterend', this.view);
     }
 
     startSync() {
@@ -122,7 +127,12 @@ export class ReadAlong {
         if (!Number.isFinite(duration) || duration <= 0) {
             return;
         }
-        this.setActiveIndex(sentenceIndexAt(this.sentences, this.audioService.getCurrentTime() / duration));
+        const time = this.audioService.getCurrentTime();
+        const index = sentenceIndexAt(this.sentences, time / duration);
+        if (index !== this.activeIndex) {
+            console.log('[read-along]', time.toFixed(1), '/', duration.toFixed(1), 'idx', index, 'file', this.audioService.usingFileSource);
+        }
+        this.setActiveIndex(index);
     }
 
     setActiveIndex(index) {
