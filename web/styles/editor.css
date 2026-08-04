@@ -436,6 +436,12 @@
         min-height: 260px;
     }
 
+    /* the page scrolls on narrow layouts, so the view needs its own cap to scroll inside */
+    .read-along-view {
+        min-height: 260px;
+        max-height: 60dvh;
+    }
+
     .editor-footer,
     .chars-per-page,
     .file-controls {
