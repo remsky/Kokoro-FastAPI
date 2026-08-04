@@ -40,7 +40,13 @@ async def cleanup_temp_files() -> None:
         current_time = (await aiofiles.os.stat(settings.temp_file_dir)).st_mtime
         max_age = settings.max_temp_dir_age_hours * 3600
 
-        for path, mtime, size in files:
+        sizes = {path: size for path, _mtime, size in files}
+        removed = set()
+
+        for path, mtime, _ in files:
+            if path in removed:
+                continue
+
             should_delete = False
 
             # Check age
@@ -59,12 +65,18 @@ async def cleanup_temp_files() -> None:
                 logger.info(f"Deleting to reduce directory size: {path}")
 
             if should_delete:
-                try:
-                    await aiofiles.os.remove(path)
-                    total_size -= size
-                    logger.info(f"Deleted temp file: {path}")
-                except Exception as e:
-                    logger.warning(f"Failed to delete temp file {path}: {e}")
+                targets = [path]
+                sidecar = f"{path}.json"
+                if sidecar in sizes:
+                    targets.append(sidecar)
+                for target in targets:
+                    try:
+                        await aiofiles.os.remove(target)
+                        removed.add(target)
+                        total_size -= sizes[target]
+                        logger.info(f"Deleted temp file: {target}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete temp file {target}: {e}")
 
     except Exception as e:
         logger.warning(f"Error during temp file cleanup: {e}")

@@ -118,9 +118,8 @@ export class PlayerControls {
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
             this.audioService.cancel();
-            this.playerState.reset();
-            this.updateControls({ isGenerating: false });
             this.stopTimeUpdate();
+            this.playerState.reset();
         });
     }
 

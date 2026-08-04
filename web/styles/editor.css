@@ -362,7 +362,7 @@
     cursor: default;
 }
 
-/* ready matches the generate button, white with black text means on */
+/* ready matches the generate button, black border and green dot mean on */
 .read-along-btn:not(:disabled) {
     background: var(--fg-color);
     border-color: var(--fg-color);
@@ -377,7 +377,6 @@
 .read-along-btn.is-active {
     border-color: #0f172a;
     box-shadow: inset 0 0 0 1px #0f172a;
-    color: #0f172a;
 }
 
 .read-along-btn.is-active::after {

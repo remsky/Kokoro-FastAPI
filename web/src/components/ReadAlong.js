@@ -46,7 +46,11 @@ export class ReadAlong {
         }
         try {
             const response = await fetch(url);
-            if (!response.ok || this.sourceText !== source) {
+            if (!response.ok) {
+                this.timingFetched = false;
+                return;
+            }
+            if (this.sourceText !== source) {
                 return;
             }
             const data = await response.json();
@@ -55,6 +59,7 @@ export class ReadAlong {
             }
             this.sentenceTimes = alignChunks(this.sourceText, this.sentences, data.chunks);
         } catch {
+            this.timingFetched = false;
             this.sentenceTimes = null;
         }
     }
