@@ -1,3 +1,4 @@
+import re
 from email.policy import default
 from enum import Enum
 from typing import Dict, List, Literal, Optional
@@ -140,6 +141,10 @@ class OpenAISpeechRequest(BaseModel):
     )
 
 
+# mirrors the tag body of text_processor's VOICE_TAG_PATTERN, so a rendered [voice:...] round-trips as one tag
+TURN_VOICE_PATTERN = re.compile(r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*")
+
+
 class DialogueTurn(BaseModel):
     """A single speaker turn in a dialogue request"""
 
@@ -151,6 +156,16 @@ class DialogueTurn(BaseModel):
         description="The voice for this turn. Can be a base voice or a combined voice name. Accepts voice_id as an alias.",
     )
     text: str = Field(..., min_length=1, description="The text this speaker says")
+
+    @field_validator("voice")
+    @classmethod
+    def _reject_tag_breaking_voice(cls, value: str) -> str:
+        value = value.strip()
+        if not TURN_VOICE_PATTERN.fullmatch(value):
+            raise ValueError(
+                "Voice contains characters that cannot appear in a voice name"
+            )
+        return value
 
     @field_validator("text")
     @classmethod
@@ -216,6 +231,10 @@ class DialogueRequest(BaseModel):
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
         description="Options for the normalization system",
+    )
+    voice_aliases: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in each turn's voice field, matched case-insensitively.",
     )
 
     def to_tagged_input(self) -> str:

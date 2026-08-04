@@ -757,6 +757,9 @@ export class AudioService {
 
         const audio = this.audio;
         this.audio = null;
+        this.eventListeners.forEach((listeners, event) => {
+            listeners.forEach((callback) => audio.removeEventListener?.(event, callback));
+        });
         audio.pause();
         audio.removeAttribute?.('src');
         audio.load?.();

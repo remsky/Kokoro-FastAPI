@@ -203,6 +203,7 @@ async def create_dialogue(
         volume_multiplier=request.volume_multiplier,
         normalization_options=request.normalization_options,
         allow_voice_tags=True,  # always on here
+        voice_aliases=request.voice_aliases,
     )
     return await create_speech(
         request=speech_request,

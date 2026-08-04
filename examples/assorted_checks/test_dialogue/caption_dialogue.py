@@ -70,13 +70,13 @@ def group_into_cues(timestamps: List[dict]) -> List[dict]:
             stamp["end_time"] - current["start_time"] > MAX_CUE_SECONDS
             or len(current["text"]) + len(stamp["word"]) + 1 > MAX_CUE_CHARS
         )
-        if current and current["voice"] == stamp["voice"] and not too_long:
+        if current and current["voice"] == stamp.get("voice") and not too_long:
             current["text"] = join_word(current["text"], stamp["word"])
             current["end_time"] = stamp["end_time"]
             continue
         cues.append(
             {
-                "voice": stamp["voice"],
+                "voice": stamp.get("voice"),
                 "text": stamp["word"],
                 "start_time": stamp["start_time"],
                 "end_time": stamp["end_time"],
@@ -112,7 +112,7 @@ def to_srt(cues: List[dict]) -> str:
 
 def speakers(timestamps: List[dict]) -> List[Optional[str]]:
     """Distinct voices in order of first appearance, preserving None."""
-    return list(dict.fromkeys(stamp["voice"] for stamp in timestamps))
+    return list(dict.fromkeys(stamp.get("voice") for stamp in timestamps))
 
 
 def main() -> int:

@@ -115,6 +115,9 @@ async def process_and_validate_voices(
     voice_input = resolve_voice_alias(voice_input, aliases)
     voice_input = voice_input.replace(" ", "").strip()
 
+    if not voice_input:
+        raise ValueError("Voice name cannot be empty")
+
     if voice_input[-1] in "+-" or voice_input[0] in "+-":
         raise ValueError(f"Voice combination contains empty combine items")
 

@@ -676,6 +676,36 @@ def test_dialogue_endpoint_accepts_elevenlabs_field_names(mock_tts_service):
     assert response.status_code == 200
 
 
+def test_dialogue_endpoint_resolves_voice_aliases(mock_tts_service):
+    """The alias map applies to turn voices, first turn and tagged alike"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "turns": [
+                {"voice": "narrator", "text": "Hello there."},
+                {"voice": "voice2", "text": "Hi back."},
+            ],
+            "voice_aliases": {"narrator": "voice1"},
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_dialogue_turn_voice_cannot_smuggle_tag_syntax(mock_tts_service):
+    """A turn voice that would break out of its rendered [voice:...] tag is a 422"""
+    response = client.post(
+        "/dev/dialogue",
+        json={
+            "turns": [
+                {"voice": "voice1] [voice:voice2", "text": "Hello."},
+            ],
+            "stream": False,
+        },
+    )
+    assert response.status_code == 422
+
+
 @pytest.mark.asyncio
 async def test_process_and_validate_voice_tags_maps_openai_names(
     mock_openai_mappings,
@@ -893,6 +923,23 @@ def test_speech_endpoint_rejects_an_alias_to_nowhere(mock_tts_service):
             "stream": False,
             "allow_voice_tags": True,
             "voice_aliases": {"narrator": "not_a_voice"},
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_speech_endpoint_rejects_an_alias_to_an_empty_target(mock_tts_service):
+    """An alias resolving to an empty string is a 400, not an IndexError"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "Hello.",
+            "voice": "narrator",
+            "response_format": "mp3",
+            "stream": False,
+            "voice_aliases": {"narrator": ""},
         },
     )
     assert response.status_code == 400
