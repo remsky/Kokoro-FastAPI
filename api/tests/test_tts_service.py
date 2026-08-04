@@ -305,6 +305,57 @@ async def test_timestamps_omit_speaker_by_default():
 
 
 @pytest.mark.asyncio
+async def test_timings_collect_chunks_and_pauses():
+    """Spoken chunks land as {text, start, end} from sample counts, pauses as empty-text gaps."""
+    service = await _stubbed_service()
+
+    timings = []
+    async for _ in service.generate_audio_stream(
+        "One. [pause:0.5s] Two.",
+        "af_heart",
+        MagicMock(),
+        output_format=None,
+        timings=timings,
+    ):
+        pass
+
+    assert [(t["text"].strip(), t["start"], t["end"]) for t in timings] == [
+        ("One.", 0.0, 0.1),
+        ("", 0.1, 0.6),
+        ("Two.", 0.6, 0.7),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_timings_carry_speaker_when_tags_allowed():
+    """Chunk entries name their voice with the opt in, and never without it."""
+    service = await _stubbed_service()
+
+    tagged = []
+    async for _ in service.generate_audio_stream(
+        "[voice:af_bella] One. [voice:bm_george] Two.",
+        "af_heart",
+        MagicMock(),
+        output_format=None,
+        allow_voice_tags=True,
+        timings=tagged,
+    ):
+        pass
+    assert [t.get("voice") for t in tagged] == ["af_bella", "bm_george"]
+
+    plain = []
+    async for _ in service.generate_audio_stream(
+        "One. Two.",
+        "af_heart",
+        MagicMock(),
+        output_format=None,
+        timings=plain,
+    ):
+        pass
+    assert plain and all("voice" not in t for t in plain)
+
+
+@pytest.mark.asyncio
 async def test_generate_audio_with_nothing_speakable_raises():
     """Tags-only input is a ValueError the routers map to a 400, not an IndexError"""
     service = await _stubbed_service()

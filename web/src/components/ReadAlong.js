@@ -162,9 +162,6 @@ export class ReadAlong {
         const index = this.sentenceTimes
             ? sentenceIndexAtTime(this.sentenceTimes, time)
             : sentenceIndexAt(this.sentences, time / duration);
-        if (index !== this.activeIndex) {
-            console.log('[read-along]', time.toFixed(1), '/', duration.toFixed(1), 'idx', index, 'timed', !!this.sentenceTimes);
-        }
         this.setActiveIndex(index);
     }
 

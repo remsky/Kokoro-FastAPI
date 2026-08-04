@@ -12,6 +12,8 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Web UI Voice Tags tab: builds a cast of named voices, places `[voice:name]` tags at the cursor, and saves that cast as a `{"voice_aliases": {...}}` file, the same map the API takes. Imports merge into or replace the current cast, with a count of any tags left unable to speak.
 - Web UI editor: the page number is directly editable, and the pagination bar gains find / find-and-replace across pages.
 - `/dev/captioned_speech` timestamps carry the `voice` that spoke each word when `allow_voice_tags` is on, so multi-speaker captions can be labelled without re-deriving the split client side. Absent otherwise, leaving existing responses unchanged.
+- Chunk timing sidecar on `/v1/audio/speech`. With `stream`, `return_download_link`, and `return_timing` set, per-chunk `{text, start, end}` timings are written as JSON next to the download file, path returned in `X-Timing-Path`. Chunks carry their `voice` when `allow_voice_tags` is on. Audio body unchanged, off by default.
+- Web UI Read along: follow-the-text sentence highlighting synced to playback, driven by the timing sidecar (char-fraction fallback when absent). Click a sentence to seek. The download button opens a small menu (audio / timings / both).
 
 ### Changed
 - Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.

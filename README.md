@@ -556,6 +556,7 @@ timings = requests.get(f"http://localhost:8880/v1{response.headers['x-timing-pat
 - The header arrives up front, but the file is written when generation finishes. Fetch it after the stream ends; earlier is a 404.
 - `start`/`end` are seconds in the final audio, so pauses and speed are already accounted for. `[pause:Ns]` gaps appear as `{"text": ""}` entries.
 - `text` is normalized (numbers etc expanded), so align by words rather than exact match.
+- With `allow_voice_tags`, each spoken chunk also carries its `voice`, same as captioned timestamps. Absent otherwise.
 - The sidecar sits next to the download file and shares its temp lifetime.
 
 <details>

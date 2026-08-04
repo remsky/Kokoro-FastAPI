@@ -444,13 +444,14 @@ class TTSService:
 
                         chunk_index += 1  # Increment chunk index after processing text
                         if timings is not None and current_offset > chunk_start_offset:
-                            timings.append(
-                                {
-                                    "text": chunk_text,
-                                    "start": round(chunk_start_offset, 3),
-                                    "end": round(current_offset, 3),
-                                }
-                            )
+                            entry = {
+                                "text": chunk_text,
+                                "start": round(chunk_start_offset, 3),
+                                "end": round(current_offset, 3),
+                            }
+                            if allow_voice_tags:
+                                entry["voice"] = voice_name
+                            timings.append(entry)
                     except Exception as e:
                         logger.error(
                             f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
