@@ -14,6 +14,7 @@ export class AudioService {
         this.MAX_LEAD_SECONDS = 60;
         this.serverDownloadPath = null;
         this.downloadName = null;
+        this.timingPath = null;
         this.pendingOperations = [];
         this.objectUrl = null;
         this.chunkQueue = [];
@@ -108,6 +109,7 @@ export class AudioService {
                     stream: true,
                     speed: speed,
                     return_download_link: true,
+                    return_timing: true,
                     lang_code: document.getElementById('lang-select').value || undefined,
                     allow_voice_tags: options.allowVoiceTags || undefined,
                     // short names only mean something alongside the map that defines them
@@ -140,6 +142,7 @@ export class AudioService {
                 await this.setDownloadPath(downloadPath);
                 console.log('Download path received:', this.serverDownloadPath);
             }
+            this.timingPath = response.headers.get('x-timing-path');
 
             if (!response.ok) {
                 const error = await response.json();
@@ -742,6 +745,7 @@ export class AudioService {
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
         this.downloadName = null;
+        this.timingPath = null;
         this.rejectPendingOperations(new Error('AudioService cancelled'));
         this.chunkQueue = [];
         this.streamFinished = true;
@@ -781,6 +785,7 @@ export class AudioService {
         this.sourceBuffer = null;
         this.serverDownloadPath = null;
         this.downloadName = null;
+        this.timingPath = null;
         this.rejectPendingOperations(new Error('AudioService cleanup'));
         this.chunkQueue = [];
         this.streamFinished = true;
@@ -797,6 +802,18 @@ export class AudioService {
             .replace(/[^A-Za-z0-9._-]+/g, '_')
             .replace(/^[._-]+|[._-]+$/g, '');
         return `${safeVoice || 'speech'}_${stamp}.${format}`;
+    }
+
+    async getTimingUrl() {
+        return this.timingPath ? config.getApiUrl(`/v1${this.timingPath}`) : null;
+    }
+
+    async getTimingDownloadUrl() {
+        const url = await this.getTimingUrl();
+        if (!url) {
+            return null;
+        }
+        return this.downloadName ? `${url}?name=${encodeURIComponent(this.downloadName)}` : url;
     }
 
     async setDownloadPath(rawPath) {

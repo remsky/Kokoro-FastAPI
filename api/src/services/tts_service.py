@@ -321,6 +321,7 @@ class TTSService:
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         return_timestamps: Optional[bool] = False,
         allow_voice_tags: bool = False,
+        timings: Optional[List[dict]] = None,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
@@ -377,6 +378,14 @@ class TTSService:
                         # Update offset based on silence duration
                         current_offset += pause_duration_s
                         chunk_index += 1  # Count pause as a yielded chunk
+                        if timings is not None:
+                            timings.append(
+                                {
+                                    "text": "",
+                                    "start": round(current_offset - pause_duration_s, 3),
+                                    "end": round(current_offset, 3),
+                                }
+                            )
 
                     except Exception as e:
                         logger.error(f"Failed to process pause chunk: {str(e)}")
@@ -387,6 +396,7 @@ class TTSService:
                 ):  # Process if there are tokens OR non-whitespace text
                     # --- Handle Text Chunk ---
                     try:
+                        chunk_start_offset = current_offset
                         # Process audio for chunk
                         async for chunk_data in self._process_chunk(
                             chunk_text,  # Pass text for Kokoro V1
@@ -433,6 +443,14 @@ class TTSService:
                                 )
 
                         chunk_index += 1  # Increment chunk index after processing text
+                        if timings is not None and current_offset > chunk_start_offset:
+                            timings.append(
+                                {
+                                    "text": chunk_text,
+                                    "start": round(chunk_start_offset, 3),
+                                    "end": round(current_offset, 3),
+                                }
+                            )
                     except Exception as e:
                         logger.error(
                             f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"

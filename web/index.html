@@ -180,13 +180,20 @@
             </label>
             <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" value="0" aria-label="Playback position">
             <span id="time-display" class="time-display">0:00</span>
-            <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download audio">
-                <div class="download-glow"></div>
-                <div class="download-icon">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <path d="M8 11L4 7h8l-4 4z" fill="currentColor"/>
-                        <path d="M8 3v8M4 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+            <div class="download-wrap">
+                <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download" aria-haspopup="menu" aria-expanded="false">
+                    <div class="download-glow"></div>
+                    <div class="download-icon">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M8 11L4 7h8l-4 4z" fill="currentColor"/>
+                            <path d="M8 3v8M4 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                </div>
+                <div id="download-menu" class="download-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" data-download="audio">Download Audio</button>
+                    <button type="button" role="menuitem" data-download="timings">Download Timings</button>
+                    <button type="button" role="menuitem" data-download="both">Download Both</button>
                 </div>
             </div>
             <div class="volume-control">

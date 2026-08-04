@@ -529,7 +529,34 @@ for chunk in response.iter_lines(decode_unicode=True):
 ```
 
 With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is absent.
-</details>
+
+### Chunk timings on `/v1/audio/speech`
+
+With `stream`, `return_download_link`, and `return_timing` set, the response carries an `X-Timing-Path` header pointing at a JSON sidecar of per-chunk timings. The audio body is unchanged and nothing extra is computed; this is what drives the web UI's read along.
+
+```python
+response = requests.post(
+    "http://localhost:8880/v1/audio/speech",
+    json={
+        "input": "Hello world! [pause:1s] Again.",
+        "voice": "af_bella",
+        "stream": True,
+        "return_download_link": True,
+        "return_timing": True,
+    },
+    stream=True,
+)
+audio = b"".join(response.iter_content(1024))
+
+timings = requests.get(f"http://localhost:8880/v1{response.headers['x-timing-path']}").json()
+# {"chunks": [{"text": "Hello world!", "start": 0.0, "end": 0.64}, ...]}
+```
+
+- Chunk-level (a sentence group, roughly 10-20s of audio), not word-level. For word-level use `/dev/captioned_speech`.
+- The header arrives up front, but the file is written when generation finishes. Fetch it after the stream ends; earlier is a 404.
+- `start`/`end` are seconds in the final audio, so pauses and speed are already accounted for. `[pause:Ns]` gaps appear as `{"text": ""}` entries.
+- `text` is normalized (numbers etc expanded), so align by words rather than exact match.
+- The sidecar sits next to the download file and shares its temp lifetime.
 
 <details>
 <summary>Phoneme & Token Routes</summary>

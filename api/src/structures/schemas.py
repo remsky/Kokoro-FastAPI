@@ -120,6 +120,10 @@ class OpenAISpeechRequest(BaseModel):
         default=False,
         description="If true, returns a download link in X-Download-Path header after streaming completes",
     )
+    return_timing: bool = Field(
+        default=False,
+        description="If true with return_download_link, writes per-chunk timing JSON next to the download file and returns its path in the X-Timing-Path header",
+    )
     lang_code: Optional[str] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",

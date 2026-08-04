@@ -42,6 +42,7 @@ export class App {
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
             generateBtnLoader: document.querySelector('#generate-btn .loader'),
             downloadBtn: document.getElementById('download-btn'),
+            downloadMenu: document.getElementById('download-menu'),
             autoplayToggle: document.getElementById('autoplay-toggle'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
@@ -502,11 +503,36 @@ export class App {
         this.elements.generateBtn.addEventListener('click', () => this.generateSpeech());
 
         // Download button (div with role=button, so handle keyboard activation too)
-        this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+        this.elements.downloadBtn.addEventListener('click', () => this.toggleDownloadMenu());
         this.elements.downloadBtn.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                this.toggleDownloadMenu();
+            }
+        });
+
+        this.elements.downloadMenu.addEventListener('click', (e) => {
+            const choice = e.target.closest('[data-download]')?.dataset.download;
+            if (!choice) {
+                return;
+            }
+            this.closeDownloadMenu();
+            if (choice !== 'timings') {
                 this.downloadAudio();
+            }
+            if (choice !== 'audio') {
+                this.downloadTimings(choice === 'both' ? 250 : 0);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.download-wrap')) {
+                this.closeDownloadMenu();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDownloadMenu();
             }
         });
 
@@ -519,6 +545,7 @@ export class App {
             this.audioService.cancel();
             this.setGenerating(false);
             this.elements.downloadBtn.classList.remove('ready');
+            this.closeDownloadMenu();
             this.readAlong.setAvailable(false);
             this.showStatus('Generation cancelled', 'info');
         });
@@ -574,6 +601,7 @@ export class App {
             this.showStatus('Error: ' + error.message, 'error');
             this.setGenerating(false);
             this.elements.downloadBtn.style.display = 'none';
+            this.closeDownloadMenu();
             this.readAlong.setAvailable(false);
         });
 
@@ -663,6 +691,7 @@ export class App {
         this.setGenerating(true);
         this._playbackFailed = false;
         this.elements.downloadBtn.classList.remove('ready');
+        this.closeDownloadMenu();
 
         // Just reset progress bar, don't do full cleanup
         this.waveVisualizer.updateProgress(0, 1);
@@ -702,9 +731,40 @@ export class App {
 
         // fallback only: the server's Content-Disposition wins when it's present
         const name = this.audioService.getDownloadName();
+        this.triggerDownload(downloadUrl, name);
+    }
 
+    downloadTimings(delay = 0) {
+        this.audioService.getTimingDownloadUrl().then((url) => {
+            if (!url) {
+                return;
+            }
+            const name = this.audioService.getDownloadName()?.replace(/\.[^.]+$/, '.json');
+            setTimeout(() => this.triggerDownload(url, name), delay);
+        });
+    }
+
+    async toggleDownloadMenu() {
+        if (!this.elements.downloadMenu.hidden) {
+            this.closeDownloadMenu();
+            return;
+        }
+        if (!(await this.audioService.getTimingUrl())) {
+            this.downloadAudio();
+            return;
+        }
+        this.elements.downloadMenu.hidden = false;
+        this.elements.downloadBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    closeDownloadMenu() {
+        this.elements.downloadMenu.hidden = true;
+        this.elements.downloadBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    triggerDownload(url, name) {
         const a = document.createElement('a');
-        a.href = downloadUrl;
+        a.href = url;
         if (name) {
             a.download = name;
         }

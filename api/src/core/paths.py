@@ -325,6 +325,7 @@ async def get_content_type(path: str) -> str:
     return {
         ".html": "text/html",
         ".js": "application/javascript",
+        ".json": "application/json",
         ".css": "text/css",
         ".png": "image/png",
         ".jpg": "image/jpeg",

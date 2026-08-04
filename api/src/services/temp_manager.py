@@ -1,5 +1,6 @@
 """Temporary file writer for audio downloads"""
 
+import json
 import os
 import tempfile
 from typing import List, Optional
@@ -143,6 +144,17 @@ class TempFileWriter:
             # Handle permission issues or other errors gracefully
             logger.error(f"Failed to write to temp file: {e}")
             self._write_error = True
+
+    async def write_json_sidecar(self, data: dict) -> None:
+        """Write a JSON metadata file next to the temp audio file"""
+        if self._write_error:
+            return
+
+        try:
+            async with aiofiles.open(f"{self.temp_path}.json", mode="w") as sidecar:
+                await sidecar.write(json.dumps(data))
+        except Exception as e:
+            logger.error(f"Failed to write sidecar file: {e}")
 
     async def finalize(self) -> str:
         """Close temp file and return download path

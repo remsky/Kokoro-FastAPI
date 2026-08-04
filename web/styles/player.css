@@ -268,6 +268,47 @@
     box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
 }
 
+.download-wrap {
+    position: relative;
+    display: flex;
+}
+
+.download-menu {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    right: 0;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    min-width: 165px;
+    padding: 0.25rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.download-menu[hidden] {
+    display: none;
+}
+
+.download-menu button {
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 0.85rem;
+    text-align: left;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.35rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.download-menu button:hover,
+.download-menu button:focus-visible {
+    background: rgba(99, 102, 241, 0.2);
+}
+
 @keyframes rotate {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }

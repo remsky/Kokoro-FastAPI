@@ -187,6 +187,7 @@ async def stream_audio_chunks(
     request: Union[OpenAISpeechRequest, CaptionedSpeechRequest],
     client_request: Request,
     writer: StreamingAudioWriter,
+    timings: Optional[list] = None,
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
     voice_name = await process_and_validate_voices(
@@ -208,6 +209,7 @@ async def stream_audio_chunks(
             normalization_options=request.normalization_options,
             return_timestamps=unique_properties["return_timestamps"],
             allow_voice_tags=request.allow_voice_tags,
+            timings=timings,
         ):
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
@@ -277,9 +279,12 @@ async def create_speech(
 
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
+            timings = (
+                [] if request.return_timing and request.return_download_link else None
+            )
             # Create generator but don't start it yet
             generator = stream_audio_chunks(
-                tts_service, request, client_request, writer
+                tts_service, request, client_request, writer, timings
             )
 
             # If download link requested, wrap generator with temp file writer
@@ -302,6 +307,8 @@ async def create_speech(
                     "Transfer-Encoding": "chunked",
                     "X-Download-Path": download_path,
                 }
+                if timings is not None:
+                    headers["X-Timing-Path"] = f"{download_path}.json"
 
                 # Add header to indicate if temp file writing is available
                 if temp_writer._write_error:
@@ -321,6 +328,8 @@ async def create_speech(
 
                         # Finalize the temp file
                         await temp_writer.finalize()
+                        if timings is not None:
+                            await temp_writer.write_json_sidecar({"chunks": timings})
                     except Exception as e:
                         logger.error(f"Error in dual output streaming: {e}")
                         await temp_writer.__aexit__(type(e), e, e.__traceback__)

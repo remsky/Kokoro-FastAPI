@@ -43,6 +43,20 @@ test('download URL carries the save-as name for the server to echo back', async 
     assert.equal(service.getDownloadUrl(), '/v1/download/tmprloey00i.mp3');
 });
 
+test('timing download URL reuses the audio save-as name', async () => {
+    const service = new AudioService();
+
+    service.timingPath = '/download/tmprloey00i.mp3.json';
+    service.downloadName = 'af_bella_2026-08-01T12-30-00-000Z.mp3';
+    assert.equal(
+        await service.getTimingDownloadUrl(),
+        '/v1/download/tmprloey00i.mp3.json?name=af_bella_2026-08-01T12-30-00-000Z.mp3'
+    );
+
+    service.timingPath = null;
+    assert.equal(await service.getTimingDownloadUrl(), null);
+});
+
 // Stand-in for teardown only: a real element fires an error when its src is blanked.
 class TeardownAudio {
     constructor() {

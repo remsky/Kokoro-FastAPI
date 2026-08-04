@@ -1,4 +1,5 @@
 import { segmentSentences, sentenceIndexAt, sentenceStartFraction } from '../readAlong.js';
+import { alignChunks, sentenceIndexAtTime } from '../readAlongTiming.js';
 
 const SYNC_MS = 200;
 // landing a hair early beats arriving mid-word
@@ -16,6 +17,8 @@ export class ReadAlong {
         this.spans = [];
         this.sentences = [];
         this.sourceText = '';
+        this.sentenceTimes = null;
+        this.timingFetched = false;
         this.active = false;
         this.activeIndex = -1;
         this.syncTimer = null;
@@ -27,6 +30,33 @@ export class ReadAlong {
     setSource(text) {
         this.sourceText = text || '';
         this.sentences = segmentSentences(this.sourceText);
+        this.sentenceTimes = null;
+        this.timingFetched = false;
+    }
+
+    async loadTiming() {
+        if (this.timingFetched) {
+            return;
+        }
+        this.timingFetched = true;
+        const source = this.sourceText;
+        const url = await this.audioService.getTimingUrl?.();
+        if (!url) {
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok || this.sourceText !== source) {
+                return;
+            }
+            const data = await response.json();
+            if (this.sourceText !== source) {
+                return;
+            }
+            this.sentenceTimes = alignChunks(this.sourceText, this.sentences, data.chunks);
+        } catch {
+            this.sentenceTimes = null;
+        }
     }
 
     setAvailable(available) {
@@ -58,6 +88,7 @@ export class ReadAlong {
             if (this.audioService.canSwapToFileSource()) {
                 this.audioService.swapToFileSource(null, this.audioService.isPlaying());
             }
+            this.loadTiming();
             this.startSync();
         } else {
             this.stopSync();
@@ -128,9 +159,11 @@ export class ReadAlong {
             return;
         }
         const time = this.audioService.getCurrentTime();
-        const index = sentenceIndexAt(this.sentences, time / duration);
+        const index = this.sentenceTimes
+            ? sentenceIndexAtTime(this.sentenceTimes, time)
+            : sentenceIndexAt(this.sentences, time / duration);
         if (index !== this.activeIndex) {
-            console.log('[read-along]', time.toFixed(1), '/', duration.toFixed(1), 'idx', index, 'file', this.audioService.usingFileSource);
+            console.log('[read-along]', time.toFixed(1), '/', duration.toFixed(1), 'idx', index, 'timed', !!this.sentenceTimes);
         }
         this.setActiveIndex(index);
     }
@@ -153,8 +186,9 @@ export class ReadAlong {
         if (!Number.isFinite(duration) || duration <= 0) {
             return;
         }
-        const time = sentenceStartFraction(this.sentences, index) * duration - SEEK_LEAD_SECONDS;
-        this.audioService.seek(Math.max(0, time));
+        const start = this.sentenceTimes?.[index]
+            ?? sentenceStartFraction(this.sentences, index) * duration;
+        this.audioService.seek(Math.max(0, start - SEEK_LEAD_SECONDS));
         this.setActiveIndex(index);
     }
 

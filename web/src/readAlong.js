@@ -37,7 +37,7 @@ export function totalSpoken(sentences) {
 
 const SENTENCE_PAUSE_WEIGHT = 14;
 
-function weightOf(sentence) {
+export function weightOf(sentence) {
     return sentence.spoken > 0 ? sentence.spoken + SENTENCE_PAUSE_WEIGHT : 0;
 }
 
