@@ -32,6 +32,11 @@ body {
     min-height: 0;
 }
 
+/* the display rule above outranks the UA [hidden] style, so hiding needs its own rule */
+#text-editor[hidden] {
+    display: none;
+}
+
 .side-pane {
     display: flex;
     flex-direction: column;

@@ -7,6 +7,7 @@ services:
       dockerfile: docker/cpu/Dockerfile.optimized
     volumes:
       - ../../api:/app/api
+      - ../../web:/app/web  # hot reload the web player, files are read per request
     ports:
       - "8880:8880"
     environment:

@@ -5,6 +5,7 @@ import PlayerControls from './components/PlayerControls.js';
 import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
+import ReadAlong from './components/ReadAlong.js';
 import config from './config.js';
 import { closeOnOutsidePress } from './dismiss.js';
 import {
@@ -87,6 +88,8 @@ export class App {
                 this.updateVoiceTagNotice();
             }
         });
+
+        this.readAlong = new ReadAlong(this.audioService);
 
         this.setupNarrowLayout();
 
@@ -516,6 +519,7 @@ export class App {
             this.audioService.cancel();
             this.setGenerating(false);
             this.elements.downloadBtn.classList.remove('ready');
+            this.readAlong.setAvailable(false);
             this.showStatus('Generation cancelled', 'info');
         });
 
@@ -524,6 +528,7 @@ export class App {
             this.audioService.cleanup();
             this.playerControls.cleanup();
             this.waveVisualizer.cleanup();
+            this.readAlong.cleanup();
         });
     }
 
@@ -531,6 +536,7 @@ export class App {
         // Handle download button visibility
         this.audioService.addEventListener('downloadReady', () => {
             this.elements.downloadBtn.classList.add('ready');
+            this.readAlong.setAvailable(true);
         });
 
         // Handle buffer errors
@@ -568,11 +574,13 @@ export class App {
             this.showStatus('Error: ' + error.message, 'error');
             this.setGenerating(false);
             this.elements.downloadBtn.style.display = 'none';
+            this.readAlong.setAvailable(false);
         });
 
         // Block-mode playback failure: file is still available for download
         this.audioService.addEventListener('playbackUnavailable', () => {
             this._playbackFailed = true;
+            this.readAlong.setAvailable(false);
             this.showStatus(
                 'Playback unavailable in this browser. Use the download below.',
                 'info'
@@ -649,6 +657,9 @@ export class App {
         this.playerState.setReady(false);
         this.playerState.setPlaying(false);
         this.playerState.setTime(0, 0);
+        // snapshot before streaming, so read along follows what was generated even if the text is edited after
+        this.readAlong.setAvailable(false);
+        this.readAlong.setSource(text);
         this.setGenerating(true);
         this._playbackFailed = false;
         this.elements.downloadBtn.classList.remove('ready');

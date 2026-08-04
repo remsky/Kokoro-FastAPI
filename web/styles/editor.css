@@ -332,6 +332,101 @@
     white-space: nowrap;
 }
 
+.read-along-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.read-along-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* ready matches the generate button, white with black text means on */
+.read-along-btn:not(:disabled) {
+    background: var(--fg-color);
+    border-color: var(--fg-color);
+    color: #fff;
+}
+
+.read-along-btn:not(:disabled):not(.is-active):hover {
+    background: #7b82f4;
+    border-color: #7b82f4;
+}
+
+.read-along-btn.is-active {
+    background: #fff;
+    border-color: #0f172a;
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px #0f172a;
+}
+
+/* stands in for the editor view, so it mirrors the textarea chrome */
+.read-along-view {
+    flex: 1 1 auto;
+    min-height: 200px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+}
+
+.read-along-view::-webkit-scrollbar {
+    width: 6px;
+}
+
+.read-along-view::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 3px;
+}
+
+/* offscreen paragraphs skip layout and paint, so book-length texts stay cheap */
+.read-paragraph {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 4rem;
+}
+
+.read-paragraph.gap {
+    margin-bottom: 1.6em;
+}
+
+.read-sentence {
+    border-radius: 0.2rem;
+    transition: background-color 0.15s ease;
+}
+
+.read-sentence:not(.silent) {
+    cursor: pointer;
+}
+
+.read-sentence:not(.silent):hover {
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.read-sentence.is-active {
+    background: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.7);
+    /* wrapped lines each get their own ring instead of one broken box */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
 @media (max-width: 900px) {
     .text-editor {
         overflow: visible;
