@@ -497,7 +497,6 @@ class TTSService:
                 if len(audio_stream_data.audio) > 0:
                     audio_data_chunks.append(audio_stream_data)
 
-            # tags-only or empty input produces no chunks, surface it as a 400 not an IndexError
             if not audio_data_chunks:
                 raise ValueError("Input contains no speakable text")
 

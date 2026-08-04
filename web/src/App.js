@@ -339,7 +339,7 @@ export class App {
         const blob = new Blob([`${JSON.stringify(exportCast(this.cast), null, 2)}\n`], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         Object.assign(document.createElement('a'), { href: url, download: 'voice-tags.json' }).click();
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     /** Imports join the cast rather than replace it, and a mix this server cannot speak is dropped rather than left to 400. */
