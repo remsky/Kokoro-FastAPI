@@ -24,6 +24,7 @@ import {
     renameVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
+    unspeakableTagNames,
     updateCastMix
 } from './voiceTags.js';
 
@@ -387,8 +388,9 @@ export class App {
 
         const skipped = members.length - added;
         this.setCast(cast);
+        const orphans = replace ? unspeakableTagNames(this.textEditor.getText(), cast, available).length : 0;
         this.showStatus(replace
-            ? `Cast replaced with ${added}${skipped ? `, skipped ${skipped}` : ''}`
+            ? `Cast replaced with ${added}${skipped ? `, skipped ${skipped}` : ''}${orphans ? `, ${orphans} tag${orphans === 1 ? '' : 's'} in the text cannot speak` : ''}`
             : `Added ${added} to the cast${skipped ? `, skipped ${skipped}` : ''}`, 'success');
     }
 

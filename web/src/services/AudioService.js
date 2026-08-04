@@ -144,7 +144,9 @@ export class AudioService {
             if (!response.ok) {
                 const error = await response.json();
                 console.error('AudioService: API error', error);
-                throw new Error(error.detail?.message || 'Failed to generate speech');
+                const message = (error.detail?.message || 'Failed to generate speech')
+                    .replace(/\s*Available voices:.*$/s, '');
+                throw new Error(message);
             }
 
             await this.setupAudioStream(response.body, response, onProgress, estimatedChunks, canUseMseStream);

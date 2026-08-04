@@ -162,6 +162,22 @@ export function isSpeakableMix(mix, available) {
         && parseVoiceMix(mix).every(({ voice }) => available.includes(voice));
 }
 
+/** Tag names in the text the request could not speak: not a cast member, not a mix of real voices. */
+export function unspeakableTagNames(text, cast, available) {
+    const names = new Map();
+    for (const match of String(text).matchAll(tagPattern())) {
+        const folded = match[1].toLowerCase();
+        if (!names.has(folded)) {
+            names.set(folded, match[1]);
+        }
+    }
+
+    return [...names.entries()]
+        .filter(([folded, name]) => !cast.some((member) => member.name.toLowerCase() === folded)
+            && !isSpeakableMix(name, available))
+        .map(([, name]) => name);
+}
+
 /** Reads a mix string back into voice/weight pairs, so a cast member can return to the mixer. */
 export function parseVoiceMix(mix) {
     return String(mix || '')

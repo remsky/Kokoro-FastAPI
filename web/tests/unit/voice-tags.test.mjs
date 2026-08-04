@@ -20,6 +20,7 @@ import {
     renameVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
+    unspeakableTagNames,
     updateCastMix
 } from '../../src/voiceTags.js';
 
@@ -233,6 +234,22 @@ test('a mix with an empty plus-part is unspeakable, even though parsing smooths 
     assert.equal(isSpeakableMix('+', available), false);
     assert.equal(isSpeakableMix('af_jane', available), false);
     assert.equal(isSpeakableMix('', available), false);
+});
+
+test('tags name their trouble: not in the cast and not a real mix means unspeakable', () => {
+    const available = ['af_bella', 'af_sky'];
+    const cast = [{ name: 'narrator', mix: 'af_bella(2)+af_sky' }];
+    const text = '[voice:narrator] One. [voice:af_bella] Two. [voice:hero] Three. [voice:af_jane] Four.';
+
+    assert.deepEqual(unspeakableTagNames(text, cast, available), ['hero', 'af_jane']);
+});
+
+test('unspeakable tag names are counted once, however the case varies', () => {
+    const text = '[voice:Hero] One. [voice:hero] Two. [voice:HERO] Three.';
+
+    assert.deepEqual(unspeakableTagNames(text, [], ['af_bella']), ['Hero']);
+    assert.deepEqual(unspeakableTagNames(text, [{ name: 'hero', mix: 'af_bella' }], ['af_bella']), []);
+    assert.deepEqual(unspeakableTagNames('No tags at all.', [], ['af_bella']), []);
 });
 
 test('renaming a member follows through to the tags already placed', () => {

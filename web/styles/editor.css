@@ -79,11 +79,18 @@
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.35rem;
+    position: relative;
 }
 
-/* single page: both nav buttons disabled, hide the whole row */
-.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) {
+/* both nav buttons disabled means a single page: drop the pagination, find keeps the bar */
+.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) .pagination {
     display: none;
+}
+
+.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) .find-menu {
+    position: static;
+    transform: none;
+    margin-left: auto;
 }
 
 .pagination {
@@ -114,10 +121,124 @@
 }
 
 .page-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     color: var(--text-light);
     font-size: 0.875rem;
     min-width: 100px;
+    justify-content: center;
+}
+
+.page-jump {
+    width: 3.2rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-size: 0.875rem;
     text-align: center;
+}
+
+.page-jump:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.find-menu {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.find-toggle {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    color: var(--text-light);
+    padding: 0.3rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.find-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.find-toggle:hover,
+.find-menu[open] .find-toggle {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.find-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    width: 230px;
+    padding: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.find-panel input {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+.find-panel input:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.find-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* own line with reserved height, so a changing count never moves the buttons */
+.find-count {
+    min-height: 1em;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.find-actions button {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: all 0.2s ease;
+}
+
+.find-actions button:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+    color: var(--text);
 }
 
 /* text buttons absorb the free space so the row fills edge to edge */
