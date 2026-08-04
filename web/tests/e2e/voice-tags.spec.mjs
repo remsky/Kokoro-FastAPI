@@ -67,6 +67,24 @@ test('seeding happens once, not on every switch', async ({ page }) => {
     await expect(castNames(page)).toHaveCount(1);
 });
 
+test('the voice picked on the voices tab survives a peek at the tags tab', async ({ page }) => {
+    // the default joins the cast first, so the restore has somewhere older to point at
+    await tagsTab(page).click();
+    await voicesTab(page).click();
+
+    await page.locator('.selected-voice-tag .remove-voice').click();
+    await page.locator('#voice-search').click();
+    const option = page.locator('.voice-option').nth(3);
+    const picked = (await option.textContent()).trim();
+    await option.click();
+    await editor(page).click();
+
+    await tagsTab(page).click();
+    await voicesTab(page).click();
+
+    await expect(page.locator('.selected-voice-tag .voice-name')).toHaveText([picked]);
+});
+
 test('the mixer keeps mixing in tag mode rather than inserting on click', async ({ page }) => {
     await editor(page).fill('Hello there.');
     await tagsTab(page).click();
@@ -297,6 +315,21 @@ test('a name that would shadow a real voice is refused', async ({ page }) => {
     await expect(castNames(page)).toHaveText([before]);
 });
 
+test('a case variant of a taken name is refused, since the server folds aliases', async ({ page }) => {
+    await tagsTab(page).click();
+    const taken = (await page.locator('.voice-option').nth(2).textContent()).trim();
+    const variant = taken.charAt(0).toUpperCase() + taken.slice(1);
+    const before = (await castNames(page).first().textContent()).trim();
+
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill(variant);
+    await page.locator('.cast-rename-input').press('Enter');
+
+    await expect(page.locator('#status')).toHaveText(`"${variant}" is already taken`);
+    await expect(castNames(page)).toHaveText([before]);
+});
+
 test('one speaker can be cleared out of the text from its own menu', async ({ page }) => {
     await editor(page).fill('First line.\nSecond line.');
     await tagsTab(page).click();
@@ -343,6 +376,46 @@ test('editing a mix retunes the member without disturbing its tags', async ({ pa
     await expect(editor(page)).toHaveValue(`[voice:${renamed}] First line.`);
     expect(renamed).not.toBe(name);
     await expect(page.locator('#create-tag-btn')).toHaveText('Create tag');
+});
+
+test('editing a mix onto an existing member merges the chips rather than twinning them', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+
+    await page.locator('#voice-search').click();
+    const option = page.locator('.voice-option').nth(2);
+    const other = (await option.textContent()).trim();
+    await option.click();
+    await editor(page).click();
+    await page.locator('#create-tag-btn').click();
+    await expect(castNames(page)).toHaveCount(2);
+
+    // retune the first member to exactly the second member's mix
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="edit"]').click();
+    await page.locator('.selected-voice-tag .remove-voice').click();
+    await page.locator('#voice-search').click();
+    await page.locator('.voice-option').nth(2).click();
+    await editor(page).click();
+    await page.locator('#create-tag-btn').click();
+
+    await expect(castNames(page)).toHaveText([other]);
+    await expect(editor(page)).toHaveValue(`[voice:${other}] First line.`);
+});
+
+test('an import full of malformed mixes reports instead of keeping them', async ({ page }) => {
+    await tagsTab(page).click();
+    await expect(castNames(page)).toHaveCount(1);
+
+    // empty +-parts survive parsing, so these would 400 at generation if let in
+    await page.locator('#import-cast-input').setInputFiles({
+        name: 'cast.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify({ voice_aliases: { 'af_bella+': 'af_bella+', villain: 'af_bella++af_sky' } }))
+    });
+
+    await expect(page.locator('#status')).toHaveText('Nothing in that file could join the cast');
+    await expect(castNames(page)).toHaveCount(1);
 });
 
 test('the alias map travels with the request', async ({ page }) => {

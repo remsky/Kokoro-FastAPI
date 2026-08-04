@@ -15,9 +15,9 @@ import {
     exportCast,
     hasVoiceTagFor,
     insertVoiceTag,
+    isSpeakableMix,
     leadingVoiceTag,
     parseCastFile,
-    parseVoiceMix,
     removeFromCast,
     removeVoiceTagsFor,
     renameCastMember,
@@ -34,6 +34,7 @@ export class App {
         this.cast = [];
         this.editing = null;
         this.tagMode = false;
+        this.stagedBeforeTags = '';
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
@@ -148,7 +149,8 @@ export class App {
         });
 
         if (enabled) {
-            // whatever is staged joins the cast, so the mixer starts empty for the next voice
+            // the staged mix joins the cast but is remembered, so leaving the tab hands the same voice back
+            this.stagedBeforeTags = this.voiceService.getSelectedVoiceString() || this.cast[0]?.mix || '';
             this.commitMix();
             // the seeded tag is the whole explanation of the syntax
             const seeded = seedVoiceTag(this.textEditor.getText(), this.cast[0]?.name);
@@ -156,8 +158,7 @@ export class App {
                 this.textEditor.replaceText(seeded.text);
             }
         } else if (!this.voiceService.hasSelectedVoices() && this.cast.length) {
-            // the mixer was emptied into the cast, so hand the default back rather than leaving nothing to speak
-            this.voiceSelector.setMix(this.cast[0].mix);
+            this.voiceSelector.setMix(this.stagedBeforeTags || this.cast[0].mix);
         }
 
         this.updateVoiceTagNotice();
@@ -200,7 +201,10 @@ export class App {
 
         // a member still standing for its own mix has to follow it, tags and all
         if (member && member.name === member.mix && member.mix !== mix) {
-            cast = renameCastMember(cast, name, mix);
+            // that mix may already sit in the cast, and a twin chip would confuse every name-keyed lookup
+            cast = this.cast.some((entry) => entry.name === mix)
+                ? removeFromCast(cast, name)
+                : renameCastMember(cast, name, mix);
             this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, mix));
         }
 
@@ -270,7 +274,9 @@ export class App {
             ...this.voiceService.getAvailableVoices()
         ];
 
-        if (taken.includes(next)) {
+        // folded like the server resolves aliases, so AF_Bella cannot shadow af_bella
+        const folded = next.toLowerCase();
+        if (taken.some((entry) => entry.toLowerCase() === folded)) {
             keepName(`"${next}" is already taken`);
             return;
         }
@@ -349,9 +355,11 @@ export class App {
         const available = this.voiceService.getAvailableVoices();
         let cast = this.cast;
         for (const { name, mix } of members) {
-            const known = parseVoiceMix(mix).every(({ voice }) => available.includes(voice));
-            const taken = cast.some((entry) => entry.name === name || entry.mix === mix)
-                || (name !== mix && available.includes(name));
+            // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
+            const folded = name.toLowerCase();
+            const known = isSpeakableMix(mix, available);
+            const taken = cast.some((entry) => entry.name.toLowerCase() === folded || entry.mix === mix)
+                || (name !== mix && available.some((voice) => voice.toLowerCase() === folded));
             if (known && !taken) {
                 cast = [...cast, { name, mix }];
             }

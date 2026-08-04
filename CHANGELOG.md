@@ -6,11 +6,11 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
-- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`. Opt in per request with `allow_voice_tags: true` (`extra_body` from the OpenAI client), so bracketed text in existing callers is still spoken as written.
+- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`. Opt in per request with `allow_voice_tags: true` (`extra_body` from the OpenAI client), so bracketed text in existing callers is still spoken as written. `ENABLE_VOICE_TAGS=false` refuses the opt-in and `/dev/dialogue` server-wide, for deployments passing untrusted text through.
 - `POST /dev/dialogue` takes the same thing as ordered `turns` with an optional `pause_between_turns`, and supports the `/v1/audio/speech` options.
 - Optional `voice_aliases` map on `/v1/audio/speech` and `/dev/captioned_speech`, so a short name can stand in for a weighted mix in the `voice` field and in tags (`{"narrator": "af_bella(2)+af_sky"}`). Resolved before validation, so an alias to an unknown voice is still a 400.
 - Web UI Voice Tags tab: builds a cast of named voices, places `[voice:name]` tags at the cursor, and saves or imports that cast as a `{"voice_aliases": {...}}` file, the same map the API takes.
-- `/dev/captioned_speech` timestamps carry the `voice` that spoke each word when `allow_voice_tags` is on, so multi-speaker captions can be labelled without re-deriving the split client side. `null` otherwise, leaving existing responses unchanged.
+- `/dev/captioned_speech` timestamps carry the `voice` that spoke each word when `allow_voice_tags` is on, so multi-speaker captions can be labelled without re-deriving the split client side. Absent otherwise, leaving existing responses unchanged.
 
 ### Changed
 - Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.

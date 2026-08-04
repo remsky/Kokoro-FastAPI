@@ -89,7 +89,8 @@ function snapToBoundary(text, cursor) {
     return cursor - back <= forward - cursor ? back : forward;
 }
 
-export const CAST_NAME_PATTERN = /^[A-Za-z0-9_-]{1,24}$/;
+// first char anchored like TAG_SOURCE, so a legal cast name always makes a matchable tag
+export const CAST_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,23}$/;
 
 /**
  * A new member stands for its own mix, so the tag placed in the text is the plain
@@ -153,6 +154,12 @@ export function parseCastFile(data) {
         .filter(([, mix]) => typeof mix === 'string')
         .map(([name, mix]) => ({ name: String(name).trim(), mix: mix.trim() }))
         .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
+}
+
+/** parseVoiceMix drops empty +-parts, so speakability is judged before that smoothing hides them. */
+export function isSpeakableMix(mix, available) {
+    return String(mix || '').split('+').every((part) => part.trim())
+        && parseVoiceMix(mix).every(({ voice }) => available.includes(voice));
 }
 
 /** Reads a mix string back into voice/weight pairs, so a cast member can return to the mixer. */

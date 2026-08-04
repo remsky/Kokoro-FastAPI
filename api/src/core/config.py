@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )
+    enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container

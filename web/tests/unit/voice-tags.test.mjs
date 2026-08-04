@@ -10,6 +10,7 @@ import {
     hasVoiceTagFor,
     hasVoiceTags,
     insertVoiceTag,
+    isSpeakableMix,
     leadingVoiceTag,
     parseCastFile,
     parseVoiceMix,
@@ -206,6 +207,8 @@ test('a saved cast reads back out of a whole request body just as well', () => {
 
 test('an entry that could never be a tag is left out of the import', () => {
     assert.deepEqual(parseCastFile({ voice_aliases: { 'not a name': 'af_bella' } }), []);
+    // a leading dash parses as prose in TAG_SOURCE, so the name is refused up front
+    assert.deepEqual(parseCastFile({ voice_aliases: { '-bob': 'af_bella' } }), []);
     assert.deepEqual(parseCastFile({ voice_aliases: { narrator: '  ' } }), []);
     assert.deepEqual(parseCastFile({ voice_aliases: { narrator: 12 } }), []);
     assert.deepEqual(parseCastFile(['narrator']), []);
@@ -219,6 +222,17 @@ test('only names that stand for something else are sent as aliases', () => {
     ];
     assert.deepEqual(castAliases(cast), { narrator: 'am_michael(2)+af_sky(1)' });
     assert.deepEqual(castAliases([]), {});
+});
+
+test('a mix with an empty plus-part is unspeakable, even though parsing smooths it over', () => {
+    const available = ['af_bella', 'af_sky'];
+    assert.equal(isSpeakableMix('af_bella', available), true);
+    assert.equal(isSpeakableMix('af_bella(2)+af_sky(1)', available), true);
+    assert.equal(isSpeakableMix('af_bella+', available), false);
+    assert.equal(isSpeakableMix('af_bella++af_sky', available), false);
+    assert.equal(isSpeakableMix('+', available), false);
+    assert.equal(isSpeakableMix('af_jane', available), false);
+    assert.equal(isSpeakableMix('', available), false);
 });
 
 test('renaming a member follows through to the tags already placed', () => {

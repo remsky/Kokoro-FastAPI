@@ -180,6 +180,16 @@ async def create_dialogue(
     [voice:...] and [pause:Xs] existing tags so
     streaming, formats and download links should behave identically.
     """
+    if not settings.enable_voice_tags:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "Voice tags are disabled on this server",
+                "type": "permission_error",
+            },
+        )
+
     speech_request = OpenAISpeechRequest(
         model=request.model,
         input=request.to_tagged_input(),
@@ -192,7 +202,7 @@ async def create_dialogue(
         lang_code=request.lang_code,
         volume_multiplier=request.volume_multiplier,
         normalization_options=request.normalization_options,
-        allow_voice_tags=True, # always on here
+        allow_voice_tags=True,  # always on here
     )
     return await create_speech(
         request=speech_request,
@@ -209,6 +219,16 @@ async def create_captioned_speech(
     tts_service: TTSService = Depends(get_tts_service),
 ):
     """Generate audio with word-level timestamps using streaming approach"""
+
+    if request.allow_voice_tags and not settings.enable_voice_tags:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "Voice tags are disabled on this server",
+                "type": "permission_error",
+            },
+        )
 
     try:
         # model_name = get_model_name(request.model)
@@ -480,7 +500,9 @@ async def unload_model(
         )
     try:
         if tts_service.model_manager is None:
-            raise HTTPException(status_code=503, detail={"error": "Model manager not initialized"})
+            raise HTTPException(
+                status_code=503, detail={"error": "Model manager not initialized"}
+            )
         await tts_service.model_manager.unload()
         return JSONResponse({"status": "unloaded"})
     except HTTPException:

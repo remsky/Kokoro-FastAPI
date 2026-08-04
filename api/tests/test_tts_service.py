@@ -160,7 +160,9 @@ async def test_split_multi_voice_resolves_each_speaker_once():
             _text,
             _tokens,
             _pause,
-        ) in service._split_multi_voice(text, "af_heart", None, None, allow_voice_tags=True):
+        ) in service._split_multi_voice(
+            text, "af_heart", None, None, allow_voice_tags=True
+        ):
             speakers.append(voice_name)
 
         assert speakers == ["af_bella", "bm_george", "af_bella"]
@@ -189,7 +191,9 @@ async def test_split_multi_voice_lang_code_per_speaker():
         langs = [
             lang
             async for _name, _path, lang, _text, _tokens, _pause in (
-                service._split_multi_voice(text, "af_heart", None, None, allow_voice_tags=True)
+                service._split_multi_voice(
+                    text, "af_heart", None, None, allow_voice_tags=True
+                )
             )
         ]
 
@@ -298,3 +302,17 @@ async def test_timestamps_omit_speaker_by_default():
     stamped = await _stamped_words(service, allow_voice_tags=False)
 
     assert stamped and all(voice is None for _, voice, _ in stamped)
+
+
+@pytest.mark.asyncio
+async def test_generate_audio_with_nothing_speakable_raises():
+    """Tags-only input is a ValueError the routers map to a 400, not an IndexError"""
+    service = await _stubbed_service()
+
+    with pytest.raises(ValueError, match="no speakable text"):
+        await service.generate_audio(
+            "[voice:af_bella] [voice:bm_george]",
+            "af_heart",
+            MagicMock(),
+            allow_voice_tags=True,
+        )

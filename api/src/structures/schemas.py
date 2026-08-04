@@ -2,7 +2,14 @@ from email.policy import default
 from enum import Enum
 from typing import Dict, List, Literal, Optional
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+)
 
 
 class TTSStatus(str, Enum):
@@ -22,8 +29,16 @@ class WordTimestamp(BaseModel):
     end_time: float = Field(..., description="End time in seconds")
     voice: Optional[str] = Field(
         None,
-        description="Resolved voice that spoke the word, set only when allow_voice_tags is on",
+        description="Resolved voice that spoke the word, present only when allow_voice_tags is on",
     )
+
+    @model_serializer(mode="wrap")
+    def _omit_unset_voice(self, handler):
+        # keeps responses byte-identical to before the field existed when tags are off
+        data = handler(self)
+        if data.get("voice") is None:
+            data.pop("voice", None)
+        return data
 
 
 class CaptionedSpeechResponse(BaseModel):
@@ -135,7 +150,15 @@ class DialogueTurn(BaseModel):
         validation_alias=AliasChoices("voice", "voice_id"),
         description="The voice for this turn. Can be a base voice or a combined voice name. Accepts voice_id as an alias.",
     )
-    text: str = Field(..., description="The text this speaker says")
+    text: str = Field(..., min_length=1, description="The text this speaker says")
+
+    @field_validator("text")
+    @classmethod
+    def _reject_blank_text(cls, value: str) -> str:
+        # a blank turn renders to a tag with nothing to say, which fails deep in generation
+        if not value.strip():
+            raise ValueError("Turn text cannot be empty")
+        return value
 
 
 class DialogueRequest(BaseModel):

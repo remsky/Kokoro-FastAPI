@@ -239,6 +239,16 @@ async def create_speech(
             },
         )
 
+    if request.allow_voice_tags and not settings.enable_voice_tags:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "Voice tags are disabled on this server",
+                "type": "permission_error",
+            },
+        )
+
     try:
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()

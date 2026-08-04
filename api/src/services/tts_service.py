@@ -15,8 +15,10 @@ from loguru import logger
 from ..core.config import settings
 from ..inference.base import AudioChunk
 from ..inference.kokoro_v1 import KokoroV1
-from ..inference.model_manager import ModelManager
-from ..inference.model_manager import get_manager as get_model_manager
+from ..inference.model_manager import (
+    ModelManager,
+    get_manager as get_model_manager,
+)
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions
 from .audio import AudioNormalizer, AudioService
@@ -494,6 +496,10 @@ class TTSService:
             ):
                 if len(audio_stream_data.audio) > 0:
                     audio_data_chunks.append(audio_stream_data)
+
+            # tags-only or empty input produces no chunks, surface it as a 400 not an IndexError
+            if not audio_data_chunks:
+                raise ValueError("Input contains no speakable text")
 
             combined_audio_data = AudioChunk.combine(audio_data_chunks)
             return combined_audio_data

@@ -926,3 +926,88 @@ def test_dialogue_endpoint_opts_into_voice_tags(mock_tts_service):
     )
     assert response.status_code == 200
     assert mock_tts_service.generate_audio.call_args.kwargs["allow_voice_tags"] is True
+
+
+@pytest.mark.parametrize("text", ["", "   "])
+def test_dialogue_endpoint_rejects_blank_turn_text(mock_tts_service, text):
+    """A blank turn is a schema error rather than a failure deep in generation"""
+    response = client.post(
+        "/dev/dialogue",
+        json={"turns": [{"voice": "voice1", "text": text}]},
+    )
+    assert response.status_code == 422
+
+
+def test_speech_endpoint_403_when_voice_tags_disabled(mock_tts_service, monkeypatch):
+    """The server kill switch refuses the opt in outright"""
+    monkeypatch.setattr(settings, "enable_voice_tags", False)
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:voice1] Hello.",
+            "voice": "voice1",
+            "stream": False,
+            "allow_voice_tags": True,
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "permission_denied"
+
+
+def test_speech_endpoint_without_opt_in_ignores_kill_switch(
+    mock_tts_service, monkeypatch
+):
+    """Plain requests are untouched by the flag either way"""
+    monkeypatch.setattr(settings, "enable_voice_tags", False)
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "Hello.",
+            "voice": "voice1",
+            "response_format": "wav",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+
+
+def test_dialogue_endpoint_403_when_voice_tags_disabled(monkeypatch):
+    """/dev/dialogue is tags end to end, so the flag turns the endpoint off"""
+    monkeypatch.setattr(settings, "enable_voice_tags", False)
+    response = client.post(
+        "/dev/dialogue",
+        json={"turns": [{"voice": "voice1", "text": "One."}]},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "permission_denied"
+
+
+def test_captioned_endpoint_403_when_voice_tags_disabled(monkeypatch):
+    """The captioned opt in answers to the same kill switch"""
+    monkeypatch.setattr(settings, "enable_voice_tags", False)
+    response = client.post(
+        "/dev/captioned_speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:voice1] Hello.",
+            "voice": "voice1",
+            "allow_voice_tags": True,
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "permission_denied"
+
+
+def test_word_timestamp_omits_voice_when_unset():
+    """Captioned responses stay byte-identical for callers not using voice tags"""
+    from api.src.structures.schemas import WordTimestamp
+
+    plain = WordTimestamp(word="hi", start_time=0.0, end_time=0.1).model_dump()
+    tagged = WordTimestamp(
+        word="hi", start_time=0.0, end_time=0.1, voice="af_bella"
+    ).model_dump()
+
+    assert "voice" not in plain
+    assert tagged["voice"] == "af_bella"

@@ -528,7 +528,7 @@ for chunk in response.iter_lines(decode_unicode=True):
         print(chunk_json["timestamps"])
 ```
 
-With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is `null`.
+With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is absent.
 </details>
 
 <details>
@@ -658,6 +658,7 @@ curl -X POST http://localhost:8880/dev/dialogue \
 
 Notes:
 - `/dev/dialogue` builds the tags itself, so it needs no opt in. Only the inline form on `/v1/audio/speech` reads `allow_voice_tags`.
+- `ENABLE_VOICE_TAGS=false` refuses the opt-in and `/dev/dialogue` server-wide (403), to avoid unintentional speaker switching where request text passes through from untrusted sources.
 - Each speaker keeps its own language pipeline, so mixing `af_*` with `bm_*` or `jf_*` in one request works without setting `lang_code`. An explicit `lang_code` still overrides every speaker.
 - Speaker count is not capped. Each distinct voice is resolved once per request and its tensor and pipeline are cached, so switching between speakers costs no extra model work.
 - Consecutive turns sharing a voice are merged before chunking, so tagging every paragraph in a long single-voice document doesn't fragment it.
