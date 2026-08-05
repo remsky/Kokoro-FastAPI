@@ -11,7 +11,6 @@ export default class TextEditor {
         this.pages = [''];
         this.charCount = 0;
         this.fullText = '';
-        this.isTyping = false;
         this.findFrom = 0;
         
         this.setupDOM();
@@ -219,24 +218,24 @@ export default class TextEditor {
             return;
         }
 
-        const words = text.trim().split(/\s+/);
+        const tokens = text.trim().split(/(\s+)/);
         this.pages = [];
         let currentPage = '';
-        
-        for (let i = 0; i < words.length; i++) {
-            const word = words[i];
-            const potentialPage = currentPage + (currentPage ? ' ' : '') + word;
-            
-            if (potentialPage.length >= this.options.charsPerPage && currentPage) {
-                this.pages.push(currentPage);
-                currentPage = word;
+
+        for (const token of tokens) {
+            const isWhitespace = /^\s+$/.test(token);
+            const potentialPage = currentPage + token;
+
+            if (potentialPage.length >= this.options.charsPerPage && currentPage && !isWhitespace) {
+                this.pages.push(currentPage.trimEnd());
+                currentPage = token;
             } else {
                 currentPage = potentialPage;
             }
         }
-        
-        if (currentPage) {
-            this.pages.push(currentPage);
+
+        if (currentPage.trim()) {
+            this.pages.push(currentPage.trimEnd());
         }
         
         if (this.pages.length === 0) {

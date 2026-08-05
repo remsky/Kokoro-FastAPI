@@ -41,10 +41,12 @@ async def cleanup_temp_files() -> None:
         max_age = settings.max_temp_dir_age_hours * 3600
 
         sizes = {path: size for path, _mtime, size in files}
+        sidecars = {f"{p}.json" for p, _, _ in files} & sizes.keys()
         removed = set()
+        primary_count = sum(1 for p, _, _ in files if p not in sidecars)
 
         for path, mtime, _ in files:
-            if path in removed:
+            if path in removed or path in sidecars:
                 continue
 
             should_delete = False
@@ -54,8 +56,8 @@ async def cleanup_temp_files() -> None:
                 should_delete = True
                 logger.info(f"Deleting old temp file: {path}")
 
-            # Check count limit
-            elif len(files) > settings.max_temp_dir_count:
+            # Check count limit (sidecars don't count toward the cap)
+            elif primary_count > settings.max_temp_dir_count:
                 should_delete = True
                 logger.info(f"Deleting excess temp file: {path}")
 
@@ -67,13 +69,15 @@ async def cleanup_temp_files() -> None:
             if should_delete:
                 targets = [path]
                 sidecar = f"{path}.json"
-                if sidecar in sizes:
+                if sidecar in sidecars and sidecar not in removed:
                     targets.append(sidecar)
                 for target in targets:
                     try:
                         await aiofiles.os.remove(target)
                         removed.add(target)
                         total_size -= sizes[target]
+                        if target not in sidecars:
+                            primary_count -= 1
                         logger.info(f"Deleted temp file: {target}")
                     except Exception as e:
                         logger.warning(f"Failed to delete temp file {target}: {e}")

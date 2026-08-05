@@ -1047,6 +1047,76 @@ def test_captioned_endpoint_403_when_voice_tags_disabled(monkeypatch):
     assert response.json()["detail"]["error"] == "permission_denied"
 
 
+def test_streaming_with_timing_sidecar(mock_tts_service, test_voice, mock_audio_bytes, tmp_path):
+    """return_timing + return_download_link produces X-Timing-Path and writes a sidecar"""
+    mock_cfg = MagicMock()
+    mock_cfg.temp_file_dir = str(tmp_path)
+    mock_cfg.enable_voice_tags = True
+    mock_cfg.max_temp_dir_count = 100
+    mock_cfg.max_temp_dir_size_mb = 100
+    mock_cfg.max_temp_dir_age_hours = 1
+
+    with (
+        patch("api.src.routers.openai_compatible.settings", mock_cfg),
+        patch("api.src.services.temp_manager.settings", mock_cfg),
+    ):
+        response = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": "kokoro",
+                "input": "Hello world",
+                "voice": test_voice,
+                "response_format": "mp3",
+                "stream": True,
+                "return_download_link": True,
+                "return_timing": True,
+            },
+        )
+
+    assert response.status_code == 200
+    assert "X-Timing-Path" in response.headers
+    timing_path = response.headers["X-Timing-Path"]
+    assert timing_path.endswith(".json")
+
+    download_path = response.headers.get("X-Download-Path", "")
+    assert timing_path == f"{download_path}.json"
+
+    sidecar_file = tmp_path / os.path.basename(timing_path)
+    assert sidecar_file.exists(), "timing sidecar file should be written after stream completes"
+    sidecar = json.loads(sidecar_file.read_text())
+    assert "chunks" in sidecar
+
+
+def test_streaming_without_timing_has_no_header(mock_tts_service, test_voice, mock_audio_bytes, tmp_path):
+    """Without return_timing the header is absent"""
+    mock_cfg = MagicMock()
+    mock_cfg.temp_file_dir = str(tmp_path)
+    mock_cfg.enable_voice_tags = True
+    mock_cfg.max_temp_dir_count = 100
+    mock_cfg.max_temp_dir_size_mb = 100
+    mock_cfg.max_temp_dir_age_hours = 1
+
+    with (
+        patch("api.src.routers.openai_compatible.settings", mock_cfg),
+        patch("api.src.services.temp_manager.settings", mock_cfg),
+    ):
+        response = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": "kokoro",
+                "input": "Hello world",
+                "voice": test_voice,
+                "response_format": "mp3",
+                "stream": True,
+                "return_download_link": True,
+                "return_timing": False,
+            },
+        )
+
+    assert response.status_code == 200
+    assert "X-Timing-Path" not in response.headers
+
+
 def test_word_timestamp_omits_voice_when_unset():
     """Captioned responses stay byte-identical for callers not using voice tags"""
     from api.src.structures.schemas import WordTimestamp

@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...core.config import settings
-from ...structures.schemas import NormalizationOptions
+from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
@@ -20,7 +20,7 @@ CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(
-    r"\[voice:\s*([a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*?)\s*\]", re.IGNORECASE
+    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE
 )
 
 

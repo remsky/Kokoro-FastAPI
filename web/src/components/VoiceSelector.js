@@ -1,6 +1,11 @@
 import { closeOnOutsidePress } from '../dismiss.js';
 import { parseVoiceMix } from '../voiceTags.js';
 
+function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export class VoiceSelector {
     constructor(voiceService) {
         this.voiceService = voiceService;
@@ -61,12 +66,12 @@ export class VoiceSelector {
         list.innerHTML = cast
             .map((member) => `
                 <span class="cast-member"
-                      data-name="${member.name}"
-                      data-mix="${member.mix}"
-                      title="Insert [voice:${member.name}]${member.name === member.mix ? '' : ` (${member.mix})`}">
-                    <span class="cast-name">${member.name}</span>
-                    <button type="button" class="cast-menu-btn" data-name="${member.name}" title="More"
-                            aria-label="Options for ${member.name}" aria-haspopup="menu" aria-expanded="false">⋯</button>
+                      data-name="${esc(member.name)}"
+                      data-mix="${esc(member.mix)}"
+                      title="Insert [voice:${esc(member.name)}]${member.name === member.mix ? '' : ` (${esc(member.mix)})`}">
+                    <span class="cast-name">${esc(member.name)}</span>
+                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}" title="More"
+                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">⋯</button>
                 </span>
             `)
             .join('');
@@ -188,7 +193,7 @@ export class VoiceSelector {
 
     closeCastMenu({ restoreFocus = false } = {}) {
         const button = this.menuFor && this.elements.voiceCastList
-            ?.querySelector(`.cast-menu-btn[data-name="${this.menuFor}"]`);
+            ?.querySelector(`.cast-menu-btn[data-name="${CSS.escape(this.menuFor)}"]`);
         button?.setAttribute('aria-expanded', 'false');
         this.menuFor = null;
         if (this.elements.castMenu) {
@@ -204,7 +209,7 @@ export class VoiceSelector {
         // an open rename lands first, otherwise its blur wipes the input this one is about to make
         this.settleRename();
 
-        const chip = this.elements.voiceCastList.querySelector(`.cast-member[data-name="${name}"]`);
+        const chip = this.elements.voiceCastList.querySelector(`.cast-member[data-name="${CSS.escape(name)}"]`);
         const label = chip?.querySelector('.cast-name');
         if (!label) {
             return;
@@ -343,9 +348,9 @@ export class VoiceSelector {
     renderVoiceOptions(voices) {
         this.elements.voiceOptions.innerHTML = voices
             .map(voice => `
-                <div class="voice-option ${this.voiceService.getSelectedVoices().includes(voice) ? 'selected' : ''}" 
-                     data-voice="${voice}">
-                    ${voice}
+                <div class="voice-option ${this.voiceService.getSelectedVoices().includes(voice) ? 'selected' : ''}"
+                     data-voice="${esc(voice)}">
+                    ${esc(voice)}
                 </div>
             `)
             .join('');
@@ -356,18 +361,18 @@ export class VoiceSelector {
         this.elements.selectedVoices.innerHTML = selectedVoices
             .map(({voice, weight}) => `
                 <span class="selected-voice-tag">
-                    <span class="voice-name">${voice}</span>
+                    <span class="voice-name">${esc(voice)}</span>
                     <span class="voice-weight">
-                        <input type="number" 
-                               value="${weight}" 
-                               min="0.1" 
-                               max="10" 
-                               step="0.1" 
-                               data-voice="${voice}"
+                        <input type="number"
+                               value="${weight}"
+                               min="0.1"
+                               max="10"
+                               step="0.1"
+                               data-voice="${esc(voice)}"
                                class="weight-input"
                                title="Voice weight (0.1 to 10)">
                     </span>
-                    <span class="remove-voice" data-voice="${voice}" title="Remove voice">×</span>
+                    <span class="remove-voice" data-voice="${esc(voice)}" title="Remove voice">×</span>
                 </span>
             `)
             .join('');
@@ -378,7 +383,7 @@ export class VoiceSelector {
 
     updateVoiceOptionState(voice, selected) {
         const voiceOption = this.elements.voiceOptions
-            .querySelector(`[data-voice="${voice}"]`);
+            .querySelector(`[data-voice="${CSS.escape(voice)}"]`);
         if (voiceOption) {
             voiceOption.classList.toggle('selected', selected);
         }

@@ -145,8 +145,9 @@ class OpenAISpeechRequest(BaseModel):
     )
 
 
-# mirrors the tag body of text_processor's VOICE_TAG_PATTERN, so a rendered [voice:...] round-trips as one tag
-TURN_VOICE_PATTERN = re.compile(r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*")
+# shared with text_processor's VOICE_TAG_PATTERN so a rendered [voice:...] round-trips as one tag
+VOICE_NAME_BODY = r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*"
+TURN_VOICE_PATTERN = re.compile(VOICE_NAME_BODY)
 
 
 class DialogueTurn(BaseModel):
@@ -235,6 +236,10 @@ class DialogueRequest(BaseModel):
     normalization_options: Optional[NormalizationOptions] = Field(
         default=NormalizationOptions(),
         description="Options for the normalization system",
+    )
+    return_timing: bool = Field(
+        default=False,
+        description="If true and return_download_link is set, writes a timing sidecar and returns its path in X-Timing-Path.",
     )
     voice_aliases: Optional[Dict[str, str]] = Field(
         default=None,

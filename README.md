@@ -459,7 +459,7 @@ The model is capable of processing up to a 510 phonemized token chunk at a time,
 </details>
 
 <details>
-<summary>Timestamped Captions & Phonemes</summary>
+<summary>Timestamps (word level)</summary>
 
 Generate audio with word-level timestamps without streaming:
 ```python
@@ -529,8 +529,10 @@ for chunk in response.iter_lines(decode_unicode=True):
 ```
 
 With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is absent.
+</details>
 
-### Chunk timings on `/v1/audio/speech`
+<details>
+<summary>Timestamps (streaming chunks)</summary>
 
 With `stream`, `return_download_link`, and `return_timing` set, the response carries an `X-Timing-Path` header pointing at a JSON sidecar of per-chunk timings. The audio body is unchanged and nothing extra is computed; this is what drives the web UI's read along.
 
@@ -558,6 +560,7 @@ timings = requests.get(f"http://localhost:8880/v1{response.headers['x-timing-pat
 - `text` is normalized (numbers etc expanded), so align by words rather than exact match.
 - With `allow_voice_tags`, each spoken chunk also carries its `voice`, same as captioned timestamps. Absent otherwise.
 - The sidecar sits next to the download file and shares its temp lifetime.
+</details>
 
 <details>
 <summary>Phoneme & Token Routes</summary>

@@ -560,10 +560,15 @@ export class App {
     }
 
     setupAudioEvents() {
-        // Handle download button visibility
+        // Handle download ready (button visibility + delayed status)
         this.audioService.addEventListener('downloadReady', () => {
             this.elements.downloadBtn.classList.add('ready');
             this.readAlong.setAvailable(true);
+            setTimeout(() => {
+                if (!this._playbackFailed) {
+                    this.showStatus('Generation complete', 'success');
+                }
+            }, 500);
         });
 
         // Handle buffer errors
@@ -574,21 +579,12 @@ export class App {
         // Handle completion
         this.audioService.addEventListener('complete', () => {
             this.setGenerating(false);
-            
+
             // Show preparing status
             this.showStatus('Preparing file...', 'info');
 
             // Flash the coffee cup
             this.elements.cup.classList.add('done');
-        });
-
-        // Handle download ready
-        this.audioService.addEventListener('downloadReady', () => {
-            setTimeout(() => {
-                if (!this._playbackFailed) {
-                    this.showStatus('Generation complete', 'success');
-                }
-            }, 500); // Small delay to ensure "Preparing file..." is visible
         });
 
         // Handle audio end

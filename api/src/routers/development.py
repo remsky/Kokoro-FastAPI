@@ -199,6 +199,7 @@ async def create_dialogue(
         speed=request.speed,
         stream=request.stream,
         return_download_link=request.return_download_link,
+        return_timing=request.return_timing,
         lang_code=request.lang_code,
         volume_multiplier=request.volume_multiplier,
         normalization_options=request.normalization_options,

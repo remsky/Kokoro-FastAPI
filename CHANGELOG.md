@@ -18,10 +18,21 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Changed
 - Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.
 
+## [v0.7.1] - 2026-08-02
+### Added
+- `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.
+- Web UI keyboard navigation and ARIA labeling across header, player controls, and editor.
+
+### Changed
+- `Content-Disposition` is now built by `FileResponse` rather than by hand, so the filename comes back quoted (`filename="x.mp3"`) instead of bare. The name itself is unchanged when `?name=` is omitted.
+- Web UI restyle: better use of space, responsive down to slim widths, playbar pinned to the bottom on narrow viewports.
+- Waveform slowed and softened, made framerate-independent, respects `prefers-reduced-motion`.
+- README: AMD GPU (ROCm) troubleshooting, clarified docker-compose comments.
+
 ### Fixed
-- Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
-- Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.
-- Downloads save as `{voice}_{timestamp}.{format}` instead of the temp name (#338). `/v1/download/{filename}` takes an optional `?name=` (sanitized, stored extension kept) and sets it in `Content-Disposition`, which also covers right-click "Save audio as".
+- Downloads save as `{voice}_{timestamp}.{format}`, not the temp name (#338). Covers right-click "Save audio as" too, since `Content-Disposition` outranks the link's `download` attribute.
+- Aborted streams no longer surface as playback failures; a user-initiated `MEDIA_ERR_ABORTED` is told apart from a real error.
+- Stream-to-file swap settles pending buffer operations instead of leaving the feeder awaiting forever.
 
 ## [v0.7.0] - 2026-07-31
 ### Added

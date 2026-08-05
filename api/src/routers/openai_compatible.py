@@ -193,9 +193,7 @@ async def stream_audio_chunks(
     voice_name = await process_and_validate_voices(
         request.voice, tts_service, request.voice_aliases
     )
-    unique_properties = {"return_timestamps": False}
-    if hasattr(request, "return_timestamps"):
-        unique_properties["return_timestamps"] = request.return_timestamps
+    return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
         async for chunk_data in tts_service.generate_audio_stream(
@@ -207,7 +205,7 @@ async def stream_audio_chunks(
             lang_code=request.lang_code,
             volume_multiplier=request.volume_multiplier,
             normalization_options=request.normalization_options,
-            return_timestamps=unique_properties["return_timestamps"],
+            return_timestamps=return_timestamps,
             allow_voice_tags=request.allow_voice_tags,
             timings=timings,
         ):
