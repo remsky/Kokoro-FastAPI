@@ -47,23 +47,13 @@ def process_text_chunk(
 
     if skip_phonemize:
         # Input is already phonemes, just tokenize
-        t0 = time.time()
         tokens = tokenize(text)
-        t1 = time.time()
     else:
         # Normal text processing pipeline
-        t0 = time.time()
-        t1 = time.time()
-
-        t0 = time.time()
         phonemes = phonemize(text, language)
         # Strip phonemes result to ensure no extra spaces
         phonemes = phonemes.strip()
-        t1 = time.time()
-
-        t0 = time.time()
         tokens = tokenize(phonemes)
-        t1 = time.time()
 
     total_time = time.time() - start_time
     logger.debug(
