@@ -1,12 +1,6 @@
-"""Plot the dialogue benchmark against the single-voice baseline.
+"""Plot dialogue benchmark results from bench_dialogue.py.
 
-Reads output/bench_report.json written by bench_dialogue.py and renders the
-shared benchmark theme. The point of the top panel is that the dialogue cases
-sit inside the baseline's own run to run spread, so speaker count does not
-cost throughput.
-
-Run from the repo root, after bench_dialogue.py:
-    uv run --project examples --extra benchmarks python examples/assorted_checks/test_dialogue/plot_dialogue_bench.py
+Run: uv run --project examples --extra benchmarks python examples/assorted_checks/test_dialogue/plot_dialogue_bench.py
 """
 
 import json
@@ -21,198 +15,159 @@ from lib.shared_plotting import STYLE_CONFIG, setup_plot  # noqa: E402
 
 OUTPUT_DIR = Path(__file__).parent / "output"
 REPORT_PATH = OUTPUT_DIR / "bench_report.json"
-PLOT_PATH = OUTPUT_DIR / "dialogue_throughput.png"
+TURN_PLOT_PATH = OUTPUT_DIR / "dialogue_turn_length.png"
+TEXT_PLOT_PATH = OUTPUT_DIR / "dialogue_text_length.png"
 
-# short labels, the report ones are too wide for an axis
-SHORT_LABELS = {
-    "single voice, one call (baseline)": "single voice\n(baseline)",
-    "2 speakers, /dev/dialogue": "2 speakers\n/dev/dialogue",
-    "4 speakers, /dev/dialogue": "4 speakers\n/dev/dialogue",
-    "2 speakers, one call per turn": "2 speakers\none call per turn",
-}
+BASELINE = STYLE_CONFIG["text_color"]
+KNEE = "#8a8aa0"
+FIGSIZE = (12, 6)
+Y_LIMITS = (55, 108)
+TOKENS_PER_SENTENCE = 83
+
+SERIES = [
+    ("dialogue2", "2 voices", "#ff2a6d", "o"),
+    ("dialogue4", "4 voices", "#ffb703", "^"),
+    ("dialogue8", "8 voices", "#05d9e8", "s"),
+    ("per_turn", "one call per turn (previous method)", "#9aa0b5", "D"),
+]
+LENGTH_SERIES = [
+    ("length5", "a voice change every 5 sentences", "#05d9e8", "s"),
+    ("length1", "a voice change every sentence", "#ff2a6d", "o"),
+]
+LENGTH_SKIP = {5}
 
 
-def load_cases(report: dict) -> dict[str, list[dict]]:
-    """Group per-run entries by case label, preserving the order they ran in."""
-    cases: dict[str, list[dict]] = {}
+def collect(report: dict, series: str, field: str = "pct_of_baseline") -> dict[int, list[float]]:
+    grouped: dict[int, list[float]] = {}
     for run in report["runs"]:
         for entry in run:
-            cases.setdefault(entry["label"], []).append(entry)
-    return cases
+            if entry["series"] == series:
+                grouped.setdefault(entry["x"], []).append(entry[field])
+    return grouped
+
+def means(report: dict, series: str, order: list[int]) -> list[float]:
+    return [float(np.mean(collect(report, series)[x])) for x in order]
+
+def sweep_order(report: dict, series: str, descending: bool) -> list[int]:
+    return sorted(collect(report, series), reverse=descending)
+
+def token_label(x: int) -> str:
+    tokens = x * TOKENS_PER_SENTENCE
+    return f"~{tokens / 1000:.1f}k" if tokens >= 1000 else f"~{tokens}"
+
+def sentence_label(x: int) -> str:
+    return f"{x} sentence" if x == 1 else f"{x} sentences"
+
+def clock(seconds: float) -> str:
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    return f"{int(seconds // 60)}m{int(seconds % 60):02d}s"
+
+def new_figure() -> tuple:
+    plt.style.use("dark_background")
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    fig.patch.set_facecolor(STYLE_CONFIG["background_color"])
+    return fig, ax
+
+def draw_baseline(ax, label_x: float) -> None:
+    ax.axhline(100, color=BASELINE, linestyle="--", linewidth=1.5, alpha=0.7)
+    ax.text(label_x, 100.8, "single-voice request of the same text",
+            ha="right", va="bottom", color=BASELINE,
+            fontsize=STYLE_CONFIG["font_sizes"]["text"], alpha=0.8)
+
+def draw_caption(fig, text: str) -> None:
+    fig.text(0.5, 0.015, text, ha="center", color=STYLE_CONFIG["text_color"],
+             fontsize=STYLE_CONFIG["font_sizes"]["text"], alpha=0.7)
+    fig.tight_layout(rect=(0, 0.05, 1, 1))
+
+def draw_chunk_floor(ax, order: list[int], min_tokens: int) -> None:
+    under = [i for i, x in enumerate(order) if x * TOKENS_PER_SENTENCE < min_tokens]
+    if not under:
+        return
+    ax.axvspan(under[0] - 0.5, len(order) - 0.5, color=KNEE, alpha=0.12)
+    ax.text(len(order) - 0.28, sum(Y_LIMITS) / 2,
+            f"under the {min_tokens} token chunk minimum",
+            ha="center", va="center", rotation=90, color=KNEE,
+            fontsize=STYLE_CONFIG["font_sizes"]["text"], fontweight="bold")
 
 
-def draw_mean_line(ax, x, y_center, half_height, label):
-    """Vertical mean marker with the gradient fade used elsewhere in the suite."""
-    gradient = np.linspace(0.2, 0.9, 60)
-    edges = np.linspace(y_center - half_height, y_center + half_height, len(gradient))
-    for i in range(len(gradient) - 1):
-        ax.plot(
-            [x, x],
-            [edges[i], edges[i + 1]],
-            "-",
-            color=STYLE_CONFIG["secondary_color"],
-            linewidth=3,
-            alpha=gradient[i],
-        )
-    ax.text(
-        x,
-        y_center + half_height + 0.16,
-        label,
-        ha="center",
-        va="bottom",
-        color=STYLE_CONFIG["text_color"],
-        fontsize=STYLE_CONFIG["font_sizes"]["text"],
-        fontweight="bold",
-        bbox=dict(
-            facecolor=STYLE_CONFIG["background_color"],
-            edgecolor=STYLE_CONFIG["secondary_color"],
-            alpha=0.85,
-            pad=3,
-            linewidth=1,
-        ),
-    )
+def plot_turn_length(report: dict) -> None:
+    order = sweep_order(report, "dialogue2", descending=True)
+    positions = list(range(len(order)))
+    fig, ax = new_figure()
+
+    draw_baseline(ax, label_x=len(order) - 0.6)
+    for key, label, color, marker in SERIES:
+        ax.plot(positions, means(report, key, order), marker=marker, color=color,
+                label=label, linewidth=2.5, markersize=8, alpha=0.95)
+
+    ax.set_xticks(positions)
+    ax.set_xticklabels([f"{token_label(x)}\n({sentence_label(x)})" for x in order])
+    ax.set_xlim(-0.5, len(order) - 0.5)
+    ax.set_ylim(*Y_LIMITS)
+    ax.legend(loc="lower left", facecolor=STYLE_CONFIG["background_color"],
+              edgecolor=KNEE, framealpha=0.85, fontsize=STYLE_CONFIG["font_sizes"]["text"])
+    draw_chunk_floor(ax, order, min_tokens=175)
+
+    setup_plot(fig, ax, "Multi-Speaker Throughput vs Tokens per Turn",
+               xlabel="phoneme tokens per speaker turn", ylabel="% of single-voice throughput")
+    draw_caption(fig,
+        f"{report['fixed_words']} words, {len(report['runs'])} runs, "
+        f"{report.get('device', 'gpu')}. Same text every point, only the turn boundaries move.")
+    fig.savefig(TURN_PLOT_PATH, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {TURN_PLOT_PATH}")
 
 
-def plot_relative(ax, cases: dict[str, list[dict]], baseline_label: str) -> None:
-    """Throughput as a percentage of that run's baseline, against baseline noise."""
-    baseline_rtfs = [entry["rtf"] for entry in cases[baseline_label]]
-    baseline_mean = float(np.mean(baseline_rtfs))
-    band_low = min(baseline_rtfs) / baseline_mean * 100
-    band_high = max(baseline_rtfs) / baseline_mean * 100
+def plot_text_length(report: dict) -> None:
+    order = [x for x in sweep_order(report, "length1", descending=False) if x not in LENGTH_SKIP]
+    positions = list(range(len(order)))
+    audio = collect(report, "length_single", "audio")
+    fig, ax = new_figure()
 
-    labels = [label for label in cases if label != baseline_label]
-    positions = list(range(len(labels)))
-    all_values = [
-        entry["pct_of_baseline"] for label in labels for entry in cases[label]
-    ]
+    draw_baseline(ax, label_x=len(order) - 0.55)
+    for key, label, color, marker in LENGTH_SERIES:
+        grouped = collect(report, key)
+        for position, x in zip(positions, order):
+            ax.scatter([position] * len(grouped[x]), grouped[x], color=color, alpha=0.25, s=40, zorder=2)
+        ax.plot(positions, [float(np.mean(grouped[x])) for x in order], marker=marker,
+                color=color, label=label, linewidth=2.5, markersize=8, zorder=3)
 
-    ax.axvspan(band_low, band_high, color=STYLE_CONFIG["secondary_color"], alpha=0.1)
-    ax.axvline(
-        100,
-        color=STYLE_CONFIG["secondary_color"],
-        linestyle="--",
-        linewidth=1.5,
-        alpha=0.8,
-    )
+    ax.set_xticks(positions)
+    ax.set_xticklabels([clock(float(np.mean(audio[x]))) for x in order])
+    ax.set_xlim(-0.4, len(order) - 0.6)
+    ax.set_ylim(*Y_LIMITS)
+    ax.legend(loc="lower left", facecolor=STYLE_CONFIG["background_color"],
+              edgecolor=KNEE, framealpha=0.85, fontsize=STYLE_CONFIG["font_sizes"]["text"])
 
-    # annotate inline rather than with a legend, which collides with the dots
-    ax.text(
-        (band_low + band_high) / 2,
-        -0.78,
-        f"baseline run to run spread  {band_low:.0f}-{band_high:.0f}%",
-        ha="center",
-        va="center",
-        color=STYLE_CONFIG["secondary_color"],
-        fontsize=STYLE_CONFIG["font_sizes"]["text"],
-        fontweight="bold",
-        alpha=0.9,
-    )
-
-    for position, label in zip(positions, labels):
-        values = [entry["pct_of_baseline"] for entry in cases[label]]
-        ax.plot(
-            values,
-            [position] * len(values),
-            "o",
-            color=STYLE_CONFIG["primary_color"],
-            markersize=10,
-            alpha=0.55,
-            markeredgewidth=0,
-        )
-        draw_mean_line(
-            ax, float(np.mean(values)), position, 0.2, f"{np.mean(values):.1f}%"
-        )
-
-    ax.set_yticks(positions)
-    ax.set_yticklabels([SHORT_LABELS.get(label, label) for label in labels])
-    ax.set_ylim(-1.0, len(labels) - 0.35)
-    ax.set_xlim(min(all_values + [band_low]) - 2, max(all_values + [band_high]) + 2)
-    ax.invert_yaxis()
-
-    setup_plot(
-        ax.figure,
-        ax,
-        "Multi-Speaker Throughput vs Single-Voice Baseline",
-        xlabel="% of baseline throughput (higher is better)",
-    )
+    setup_plot(fig, ax, "Multi-Speaker Throughput vs Generation Length",
+               xlabel="audio generated", ylabel="% of single-voice throughput")
+    draw_caption(fig,
+        f"2 voices, {len(report['runs'])} runs, {report.get('device', 'gpu')}. "
+        "Each length is normalized to a single-voice request of that same text.")
+    fig.savefig(TEXT_PLOT_PATH, dpi=300, bbox_inches="tight")
+    plt.close(fig)
+    print(f"wrote {TEXT_PLOT_PATH}")
 
 
-def plot_per_run(ax, cases: dict[str, list[dict]], baseline_label: str) -> None:
-    """Wall clock per run, which is why the top panel normalizes per run."""
-    labels = list(cases)
-    runs = range(1, len(cases[baseline_label]) + 1)
-    styles = [
-        (STYLE_CONFIG["secondary_color"], "o", "-", 1.0),
-        (STYLE_CONFIG["primary_color"], "s", "-", 0.9),
-        (STYLE_CONFIG["primary_color"], "^", "--", 0.65),
-        (STYLE_CONFIG["primary_color"], "D", ":", 0.45),
-    ]
-
-    for label, (color, marker, linestyle, alpha) in zip(labels, styles):
-        ax.plot(
-            list(runs),
-            [entry["wall"] for entry in cases[label]],
-            marker=marker,
-            linestyle=linestyle,
-            color=color,
-            alpha=alpha,
-            linewidth=2,
-            markersize=7,
-            label=SHORT_LABELS.get(label, label).replace("\n", " "),
-        )
-
-    ax.set_xticks(list(runs))
-    setup_plot(
-        ax.figure,
-        ax,
-        "Wall Clock per Run (the machine drifts, so the top panel normalizes within a run)",
-        xlabel="run",
-        ylabel="seconds",
-    )
-    legend = ax.legend(
-        loc="best", framealpha=0.85, fontsize=STYLE_CONFIG["font_sizes"]["text"]
-    )
-    legend.get_frame().set_facecolor(STYLE_CONFIG["background_color"])
-    for text in legend.get_texts():
-        text.set_color(STYLE_CONFIG["text_color"])
+def widen_y_limits(report: dict) -> None:
+    global Y_LIMITS
+    drawn = [float(np.mean(v)) for key, *_ in SERIES for v in collect(report, key).values()]
+    drawn += [v for key, *_ in LENGTH_SERIES for values in collect(report, key).values() for v in values]
+    Y_LIMITS = (min(Y_LIMITS[0], min(drawn) - 3), max(Y_LIMITS[1], max(drawn) + 3))
 
 
 def main() -> int:
     if not REPORT_PATH.exists():
         print(f"no report at {REPORT_PATH}, run bench_dialogue.py first")
         return 1
-
     report = json.loads(REPORT_PATH.read_text(encoding="utf-8"))
-    cases = load_cases(report)
-    if not cases:
+    if not report.get("runs"):
         print("report has no runs")
         return 1
-    baseline_label = report["runs"][0][0]["label"]
-    run_count = len(report["runs"])
-
-    plt.style.use("dark_background")
-    fig, (top, bottom) = plt.subplots(
-        2, 1, figsize=(12, 10), gridspec_kw={"height_ratios": [1.15, 1]}
-    )
-    fig.patch.set_facecolor(STYLE_CONFIG["background_color"])
-
-    plot_relative(top, cases, baseline_label)
-    plot_per_run(bottom, cases, baseline_label)
-
-    fig.text(
-        0.5,
-        0.015,
-        f"{report['words']} words per case, {run_count} run{'s' if run_count != 1 else ''}. "
-        f"Top panel: one dot per run, cyan bar is the mean.",
-        ha="center",
-        color=STYLE_CONFIG["text_color"],
-        fontsize=STYLE_CONFIG["font_sizes"]["text"],
-        alpha=0.7,
-    )
-
-    plt.tight_layout(rect=(0, 0.03, 1, 1))
-    plt.savefig(PLOT_PATH, dpi=300, bbox_inches="tight")
-    print(f"wrote {PLOT_PATH}")
+    widen_y_limits(report)
+    plot_turn_length(report)
+    plot_text_length(report)
     return 0
 
 

@@ -11,10 +11,13 @@ inline `[voice:...]` tokens on `/v1/audio/speech` and the structured
 - `caption_dialogue.py`: builds speaker-labelled subtitles. Renders through
   `/dev/captioned_speech` with `allow_voice_tags`, groups the word timestamps
   into cues on speaker changes, writes an SRT beside the audio.
-- `bench_dialogue.py`: timing. Renders a ~3.5 minute corpus four ways and
-  reports throughput against a single-voice baseline.
+- `bench_dialogue.py`: timing. Sweeps turn length across 2, 4 and 8 voices plus
+  one request per turn, then sweeps text length at a realistic turn size and the
+  worst case. Every case is normalized to a plain single-voice request of the
+  same text measured in the same run. Warms every voice first.
 - `plot_dialogue_bench.py`: renders `bench_report.json` in the shared benchmark
-  theme. Needs the `benchmarks` extra for matplotlib.
+  theme, one figure per sweep on a shared y scale. Needs the `benchmarks` extra
+  for matplotlib.
 
 ## Run
 
@@ -43,7 +46,8 @@ built with the Japanese and Chinese extras if you want that one to pass.
 | --- | --- | --- |
 | `KOKORO_BASE_URL` | `http://localhost:8880` | Server root, no `/v1` suffix (the checks hit both `/v1/audio/speech` and `/dev/dialogue`) |
 | `KOKORO_TIMEOUT` | `600` / `1800` | Per request seconds, checks / bench |
-| `DIALOGUE_BENCH_RUNS` | `1` | Repeat the bench to see run to run spread |
+| `DIALOGUE_BENCH_RUNS` | `3` | Repeat the bench to see run to run spread. Use 5 for a published plot |
+| `KOKORO_DEVICE` | `gpu` | Label only, stamped into the report and plot caption |
 
 ## Output
 
@@ -53,36 +57,41 @@ Everything lands in `output/` (gitignored):
 - `report.json`: pass/fail and timing per check
 - `dialogue_captions.mp3` + `dialogue_captions.srt`: the labelled subtitle demo
 - `bench_report.json`: wall clock, audio seconds and realtime factor per case
-- `dialogue_throughput.png`: the bench plotted, throughput against the baseline
-  band on top, per-run wall clock underneath
+- `dialogue_turn_length.png`: throughput against how long each speaker turn is,
+  with 2, 4 and 8 voices and the previous method over the same axis
+- `dialogue_text_length.png`: a voice change every 5 sentences against one every
+  sentence, as the text grows to about 7 minutes of audio
 
-To refresh the README image, copy that plot to its asset name (same convention
-as the other benchmark plots, see the `readme-benchmarks` skill):
+Both render at the same figure size and y range so they can sit side by side in
+the README and be compared by eye.
+
+To refresh the README images, copy them to their asset names (same convention as
+the other benchmark plots, see the `readme-benchmarks` skill):
 
 ```bash
-cp examples/assorted_checks/test_dialogue/output/dialogue_throughput.png assets/cpu_dialogue_throughput.png
+cd examples/assorted_checks/test_dialogue/output
+cp dialogue_turn_length.png ../../../../assets/gpu_dialogue_turn_length.png
+cp dialogue_text_length.png ../../../../assets/gpu_dialogue_text_length.png
 ```
 
 ## Reading the bench
 
-`4 speakers` against `2 speakers` is the load bearing comparison. Each distinct
-speaker resolves once per request and the backend caches voice tensors and
-pipelines, so a wider cast should cost nothing.
+Only one thing moves the number: how long each speaker turn is. Every
+`[voice:...]` change ends a segment and segments are chunked independently, so
+chunk accumulation resets at each change and the tail flushes short. Turn length
+becomes chunk length, and cost tracks chunk count.
 
-Six CPU runs of the 579 word corpus, as a percentage of that run's single-voice
-baseline throughput:
+Anything down to two sentences a turn sits at the single-voice baseline, inside
+run to run noise. A change on every sentence costs roughly a third. Speaker count
+is free, the voice counts cross each other and none leads.
 
-| case | runs | mean |
-| --- | --- | --- |
-| 2 speakers, `/dev/dialogue` | 90.9 - 98.3% | 94.6% |
-| 4 speakers, `/dev/dialogue` | 88.8 - 100.5% | 95.9% |
-| 2 speakers, one call per turn | 87.8 - 96.4% | 91.0% |
+`one call per turn` is the client side method this replaces. It tracks
+`/dev/dialogue` while turns are long and falls away as they shorten.
 
-Read that as no measurable per-switch cost rather than a 5% penalty. The
-baseline itself varies about 9% run to run on the same workload, which is wider
-than the spread between cases, and the 4 speaker case is marginally *faster*
-than the 2 speaker case on average. Run with `DIALOGUE_BENCH_RUNS=3` before
-drawing conclusions from any single number.
+The length sweep grows the text to about seven minutes of audio and both turn
+sizes stay flat, so the cost is a constant ratio rather than something that
+compounds.
 
-`one call per turn` is the client side workaround this replaces, and it is the
-only case consistently below the others.
+The numbers apply to `/v1/audio/speech` with `allow_voice_tags` too, it is the
+same code path. CPU tells a milder version of the same story, compute dominates
+there so per-segment overhead is a smaller share.
