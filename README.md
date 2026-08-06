@@ -13,7 +13,9 @@
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
-- Per-word timestamped caption generation, voice mixing with weighted combinations
+- Optional integrated WebUI; read-along long-generation
+- Inline multi-speaker generation, or voice mixing with weighted combinations
+- Per-word, or per-chunk timestamped caption generation
 - Phoneme endpoints: generate phonemes from text, or generate audio from phonemes
 - Prebuilt multiplatform images
   - CPU and NVIDIA GPU (CUDA): linux/amd64 + linux/arm64
