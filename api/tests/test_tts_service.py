@@ -85,6 +85,29 @@ async def test_get_voice_path_single():
 
 
 @pytest.mark.asyncio
+async def test_get_voice_path_single_with_weight_normalized():
+    """A weighted single voice loads by bare name when normalization is on."""
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+    voice_manager.get_voice_path.return_value = "/path/to/voice1.pt"
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+        patch("api.src.services.tts_service.settings") as mock_settings,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+        mock_settings.voice_weight_normalization = True
+
+        service = await TTSService.create("test_output")
+        name, path = await service._get_voices_path("voice1(2)")
+        assert name == "voice1"
+        assert path == "/path/to/voice1.pt"
+        voice_manager.get_voice_path.assert_called_once_with("voice1")
+
+
+@pytest.mark.asyncio
 async def test_get_voice_path_combined():
     """Test getting path for combined voices."""
     model_manager = AsyncMock()

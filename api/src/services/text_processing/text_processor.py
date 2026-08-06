@@ -19,9 +19,7 @@ CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
-VOICE_TAG_PATTERN = re.compile(
-    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE
-)
+VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
 
 
 def process_text_chunk(

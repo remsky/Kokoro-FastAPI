@@ -13,6 +13,28 @@ from loguru import logger
 
 from .config import settings
 
+_CONTENT_TYPES = {
+    ".html": "text/html",
+    ".js": "application/javascript",
+    ".json": "application/json",
+    ".css": "text/css",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".svg": "image/svg+xml",
+    ".ico": "image/x-icon",
+    # real media types so the webui can play downloads directly (#150)
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".opus": "audio/opus",
+    ".flac": "audio/flac",
+    ".aac": "audio/aac",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+    ".pcm": "audio/pcm",
+}
+
 
 async def _find_file(
     filename: str,
@@ -159,7 +181,7 @@ async def list_voices() -> List[str]:
         return name.endswith(".pt")
 
     voices = await _scan_directories(search_paths, filter_voice_files)
-    return sorted([name[:-3] for name in voices])  # Remove .pt extension
+    return sorted([name.removesuffix(".pt") for name in voices])
 
 
 async def load_voice_tensor(
@@ -322,28 +344,7 @@ async def get_content_type(path: str) -> str:
         Content type string
     """
     ext = os.path.splitext(path)[1].lower()
-    return {
-        ".html": "text/html",
-        ".js": "application/javascript",
-        ".json": "application/json",
-        ".css": "text/css",
-        ".png": "image/png",
-        ".jpg": "image/jpeg",
-        ".jpeg": "image/jpeg",
-        ".gif": "image/gif",
-        ".svg": "image/svg+xml",
-        ".ico": "image/x-icon",
-        # audio downloads: serve a real media type so the webui can play the file
-        # directly (the player swaps to this URL once generation finishes, #150).
-        ".mp3": "audio/mpeg",
-        ".wav": "audio/wav",
-        ".opus": "audio/opus",
-        ".flac": "audio/flac",
-        ".aac": "audio/aac",
-        ".m4a": "audio/mp4",
-        ".ogg": "audio/ogg",
-        ".pcm": "audio/pcm",
-    }.get(ext, "application/octet-stream")
+    return _CONTENT_TYPES.get(ext, "application/octet-stream")
 
 
 async def verify_model_path(model_path: str) -> bool:

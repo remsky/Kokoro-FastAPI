@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import re
 from pathlib import Path
@@ -36,6 +35,7 @@ from .openai_compatible import (
     create_speech,
     process_and_validate_voice_tags,
     process_and_validate_voices,
+    require_voice_tags_enabled,
     stream_audio_chunks,
 )
 
@@ -178,19 +178,11 @@ async def create_dialogue(
 ):
     """Generate multi-speaker audio from an ordered list of turns.
 
-    Thin wrapper over /v1/audio/speech: turns are rendered to the inline
-    [voice:...] and [pause:Xs] existing tags so
-    streaming, formats and download links should behave identically.
+    Thin wrapper over /v1/audio/speech: turns are rendered to the existing
+    inline [voice:...] and [pause:Xs] tags, so streaming, formats, and
+    download links behave identically.
     """
-    if not settings.enable_voice_tags:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "permission_denied",
-                "message": "Voice tags are disabled on this server",
-                "type": "permission_error",
-            },
-        )
+    require_voice_tags_enabled()
 
     speech_request = OpenAISpeechRequest(
         model=request.model,
@@ -224,15 +216,8 @@ async def create_captioned_speech(
 ):
     """Generate audio with word-level timestamps using streaming approach"""
 
-    if request.allow_voice_tags and not settings.enable_voice_tags:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "permission_denied",
-                "message": "Voice tags are disabled on this server",
-                "type": "permission_error",
-            },
-        )
+    if request.allow_voice_tags:
+        require_voice_tags_enabled()
 
     try:
         # model_name = get_model_name(request.model)
@@ -260,7 +245,7 @@ async def create_captioned_speech(
         if request.stream:
             # Create generator but don't start it yet
             generator = stream_audio_chunks(
-                tts_service, request, client_request, writer
+                tts_service, request, client_request, writer, voice_name
             )
 
             # If download link requested, wrap generator with temp file writer

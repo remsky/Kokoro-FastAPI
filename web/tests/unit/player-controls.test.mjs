@@ -117,6 +117,21 @@ test('PlayerControls enables playback when audio readiness fires without duratio
     controls.cleanup();
 });
 
+test('formatTime rolls minutes into hours', async () => {
+    setupDocument();
+    const { PlayerState } = await import('../../src/state/PlayerState.js');
+    const { PlayerControls } = await import('../../src/components/PlayerControls.js');
+
+    const controls = new PlayerControls(new FakeAudioService(), new PlayerState());
+
+    assert.equal(controls.formatTime(0), '0:00');
+    assert.equal(controls.formatTime(75), '1:15');
+    assert.equal(controls.formatTime(3600), '1:00:00');
+    assert.equal(controls.formatTime(7524), '2:05:24');
+
+    controls.cleanup();
+});
+
 test('PlayerControls swaps the play/pause icon and its label', async () => {
     const elements = setupDocument();
     const { PlayerState } = await import('../../src/state/PlayerState.js');

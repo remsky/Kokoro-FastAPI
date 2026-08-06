@@ -351,7 +351,7 @@ export class App {
 
         const blob = new Blob([`${JSON.stringify(exportCast(this.cast), null, 2)}\n`], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        Object.assign(document.createElement('a'), { href: url, download: 'voice-tags.json' }).click();
+        this.triggerDownload(url, 'voice-tags.json');
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
@@ -507,7 +507,29 @@ export class App {
         this.elements.downloadBtn.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                this.toggleDownloadMenu();
+                this.toggleDownloadMenu(true);
+            }
+        });
+
+        // keyboard route mirrors the cast menu: arrows walk, Escape returns focus
+        this.elements.downloadMenu.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDownloadMenu();
+                this.elements.downloadBtn.focus();
+                return;
+            }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+                return;
+            }
+            e.preventDefault();
+            const items = [...this.elements.downloadMenu.querySelectorAll('[role="menuitem"]')];
+            const from = Math.max(items.indexOf(document.activeElement), 0);
+            const step = e.key === 'ArrowDown' ? 1 : items.length - 1;
+            items[(from + step) % items.length]?.focus();
+        });
+        this.elements.downloadMenu.addEventListener('focusout', (e) => {
+            if (!this.elements.downloadMenu.contains(e.relatedTarget)) {
+                this.closeDownloadMenu();
             }
         });
 
@@ -521,6 +543,7 @@ export class App {
                 this.downloadAudio();
             }
             if (choice !== 'audio') {
+                // staggered so browsers don't drop the second download
                 this.downloadTimings(choice === 'both' ? 250 : 0);
             }
         });
@@ -550,6 +573,10 @@ export class App {
             this.showStatus('Generation cancelled', 'info');
         });
 
+        // the sticky success banner dismisses once the user moves on to playback
+        document.getElementById('play-pause-btn').addEventListener('click', () => this.hideStatus());
+        document.getElementById('read-along-btn').addEventListener('click', () => this.hideStatus());
+
         // Handle page unload
         window.addEventListener('beforeunload', () => {
             this.audioService.cleanup();
@@ -564,9 +591,14 @@ export class App {
         this.audioService.addEventListener('downloadReady', () => {
             this.elements.downloadBtn.classList.add('ready');
             this.readAlong.setAvailable(true);
+            // small delay so 'Preparing file...' stays visible before this replaces it
             setTimeout(() => {
                 if (!this._playbackFailed) {
-                    this.showStatus('Generation complete', 'success');
+                    const secs = this._genSeconds;
+                    const took = secs
+                        ? ` in ${secs < 60 ? secs.toFixed(1) + 's' : this.playerControls.formatTime(secs)}`
+                        : '';
+                    this.showStatus(`Generation complete${took}`, 'success');
                 }
             }, 500);
         });
@@ -578,6 +610,9 @@ export class App {
 
         // Handle completion
         this.audioService.addEventListener('complete', () => {
+            this._genSeconds = this._genStartedAt
+                ? (performance.now() - this._genStartedAt) / 1000
+                : null;
             this.setGenerating(false);
 
             // Show preparing status
@@ -629,9 +664,14 @@ export class App {
         this.elements.status.className = 'status ' + type;
         // an uncleared timer from an earlier status would blank this one early
         clearTimeout(this._statusTimer);
-        this._statusTimer = setTimeout(() => {
-            this.elements.status.className = 'status';
-        }, 5000);
+        // success stays up until the next generation replaces it
+        if (type !== 'success') {
+            this._statusTimer = setTimeout(() => this.hideStatus(), 5000);
+        }
+    }
+
+    hideStatus() {
+        this.elements.status.className = 'status';
     }
 
     setGenerating(isGenerating) {
@@ -686,6 +726,8 @@ export class App {
         this.readAlong.setSource(text);
         this.setGenerating(true);
         this._playbackFailed = false;
+        this._genStartedAt = performance.now();
+        this.hideStatus();
         this.elements.downloadBtn.classList.remove('ready');
         this.closeDownloadMenu();
 
@@ -737,10 +779,10 @@ export class App {
             }
             const name = this.audioService.getDownloadName()?.replace(/\.[^.]+$/, '.json');
             setTimeout(() => this.triggerDownload(url, name), delay);
-        });
+        }).catch(() => this.showStatus('Timings could not be fetched', 'error'));
     }
 
-    async toggleDownloadMenu() {
+    async toggleDownloadMenu(focusFirstItem = false) {
         if (!this.elements.downloadMenu.hidden) {
             this.closeDownloadMenu();
             return;
@@ -751,6 +793,9 @@ export class App {
         }
         this.elements.downloadMenu.hidden = false;
         this.elements.downloadBtn.setAttribute('aria-expanded', 'true');
+        if (focusFirstItem) {
+            this.elements.downloadMenu.querySelector('[role="menuitem"]')?.focus();
+        }
     }
 
     closeDownloadMenu() {

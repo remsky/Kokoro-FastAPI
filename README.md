@@ -1,15 +1,13 @@
 # <sub><sub>_`FastKoko`_ </sub></sub> 
-![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
-
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
+![FastKoko web UI](assets/banner.png)
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-189-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-66%25-tan)]()
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::9901c2b-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/9901c2b79161b6e898b7ea857ae5298f47b8b0d6) 
 
 [![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-1.9M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
-
 
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model
@@ -28,6 +26,7 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Setup-Kubernetes) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-DigitalOcean) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-SillyTavern)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-OpenWebUi)
+
 ## Get Started
 
 <details>
@@ -158,8 +157,8 @@ with client.audio.speech.with_streaming_response.create(
 - Web Interface: http://localhost:8880/web
 
 <div align="center">
-  <img src="assets/webui-screenshot.png" width="47.3%" alt="Web UI Screenshot">
-  <img src="assets/docs-screenshot.png" width="50.7%" alt="API Documentation">
+  <img src="assets/webui-screenshot.png" width="52.9%" alt="Web UI Screenshot">
+  <img src="assets/docs-screenshot.png" width="45.1%" alt="API Documentation">
 </div>
 
 </details>
@@ -668,7 +667,7 @@ curl -X POST http://localhost:8880/v1/audio/speech \
   }' --output dialogue.mp3
 ```
 
-Alias names are matched case-insensitively, so `[voice:Narrator]` and `[voice:narrator]` resolve alike. An alias pointing at a voice that does not exist is a 400 like any other unknown voice.
+Alias names are matched case-insensitively, so `[voice:Narrator]` and `[voice:narrator]` resolve alike. Defining the same name in two casings is not suggested. Alias names should stay lowercase for consistent results. An alias pointing at a voice that does not exist is a 400 like any other unknown voice.
 
 The web UI's Voice Tags tab saves its cast as a `{"voice_aliases": {...}}` file and imports one back, so a cast built there pastes into a request, and a request body you kept imports as it stands.
 
@@ -931,6 +930,13 @@ This project is licensed under the Apache License 2.0 - see below for details:
 - The inference code adapted from StyleTTS2 is MIT licensed
 
 The full Apache 2.0 license text can be found at: https://www.apache.org/licenses/LICENSE-2.0
+</details>
+
+<details>
+<summary>Project Structure and Churn</summary>
+
+![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+
 </details>
 
 </details open>

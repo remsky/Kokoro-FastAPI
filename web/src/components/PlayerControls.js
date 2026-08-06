@@ -26,9 +26,11 @@ export class PlayerControls {
             return '0:00';
         }
 
-        const minutes = Math.floor(secs / 60);
+        const hours = Math.floor(secs / 3600);
+        const minutes = Math.floor((secs % 3600) / 60);
         const seconds = Math.floor(secs % 60);
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const mmss = `${hours ? minutes.toString().padStart(2, '0') : minutes}:${seconds.toString().padStart(2, '0')}`;
+        return hours ? `${hours}:${mmss}` : mmss;
     }
 
     startTimeUpdate() {

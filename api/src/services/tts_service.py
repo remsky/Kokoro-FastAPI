@@ -202,14 +202,14 @@ class TTSService:
             # If it is only once voice there is no point in loading it up, doing nothing with it, then saving it
             if len(split_voice) == 1:
                 # Since its a single voice the only time that the weight would matter is if voice_weight_normalization is off
-                if (
-                    "(" not in voice and ")" not in voice
-                ) or settings.voice_weight_normalization == True:
-                    path = await self._voice_manager.get_voice_path(voice)
+                has_weight = "(" in voice and ")" in voice
+                if not has_weight or settings.voice_weight_normalization:
+                    voice_name = voice.split("(")[0].strip() if has_weight else voice
+                    path = await self._voice_manager.get_voice_path(voice_name)
                     if not path:
-                        raise RuntimeError(f"Voice not found: {voice}")
+                        raise RuntimeError(f"Voice not found: {voice_name}")
                     logger.debug(f"Using single voice path: {path}")
-                    return voice, path
+                    return voice_name, path
 
             total_weight = 0
 
@@ -382,7 +382,9 @@ class TTSService:
                             timings.append(
                                 {
                                     "text": "",
-                                    "start": round(current_offset - pause_duration_s, 3),
+                                    "start": round(
+                                        current_offset - pause_duration_s, 3
+                                    ),
                                     "end": round(current_offset, 3),
                                 }
                             )

@@ -14,15 +14,17 @@ from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
 from .base import AudioChunk, BaseModelBackend
 
-_ESPEAK_TS_SCALE = 2.0 / 80.0  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+_ESPEAK_TS_SCALE = (
+    2.0 / 80.0
+)  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
 
 
 def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
     """Derive word timestamps for espeak-based (non-English) pipelines.
 
     KPipeline attaches timed tokens only for English (misaki G2P) voices, but
-    the model predicts a duration for every phoneme in every language — the
-    audio is rendered from exactly those durations. pred_dur[0] is BOS and
+    the model predicts a duration for every phoneme in every language (the
+    audio is rendered from exactly those durations). pred_dur[0] is BOS and
     pred_dur[1 + i] covers phonemes[i], so summing per-character durations and
     splitting at the phoneme string's spaces yields exact word times.
 
@@ -37,41 +39,41 @@ def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
         words = graphemes.split()
         if not words:
             return None
+        durations = [dur * _ESPEAK_TS_SCALE for dur in pred_dur.tolist()]
         groups = []  # [start, end) seconds per space-separated phoneme group
-        t = float(pred_dur[0]) * _ESPEAK_TS_SCALE
+        now = durations[0]
         start = None
         for i, ch in enumerate(phonemes):
-            d = float(pred_dur[1 + i]) * _ESPEAK_TS_SCALE
             if ch.isspace():
                 if start is not None:
-                    groups.append((start, t))
+                    groups.append((start, now))
                     start = None
             elif start is None:
-                start = t
-            t += d
+                start = now
+            now += durations[1 + i]
         if start is not None:
-            groups.append((start, t))
+            groups.append((start, now))
 
         if len(groups) != len(words):
             if g2p is None:
                 return None
             counts = []
-            for w in words:
-                ps = g2p(w)
-                if isinstance(ps, tuple):
-                    ps = ps[0]
-                counts.append(max(len((ps or "").split()), 1))
+            for word in words:
+                phones = g2p(word)
+                if isinstance(phones, tuple):
+                    phones = phones[0]
+                counts.append(max(len((phones or "").split()), 1))
             if sum(counts) != len(groups):
                 return None
-            merged, gi = [], 0
-            for c in counts:
-                merged.append((groups[gi][0], groups[gi + c - 1][1]))
-                gi += c
+            merged, group_idx = [], 0
+            for count in counts:
+                merged.append((groups[group_idx][0], groups[group_idx + count - 1][1]))
+                group_idx += count
             groups = merged
 
         return [
-            WordTimestamp(word=w, start_time=round(s, 3), end_time=round(e, 3))
-            for w, (s, e) in zip(words, groups)
+            WordTimestamp(word=word, start_time=round(start, 3), end_time=round(end, 3))
+            for word, (start, end) in zip(words, groups)
         ]
     except Exception as e:
         logger.warning(f"espeak timestamp mapping failed: {e}")
@@ -397,8 +399,7 @@ class KokoroV1(BaseModelBackend):
                     elif (
                         return_timestamps
                         and result.phonemes
-                        and type(getattr(pipeline, "g2p", None)).__name__
-                        == "EspeakG2P"
+                        and type(getattr(pipeline, "g2p", None)).__name__ == "EspeakG2P"
                     ):
                         # espeak pipelines (es/fr/it/hi/pt) yield no timed
                         # tokens; derive word times from the model's own

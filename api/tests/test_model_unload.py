@@ -21,6 +21,7 @@ client = TestClient(app)
 @contextmanager
 def override_tts_service(service):
     """Override the get_tts_service FastAPI dependency for the duration of the block."""
+
     async def _override():
         return service
 

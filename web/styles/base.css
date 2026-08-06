@@ -24,6 +24,11 @@ html {
     height: 100%;
 }
 
+/* buttons and inputs don't inherit the page font on their own */
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 body {
     font-family: var(--font-family);
     line-height: 1.6;

@@ -1,5 +1,4 @@
 import re
-from email.policy import default
 from enum import Enum
 from typing import Dict, List, Literal, Optional
 
@@ -84,7 +83,38 @@ class NormalizationOptions(BaseModel):
     )
 
 
-class OpenAISpeechRequest(BaseModel):
+# shared with text_processor's VOICE_TAG_PATTERN so a rendered [voice:...] round-trips as one tag
+VOICE_NAME_BODY = r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*"
+TURN_VOICE_PATTERN = re.compile(VOICE_NAME_BODY)
+
+
+def _reject_tag_breaking_aliases(
+    aliases: Optional[Dict[str, str]],
+) -> Optional[Dict[str, str]]:
+    if aliases:
+        for mix in aliases.values():
+            if not TURN_VOICE_PATTERN.fullmatch(mix.strip()):
+                raise ValueError(
+                    f"Voice alias '{mix}' contains characters that cannot appear in a voice name"
+                )
+    return aliases
+
+
+class VoiceAliasesMixin(BaseModel):
+    """Shared voice_aliases field for request models that accept them"""
+
+    voice_aliases: Optional[Dict[str, str]] = Field(
+        default=None,
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable wherever a voice name is given and in [voice:name] tags, matched case-insensitively.",
+    )
+
+    @field_validator("voice_aliases")
+    @classmethod
+    def _validate_voice_aliases(cls, value):
+        return _reject_tag_breaking_aliases(value)
+
+
+class OpenAISpeechRequest(VoiceAliasesMixin):
     """Request schema for OpenAI-compatible speech endpoint"""
 
     model: str = Field(
@@ -139,15 +169,6 @@ class OpenAISpeechRequest(BaseModel):
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
     )
-    voice_aliases: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags, matched case-insensitively.",
-    )
-
-
-# shared with text_processor's VOICE_TAG_PATTERN so a rendered [voice:...] round-trips as one tag
-VOICE_NAME_BODY = r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*"
-TURN_VOICE_PATTERN = re.compile(VOICE_NAME_BODY)
 
 
 class DialogueTurn(BaseModel):
@@ -181,7 +202,7 @@ class DialogueTurn(BaseModel):
         return value
 
 
-class DialogueRequest(BaseModel):
+class DialogueRequest(VoiceAliasesMixin):
     """Request schema for the multi-speaker dialogue endpoint"""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -241,24 +262,18 @@ class DialogueRequest(BaseModel):
         default=False,
         description="If true and return_download_link is set, writes a timing sidecar and returns its path in X-Timing-Path.",
     )
-    voice_aliases: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in each turn's voice field, matched case-insensitively.",
-    )
 
     def to_tagged_input(self) -> str:
         """Render turns as the inline [voice:...] form the text pipeline consumes."""
-        separator = (
-            f" [pause:{self.pause_between_turns}s] "
-            if self.pause_between_turns > 0
-            else " "
-        )
+        # plain float repr can be sci-notation, which the pause tag parser won't match
+        pause = f"{self.pause_between_turns:.3f}".rstrip("0").rstrip(".")
+        separator = f" [pause:{pause}s] " if float(pause) > 0 else " "
         return separator.join(
             f"[voice:{turn.voice}] {turn.text.strip()}" for turn in self.turns
         )
 
 
-class CaptionedSpeechRequest(BaseModel):
+class CaptionedSpeechRequest(VoiceAliasesMixin):
     """Request schema for captioned speech endpoint"""
 
     model: str = Field(
@@ -306,8 +321,4 @@ class CaptionedSpeechRequest(BaseModel):
     allow_voice_tags: bool = Field(
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
-    )
-    voice_aliases: Optional[Dict[str, str]] = Field(
-        default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable in the voice field and in [voice:name] tags, matched case-insensitively.",
     )

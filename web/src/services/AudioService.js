@@ -232,12 +232,10 @@ export class AudioService {
             },
             onEnd: async () => {
                 const headers = Object.fromEntries(response.headers.entries());
-                console.log('Response headers at stream end:', headers);
 
                 const downloadPath = headers['x-download-path'];
                 if (downloadPath) {
                     await this.setDownloadPath(downloadPath);
-                    console.log('Download path received:', this.serverDownloadPath);
                 } else {
                     console.warn('No X-Download-Path header found. Available headers:',
                         Object.keys(headers).join(', '));

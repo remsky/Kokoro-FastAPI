@@ -2,11 +2,11 @@
 
 import io
 import json
+import math
 import os
 import re
 import tempfile
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
-from urllib import response
 
 import aiofiles
 import numpy as np
@@ -38,9 +38,10 @@ def load_openai_mappings() -> Dict:
         return {"models": {}, "voices": {}}
 
 
-# Global mappings
 _openai_mappings = load_openai_mappings()
 
+# a combine item is a bare voice name or name(weight), parens never nest
+_VOICE_WEIGHT_PATTERN = re.compile(r"(?P<name>[^()]+)(?:\((?P<weight>[^()]*)\))?")
 
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
@@ -106,6 +107,7 @@ async def process_and_validate_voices(
     voice_input: str,
     tts_service: TTSService,
     aliases: Optional[Dict[str, str]] = None,
+    available_voices: Optional[List[str]] = None,
 ) -> str:
     """Process a voice string, resolving any alias and validating every voice in the combination
 
@@ -119,42 +121,56 @@ async def process_and_validate_voices(
         raise ValueError("Voice name cannot be empty")
 
     if voice_input[-1] in "+-" or voice_input[0] in "+-":
-        raise ValueError(f"Voice combination contains empty combine items")
+        raise ValueError("Voice combination contains empty combine items")
 
     if re.search(r"[+-]{2,}", voice_input) is not None:
-        raise ValueError(f"Voice combination contains empty combine items")
+        raise ValueError("Voice combination contains empty combine items")
 
     # separators are kept, so the loop below steps past them to the voices
     voices = re.split(r"([-+])", voice_input)
 
-    available_voices = await tts_service.list_voices()
+    if available_voices is None:
+        available_voices = await tts_service.list_voices()
 
     for voice_index in range(0, len(voices), 2):
-        mapped_voice = voices[voice_index].split("(")
-        mapped_voice = list(map(str.strip, mapped_voice))
+        token = voices[voice_index]
+        match = _VOICE_WEIGHT_PATTERN.fullmatch(token)
+        if not match:
+            raise ValueError(f"Voice '{token}' is not a valid voice or voice(weight)")
 
-        if len(mapped_voice) > 2:
+        name = match.group("name").strip()
+        weight = match.group("weight")
+        if weight is not None:
+            try:
+                parsed = float(weight)
+            except ValueError:
+                parsed = math.nan
+            if not math.isfinite(parsed) or parsed <= 0:
+                raise ValueError(f"Voice '{token}' must use a positive weight")
+            weight = weight.strip()
+
+        name = _openai_mappings["voices"].get(name, name)
+        if name not in available_voices:
             raise ValueError(
-                f"Voice '{voices[voice_index]}' contains too many weight items"
+                f"Voice '{name}' not found. Available voices: {', '.join(sorted(available_voices))}"
             )
 
-        if mapped_voice.count(")") > 1:
-            raise ValueError(
-                f"Voice '{voices[voice_index]}' contains too many weight items"
-            )
-
-        mapped_voice[0] = _openai_mappings["voices"].get(
-            mapped_voice[0], mapped_voice[0]
-        )
-
-        if mapped_voice[0] not in available_voices:
-            raise ValueError(
-                f"Voice '{mapped_voice[0]}' not found. Available voices: {', '.join(sorted(available_voices))}"
-            )
-
-        voices[voice_index] = "(".join(mapped_voice)
+        voices[voice_index] = name if weight is None else f"{name}({weight})"
 
     return "".join(voices)
+
+
+def require_voice_tags_enabled() -> None:
+    """403 when the server-level voice tag kill switch is off"""
+    if not settings.enable_voice_tags:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "Voice tags are disabled on this server",
+                "type": "permission_error",
+            },
+        )
 
 
 async def process_and_validate_voice_tags(
@@ -175,8 +191,11 @@ async def process_and_validate_voice_tags(
     if not tags:
         return text
 
+    available_voices = await tts_service.list_voices()
     resolved = {
-        tag: await process_and_validate_voices(tag, tts_service, aliases)
+        tag: await process_and_validate_voices(
+            tag, tts_service, aliases, available_voices
+        )
         for tag in dict.fromkeys(tags)
     }
     return VOICE_TAG_PATTERN.sub(lambda m: f"[voice:{resolved[m.group(1)]}]", text)
@@ -187,12 +206,11 @@ async def stream_audio_chunks(
     request: Union[OpenAISpeechRequest, CaptionedSpeechRequest],
     client_request: Request,
     writer: StreamingAudioWriter,
+    voice_name: str,
     timings: Optional[list] = None,
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
-    voice_name = await process_and_validate_voices(
-        request.voice, tts_service, request.voice_aliases
-    )
+    assert isinstance(voice_name, str) and voice_name, "voice_name skipped validation"
     return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
@@ -242,15 +260,8 @@ async def create_speech(
             },
         )
 
-    if request.allow_voice_tags and not settings.enable_voice_tags:
-        raise HTTPException(
-            status_code=403,
-            detail={
-                "error": "permission_denied",
-                "message": "Voice tags are disabled on this server",
-                "type": "permission_error",
-            },
-        )
+    if request.allow_voice_tags:
+        require_voice_tags_enabled()
 
     try:
         # model_name = get_model_name(request.model)
@@ -282,7 +293,7 @@ async def create_speech(
             )
             # Create generator but don't start it yet
             generator = stream_audio_chunks(
-                tts_service, request, client_request, writer, timings
+                tts_service, request, client_request, writer, voice_name, timings
             )
 
             # If download link requested, wrap generator with temp file writer

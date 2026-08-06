@@ -410,12 +410,6 @@
     display: none;
 }
 
-@container (max-width: 560px) {
-    .nav-word {
-        display: none;
-    }
-}
-
 @container (max-width: 480px) {
     .page-navigation {
         flex-wrap: wrap;

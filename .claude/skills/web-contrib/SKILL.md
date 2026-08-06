@@ -11,6 +11,13 @@ description: "Contributing to the Kokoro-FastAPI web player: vanilla JS constrai
 - `web/src/services/AudioService.js` owns playback: MSE (`audio/mpeg`) with a bounded buffer, falling back to blob playback where MSE mp3 is unsupported (Firefox). Any playback change must keep both paths working.
 - Long-session behavior matters: the bounded buffer exists because unbounded MSE appends crashed ~10 min in. Don't reintroduce unbounded growth.
 
+## Standard patterns
+
+- Popup menus (`role="menu"`) get full keyboard support: ArrowUp/Down walk items with wrap, Escape closes and restores focus to the trigger, `focusout` closes when focus leaves, first item focused when opened via keyboard. Reference implementations: cast menu in `VoiceSelector.js`, download menu in `App.js`. New menus copy that shape.
+- File downloads go through `App.triggerDownload(url, name)`, don't hand-roll anchor clicks.
+- Outside-click dismissal uses `closeOnOutsidePress` from `dismiss.js`.
+- Fire-and-forget promises still need a `.catch` that surfaces via `showStatus`.
+
 ## Testing
 
 - Unit: `npm run test:web` (node test runner). New test files go in `web/tests/unit/` and must be imported from `web/tests/unit/index.test.mjs`, it's a manual registry.

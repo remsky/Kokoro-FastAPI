@@ -26,9 +26,9 @@ export default class TextEditor {
                     <div class="page-navigation">
                         <button type="button" id="read-along-btn" class="read-along-btn" aria-pressed="false" title="Available when generation completes" disabled>Read along</button>
                         <div class="pagination">
-                            <button class="prev-btn">← <span class="nav-word">Previous</span></button>
+                            <button class="prev-btn" aria-label="Previous page">←</button>
                             <span class="page-info">Page <input type="number" class="page-jump" min="1" value="1"> of <span class="page-total">1</span></span>
-                            <button class="next-btn"><span class="nav-word">Next</span> →</button>
+                            <button class="next-btn" aria-label="Next page">→</button>
                         </div>
                         <details class="find-menu">
                             <summary class="find-toggle" title="Find and replace" aria-label="Find and replace">

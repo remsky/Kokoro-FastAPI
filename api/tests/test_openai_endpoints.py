@@ -162,7 +162,9 @@ async def test_stream_audio_chunks_client_disconnect():
     writer = StreamingAudioWriter("mp3", 24000)
 
     chunks = []
-    async for chunk in stream_audio_chunks(mock_service, request, mock_request, writer):
+    async for chunk in stream_audio_chunks(
+        mock_service, request, mock_request, writer, "test_voice"
+    ):
         chunks.append(chunk)
 
     writer.close()
@@ -496,7 +498,9 @@ async def test_streaming_initialization_error():
     writer = StreamingAudioWriter("mp3", 24000)
 
     with pytest.raises(RuntimeError) as exc:
-        async for _ in stream_audio_chunks(mock_service, request, MagicMock(), writer):
+        async for _ in stream_audio_chunks(
+            mock_service, request, MagicMock(), writer, "test_voice"
+        ):
             pass
 
     writer.close()
@@ -640,6 +644,20 @@ def test_dialogue_request_no_pause_between_turns():
             {"voice": "af_bella", "text": "One."},
             {"voice": "am_michael", "text": "Two."},
         ],
+    )
+    assert request.to_tagged_input() == "[voice:af_bella] One. [voice:am_michael] Two."
+
+
+def test_dialogue_request_tiny_pause_never_renders_sci_notation():
+    """A sub-millisecond pause must not render as [pause:1e-05s] spoken text"""
+    from api.src.structures.schemas import DialogueRequest
+
+    request = DialogueRequest(
+        turns=[
+            {"voice": "af_bella", "text": "One."},
+            {"voice": "am_michael", "text": "Two."},
+        ],
+        pause_between_turns=1e-05,
     )
     assert request.to_tagged_input() == "[voice:af_bella] One. [voice:am_michael] Two."
 
@@ -891,6 +909,77 @@ async def test_voice_alias_applies_to_the_voice_parameter():
     assert resolved == "af_bella(2)+af_sky"
 
 
+@pytest.mark.asyncio
+async def test_malformed_voice_weights_are_rejected_up_front():
+    """Weight syntax errors fail validation instead of dying mid-stream"""
+    from api.src.routers.openai_compatible import process_and_validate_voices
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "af_sky"]
+
+    for bad in [
+        "af_bella(",
+        "af_bella)",
+        "af_bella(2",
+        "af_bella2)",
+        "af_bella(2))",
+        "af_bella()",
+        "af_bella(abc)",
+        "af_bella(nan)",
+        "af_bella(0)+af_sky(0)",
+    ]:
+        with pytest.raises(ValueError):
+            await process_and_validate_voices(bad, service)
+
+
+@pytest.mark.asyncio
+async def test_weighted_combinations_pass_validation():
+    """The full weight grammar still round-trips untouched"""
+    from api.src.routers.openai_compatible import process_and_validate_voices
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "af_sky"]
+
+    resolved = await process_and_validate_voices("af_bella(2)+af_sky(0.5)", service)
+    assert resolved == "af_bella(2)+af_sky(0.5)"
+
+    resolved = await process_and_validate_voices("af_bella-af_sky(.5)", service)
+    assert resolved == "af_bella-af_sky(.5)"
+
+
+@pytest.mark.asyncio
+async def test_tag_validation_scans_the_voice_dir_once():
+    """One list_voices call covers every tag in the request"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "am_michael"]
+
+    await process_and_validate_voice_tags(
+        "[voice:af_bella] a [voice:am_michael] b [voice:af_bella] c",
+        service,
+        allow_voice_tags=True,
+    )
+    assert service.list_voices.await_count == 1
+
+
+def test_speech_endpoint_rejects_tag_breaking_alias_values(mock_tts_service):
+    """An alias value that cannot appear inside [voice:...] is a 422 at parse time"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[voice:narrator] Hello.",
+            "voice": "voice1",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "voice_aliases": {"narrator": "af_bella(2])"},
+        },
+    )
+    assert response.status_code == 422
+
+
 def test_speech_endpoint_accepts_voice_aliases(mock_tts_service, mock_audio_bytes):
     """The alias map travels with the request, so the payload is self contained"""
     response = client.post(
@@ -930,7 +1019,7 @@ def test_speech_endpoint_rejects_an_alias_to_nowhere(mock_tts_service):
 
 
 def test_speech_endpoint_rejects_an_alias_to_an_empty_target(mock_tts_service):
-    """An alias resolving to an empty string is a 400, not an IndexError"""
+    """An alias resolving to an empty string is rejected at parse time, not an IndexError"""
     response = client.post(
         "/v1/audio/speech",
         json={
@@ -942,8 +1031,7 @@ def test_speech_endpoint_rejects_an_alias_to_an_empty_target(mock_tts_service):
             "voice_aliases": {"narrator": ""},
         },
     )
-    assert response.status_code == 400
-    assert response.json()["detail"]["error"] == "validation_error"
+    assert response.status_code == 422
 
 
 @pytest.mark.asyncio
@@ -1047,7 +1135,9 @@ def test_captioned_endpoint_403_when_voice_tags_disabled(monkeypatch):
     assert response.json()["detail"]["error"] == "permission_denied"
 
 
-def test_streaming_with_timing_sidecar(mock_tts_service, test_voice, mock_audio_bytes, tmp_path):
+def test_streaming_with_timing_sidecar(
+    mock_tts_service, test_voice, mock_audio_bytes, tmp_path
+):
     """return_timing + return_download_link produces X-Timing-Path and writes a sidecar"""
     mock_cfg = MagicMock()
     mock_cfg.temp_file_dir = str(tmp_path)
@@ -1082,12 +1172,16 @@ def test_streaming_with_timing_sidecar(mock_tts_service, test_voice, mock_audio_
     assert timing_path == f"{download_path}.json"
 
     sidecar_file = tmp_path / os.path.basename(timing_path)
-    assert sidecar_file.exists(), "timing sidecar file should be written after stream completes"
+    assert sidecar_file.exists(), (
+        "timing sidecar file should be written after stream completes"
+    )
     sidecar = json.loads(sidecar_file.read_text())
     assert "chunks" in sidecar
 
 
-def test_streaming_without_timing_has_no_header(mock_tts_service, test_voice, mock_audio_bytes, tmp_path):
+def test_streaming_without_timing_has_no_header(
+    mock_tts_service, test_voice, mock_audio_bytes, tmp_path
+):
     """Without return_timing the header is absent"""
     mock_cfg = MagicMock()
     mock_cfg.temp_file_dir = str(tmp_path)
