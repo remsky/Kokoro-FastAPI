@@ -81,21 +81,16 @@ class StreamingAudioWriter:
                 for packet in packets:
                     self.container.mux(packet)
 
-                # Close the container FIRST. this writes the final OGG page
-                # (or other format trailer) to the output buffer. For OGG/Opus,
-                # the last page of audio data is only written during close().
-                self.container.close()
-                logger.debug("Closed container, final page/trailer written.")
+                # ogg writes its last audio page during close, read after; other muxers only seek back to patch headers at pos 0 of the truncated buffer, read first (#497)
+                if self.format == "opus":
+                    self.container.close()
+                    data = self.output_buffer.getvalue()
+                else:
+                    data = self.output_buffer.getvalue()
+                    self.container.close()
+                logger.debug("Closed container, finalize complete.")
 
-                # Now read the buffer which includes all trailing data
-                data = self.output_buffer.getvalue()
                 self.output_buffer.close()
-
-                if self.format == "wav":
-                    # close()'s seek-and-patch lands ~78 bytes of size-field
-                    # junk in the truncated buffer. Decoded as samples it's
-                    # an audible click at chunk end. issue #463.
-                    return b""
                 return data
 
         if audio_data is None or len(audio_data) == 0:

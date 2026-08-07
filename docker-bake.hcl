@@ -91,6 +91,10 @@ target "_gpu_base" {
 target "cpu" {
     inherits = ["_cpu_base"]
     platforms = ["linux/amd64", "linux/arm64"]
+    cache-from = [
+        "type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:cpu-amd64",
+        "type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:cpu-arm64",
+    ]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}"
     ]
@@ -120,6 +124,7 @@ target "_rocm_base" {
 target "cpu-amd64" {
     inherits = ["_cpu_base"]
     platforms = ["linux/amd64"]
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:cpu-amd64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}-amd64"
     ]
@@ -128,6 +133,7 @@ target "cpu-amd64" {
 target "cpu-arm64" {
     inherits = ["_cpu_base"]
     platforms = ["linux/arm64"]
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:cpu-arm64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-cpu:${VERSION}-arm64"
     ]
@@ -139,6 +145,7 @@ target "gpu-amd64" {
     args = {
         CUDA_VERSION = "12.6.3"
     }
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:gpu-amd64"]
     # Per-arch tag carries the wheel variant so it parallels gpu-cu128-amd64.
     # The published manifest still resolves to :VERSION / :VERSION-cu126 via release.yml.
     tags = [
@@ -152,6 +159,7 @@ target "gpu-arm64" {
     args = {
         CUDA_VERSION = "12.9.1"
     }
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:gpu-arm64"]
     # aarch64 uses cu129 wheels (no cu126 aarch64 wheels exist on pytorch.org).
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-cu129-arm64"
@@ -169,6 +177,7 @@ target "gpu-cu128-amd64" {
         CUDA_VERSION = "12.8.1"
         GPU_EXTRA = "gpu-cu128"
     }
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:gpu-cu128-amd64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-gpu:${VERSION}-cu128-amd64"
     ]
@@ -178,6 +187,7 @@ target "gpu-cu128-amd64" {
 target "rocm-amd64" {
     inherits = ["_rocm_base"]
     platforms = ["linux/amd64"]
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:rocm-amd64"]
     tags = [
         "${REGISTRY}/${OWNER}/${REPO}-rocm:${VERSION}-amd64"
     ]
@@ -186,23 +196,23 @@ target "rocm-amd64" {
 # Development targets for faster local builds
 target "cpu-dev" {
     inherits = ["_cpu_base"]
-    # No multi-platform for dev builds
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:cpu-amd64"]
     tags = ["${REGISTRY}/${OWNER}/${REPO}-cpu:dev"]
 }
 
 target "gpu-dev" {
     inherits = ["_gpu_base"]
-    # No multi-platform for dev builds
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:gpu-amd64"]
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev"]
 }
 
 target "gpu-cu128-dev" {
     inherits = ["_gpu_base"]
-    # No multi-platform for dev builds
     args = {
         CUDA_VERSION = "12.8.1"
         GPU_EXTRA = "gpu-cu128"
     }
+    cache-from = ["type=registry,ref=${REGISTRY}/${OWNER}/${REPO}-cache:gpu-cu128-amd64"]
     tags = ["${REGISTRY}/${OWNER}/${REPO}-gpu:dev-cu128"]
 }
 

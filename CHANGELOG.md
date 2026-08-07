@@ -18,6 +18,9 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Changed
 - Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.
 
+### Fixed
+- FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
+
 ## [v0.7.1] - 2026-08-02
 ### Added
 - `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.

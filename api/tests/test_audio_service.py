@@ -254,3 +254,27 @@ async def test_buffer_position_after_conversion(sample_audio):
     assert isinstance(audio_chunk2.output, bytes)
     assert isinstance(audio_chunk2, AudioChunk)
     assert len(audio_chunk1.output) == len(audio_chunk2.output)
+
+
+@pytest.mark.parametrize("format", ["wav", "flac", "mp3", "opus", "aac"])
+def test_finalize_preserves_tail(format):
+    """Test that no audio is lost at finalize (issue #497)"""
+    import io
+
+    import av
+
+    sample_rate = 16000
+    t = np.arange(int(0.2 * sample_rate)) / sample_rate
+    audio = (np.sin(2 * np.pi * 440 * t) * 20000).astype(np.int16)
+
+    writer = StreamingAudioWriter(format, sample_rate=sample_rate)
+    blob = writer.write_chunk(audio) + writer.write_chunk(finalize=True)
+
+    with av.open(io.BytesIO(blob)) as container:
+        decoded = sum(f.samples for f in container.decode(audio=0))
+
+    if format in ("wav", "flac"):
+        assert decoded == len(audio)
+    else:
+        # lossy encoders pad with encoder delay, but must not truncate
+        assert decoded >= len(audio)
