@@ -5,6 +5,9 @@ services:
     build:
       context: ../..
       dockerfile: docker/cpu/Dockerfile.optimized
+      cache_from:
+        - ghcr.io/remsky/kokoro-fastapi-cache:cpu-amd64
+        - ghcr.io/remsky/kokoro-fastapi-cache:cpu-arm64
     volumes:
       - ../../api:/app/api
     ports:

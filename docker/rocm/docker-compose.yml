@@ -5,6 +5,8 @@ services:
       build:
         context: ../..
         dockerfile: docker/rocm/Dockerfile
+        cache_from:
+          - ghcr.io/remsky/kokoro-fastapi-cache:rocm-amd64
       devices:
         - /dev/dri
         - /dev/kfd

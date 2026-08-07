@@ -5,6 +5,9 @@ services:
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile.optimized
+      cache_from:
+        - ghcr.io/remsky/kokoro-fastapi-cache:gpu-amd64
+        - ghcr.io/remsky/kokoro-fastapi-cache:gpu-arm64
       # Default builds cu126 wheels, multi-arch (Maxwell through Ada: GTX 9xx, 10xx, 20xx, 30xx, 40xx).
       # Temp fix for NVIDIA Blackwell / RTX 50-series, uncomment:
       # args:
