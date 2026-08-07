@@ -32,8 +32,9 @@ ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
 ARG GPU_EXTRA=gpu
 
 # --managed-python: noble ships a system 3.12; without the flag uv would pick it and skip /opt/uv-python, breaking the runtime COPY
-RUN uv venv --python 3.12 --managed-python && \
-    uv sync --extra ${GPU_EXTRA} --no-cache --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv --python 3.12 --managed-python && \
+    uv sync --extra ${GPU_EXTRA} --no-install-project
 
 # Stage 2: Runtime - `base` variant: cudart + NVIDIA_* env only; torch uses its pip CUDA/cuDNN copies, system ones were dead weight (#482)
 FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04

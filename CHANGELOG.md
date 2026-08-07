@@ -4,6 +4,18 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [v0.7.2] - 2026-08-06
+### Security
+- `fastapi>=0.128.8`, `starlette>=1.3.1` to close CVE-2025-62727 (quadratic `Range` header parsing in `FileResponse`, reachable through the audio download path) (#500).
+
+### Changed
+- CORS `allow_credentials` now defaults off. Starlette 1.x echoes the caller's origin with `allow-credentials: true` where 0.47 returned `*`; nothing here uses cookies or auth, so this keeps the prior behavior.
+- Docker build cache moved from GHA to the GHCR registry so forks and local builds can pull it, plus uv cache mounts and reordered test-client layers (#501).
+- `response_format` docs (correctly) now list `aac` as supported.
+
+### Fixed
+- FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
+
 ## [v0.7.1] - 2026-08-02
 ### Added
 - `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.
