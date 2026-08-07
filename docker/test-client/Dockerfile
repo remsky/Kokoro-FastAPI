@@ -30,16 +30,14 @@ RUN apt-get update \
     && mv /root/.local/bin/uv /usr/local/bin/uv \
     && mv /root/.local/bin/uvx /usr/local/bin/uvx
 
+# Pre-fetch Whisper weights before lockfile COPY so dep changes don't re-download 470MB
+RUN mkdir -p /opt/whisper/small \
+    && curl -fSL https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4/faster-whisper-small-ct2.tar.gz \
+       | tar -xz -C /opt/whisper/small
+
 WORKDIR /opt/test-client
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project
-
-# Pre-fetch the Whisper small CT2 weights into a known path. Loading via
-# directory path skips Hugging Face entirely at test time.
-RUN mkdir -p /opt/whisper/small \
-    && curl -fSL https://github.com/remsky/Kokoro-FastAPI/releases/download/v0.1.4/faster-whisper-small-ct2.tar.gz \
-       | tar -xz -C /opt/whisper/small \
-    && echo 'Whisper small weights extracted to /opt/whisper/small'
 
 # Put the venv bin first so `pytest` resolves to the locked one.
 ENV PATH="/opt/test-client/.venv/bin:$PATH"
