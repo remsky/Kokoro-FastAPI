@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.7.2-rc1"
+version = "0.7.2"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"

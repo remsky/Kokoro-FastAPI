@@ -1,7 +1,8 @@
-# <sub><sub>_`FastKoko`_ </sub></sub> 
-![repoglyph](https://repoglyph.net/remsky/Kokoro-FastAPI.svg?palette=light&commits=40&detail=15&branch=master&prefix=1&border=1&skip_dirs=ui%2Cexamples%2Cscripts%2Cdev%2Cdepr_tests)
+![FastKoko: Dockerized Kokoro-82M TTS, OpenAI-compatible API](assets/banner.png)
 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-100-darkgreen)]()
+<a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
+
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-137-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-58%25-tan)]()
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
