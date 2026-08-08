@@ -6,24 +6,38 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
-- Multi-speaker input (#294). Inline `[voice:af_bella]` tags switch speaker mid-text anywhere `input` is accepted, alongside the existing `[pause:Xs]` and pronunciation tokens. Each speaker keeps its own language pipeline, so mixed-language dialogue works without `lang_code`. Opt in per request with `allow_voice_tags: true` (`extra_body` from the OpenAI client), so bracketed text in existing callers is still spoken as written. `ENABLE_VOICE_TAGS=false` refuses the opt-in and `/dev/dialogue` server-wide, for deployments passing untrusted text through.
-- `POST /dev/dialogue` takes the same thing as ordered `turns` with an optional `pause_between_turns`, and supports the `/v1/audio/speech` options.
-- Optional `voice_aliases` map on `/v1/audio/speech` and `/dev/captioned_speech`, so a short name can stand in for a weighted mix in the `voice` field and in tags (`{"narrator": "af_bella(2)+af_sky"}`). Resolved before validation, so an alias to an unknown voice is still a 400.
-- Web UI Voice Tags tab: builds a cast of named voices, places `[voice:name]` tags at the cursor, and saves that cast as a `{"voice_aliases": {...}}` file, the same map the API takes. Imports merge into or replace the current cast, with a count of any tags left unable to speak.
-- Web UI editor: the page number is directly editable, and the pagination bar gains find / find-and-replace across pages.
-- `/dev/captioned_speech` timestamps carry the `voice` that spoke each word when `allow_voice_tags` is on, so multi-speaker captions can be labelled without re-deriving the split client side. Absent otherwise, leaving existing responses unchanged.
-- Chunk timing sidecar on `/v1/audio/speech`. With `stream`, `return_download_link`, and `return_timing` set, per-chunk `{text, start, end}` timings are written as JSON next to the download file, path returned in `X-Timing-Path`. Chunks carry their `voice` when `allow_voice_tags` is on. Audio body unchanged, off by default.
-- Web UI Read along: follow-the-text sentence highlighting synced to playback, driven by the timing sidecar (char-fraction fallback when absent). Click a sentence to seek. The download button opens a small menu (audio / timings / both).
+- Multi-speaker input (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
+  - Inline `[voice:name]` tags switch speaker mid-text.
+  - `voice_aliases` mapping for named weighted voice mixes.
+- `/v1/audio/speech`:
+  - Chunk timing sidecar (`return_timing`), writes per-chunk `{text, start, end}` JSON next to the download file. A lighter weight timestamps response (used in the web reader feature)
+- `/dev/` endpoints:
+  - `POST /dev/dialogue` for ordered multi-speaker turns.
+  - `/dev/captioned_speech` timestamps include the speaking `voice` when tags are on.
+- Web UI:
+  - Voice alias/tag cast builder with import/export.
+  - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
+  - Find/replace across pages, directly accessible page numbers.
+  - Download menu (audio / chunk timings / both).
 
 ### Changed
-- Dropped (unreachable) list form of `voice` from the speech parser, along with the unused `VoiceCombineRequest` schema. Legacy `/v1/audio/voices/combine` still allows list.
-
-### Fixed
-- FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
+- Dropped unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
 
 ### Removed
 - Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
 - Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
+
+## [v0.7.2] 2026-08-06
+### Security
+- `fastapi>=0.128.8`, `starlette>=1.3.1` to close CVE-2025-62727 (quadratic `Range` header parsing in `FileResponse`, reachable through the audio download path) (#500).
+
+### Changed
+- CORS `allow_credentials` now defaults off. Starlette 1.x echoes the caller's origin with `allow-credentials: true` where 0.47 returned `*`; nothing here uses cookies or auth, so this keeps the prior behavior.
+- Docker build cache moved from GHA to the GHCR registry so forks and local builds can pull it, plus uv cache mounts and reordered test-client layers (#501).
+- `response_format` docs (correctly) now list `aac` as supported.
+
+### Fixed
+- FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
 
 ## [v0.7.1] - 2026-08-02
 ### Added
