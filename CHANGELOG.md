@@ -21,6 +21,10 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Fixed
 - FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
 
+### Removed
+- Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
+- Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
+
 ## [v0.7.1] - 2026-08-02
 ### Added
 - `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.

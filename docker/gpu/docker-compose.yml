@@ -5,6 +5,9 @@ services:
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile.optimized
+      cache_from:
+        - ghcr.io/remsky/kokoro-fastapi-cache:gpu-amd64
+        - ghcr.io/remsky/kokoro-fastapi-cache:gpu-arm64
       # Default builds cu126 wheels, multi-arch (Maxwell through Ada: GTX 9xx, 10xx, 20xx, 30xx, 40xx).
       # Temp fix for NVIDIA Blackwell / RTX 50-series, uncomment:
       # args:
@@ -32,20 +35,3 @@ services:
               count: all
               capabilities: [gpu]
 
-  # # Gradio UI service
-  # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
-  #   # Uncomment below to build from source instead of using the released image
-  #   # build:
-  #     # context: ../../ui
-  #   ports:
-  #     - "7860:7860"
-  #   volumes:
-  #     - ../../ui/data:/app/ui/data
-  #     - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
-  #   environment:
-  #     - GRADIO_WATCH=1  # Enable hot reloading
-  #     - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
-  #     - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
-  #     - API_HOST=kokoro-tts  # Set TTS service URL
-  #     - API_PORT=8880  # Set TTS service PORT

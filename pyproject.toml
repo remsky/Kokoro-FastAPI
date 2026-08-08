@@ -133,7 +133,7 @@ package-dir = { "" = "api/src" }
 packages.find = { where = ["api/src"], namespaces = true }
 
 [tool.pytest.ini_options]
-testpaths = ["api/tests", "ui/tests"]
+testpaths = ["api/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace"
+addopts = "--cov=api --cov-report=term-missing --cov-config=.coveragerc --full-trace"
 asyncio_mode = "auto"

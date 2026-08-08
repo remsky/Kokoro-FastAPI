@@ -1,7 +1,6 @@
 [run]
 source = 
     api
-    ui
 omit = 
     Kokoro-82M/*
     MagicMock/*
