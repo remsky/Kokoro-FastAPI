@@ -11,7 +11,7 @@ export default class TextEditor {
         this.pages = [''];
         this.charCount = 0;
         this.fullText = '';
-        this.isTyping = false;
+        this.findFrom = 0;
         
         this.setupDOM();
         this.bindEvents();
@@ -24,11 +24,27 @@ export default class TextEditor {
             <div class="text-editor">
                 <div class="editor-view">
                     <div class="page-navigation">
+                        <button type="button" id="read-along-btn" class="read-along-btn" aria-pressed="false" title="Available when generation completes" disabled>Read along</button>
                         <div class="pagination">
-                            <button class="prev-btn">← Previous</button>
-                            <span class="page-info">Page 1 of 1</span>
-                            <button class="next-btn">Next →</button>
+                            <button class="prev-btn" aria-label="Previous page">←</button>
+                            <span class="page-info">Page <input type="number" class="page-jump" min="1" value="1"> of <span class="page-total">1</span></span>
+                            <button class="next-btn" aria-label="Next page">→</button>
                         </div>
+                        <details class="find-menu">
+                            <summary class="find-toggle" title="Find and replace" aria-label="Find and replace">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4.5 4.5"></path></svg>
+                            </summary>
+                            <div class="find-panel">
+                                <input type="text" class="find-input" placeholder="Find">
+                                <input type="text" class="replace-input" placeholder="Replace with">
+                                <span class="find-count"></span>
+                                <div class="find-actions">
+                                    <button type="button" class="find-next-btn">Next</button>
+                                    <button type="button" class="replace-one-btn">Replace</button>
+                                    <button type="button" class="replace-all-btn">All</button>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                     <textarea
                         class="page-content"
@@ -62,7 +78,15 @@ export default class TextEditor {
             pageContent: this.container.querySelector('.page-content'),
             prevBtn: this.container.querySelector('.prev-btn'),
             nextBtn: this.container.querySelector('.next-btn'),
-            pageInfo: this.container.querySelector('.page-info'),
+            pageJump: this.container.querySelector('.page-jump'),
+            pageTotal: this.container.querySelector('.page-total'),
+            findMenu: this.container.querySelector('.find-menu'),
+            findInput: this.container.querySelector('.find-input'),
+            replaceInput: this.container.querySelector('.replace-input'),
+            findCount: this.container.querySelector('.find-count'),
+            findNextBtn: this.container.querySelector('.find-next-btn'),
+            replaceOneBtn: this.container.querySelector('.replace-one-btn'),
+            replaceAllBtn: this.container.querySelector('.replace-all-btn'),
             fileInput: this.container.querySelector('.file-input'),
             uploadBtn: this.container.querySelector('.upload-btn'),
             clearBtn: this.container.querySelector('.clear-btn'),
@@ -97,17 +121,40 @@ export default class TextEditor {
         });
 
         // Navigation
-        this.elements.prevBtn.addEventListener('click', () => {
-            if (this.currentPage > 1) {
-                this.currentPage--;
-                this.updatePageDisplay();
-            }
+        this.elements.prevBtn.addEventListener('click', () => this.prevPage());
+        this.elements.nextBtn.addEventListener('click', () => this.nextPage());
+        this.elements.pageJump.addEventListener('change', (e) => {
+            this.goToPage(parseInt(e.target.value, 10));
         });
 
-        this.elements.nextBtn.addEventListener('click', () => {
-            if (this.currentPage < this.pages.length) {
-                this.currentPage++;
-                this.updatePageDisplay();
+        this.elements.findInput.addEventListener('input', () => {
+            this.findFrom = 0;
+            const matches = this.countMatches(this.elements.findInput.value);
+            this.setFindCount(this.elements.findInput.value ? `${matches} match${matches === 1 ? '' : 'es'}` : '');
+        });
+        this.elements.findInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.findNext();
+            }
+        });
+        this.elements.replaceInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.replaceOne();
+            }
+        });
+        this.elements.findNextBtn.addEventListener('click', () => this.findNext());
+        this.elements.replaceOneBtn.addEventListener('click', () => this.replaceOne());
+        this.elements.replaceAllBtn.addEventListener('click', () => this.replaceAll());
+        this.elements.findMenu.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.elements.findMenu.open = false;
+            }
+        });
+        this.elements.findMenu.addEventListener('toggle', () => {
+            if (this.elements.findMenu.open) {
+                this.elements.findInput.focus();
             }
         });
 
@@ -171,26 +218,24 @@ export default class TextEditor {
             return;
         }
 
-        // Store original text to preserve natural line breaks
-        this.fullText = text.trim();
-        const words = text.trim().split(/\s+/);
+        const tokens = text.trim().split(/(\s+)/);
         this.pages = [];
         let currentPage = '';
-        
-        for (let i = 0; i < words.length; i++) {
-            const word = words[i];
-            const potentialPage = currentPage + (currentPage ? ' ' : '') + word;
-            
-            if (potentialPage.length >= this.options.charsPerPage && currentPage) {
-                this.pages.push(currentPage);
-                currentPage = word;
+
+        for (const token of tokens) {
+            const isWhitespace = /^\s+$/.test(token);
+            const potentialPage = currentPage + token;
+
+            if (potentialPage.length >= this.options.charsPerPage && currentPage && !isWhitespace) {
+                this.pages.push(currentPage.trimEnd());
+                currentPage = token;
             } else {
                 currentPage = potentialPage;
             }
         }
-        
-        if (currentPage) {
-            this.pages.push(currentPage);
+
+        if (currentPage.trim()) {
+            this.pages.push(currentPage.trimEnd());
         }
         
         if (this.pages.length === 0) {
@@ -201,6 +246,8 @@ export default class TextEditor {
             this.currentPage = Math.min(this.currentPage, this.pages.length);
         }
 
+        // fullText is always the pages joined with single spaces, so find offsets map exactly
+        this.fullText = this.pages.join(' ');
         this.updatePageDisplay();
     }
 
@@ -212,10 +259,43 @@ export default class TextEditor {
         this.updatePageDisplay();
     }
 
+    getPageText() {
+        return this.pages[this.currentPage - 1] || '';
+    }
+
+    getCursor() {
+        return this.elements.pageContent.selectionStart ?? this.getPageText().length;
+    }
+
+    /** Writes the visible page back, keeping pages, fullText and the caret in step. */
+    setPageText(text, cursor = null) {
+        this.pages[this.currentPage - 1] = text;
+        this.fullText = this.pages.join(' ');
+        this.elements.pageContent.value = text;
+
+        if (cursor !== null) {
+            this.elements.pageContent.focus();
+            this.elements.pageContent.setSelectionRange(cursor, cursor);
+        }
+        this.options.onTextChange?.(this.fullText);
+    }
+
+    /** Rewrites the whole document, keeping whichever page split is in use. */
+    replaceText(text) {
+        if (this.pages.length > 1) {
+            this.splitIntoPages(text);
+        } else {
+            this.setText(text);
+        }
+        this.options.onTextChange?.(this.fullText);
+    }
+
     updatePageDisplay() {
         this.elements.pageContent.value = this.pages[this.currentPage - 1] || '';
-        this.elements.pageInfo.textContent = `Page ${this.currentPage} of ${this.pages.length}`;
-        
+        this.elements.pageJump.value = this.currentPage;
+        this.elements.pageJump.max = this.pages.length;
+        this.elements.pageTotal.textContent = this.pages.length;
+
         // Update button states
         this.elements.prevBtn.disabled = this.currentPage === 1;
         this.elements.nextBtn.disabled = this.currentPage === this.pages.length;
@@ -233,6 +313,120 @@ export default class TextEditor {
             this.currentPage++;
             this.updatePageDisplay();
         }
+    }
+
+    goToPage(page) {
+        if (Number.isInteger(page)) {
+            this.currentPage = Math.max(1, Math.min(page, this.pages.length));
+        }
+        this.updatePageDisplay();
+    }
+
+    pageStart(pageIndex) {
+        let start = 0;
+        for (let i = 0; i < pageIndex; i++) {
+            start += this.pages[i].length + 1;
+        }
+        return start;
+    }
+
+    setFindCount(message) {
+        this.elements.findCount.textContent = message;
+    }
+
+    countMatches(term) {
+        if (!term) {
+            return 0;
+        }
+        const haystack = this.fullText.toLowerCase();
+        const needle = term.toLowerCase();
+        let count = 0;
+        let index = haystack.indexOf(needle);
+        while (index !== -1) {
+            count++;
+            index = haystack.indexOf(needle, index + needle.length);
+        }
+        return count;
+    }
+
+    findNext() {
+        const term = this.elements.findInput.value;
+        if (!term) {
+            return;
+        }
+
+        const haystack = this.fullText.toLowerCase();
+        const needle = term.toLowerCase();
+        let index = haystack.indexOf(needle, this.findFrom);
+        if (index === -1 && this.findFrom > 0) {
+            index = haystack.indexOf(needle);
+        }
+        if (index === -1) {
+            this.setFindCount('0 matches');
+            return;
+        }
+        this.findFrom = index + needle.length;
+
+        let position = 0;
+        for (let scan = haystack.indexOf(needle); scan !== -1 && scan <= index; scan = haystack.indexOf(needle, scan + needle.length)) {
+            position++;
+        }
+        this.setFindCount(`${position} of ${this.countMatches(term)}`);
+        this.revealOffset(index, needle.length);
+    }
+
+    revealOffset(index, length = 0) {
+        let page = 0;
+        let offset = index;
+        while (page < this.pages.length - 1 && offset > this.pages[page].length) {
+            offset -= this.pages[page].length + 1;
+            page++;
+        }
+        this.currentPage = page + 1;
+        this.updatePageDisplay();
+        const box = this.elements.pageContent;
+        box.focus({ preventScroll: true });
+        box.setSelectionRange(offset, Math.min(offset + length, this.pages[page].length));
+        box.scrollTop = (box.scrollHeight * offset) / Math.max(1, box.value.length) - box.clientHeight / 2;
+    }
+
+    replaceOne() {
+        const term = this.elements.findInput.value;
+        if (!term) {
+            return;
+        }
+
+        const { selectionStart, selectionEnd } = this.elements.pageContent;
+        const selected = this.getPageText().slice(selectionStart, selectionEnd);
+        // nothing selected yet means find first, replace on the next press
+        if (selected.toLowerCase() !== term.toLowerCase()) {
+            this.findNext();
+            return;
+        }
+
+        const replacement = this.elements.replaceInput.value;
+        const pageText = this.getPageText();
+        this.setPageText(pageText.slice(0, selectionStart) + replacement + pageText.slice(selectionEnd));
+        this.findFrom = this.pageStart(this.currentPage - 1) + selectionStart + replacement.length;
+        this.findNext();
+    }
+
+    replaceAll() {
+        const term = this.elements.findInput.value;
+        if (!term) {
+            return;
+        }
+        const count = this.countMatches(term);
+        if (!count) {
+            this.setFindCount('0 matches');
+            return;
+        }
+
+        const replacement = this.elements.replaceInput.value;
+        const pattern = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+        this.replaceText(this.fullText.replace(pattern, () => replacement));
+        this.findFrom = 0;
+        this.setFindCount(`${count} replaced`);
     }
 
     getText() {

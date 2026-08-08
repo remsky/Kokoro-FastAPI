@@ -67,43 +67,72 @@ h1 {
 
 /* fixed width keeps the two badges matched */
 .badge {
-    width: 250px;
+    width: 220px;
     display: flex;
     align-items: center;
     transition: opacity 0.2s ease;
     flex-shrink: 0;
+    color: #c9d1d9;
 }
 
 .badge:hover {
     opacity: 0.9;
 }
 
-.badge img {
-    width: 100%;
-    height: auto;
+/* hugging face badge, drawn locally so it still renders with no network */
+.hf-badge {
+    height: 20px;
+    min-width: max-content;
+    align-items: stretch;
+    overflow: hidden;
     border-radius: 4px;
+    border: 1px solid #484f58;
+    font-size: 0.625rem;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.hf-label {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.5rem;
+    background: #000000;
+}
+
+.hf-logo {
+    width: 14px;
+    height: 14px;
     display: block;
+    flex-shrink: 0;
+}
+
+.hf-repo {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* github star badge, primer dark-mode grays */
 .gh-star-badge {
-    --gh-gray-100: #c9d1d9;
     --gh-gray-500: #484f58;
     --gh-gray-600: #30363d;
     --gh-gray-700: #21262d;
-    height: 22px;
+    height: 20px;
     /* grow past the matched width rather than ellipsize the full name */
     min-width: max-content;
     align-items: stretch;
     overflow: hidden;
     border-radius: 4px;
     border: 1px solid var(--gh-gray-500);
-    font-size: 0.6875rem;
+    font-size: 0.625rem;
     font-weight: 600;
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;
-    color: var(--gh-gray-100);
 }
 
 .gh-star-label {
@@ -111,9 +140,15 @@ h1 {
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 0.4rem;
-    padding: 0 0.6rem;
+    gap: 0.35rem;
+    padding: 0 0.5rem;
     background: var(--gh-gray-700);
+}
+
+.gh-star-label svg {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
 }
 
 .gh-repo {
@@ -124,10 +159,15 @@ h1 {
 .gh-star-count {
     display: flex;
     align-items: center;
-    padding: 0 0.55rem;
+    padding: 0 0.45rem;
     background: var(--gh-gray-600);
     border-left: 1px solid var(--gh-gray-500);
     font-variant-numeric: tabular-nums;
+}
+
+/* the display above outranks [hidden], so the empty box shows when the count never loads */
+.gh-star-count[hidden] {
+    display: none;
 }
 
 /* ── coffee cup */
@@ -246,19 +286,26 @@ h1 {
     }
 
     /* the stacked column can't grow, the owner prefix goes instead */
-    .gh-star-badge {
-        height: 20px;
+    .gh-star-badge,
+    .hf-badge {
+        height: 18px;
         min-width: 0;
-        font-size: 0.625rem;
+        font-size: 0.5625rem;
     }
 
-    .gh-owner {
+    .gh-owner,
+    .hf-prefix {
         display: none;
     }
 
+    .hf-logo {
+        width: 12px;
+        height: 12px;
+    }
+
     .gh-star-label svg {
-        width: 13px;
-        height: 13px;
+        width: 12px;
+        height: 12px;
     }
 }
 

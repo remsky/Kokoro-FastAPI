@@ -8,8 +8,7 @@ export class PlayerState {
             volume: 1,
             speed: 1,
             progress: 0,
-            isReady: false,
-            error: null
+            isReady: false
         };
         this.listeners = new Set();
     }
@@ -68,14 +67,6 @@ export class PlayerState {
         this.setState({ speed });
     }
 
-    setError(error) {
-        this.setState({ error });
-    }
-
-    clearError() {
-        this.setState({ error: null });
-    }
-
     reset() {
         // Keep current speed setting but reset everything else
         const currentSpeed = this.state.speed;
@@ -88,7 +79,6 @@ export class PlayerState {
             duration: 0,
             progress: 0,
             isReady: false,
-            error: null,
             speed: currentSpeed,
             volume: currentVolume
         });

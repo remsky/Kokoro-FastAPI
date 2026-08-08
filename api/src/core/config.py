@@ -44,10 +44,12 @@ class Settings(BaseSettings):
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )
+    enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
     voices_dir: str = "/app/api/src/voices/v1_0"  # Absolute path in container
+    model_repo_id: str = "hexgrad/Kokoro-82M"  # default if model not present in model_dir; silences warnings
 
     # Audio Settings
     sample_rate: int = 24000

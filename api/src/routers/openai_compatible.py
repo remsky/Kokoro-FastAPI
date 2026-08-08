@@ -2,11 +2,11 @@
 
 import io
 import json
+import math
 import os
 import re
 import tempfile
-from typing import AsyncGenerator, Dict, List, Tuple, Union
-from urllib import response
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import aiofiles
 import numpy as np
@@ -19,6 +19,7 @@ from ..core.config import settings
 from ..inference.base import AudioChunk
 from ..services.audio import AudioService
 from ..services.streaming_audio_writer import StreamingAudioWriter
+from ..services.text_processing.text_processor import VOICE_TAG_PATTERN
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
 from ..structures.schemas import CaptionedSpeechRequest
@@ -37,9 +38,10 @@ def load_openai_mappings() -> Dict:
         return {"models": {}, "voices": {}}
 
 
-# Global mappings
 _openai_mappings = load_openai_mappings()
 
+# a combine item is a bare voice name or name(weight), parens never nest
+_VOICE_WEIGHT_PATTERN = re.compile(r"(?P<name>[^()]+)(?:\((?P<weight>[^()]*)\))?")
 
 router = APIRouter(
     tags=["OpenAI Compatible TTS"],
@@ -80,56 +82,123 @@ def get_model_name(model: str) -> str:
     return base_name + ".pth"
 
 
+def resolve_voice_alias(voice: str, aliases: Optional[Dict[str, str]] = None) -> str:
+    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone.
+
+    Matching is case-insensitive, since VOICE_TAG_PATTERN already is: a tag written
+    [voice:Narrator] has to reach the same alias as [voice:narrator].
+    """
+    if not aliases:
+        return voice
+
+    name = str(voice).strip()
+    if name in aliases:
+        return aliases[name]
+
+    folded = name.casefold()
+    for alias, mix in aliases.items():
+        if str(alias).strip().casefold() == folded:
+            return mix
+
+    return voice
+
+
 async def process_and_validate_voices(
-    voice_input: Union[str, List[str]], tts_service: TTSService
+    voice_input: str,
+    tts_service: TTSService,
+    aliases: Optional[Dict[str, str]] = None,
+    available_voices: Optional[List[str]] = None,
 ) -> str:
-    """Process voice input, handling both string and list formats
+    """Process a voice string, resolving any alias and validating every voice in the combination
 
     Returns:
         Voice name to use (with weights if specified)
     """
-    voices = []
-    # Convert input to list of voices
-    if isinstance(voice_input, str):
-        voice_input = voice_input.replace(" ", "").strip()
+    voice_input = resolve_voice_alias(voice_input, aliases)
+    voice_input = voice_input.replace(" ", "").strip()
 
-        if voice_input[-1] in "+-" or voice_input[0] in "+-":
-            raise ValueError(f"Voice combination contains empty combine items")
+    if not voice_input:
+        raise ValueError("Voice name cannot be empty")
 
-        if re.search(r"[+-]{2,}", voice_input) is not None:
-            raise ValueError(f"Voice combination contains empty combine items")
-        voices = re.split(r"([-+])", voice_input)
-    else:
-        voices = [[item, "+"] for item in voice_input][:-1]
+    if voice_input[-1] in "+-" or voice_input[0] in "+-":
+        raise ValueError("Voice combination contains empty combine items")
 
-    available_voices = await tts_service.list_voices()
+    if re.search(r"[+-]{2,}", voice_input) is not None:
+        raise ValueError("Voice combination contains empty combine items")
+
+    # separators are kept, so the loop below steps past them to the voices
+    voices = re.split(r"([-+])", voice_input)
+
+    if available_voices is None:
+        available_voices = await tts_service.list_voices()
 
     for voice_index in range(0, len(voices), 2):
-        mapped_voice = voices[voice_index].split("(")
-        mapped_voice = list(map(str.strip, mapped_voice))
+        token = voices[voice_index]
+        match = _VOICE_WEIGHT_PATTERN.fullmatch(token)
+        if not match:
+            raise ValueError(f"Voice '{token}' is not a valid voice or voice(weight)")
 
-        if len(mapped_voice) > 2:
+        name = match.group("name").strip()
+        weight = match.group("weight")
+        if weight is not None:
+            try:
+                parsed = float(weight)
+            except ValueError:
+                parsed = math.nan
+            if not math.isfinite(parsed) or parsed <= 0:
+                raise ValueError(f"Voice '{token}' must use a positive weight")
+            weight = weight.strip()
+
+        name = _openai_mappings["voices"].get(name, name)
+        if name not in available_voices:
             raise ValueError(
-                f"Voice '{voices[voice_index]}' contains too many weight items"
+                f"Voice '{name}' not found. Available voices: {', '.join(sorted(available_voices))}"
             )
 
-        if mapped_voice.count(")") > 1:
-            raise ValueError(
-                f"Voice '{voices[voice_index]}' contains too many weight items"
-            )
-
-        mapped_voice[0] = _openai_mappings["voices"].get(
-            mapped_voice[0], mapped_voice[0]
-        )
-
-        if mapped_voice[0] not in available_voices:
-            raise ValueError(
-                f"Voice '{mapped_voice[0]}' not found. Available voices: {', '.join(sorted(available_voices))}"
-            )
-
-        voices[voice_index] = "(".join(mapped_voice)
+        voices[voice_index] = name if weight is None else f"{name}({weight})"
 
     return "".join(voices)
+
+
+def require_voice_tags_enabled() -> None:
+    """403 when the server-level voice tag kill switch is off"""
+    if not settings.enable_voice_tags:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "Voice tags are disabled on this server",
+                "type": "permission_error",
+            },
+        )
+
+
+async def process_and_validate_voice_tags(
+    text: str,
+    tts_service: TTSService,
+    allow_voice_tags: bool = False,
+    aliases: Optional[Dict[str, str]] = None,
+) -> str:
+    """Validate inline [voice:...] tags, rewriting them to resolved voice names.
+
+    Runs the same mapping and validation as the voice parameter so a bad speaker
+    tag fails the request up front rather than part way through the stream.
+    """
+    if not allow_voice_tags:
+        return text
+
+    tags = VOICE_TAG_PATTERN.findall(text)
+    if not tags:
+        return text
+
+    available_voices = await tts_service.list_voices()
+    resolved = {
+        tag: await process_and_validate_voices(
+            tag, tts_service, aliases, available_voices
+        )
+        for tag in dict.fromkeys(tags)
+    }
+    return VOICE_TAG_PATTERN.sub(lambda m: f"[voice:{resolved[m.group(1)]}]", text)
 
 
 async def stream_audio_chunks(
@@ -137,12 +206,12 @@ async def stream_audio_chunks(
     request: Union[OpenAISpeechRequest, CaptionedSpeechRequest],
     client_request: Request,
     writer: StreamingAudioWriter,
+    voice_name: str,
+    timings: Optional[list] = None,
 ) -> AsyncGenerator[AudioChunk, None]:
     """Stream audio chunks as they're generated with client disconnect handling"""
-    voice_name = await process_and_validate_voices(request.voice, tts_service)
-    unique_properties = {"return_timestamps": False}
-    if hasattr(request, "return_timestamps"):
-        unique_properties["return_timestamps"] = request.return_timestamps
+    assert isinstance(voice_name, str) and voice_name, "voice_name skipped validation"
+    return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
         async for chunk_data in tts_service.generate_audio_stream(
@@ -154,7 +223,9 @@ async def stream_audio_chunks(
             lang_code=request.lang_code,
             volume_multiplier=request.volume_multiplier,
             normalization_options=request.normalization_options,
-            return_timestamps=unique_properties["return_timestamps"],
+            return_timestamps=return_timestamps,
+            allow_voice_tags=request.allow_voice_tags,
+            timings=timings,
         ):
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
@@ -175,7 +246,7 @@ async def stream_audio_chunks(
 async def create_speech(
     request: OpenAISpeechRequest,
     client_request: Request,
-    x_raw_response: str = Header(None, alias="x-raw-response"),
+    x_raw_response: Optional[str] = Header(None, alias="x-raw-response"),
 ):
     """OpenAI-compatible endpoint for text-to-speech"""
     # Validate model before processing request
@@ -189,10 +260,19 @@ async def create_speech(
             },
         )
 
+    if request.allow_voice_tags:
+        require_voice_tags_enabled()
+
     try:
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
-        voice_name = await process_and_validate_voices(request.voice, tts_service)
+        voice_name = await process_and_validate_voices(
+            request.voice, tts_service, request.voice_aliases
+        )
+        # resolved here, not in the generator, so a bad tag 400s before the stream opens
+        request.input = await process_and_validate_voice_tags(
+            request.input, tts_service, request.allow_voice_tags, request.voice_aliases
+        )
 
         # Set content type based on format
         content_type = {
@@ -208,9 +288,12 @@ async def create_speech(
 
         # Check if streaming is requested (default for OpenAI client)
         if request.stream:
+            timings = (
+                [] if request.return_timing and request.return_download_link else None
+            )
             # Create generator but don't start it yet
             generator = stream_audio_chunks(
-                tts_service, request, client_request, writer
+                tts_service, request, client_request, writer, voice_name, timings
             )
 
             # If download link requested, wrap generator with temp file writer
@@ -233,6 +316,8 @@ async def create_speech(
                     "Transfer-Encoding": "chunked",
                     "X-Download-Path": download_path,
                 }
+                if timings is not None:
+                    headers["X-Timing-Path"] = f"{download_path}.json"
 
                 # Add header to indicate if temp file writing is available
                 if temp_writer._write_error:
@@ -252,6 +337,8 @@ async def create_speech(
 
                         # Finalize the temp file
                         await temp_writer.finalize()
+                        if timings is not None:
+                            await temp_writer.write_json_sidecar({"chunks": timings})
                     except Exception as e:
                         logger.error(f"Error in dual output streaming: {e}")
                         await temp_writer.__aexit__(type(e), e, e.__traceback__)
@@ -304,6 +391,7 @@ async def create_speech(
                 volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
+                allow_voice_tags=request.allow_voice_tags,
             )
 
             audio_data = await AudioService.convert_audio(

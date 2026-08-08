@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 import torch
 
+from api.src.core.config import settings
 from api.src.inference.kokoro_v1 import KokoroV1
 
 
@@ -98,7 +99,10 @@ def test_get_pipeline_creates_new(kokoro_backend):
 
         # Should create new pipeline with correct params
         mock_kpipeline.assert_called_once_with(
-            lang_code="e", model=kokoro_backend._model, device=kokoro_backend._device
+            lang_code="e",
+            repo_id=settings.model_repo_id,
+            model=kokoro_backend._model,
+            device=kokoro_backend._device,
         )
         assert pipeline_e == mock_pipeline
         assert kokoro_backend._pipelines["e"] == mock_pipeline

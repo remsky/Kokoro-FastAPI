@@ -1,14 +1,31 @@
 # Changelog
 
-
 Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased] - 2026-08-08
+## [Unreleased]
+### Added
+- Multi-speaker input (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
+  - Inline `[voice:name]` tags switch speaker mid-text.
+  - `voice_aliases` mapping for named weighted voice mixes.
+- `/v1/audio/speech`:
+  - Chunk timing sidecar (`return_timing`), writes per-chunk `{text, start, end}` JSON next to the download file. A lighter weight timestamps response (used in the web reader feature)
+- `/dev/` endpoints:
+  - `POST /dev/dialogue` for ordered multi-speaker turns.
+  - `/dev/captioned_speech` timestamps include the speaking `voice` when tags are on.
+- Web UI:
+  - Voice alias/tag cast builder with import/export (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
+  - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
+  - Find/replace across pages, directly accessible page numbers.
+  - Download menu (audio / chunk timings / both).
+
+### Changed
+- Dropped unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
 
 ### Removed
 - Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
+- Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
 
 ## [v0.7.2] 2026-08-06
 ### Security

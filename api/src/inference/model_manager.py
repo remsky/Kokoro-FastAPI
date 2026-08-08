@@ -149,7 +149,7 @@ Model files not found! You need to download the Kokoro V1 model:
             RuntimeError: If generation fails
         """
         await self.ensure_backend()
-        assert self._backend is not None  # ensure_backend loaded it or raised
+        assert self._backend is not None, "ensure_backend left no backend"
 
         try:
             async for chunk in self._backend.generate(*args, **kwargs):

@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...core.config import settings
-from ...structures.schemas import NormalizationOptions
+from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
@@ -18,6 +18,8 @@ from .vocabulary import tokenize
 CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
+# Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
+VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
 
 
 def process_text_chunk(
@@ -43,23 +45,13 @@ def process_text_chunk(
 
     if skip_phonemize:
         # Input is already phonemes, just tokenize
-        t0 = time.time()
         tokens = tokenize(text)
-        t1 = time.time()
     else:
         # Normal text processing pipeline
-        t0 = time.time()
-        t1 = time.time()
-
-        t0 = time.time()
         phonemes = phonemize(text, language)
         # Strip phonemes result to ensure no extra spaces
         phonemes = phonemes.strip()
-        t1 = time.time()
-
-        t0 = time.time()
         tokens = tokenize(phonemes)
-        t1 = time.time()
 
     total_time = time.time() - start_time
     logger.debug(
@@ -125,6 +117,37 @@ def get_sentence_info(
         tokens = process_text_chunk(full)
         results.append((full, tokens, len(tokens)))
     return results
+
+
+def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, str]]:
+    """Split text into (voice, text) segments on [voice:name] tags.
+
+    Text ahead of the first tag belongs to default_voice. Runs of segments
+    sharing a voice are merged so a tag that doesn't change speaker costs
+    nothing downstream, and so chunking still sees whole paragraphs.
+    """
+    parts = VOICE_TAG_PATTERN.split(text)
+    if len(parts) == 1:
+        return [(default_voice, text)]
+
+    segments: List[Tuple[str, str]] = []
+    current_voice = default_voice
+
+    for index, part in enumerate(parts):
+        # split() with one capture group alternates text, voice, text, ...
+        if index % 2:
+            current_voice = part.strip()
+            continue
+        part = part.strip()
+        if not part:
+            continue
+        if segments and segments[-1][0] == current_voice:
+            segments[-1] = (current_voice, f"{segments[-1][1]} {part}")
+        else:
+            segments.append((current_voice, part))
+
+    # tags were present, so an empty result means there was nothing to say
+    return segments
 
 
 def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> str:

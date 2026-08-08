@@ -108,10 +108,4 @@ body {
     .side-pane {
         overflow: visible;
     }
-
-    /* pane doesn't scroll here and the dock is already sticky */
-    .side-pane > .generate-card {
-        position: static;
-        backdrop-filter: none;
-    }
 }

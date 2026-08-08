@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 const { AudioService } = await import('../../src/services/AudioService.js');
+const { MsePipeline } = await import('../../src/services/audio/MsePipeline.js');
 
 // Minimal stand-in for an HTMLAudioElement. load() reports metadata asynchronously
 // (like a real browser parsing the new file), which is what resolves swapToFileSource.
@@ -71,10 +72,12 @@ class FakeAudio {
 function finishedMseService(audio) {
     const service = new AudioService();
     service.audio = audio;
-    service.mediaSource = {}; // non-null marks MSE mode
-    service.streamFinished = true;
+    const pipeline = new MsePipeline(audio);
+    pipeline.mediaSource = {}; // non-null marks an unfinished handoff
+    pipeline.streamFinished = true;
+    pipeline.objectUrl = 'blob:mse-url';
+    service.msePipeline = pipeline;
     service.serverDownloadPath = '/v1/download/test.mp3';
-    service.objectUrl = 'blob:mse-url';
     return service;
 }
 
@@ -100,8 +103,7 @@ test('swapToFileSource switches a finished MSE stream to the server file', async
     assert.equal(result, true);
     assert.equal(audio.src, '/v1/download/test.mp3');
     assert.equal(service.usingFileSource, true);
-    assert.equal(service.mediaSource, null);
-    assert.equal(service.sourceBuffer, null);
+    assert.equal(service.msePipeline, null);
     assert.deepEqual(revoke.calls, ['blob:mse-url']);
     assert.equal(readyFired, true);
     assert.equal(audio.currentTime, 42); // playhead preserved across the swap
@@ -144,7 +146,7 @@ test('swapToFileSource is a no-op once already on the file source', async () => 
 test('canSwapToFileSource is false for block mode (no MediaSource)', () => {
     const audio = new FakeAudio();
     const service = finishedMseService(audio);
-    service.mediaSource = null; // block mode plays a full-file blob already
+    service.msePipeline = null; // block mode plays a full-file blob already
 
     assert.equal(service.canSwapToFileSource(), false);
 });
@@ -152,7 +154,7 @@ test('canSwapToFileSource is false for block mode (no MediaSource)', () => {
 test('canSwapToFileSource is false before the stream finishes', () => {
     const audio = new FakeAudio();
     const service = finishedMseService(audio);
-    service.streamFinished = false;
+    service.msePipeline.streamFinished = false;
 
     assert.equal(service.canSwapToFileSource(), false);
 });
@@ -162,7 +164,7 @@ test('pause() swaps a finished MSE stream to the file source', async () => {
     audio.paused = false;
     audio.currentTime = 10;
     const service = finishedMseService(audio);
-    service.objectUrl = null;
+    service.msePipeline.objectUrl = null;
     const revoke = stubRevoke();
 
     service.pause();

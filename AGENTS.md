@@ -27,7 +27,7 @@ The general instructions must also still be followed, same as any contributor, a
 
 - Python tests: `uv run pytest` (runs `api/tests/`; integration tests are excluded by default, opt in with `-m integration`).
 - Format and lint: `ruff format .` then `ruff check . --fix`.
-- Web unit tests: `npm run test:web`. E2e: `npm run test:e2e`.
+- Web unit tests: `npm run test:web`. E2e: `npm run test:e2e`. New unit test files must be imported from `web/tests/unit/index.test.mjs`; it is a manual registry.
 - Container smoke test: `npm run cpu:up` (or `gpu:up`, `rocm:up`).
 
 ## Conventions
@@ -35,7 +35,7 @@ The general instructions must also still be followed, same as any contributor, a
 - Commit and PR titles use conventional style with a scope: `fix(audio): ...`, `feat(api): ...`, `chore(docker): ...`.
 - Every behavior change ships with a test (`api/tests/test_*.py` or `web/tests/`).
 - Add a `CHANGELOG.md` entry for user-visible changes. Don't bump `VERSION`; that happens at release time.
-- Endpoints that surface host, process, or model internals go behind an opt-in setting in `api/src/core/config.py` (see `enable_debug_endpoints`, `allow_dev_unload`) to avoid unintentional exposure on shared deployments.
+- Endpoints that surface host, process, or model internals go behind an opt-in setting in `api/src/core/config.py` (see `enable_debug_endpoints`, `allow_dev_unload`) to avoid unintentional exposure on shared deployments. Features that interpret user-supplied text get a default-on kill switch instead (see `enable_voice_tags`).
 - Keep changes small and modular; match the surrounding style.
 
 ## Gotchas

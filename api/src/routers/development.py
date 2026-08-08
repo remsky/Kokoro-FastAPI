@@ -1,5 +1,4 @@
 import base64
-import json
 import os
 import re
 from pathlib import Path
@@ -19,14 +18,26 @@ from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
 from ..services.text_processing import smart_split
 from ..services.tts_service import TTSService
-from ..structures import CaptionedSpeechRequest, CaptionedSpeechResponse, WordTimestamp
+from ..structures import (
+    CaptionedSpeechRequest,
+    CaptionedSpeechResponse,
+    DialogueRequest,
+    OpenAISpeechRequest,
+    WordTimestamp,
+)
 from ..structures.custom_responses import JSONStreamingResponse
 from ..structures.text_schemas import (
     GenerateFromPhonemesRequest,
     PhonemeRequest,
     PhonemeResponse,
 )
-from .openai_compatible import process_and_validate_voices, stream_audio_chunks
+from .openai_compatible import (
+    create_speech,
+    process_and_validate_voice_tags,
+    process_and_validate_voices,
+    require_voice_tags_enabled,
+    stream_audio_chunks,
+)
 
 router = APIRouter(tags=["text processing"])
 
@@ -53,7 +64,9 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
             raise ValueError("Text cannot be empty")
 
         # Initialize Kokoro pipeline in quiet mode (no model)
-        pipeline = KPipeline(lang_code=request.language, model=False)
+        pipeline = KPipeline(
+            lang_code=request.language, repo_id=settings.model_repo_id, model=False
+        )
 
         # Get first result from pipeline (we only need one since we're not chunking)
         for result in pipeline(request.text):
@@ -158,6 +171,42 @@ async def generate_from_phonemes(
         )
 
 
+@router.post("/dev/dialogue")
+async def create_dialogue(
+    request: DialogueRequest,
+    client_request: Request,
+):
+    """Generate multi-speaker audio from an ordered list of turns.
+
+    Thin wrapper over /v1/audio/speech: turns are rendered to the existing
+    inline [voice:...] and [pause:Xs] tags, so streaming, formats, and
+    download links behave identically.
+    """
+    require_voice_tags_enabled()
+
+    speech_request = OpenAISpeechRequest(
+        model=request.model,
+        input=request.to_tagged_input(),
+        voice=request.turns[0].voice,
+        response_format=request.response_format,
+        download_format=request.download_format,
+        speed=request.speed,
+        stream=request.stream,
+        return_download_link=request.return_download_link,
+        return_timing=request.return_timing,
+        lang_code=request.lang_code,
+        volume_multiplier=request.volume_multiplier,
+        normalization_options=request.normalization_options,
+        allow_voice_tags=True,  # always on here
+        voice_aliases=request.voice_aliases,
+    )
+    return await create_speech(
+        request=speech_request,
+        client_request=client_request,
+        x_raw_response=None,
+    )
+
+
 @router.post("/dev/captioned_speech")
 async def create_captioned_speech(
     request: CaptionedSpeechRequest,
@@ -167,10 +216,19 @@ async def create_captioned_speech(
 ):
     """Generate audio with word-level timestamps using streaming approach"""
 
+    if request.allow_voice_tags:
+        require_voice_tags_enabled()
+
     try:
         # model_name = get_model_name(request.model)
         tts_service = await get_tts_service()
-        voice_name = await process_and_validate_voices(request.voice, tts_service)
+        voice_name = await process_and_validate_voices(
+            request.voice, tts_service, request.voice_aliases
+        )
+        # resolved here, not in the generator, so a bad tag 400s before the stream opens
+        request.input = await process_and_validate_voice_tags(
+            request.input, tts_service, request.allow_voice_tags, request.voice_aliases
+        )
 
         # Set content type based on format
         content_type = {
@@ -187,7 +245,7 @@ async def create_captioned_speech(
         if request.stream:
             # Create generator but don't start it yet
             generator = stream_audio_chunks(
-                tts_service, request, client_request, writer
+                tts_service, request, client_request, writer, voice_name
             )
 
             # If download link requested, wrap generator with temp file writer
@@ -323,6 +381,7 @@ async def create_captioned_speech(
                 volume_multiplier=request.volume_multiplier,
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
+                allow_voice_tags=request.allow_voice_tags,
             )
 
             audio_data = await AudioService.convert_audio(
@@ -430,7 +489,9 @@ async def unload_model(
         )
     try:
         if tts_service.model_manager is None:
-            raise HTTPException(status_code=503, detail={"error": "Model manager not initialized"})
+            raise HTTPException(
+                status_code=503, detail={"error": "Model manager not initialized"}
+            )
         await tts_service.model_manager.unload()
         return JSONResponse({"status": "unloaded"})
     except HTTPException:

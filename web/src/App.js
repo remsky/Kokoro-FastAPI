@@ -5,22 +5,62 @@ import PlayerControls from './components/PlayerControls.js';
 import VoiceSelector from './components/VoiceSelector.js';
 import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
+import ReadAlong from './components/ReadAlong.js';
 import config from './config.js';
+import { closeOnOutsidePress } from './dismiss.js';
+import {
+    CAST_NAME_PATTERN,
+    addToCast,
+    castAliases,
+    countVoiceTags,
+    exportCast,
+    hasVoiceTagFor,
+    insertVoiceTag,
+    isSpeakableMix,
+    leadingVoiceTag,
+    parseCastFile,
+    removeFromCast,
+    removeVoiceTagsFor,
+    renameCastMember,
+    renameVoiceTags,
+    seedVoiceTag,
+    stripVoiceTags,
+    unspeakableTagNames,
+    updateCastMix
+} from './voiceTags.js';
+
+const NARROW_LAYOUT = '(max-width: 900px)';
 
 export class App {
     constructor() {
+        this.cast = [];
+        this.editing = null;
+        this.tagMode = false;
+        this.stagedBeforeTags = '';
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
             generateBtnLoader: document.querySelector('#generate-btn .loader'),
             downloadBtn: document.getElementById('download-btn'),
+            downloadMenu: document.getElementById('download-menu'),
             autoplayToggle: document.getElementById('autoplay-toggle'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
             cancelBtn: document.getElementById('cancel-btn'),
             streamingNotice: document.getElementById('streaming-notice'),
             charCount: document.getElementById('char-count'),
-            cup: document.querySelector('.logo-container .cup')
+            cup: document.querySelector('.logo-container .cup'),
+            voiceTabs: document.querySelector('.card-tabs'),
+            voicesTab: document.getElementById('voices-tab'),
+            voiceTagsTab: document.getElementById('voice-tags-tab'),
+            voiceTagNotice: document.getElementById('voice-tag-notice'),
+            voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
+            removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn'),
+            castFileMenu: document.getElementById('cast-file-menu'),
+            saveCastBtn: document.getElementById('save-cast-btn'),
+            importCastBtn: document.getElementById('import-cast-btn'),
+            importCastReplaceBtn: document.getElementById('import-cast-replace-btn'),
+            importCastInput: document.getElementById('import-cast-input')
         };
 
         this.initialize();
@@ -46,8 +86,13 @@ export class App {
             linesPerPage: 20,
             onTextChange: (text) => {
                 this.elements.charCount.textContent = `${text.length} characters`;
+                this.updateVoiceTagNotice();
             }
         });
+
+        this.readAlong = new ReadAlong(this.audioService, this.textEditor);
+
+        this.setupNarrowLayout();
 
         // Initialize voice selector
         const voicesLoaded = await this.voiceSelector.initialize();
@@ -59,7 +104,319 @@ export class App {
 
         this.setupEventListeners();
         this.setupAudioEvents();
+        this.setupVoiceTags();
         this.applyBrowserStreamingNotice();
+    }
+
+    setupVoiceTags() {
+        const tabs = [this.elements.voicesTab, this.elements.voiceTagsTab];
+        if (tabs.some((tab) => !tab)) {
+            return;
+        }
+
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => this.setVoiceTagMode(tab === this.elements.voiceTagsTab));
+            tab.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                    return;
+                }
+                e.preventDefault();
+                const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1;
+                const next = tabs[(index + step) % tabs.length];
+                this.setVoiceTagMode(next === this.elements.voiceTagsTab);
+                next.focus();
+            });
+        });
+
+        this.elements.removeVoiceTagsBtn.addEventListener('click', () => {
+            this.textEditor.replaceText(stripVoiceTags(this.textEditor.getText()));
+        });
+
+        if (this.elements.castFileMenu) {
+            this.setupCastFileMenu();
+        }
+
+        this.setVoiceTagMode(this.tagMode);
+    }
+
+    setVoiceTagMode(enabled) {
+        this.tagMode = enabled;
+        this.renderVoiceTabs();
+        if (!enabled) {
+            // an edit only exists while the pane is open, so it cannot survive into the next visit
+            this.setEditing(null);
+        }
+        this.voiceSelector.setTagMode(enabled, {
+            onCommit: () => this.commitMix(),
+            onInsert: (name) => this.insertVoiceTag(name),
+            onRename: (name, next) => this.renameCastMember(name, next),
+            onMenuAction: (action, name) => this.castMenuAction(action, name),
+            isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
+        });
+
+        if (enabled) {
+            // the staged mix joins the cast but is remembered, so leaving the tab hands the same voice back
+            this.stagedBeforeTags = this.voiceService.getSelectedVoiceString() || this.cast[0]?.mix || '';
+            this.commitMix();
+            // the seeded tag is the whole explanation of the syntax
+            const seeded = seedVoiceTag(this.textEditor.getText(), this.cast[0]?.name);
+            if (seeded.changed) {
+                this.textEditor.replaceText(seeded.text);
+            }
+        } else if (!this.voiceService.hasSelectedVoices() && this.cast.length) {
+            this.voiceSelector.setMix(this.stagedBeforeTags || this.cast[0].mix);
+        }
+
+        this.updateVoiceTagNotice();
+    }
+
+    renderVoiceTabs() {
+        const active = this.tagMode ? this.elements.voiceTagsTab : this.elements.voicesTab;
+        this.elements.voiceTabs?.classList.toggle('is-tags', this.tagMode);
+        for (const tab of [this.elements.voicesTab, this.elements.voiceTagsTab]) {
+            const on = tab === active;
+            tab.classList.toggle('is-active', on);
+            tab.setAttribute('aria-selected', String(on));
+            tab.tabIndex = on ? 0 : -1;
+        }
+    }
+
+    /**
+     * Moves the staged mix into the cast and empties the mixer, so building the next
+     * voice starts from nothing. Placing it in the text stays a separate click.
+     */
+    commitMix() {
+        const mix = this.voiceService.getSelectedVoiceString();
+        if (!mix) {
+            return;
+        }
+
+        if (this.editing) {
+            this.saveEditedMix(this.editing, mix);
+        } else {
+            this.setCast(addToCast(this.cast, mix));
+        }
+
+        this.voiceSelector.setMix('');
+    }
+
+    /** A renamed member keeps its name, so the tags already in the text still point at it. */
+    saveEditedMix(name, mix) {
+        const member = this.cast.find((entry) => entry.name === name);
+        let cast = updateCastMix(this.cast, name, mix);
+
+        // a member still standing for its own mix has to follow it, tags and all
+        if (member && member.name === member.mix && member.mix !== mix) {
+            // that mix may already sit in the cast, and a twin chip would confuse every name-keyed lookup
+            cast = this.cast.some((entry) => entry.name === mix)
+                ? removeFromCast(cast, name)
+                : renameCastMember(cast, name, mix);
+            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, mix));
+        }
+
+        this.setCast(cast);
+        this.setEditing(null);
+    }
+
+    castMenuAction(action, name) {
+        const member = this.cast.find((entry) => entry.name === name);
+        if (!member) {
+            return;
+        }
+
+        if (action === 'edit') {
+            this.setEditing(name);
+            this.voiceSelector.setMix(member.mix);
+        } else if (action === 'strip') {
+            this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
+            this.updateVoiceTagNotice();
+        } else if (action === 'reset' && member.name !== member.mix) {
+            // the tags stay where they are, so the name they answer to becomes the mix again
+            if (this.editing === name) {
+                this.setEditing(member.mix);
+            }
+            this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, member.mix));
+            this.setCast(renameCastMember(this.cast, name, member.mix));
+        } else if (action === 'remove' && !hasVoiceTagFor(this.textEditor.getText(), name)) {
+            if (this.editing === name) {
+                this.setEditing(null);
+                this.voiceSelector.setMix('');
+            }
+            this.setCast(removeFromCast(this.cast, name));
+        }
+    }
+
+    setEditing(name) {
+        this.editing = name;
+        this.voiceSelector.setEditing(name);
+    }
+
+    /**
+     * A short name is only a label for the mix, so the rules are the tag syntax plus
+     * anything that would shadow a real voice or another member.
+     */
+    renameCastMember(name, requested) {
+        const next = String(requested || '').trim();
+        // re-rendering is what puts the chip back, so it also ends the edit that was refused
+        const keepName = (message) => {
+            if (message) {
+                this.showStatus(message, 'error');
+            }
+            this.setCast(this.cast);
+        };
+
+        if (next === name) {
+            keepName();
+            return;
+        }
+
+        if (!CAST_NAME_PATTERN.test(next)) {
+            keepName('A cast name is 1 to 24 letters, numbers, dashes or underscores');
+            return;
+        }
+
+        const taken = [
+            ...this.cast.filter((entry) => entry.name !== name).map((entry) => entry.name),
+            ...this.voiceService.getAvailableVoices()
+        ];
+
+        // folded like the server resolves aliases, so AF_Bella cannot shadow af_bella
+        const folded = next.toLowerCase();
+        if (taken.some((entry) => entry.toLowerCase() === folded)) {
+            keepName(`"${next}" is already taken`);
+            return;
+        }
+
+        if (this.editing === name) {
+            this.setEditing(next);
+        }
+        this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
+        this.setCast(renameCastMember(this.cast, name, next));
+    }
+
+    setCast(cast) {
+        this.cast = cast;
+        this.voiceSelector.renderCast(cast);
+    }
+
+    setupCastFileMenu() {
+        const menu = this.elements.castFileMenu;
+        const close = () => {
+            menu.open = false;
+        };
+
+        this.elements.saveCastBtn.addEventListener('click', () => {
+            close();
+            this.saveCast();
+        });
+        this.elements.importCastBtn.addEventListener('click', () => {
+            close();
+            this.importReplace = false;
+            this.elements.importCastInput.click();
+        });
+        this.elements.importCastReplaceBtn.addEventListener('click', () => {
+            close();
+            this.importReplace = true;
+            this.elements.importCastInput.click();
+        });
+        this.elements.importCastInput.addEventListener('change', (e) => {
+            const [file] = e.target.files;
+            // the same file picked twice has to fire again, so the input is emptied either way
+            e.target.value = '';
+            if (file) {
+                this.importCast(file, this.importReplace);
+            }
+            this.importReplace = false;
+        });
+
+        menu.addEventListener('toggle', () => {
+            if (menu.open) {
+                this.voiceSelector.closeCastMenu();
+            }
+        });
+        closeOnOutsidePress(menu, close);
+        menu.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                close();
+                menu.querySelector('summary').focus();
+            }
+        });
+    }
+
+    saveCast() {
+        if (!this.cast.length) {
+            this.showStatus('There is no cast to save yet', 'error');
+            return;
+        }
+
+        const blob = new Blob([`${JSON.stringify(exportCast(this.cast), null, 2)}\n`], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        this.triggerDownload(url, 'voice-tags.json');
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    /** Imports drop mixes this server cannot speak rather than leave them to 400. */
+    async importCast(file, replace = false) {
+        let members = [];
+        try {
+            members = parseCastFile(JSON.parse(await file.text()));
+        } catch {
+            this.showStatus('That file is not readable JSON', 'error');
+            return;
+        }
+
+        const available = this.voiceService.getAvailableVoices();
+        const base = replace ? [] : this.cast;
+        let cast = base;
+        for (const { name, mix } of members) {
+            // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
+            const folded = name.toLowerCase();
+            const known = isSpeakableMix(mix, available);
+            const taken = cast.some((entry) => entry.name.toLowerCase() === folded || entry.mix === mix)
+                || (name !== mix && available.some((voice) => voice.toLowerCase() === folded));
+            if (known && !taken) {
+                cast = [...cast, { name, mix }];
+            }
+        }
+
+        const added = cast.length - base.length;
+        if (!added) {
+            this.showStatus('Nothing in that file could join the cast', 'error');
+            return;
+        }
+
+        if (this.editing && !cast.some((entry) => entry.name === this.editing)) {
+            this.setEditing(null);
+            this.voiceSelector.setMix('');
+        }
+
+        const skipped = members.length - added;
+        this.setCast(cast);
+        const orphans = replace ? unspeakableTagNames(this.textEditor.getText(), cast, available).length : 0;
+        this.showStatus(replace
+            ? `Cast replaced with ${added}${skipped ? `, skipped ${skipped}` : ''}${orphans ? `, ${orphans} tag${orphans === 1 ? '' : 's'} in the text cannot speak` : ''}`
+            : `Added ${added} to the cast${skipped ? `, skipped ${skipped}` : ''}`, 'success');
+    }
+
+    insertVoiceTag(voice) {
+        const { text, cursor } = insertVoiceTag(this.textEditor.getPageText(), this.textEditor.getCursor(), voice);
+        this.textEditor.setPageText(text, cursor);
+    }
+
+    /**
+     * Tags left in the text outside tag mode are sent as prose and read aloud, so the
+     * count is offered with a way out rather than a warning to act on.
+     */
+    updateVoiceTagNotice() {
+        const notice = this.elements.voiceTagNotice;
+        if (!notice) {
+            return;
+        }
+
+        const count = countVoiceTags(this.textEditor.getText());
+        notice.hidden = count === 0 || this.tagMode;
+        this.elements.voiceTagNoticeText.textContent =
+            `${count} voice ${count === 1 ? 'tag' : 'tags'} will be read aloud.`;
     }
 
     async renderStarBadge() {
@@ -74,6 +431,30 @@ export class App {
             count.hidden = false;
         } catch (_) {
             // leave hidden on failure
+        }
+    }
+
+    relocateOnNarrow(node, narrowHome, wideHome) {
+        const query = window.matchMedia(NARROW_LAYOUT);
+        const place = () => {
+            const [parent, anchor] = query.matches ? narrowHome : wideHome;
+            if (node.parentElement === parent) return;
+            const focused = node.contains(document.activeElement) ? document.activeElement : null;
+            parent.insertBefore(node, anchor ?? null);
+            focused?.focus();
+        };
+
+        place();
+        query.addEventListener('change', place);
+    }
+
+    setupNarrowLayout() {
+        const card = document.querySelector('.generate-card');
+        const sidePane = document.querySelector('.side-pane');
+        const dock = document.querySelector('.player-dock');
+        const controls = dock?.querySelector('.player-controls');
+        if (card && sidePane && controls) {
+            this.relocateOnNarrow(card, [dock, controls], [sidePane, null]);
         }
     }
 
@@ -122,11 +503,59 @@ export class App {
         this.elements.generateBtn.addEventListener('click', () => this.generateSpeech());
 
         // Download button (div with role=button, so handle keyboard activation too)
-        this.elements.downloadBtn.addEventListener('click', () => this.downloadAudio());
+        this.elements.downloadBtn.addEventListener('click', () => this.toggleDownloadMenu());
         this.elements.downloadBtn.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
+                this.toggleDownloadMenu(true);
+            }
+        });
+
+        // keyboard route mirrors the cast menu: arrows walk, Escape returns focus
+        this.elements.downloadMenu.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDownloadMenu();
+                this.elements.downloadBtn.focus();
+                return;
+            }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+                return;
+            }
+            e.preventDefault();
+            const items = [...this.elements.downloadMenu.querySelectorAll('[role="menuitem"]')];
+            const from = Math.max(items.indexOf(document.activeElement), 0);
+            const step = e.key === 'ArrowDown' ? 1 : items.length - 1;
+            items[(from + step) % items.length]?.focus();
+        });
+        this.elements.downloadMenu.addEventListener('focusout', (e) => {
+            if (!this.elements.downloadMenu.contains(e.relatedTarget)) {
+                this.closeDownloadMenu();
+            }
+        });
+
+        this.elements.downloadMenu.addEventListener('click', (e) => {
+            const choice = e.target.closest('[data-download]')?.dataset.download;
+            if (!choice) {
+                return;
+            }
+            this.closeDownloadMenu();
+            if (choice !== 'timings') {
                 this.downloadAudio();
+            }
+            if (choice !== 'audio') {
+                // staggered so browsers don't drop the second download
+                this.downloadTimings(choice === 'both' ? 250 : 0);
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.download-wrap')) {
+                this.closeDownloadMenu();
+            }
+        });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.closeDownloadMenu();
             }
         });
 
@@ -139,21 +568,39 @@ export class App {
             this.audioService.cancel();
             this.setGenerating(false);
             this.elements.downloadBtn.classList.remove('ready');
+            this.closeDownloadMenu();
+            this.readAlong.setAvailable(false);
             this.showStatus('Generation cancelled', 'info');
         });
+
+        // the sticky success banner dismisses once the user moves on to playback
+        document.getElementById('play-pause-btn').addEventListener('click', () => this.hideStatus());
+        document.getElementById('read-along-btn').addEventListener('click', () => this.hideStatus());
 
         // Handle page unload
         window.addEventListener('beforeunload', () => {
             this.audioService.cleanup();
             this.playerControls.cleanup();
             this.waveVisualizer.cleanup();
+            this.readAlong.cleanup();
         });
     }
 
     setupAudioEvents() {
-        // Handle download button visibility
+        // Handle download ready (button visibility + delayed status)
         this.audioService.addEventListener('downloadReady', () => {
             this.elements.downloadBtn.classList.add('ready');
+            this.readAlong.setAvailable(true);
+            // small delay so 'Preparing file...' stays visible before this replaces it
+            setTimeout(() => {
+                if (!this._playbackFailed) {
+                    const secs = this._genSeconds;
+                    const took = secs
+                        ? ` in ${secs < 60 ? secs.toFixed(1) + 's' : this.playerControls.formatTime(secs)}`
+                        : '';
+                    this.showStatus(`Generation complete${took}`, 'success');
+                }
+            }, 500);
         });
 
         // Handle buffer errors
@@ -163,22 +610,16 @@ export class App {
 
         // Handle completion
         this.audioService.addEventListener('complete', () => {
+            this._genSeconds = this._genStartedAt
+                ? (performance.now() - this._genStartedAt) / 1000
+                : null;
             this.setGenerating(false);
-            
+
             // Show preparing status
             this.showStatus('Preparing file...', 'info');
 
             // Flash the coffee cup
             this.elements.cup.classList.add('done');
-        });
-
-        // Handle download ready
-        this.audioService.addEventListener('downloadReady', () => {
-            setTimeout(() => {
-                if (!this._playbackFailed) {
-                    this.showStatus('Generation complete', 'success');
-                }
-            }, 500); // Small delay to ensure "Preparing file..." is visible
         });
 
         // Handle audio end
@@ -191,11 +632,14 @@ export class App {
             this.showStatus('Error: ' + error.message, 'error');
             this.setGenerating(false);
             this.elements.downloadBtn.style.display = 'none';
+            this.closeDownloadMenu();
+            this.readAlong.setAvailable(false);
         });
 
         // Block-mode playback failure: file is still available for download
         this.audioService.addEventListener('playbackUnavailable', () => {
             this._playbackFailed = true;
+            this.readAlong.setAvailable(false);
             this.showStatus(
                 'Playback unavailable in this browser. Use the download below.',
                 'info'
@@ -203,14 +647,31 @@ export class App {
         });
     }
 
+    /**
+     * The voice parameter speaks anything ahead of the first tag, so in tag mode the
+     * text has to open with one and that tag is the voice. Neither a staged mix nor a
+     * cast member stands in for it, so what is spoken is only ever what the text says.
+     */
+    requestVoice() {
+        if (this.tagMode) {
+            return leadingVoiceTag(this.textEditor.getText());
+        }
+        return this.voiceService.getSelectedVoiceString();
+    }
+
     showStatus(message, type = 'info') {
         this.elements.status.textContent = message;
         this.elements.status.className = 'status ' + type;
         // an uncleared timer from an earlier status would blank this one early
         clearTimeout(this._statusTimer);
-        this._statusTimer = setTimeout(() => {
-            this.elements.status.className = 'status';
-        }, 5000);
+        // success stays up until the next generation replaces it
+        if (type !== 'success') {
+            this._statusTimer = setTimeout(() => this.hideStatus(), 5000);
+        }
+    }
+
+    hideStatus() {
+        this.elements.status.className = 'status';
     }
 
     setGenerating(isGenerating) {
@@ -228,13 +689,18 @@ export class App {
 
     validateInput() {
         const text = this.textEditor.getText().trim();
-        if (!text) {
+        // a seeded tag on its own is not something to speak
+        const spoken = this.tagMode ? stripVoiceTags(text).trim() : text;
+        if (!spoken) {
             this.showStatus('Please enter some text', 'error');
             return false;
         }
-        
-        if (!this.voiceService.hasSelectedVoices()) {
-            this.showStatus('Please select a voice', 'error');
+
+        if (!this.requestVoice()) {
+            this.showStatus(
+                this.tagMode ? 'Start the text with a voice tag' : 'Please select a voice',
+                'error'
+            );
             return false;
         }
         
@@ -248,15 +714,22 @@ export class App {
         }
 
         const text = this.textEditor.getText().trim();
-        const voice = this.voiceService.getSelectedVoiceString();
+        const voice = this.requestVoice();
         const speed = this.playerState.getState().speed;
+        const allowVoiceTags = this.tagMode;
 
         this.playerState.setReady(false);
         this.playerState.setPlaying(false);
         this.playerState.setTime(0, 0);
+        // snapshot before streaming, so read along follows what was generated even if the text is edited after
+        this.readAlong.setAvailable(false);
+        this.readAlong.setSource(text);
         this.setGenerating(true);
         this._playbackFailed = false;
+        this._genStartedAt = performance.now();
+        this.hideStatus();
         this.elements.downloadBtn.classList.remove('ready');
+        this.closeDownloadMenu();
 
         // Just reset progress bar, don't do full cleanup
         this.waveVisualizer.updateProgress(0, 1);
@@ -273,7 +746,8 @@ export class App {
                 text,
                 voice,
                 speed,
-                (loaded, total) => this.waveVisualizer.updateProgress(loaded, total)
+                (loaded, total) => this.waveVisualizer.updateProgress(loaded, total),
+                { allowVoiceTags, voiceAliases: allowVoiceTags ? castAliases(this.cast) : null }
             );
         } catch (error) {
             console.error('Generation error:', error);
@@ -295,9 +769,43 @@ export class App {
 
         // fallback only: the server's Content-Disposition wins when it's present
         const name = this.audioService.getDownloadName();
+        this.triggerDownload(downloadUrl, name);
+    }
 
+    downloadTimings(delay = 0) {
+        this.audioService.getTimingDownloadUrl().then((url) => {
+            if (!url) {
+                return;
+            }
+            const name = this.audioService.getDownloadName()?.replace(/\.[^.]+$/, '.json');
+            setTimeout(() => this.triggerDownload(url, name), delay);
+        }).catch(() => this.showStatus('Timings could not be fetched', 'error'));
+    }
+
+    async toggleDownloadMenu(focusFirstItem = false) {
+        if (!this.elements.downloadMenu.hidden) {
+            this.closeDownloadMenu();
+            return;
+        }
+        if (!(await this.audioService.getTimingUrl())) {
+            this.downloadAudio();
+            return;
+        }
+        this.elements.downloadMenu.hidden = false;
+        this.elements.downloadBtn.setAttribute('aria-expanded', 'true');
+        if (focusFirstItem) {
+            this.elements.downloadMenu.querySelector('[role="menuitem"]')?.focus();
+        }
+    }
+
+    closeDownloadMenu() {
+        this.elements.downloadMenu.hidden = true;
+        this.elements.downloadBtn.setAttribute('aria-expanded', 'false');
+    }
+
+    triggerDownload(url, name) {
         const a = document.createElement('a');
-        a.href = downloadUrl;
+        a.href = url;
         if (name) {
             a.download = name;
         }
