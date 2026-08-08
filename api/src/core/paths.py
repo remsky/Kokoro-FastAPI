@@ -252,7 +252,7 @@ async def load_model_weights(path: str, device: str = "cpu") -> dict:
     """Load model weights asynchronously.
 
     Args:
-        path: Path to model file (.pth or .onnx)
+        path: Path to model file (.pth)
         device: Device to load model to
 
     Returns:
