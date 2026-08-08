@@ -26,20 +26,3 @@ services:
       # - ALLOW_DEV_UNLOAD=true
       # - ENABLE_DEBUG_ENDPOINTS=true
 
-  # # Gradio UI service [Comment out everything below if you don't need it]
-  # gradio-ui:
-  #   image: ghcr.io/remsky/kokoro-fastapi-ui:v${VERSION}
-  #   # Uncomment below (and comment out above) to build from source instead of using the released image
-  #   build:
-  #     context: ../../ui
-  #   ports:
-  #     - "7860:7860"
-  #   volumes:
-  #     - ../../ui/data:/app/ui/data
-  #     - ../../ui/app.py:/app/app.py  # Mount app.py for hot reload
-  #   environment:
-  #     - GRADIO_WATCH=True  # Enable hot reloading
-  #     - PYTHONUNBUFFERED=1  # Ensure Python output is not buffered
-  #     - DISABLE_LOCAL_SAVING=false  # Set to 'true' to disable local saving and hide file view
-  #     - API_HOST=kokoro-tts  # Set TTS service URL
-  #     - API_PORT=8880  # Set TTS service PORT

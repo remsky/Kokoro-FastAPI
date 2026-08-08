@@ -1,10 +1,16 @@
 # Changelog
 
+
 Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [v0.7.2] - 2026-08-06
+## [Unreleased] - 2026-08-08
+
+### Removed
+- Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
+
+## [v0.7.2] 2026-08-06
 ### Security
 - `fastapi>=0.128.8`, `starlette>=1.3.1` to close CVE-2025-62727 (quadratic `Range` header parsing in `FileResponse`, reachable through the audio download path) (#500).
 
