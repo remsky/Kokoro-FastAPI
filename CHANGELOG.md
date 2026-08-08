@@ -15,7 +15,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - `POST /dev/dialogue` for ordered multi-speaker turns.
   - `/dev/captioned_speech` timestamps include the speaking `voice` when tags are on.
 - Web UI:
-  - Voice alias/tag cast builder with import/export.
+  - Voice alias/tag cast builder with import/export (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
   - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
   - Find/replace across pages, directly accessible page numbers.
   - Download menu (audio / chunk timings / both).
