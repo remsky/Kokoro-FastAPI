@@ -478,18 +478,40 @@ Number of voices has minimal impact on generation speed. For continuous swaps th
 <details>
 <summary>Inline Control Tokens</summary>
 
-Three tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
+Four tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
 
-- **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
+- **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]` and `[PAUSE 1.0]` are not recognized and get read aloud.
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
 - **Voice**: `[voice:am_michael]` switches speaker for everything that follows.
   - Requires `allow_voice_tags: true` per request, and `ENABLE_VOICE_TAGS` server-side (on by default). Otherwise the tag is spoken as written.
   - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), 
   - Short names/aliases can be defined in `voice_aliases`, 
   - Unknown values return a 400.
+- **Rate**: `[rate:1.5]` multiplies the request `speed` for everything that follows; `[rate:1.0]` reverts. Clamped to 0.25-4.0. Same gating as voice tags.
+  - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks (as the `voice` parameter or in tags). Aliases without a rate leave the current rate alone, so set `"rate": 1.0` explicitly to pin a character to normal speed alongside rated ones.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
+```
+</details>
+
+<details>
+<summary>SSML Input (experimental)</summary>
+
+`POST /dev/ssml` translates SSML into the tokens above; feed the result to the speech endpoints as normal input. The speech endpoints themselves never parse XML. Send `text` (the SSML) and optionally `voice` (the voice your speech request will use); with a voice set the translator emits `[voice:...]`/`[rate:...]` spans with reverts, so pass the result with `allow_voice_tags: true` to have them apply and get validated. Without a voice those elements are stripped and their content kept.
+
+- `<break time="750ms"/>` or `strength="strong"` becomes a pause (none/x-weak: 0, weak: 0.25s, medium: 0.5s, strong: 1s, x-strong: 1.5s)
+- `<voice name="am_michael">` switches speaker and reverts at the closing tag
+- `<prosody rate="slow">` (or `80%`, or `1.2`) becomes a rate span, multiplying the request `speed` and reverting at the closing tag. Other prosody attributes (`pitch`, `volume`) are ignored.
+- `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` maps to the pronunciation token (IPA only, English only)
+- `<sub alias="World Wide Web">WWW</sub>` speaks the alias
+- Everything else (`<emphasis>`, `<say-as>`, `<p>`, `<s>`, `<lang>`, etc) is a no-op: the markup is dropped, the text is spoken. The model has no per-span control for these.
+- Malformed SSML returns a 400; non-SSML input passes through unchanged.
+
+```bash
+curl -s http://localhost:8880/dev/ssml -H "Content-Type: application/json" \
+  -d '{"text": "<speak>The city of <phoneme alphabet=\"ipa\" ph=\"wˈʊstər\">Worcester</phoneme> is easy.<break time=\"1s\"/>See?</speak>"}'
+# {"text": "The city of [Worcester](/wˈʊstər/) is easy. [pause:1.0s] See?"}
 ```
 </details>
 

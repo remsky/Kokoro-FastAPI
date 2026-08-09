@@ -9,6 +9,10 @@ export function formatVoiceTag(voice) {
     return `[voice:${voice}]`;
 }
 
+export function formatRateTag(rate) {
+    return `[rate:${rate}]`;
+}
+
 export function countVoiceTags(text) {
     return (String(text).match(tagPattern()) || []).length;
 }
@@ -119,7 +123,14 @@ export function updateCastMix(cast, name, mix) {
     return cast.map((member) => (member.name === name ? { ...member, mix } : member));
 }
 
-/** Only a name that stands for something else has to travel with the request. */
+/** A pace only counts inside the request bounds, and 1 is the default going unsaid. */
+export function normalizeRate(value) {
+    const rate = typeof value === 'string' ? parseFloat(value) : value;
+    return Number.isFinite(rate) && rate >= 0.25 && rate <= 4 && rate !== 1 ? rate : undefined;
+}
+
+/** Only a name that stands for something else has to travel with the request. A pace
+ *  is not one of its properties, it is baked into the text as its own [rate:] tag. */
 export function castAliases(cast) {
     return cast.reduce((aliases, member) => {
         if (member.name !== member.mix) {
@@ -151,8 +162,10 @@ export function parseCastFile(data) {
 
     const aliases = data.voice_aliases && typeof data.voice_aliases === 'object' ? data.voice_aliases : data;
     return Object.entries(aliases)
-        .filter(([, mix]) => typeof mix === 'string')
-        .map(([name, mix]) => ({ name: String(name).trim(), mix: mix.trim() }))
+        .map(([name, value]) => {
+            const mix = typeof value === 'string' ? value : String(value?.voice ?? '');
+            return { name: String(name).trim(), mix: mix.trim() };
+        })
         .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
 }
 
@@ -192,15 +205,18 @@ export function parseVoiceMix(mix) {
         });
 }
 
-/** Returns the rewritten text and where the caret should land after it. */
-export function insertVoiceTag(text, cursor, voice) {
+/** Returns the rewritten text and where the caret should land after it.
+ *  A rate rides along as its own tag, right beside the voice, so a pace is
+ *  something you can see and edit in the text same as a speaker change is. */
+export function insertVoiceTag(text, cursor, voice, rate) {
     const source = String(text);
     const at = snapToBoundary(source, Math.max(0, Math.min(Number(cursor) || 0, source.length)));
     const before = source.slice(0, at);
     const after = source.slice(at);
     const lead = before && !/\s$/.test(before) ? ' ' : '';
     const trail = /^\s/.test(after) ? '' : ' ';
-    const inserted = `${lead}${formatVoiceTag(voice)}${trail}`;
+    const tags = rate ? `${formatVoiceTag(voice)} ${formatRateTag(rate)}` : formatVoiceTag(voice);
+    const inserted = `${lead}${tags}${trail}`;
 
     return { text: before + inserted + after, cursor: at + inserted.length };
 }

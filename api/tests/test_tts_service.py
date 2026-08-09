@@ -180,6 +180,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
             voice_name,
             _path,
             _lang,
+            _rate,
             _text,
             _tokens,
             _pause,
@@ -213,7 +214,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
         langs = [
             lang
-            async for _name, _path, lang, _text, _tokens, _pause in (
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
                 service._split_multi_voice(
                     text, "af_heart", None, None, allow_voice_tags=True
                 )
@@ -244,7 +245,7 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
         langs = [
             lang
-            async for _name, _path, lang, _text, _tokens, _pause in (
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
                 service._split_multi_voice(
                     text, "af_heart", "e", None, allow_voice_tags=True
                 )
@@ -376,6 +377,34 @@ async def test_timings_carry_speaker_when_tags_allowed():
     ):
         pass
     assert plain and all("voice" not in t for t in plain)
+
+
+@pytest.mark.asyncio
+async def test_rate_tags_multiply_request_speed():
+    """Segment rates scale the request speed per chunk, clamped to the speed bounds."""
+    service = await _stubbed_service()
+
+    speeds = []
+    original = service._process_chunk
+
+    def capture(text, tokens, voice_name, voice_path, speed, *args, **kwargs):
+        if text:  # skip the empty stream-finalizer chunk
+            speeds.append(speed)
+        return original(text, tokens, voice_name, voice_path, speed, *args, **kwargs)
+
+    service._process_chunk = capture
+
+    async for _ in service.generate_audio_stream(
+        "One. [rate:1.5] Two. [rate:4.0] Three.",
+        "af_heart",
+        MagicMock(),
+        speed=2.0,
+        output_format=None,
+        allow_voice_tags=True,
+    ):
+        pass
+
+    assert speeds == [2.0, 3.0, 4.0]
 
 
 @pytest.mark.asyncio

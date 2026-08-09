@@ -91,7 +91,10 @@
                     </div>
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
-                            <span class="voice-cast-title">Cast</span>
+                            <div class="voice-cast-tabs" role="tablist" aria-label="Cast pane">
+                                <button type="button" id="cast-members-tab" class="voice-cast-tab is-active" role="tab" aria-selected="true" aria-controls="voice-cast-list">Cast</button>
+                                <button type="button" id="cast-log-tab" class="voice-cast-tab" role="tab" aria-selected="false" aria-controls="voice-cast-log" tabindex="-1">Log</button>
+                            </div>
                             <details id="cast-file-menu" class="cast-file-menu">
                                 <summary class="cast-file-toggle" title="Save or load the cast" aria-label="Cast file options">▾</summary>
                                 <div class="cast-file-panel">
@@ -102,7 +105,8 @@
                             </details>
                             <input type="file" id="import-cast-input" accept="application/json,.json" hidden>
                         </div>
-                        <div id="voice-cast-list" class="voice-cast-list"></div>
+                        <div id="voice-cast-list" class="voice-cast-list" role="tabpanel" aria-labelledby="cast-members-tab"></div>
+                        <div id="voice-cast-log" class="voice-cast-log" role="tabpanel" aria-labelledby="cast-log-tab" hidden></div>
                         <div id="cast-menu" class="cast-menu" role="menu" hidden>
                             <button type="button" role="menuitem" class="cast-menu-item" data-action="insert">Insert at cursor</button>
                             <button type="button" role="menuitem" class="cast-menu-item" data-action="rename">Rename</button>

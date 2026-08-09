@@ -64,16 +64,28 @@ export class VoiceSelector {
 
         this.closeCastMenu();
         list.innerHTML = cast
-            .map((member) => `
+            .map((member) => {
+                const tagLabel = member.rate
+                    ? `[voice:${member.name}] [rate:${member.rate}]`
+                    : `[voice:${member.name}]`;
+                return `
                 <span class="cast-member"
                       data-name="${esc(member.name)}"
                       data-mix="${esc(member.mix)}"
-                      title="Insert [voice:${esc(member.name)}]${member.name === member.mix ? '' : ` (${esc(member.mix)})`}">
-                    <span class="cast-name">${esc(member.name)}</span>
-                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}" title="More"
-                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">⋯</button>
+                      title="${member.name === member.mix ? '' : esc(member.mix)}">
+                    <button type="button" class="cast-insert-btn cast-name" data-name="${esc(member.name)}"
+                            title="Insert ${esc(tagLabel)} at the cursor"
+                            aria-label="Insert ${esc(tagLabel)} at the cursor">${esc(member.name)}</button>
+                    <input type="number" class="cast-rate" data-name="${esc(member.name)}"
+                           min="0.25" max="4" step="0.05" value="${member.rate ?? 1}"
+                           title="Speed for this voice, 0.25 to 4, 1 for normal"
+                           aria-label="Speed for ${esc(member.name)}">
+                    <span class="cast-sep" aria-hidden="true">|</span>
+                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
+                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
                 </span>
-            `)
+            `;
+            })
             .join('');
     }
 
@@ -92,10 +104,16 @@ export class VoiceSelector {
 
         // the caret is where the tag lands, so clicking in here must not steal focus
         cast.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('cast-rename-input')) {
+            if (e.target.classList.contains('cast-rename-input') || e.target.classList.contains('cast-rate')) {
                 return;
             }
             e.preventDefault();
+        });
+
+        this.elements.voiceCastList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('cast-rate')) {
+                this.handlers.onRate?.(e.target.dataset.name, e.target.value);
+            }
         });
 
         this.elements.voiceCastList.addEventListener('click', (e) => {
@@ -106,10 +124,11 @@ export class VoiceSelector {
                 return;
             }
 
-            const member = e.target.closest('.cast-member');
-            if (member && !e.target.classList.contains('cast-rename-input')) {
+            // only the insert button places a tag, a stray click on the row does nothing
+            const insertButton = e.target.closest('.cast-insert-btn');
+            if (insertButton) {
                 this.closeCastMenu();
-                this.handlers.onInsert?.(member.dataset.name);
+                this.handlers.onInsert?.(insertButton.dataset.name);
             }
         });
 

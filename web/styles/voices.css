@@ -256,12 +256,34 @@
     margin-bottom: 0.35rem;
 }
 
-.voice-cast-title {
+.voice-cast-tabs {
+    display: flex;
+    gap: 0.15rem;
+}
+
+.voice-cast-tab {
+    padding: 0.1rem 0.3rem;
+    background: none;
+    border: none;
+    border-radius: 0.2rem;
     color: var(--text-light);
+    font-family: inherit;
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+    opacity: 0.55;
+    cursor: pointer;
+}
+
+.voice-cast-tab:hover {
+    opacity: 0.85;
+}
+
+.voice-cast-tab.is-active {
+    background: rgba(148, 163, 184, 0.12);
+    opacity: 1;
+    cursor: default;
 }
 
 .cast-file-menu {
@@ -308,10 +330,18 @@
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
-.voice-cast-list {
+/* one shared surface, so the rows read as a list rather than floating chips */
+.voice-cast-list,
+.voice-cast-log {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
+    flex-direction: column;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+}
+
+.voice-cast-list[hidden] {
+    display: none;
 }
 
 .voice-cast-list:empty::before {
@@ -319,40 +349,144 @@
     color: var(--text-light);
     font-size: 0.7rem;
     opacity: 0.7;
+    padding: 0.15rem 0.4rem;
 }
 
 .cast-member {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.15rem 0.4rem;
-    background: rgba(15, 23, 42, 0.3);
-    border: 1px solid var(--border);
-    border-radius: 0.2rem;
+    padding: 0.15rem 0.3rem;
     font-size: 0.7rem;
+}
+
+.cast-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* the name is the insert button, one rule for both so they cannot drift apart */
+.cast-insert-btn,
+.cast-menu-btn {
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.cast-member:hover {
+.cast-insert-btn:hover,
+.cast-menu-btn:hover {
     background: rgba(99, 102, 241, 0.15);
     border-color: var(--fg-color);
+    color: var(--text);
 }
 
-.cast-menu-btn {
-    padding: 0 0.15rem;
-    background: none;
-    border: none;
-    color: inherit;
-    font-family: inherit;
-    font-size: 1em;
-    line-height: 1;
+/* the triangle points at the text the tag lands in */
+.cast-insert-btn {
+    text-align: left;
+}
+
+.cast-insert-btn::before {
+    content: "◂";
+    margin-right: 0.35rem;
+    color: var(--fg-color);
     opacity: 0.6;
-    cursor: pointer;
 }
 
-.cast-menu-btn:hover {
+.cast-insert-btn:hover::before {
     opacity: 1;
+}
+
+.cast-sep {
+    color: var(--text-light);
+    opacity: 0.4;
+    user-select: none;
+}
+
+.cast-rate {
+    width: 2.3rem;
+    padding: 0.1rem 0.15rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+}
+
+.cast-rate:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.voice-cast-log[hidden] {
+    display: none;
+}
+
+.voice-cast-log:empty::before {
+    content: "Inserted tags land here, with a way back out";
+    color: var(--text-light);
+    font-size: 0.7rem;
+    opacity: 0.7;
+    padding: 0.15rem 0.4rem;
+}
+
+.cast-log-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.7rem;
+}
+
+.cast-log-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cast-log-time {
+    color: var(--text-light);
+    font-size: 0.62rem;
+    opacity: 0.7;
+}
+
+.cast-log-btn {
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cast-log-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+/* bigger targets on touch */
+@media (pointer: coarse) {
+    .cast-insert-btn,
+    .cast-log-btn,
+    .cast-menu-btn {
+        padding: 0.35rem 0.6rem;
+    }
 }
 
 .cast-rename-input {

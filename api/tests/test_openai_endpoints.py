@@ -1222,3 +1222,106 @@ def test_word_timestamp_omits_voice_when_unset():
 
     assert "voice" not in plain
     assert tagged["voice"] == "af_bella"
+
+
+def test_dev_ssml_translates_with_voice():
+    """A given voice enables control-tag emission with reverts."""
+    response = client.post(
+        "/dev/ssml",
+        json={
+            "text": '<speak>one <voice name="am_michael">two</voice> <prosody rate="slow">three</prosody></speak>',
+            "voice": "af_bella",
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == (
+        "one [voice:am_michael] two [voice:af_bella] [rate:0.75] three [rate:1.0]"
+    )
+
+
+def test_dev_ssml_strips_controls_without_voice():
+    """No voice means voice/prosody are stripped and only content remains."""
+    response = client.post(
+        "/dev/ssml",
+        json={
+            "text": '<speak>one <voice name="am_michael">two</voice><break time="1s"/>three</speak>'
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["text"] == "one two [pause:1.0s] three"
+
+
+def test_dev_ssml_malformed_returns_400():
+    response = client.post(
+        "/dev/ssml", json={"text": "<speak>unclosed <voice>", "voice": "af_bella"}
+    )
+    assert response.status_code == 400
+    assert "Malformed SSML" in response.json()["detail"]["message"]
+
+
+def test_dev_ssml_non_ssml_passes_through():
+    response = client.post("/dev/ssml", json={"text": "plain [pause:1s] text"})
+    assert response.status_code == 200
+    assert response.json()["text"] == "plain [pause:1s] text"
+
+
+@pytest.mark.asyncio
+async def test_alias_rate_expands_to_a_rate_tag():
+    """A rate-carrying alias speaks at its own pace; plain aliases leave rate alone"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+    from api.src.structures.schemas import VoiceAlias
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella", "am_michael"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:grandpa] Hi. [voice:kid] Yo.",
+        service,
+        allow_voice_tags=True,
+        aliases={
+            "grandpa": VoiceAlias(voice="am_michael", rate=0.8),
+            "kid": "af_bella",
+        },
+    )
+    assert result == "[voice:am_michael] [rate:0.8] Hi. [voice:af_bella] Yo."
+
+
+def test_alias_rate_on_voice_param_multiplies_speed_when_tags_off():
+    from api.src.routers.openai_compatible import apply_alias_rate
+
+    request = OpenAISpeechRequest(
+        input="Hello.",
+        voice="grandpa",
+        speed=2.0,
+        voice_aliases={"grandpa": {"voice": "am_michael", "rate": 0.8}},
+    )
+    apply_alias_rate(request)
+    assert request.speed == 1.6
+    assert request.input == "Hello."
+
+
+def test_alias_rate_on_voice_param_opens_a_rate_tag_when_tags_on():
+    """As the opening tag it sets the floor rate but lets later tags override"""
+    from api.src.routers.openai_compatible import apply_alias_rate
+
+    request = OpenAISpeechRequest(
+        input="Hello.",
+        voice="grandpa",
+        speed=2.0,
+        allow_voice_tags=True,
+        voice_aliases={"grandpa": {"voice": "am_michael", "rate": 0.8}},
+    )
+    apply_alias_rate(request)
+    assert request.speed == 2.0
+    assert request.input == "[rate:0.8] Hello."
+
+
+def test_alias_rate_outside_speed_bounds_rejected():
+    from pydantic import ValidationError
+
+    with pytest.raises(ValidationError):
+        OpenAISpeechRequest(
+            input="Hello.",
+            voice="grandpa",
+            voice_aliases={"grandpa": {"voice": "am_michael", "rate": 9}},
+        )

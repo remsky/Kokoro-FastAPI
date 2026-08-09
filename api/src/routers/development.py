@@ -2,6 +2,7 @@ import base64
 import os
 import re
 from pathlib import Path
+from xml.etree.ElementTree import ParseError
 from typing import AsyncGenerator, List, Tuple, Union
 
 import numpy as np
@@ -17,6 +18,7 @@ from ..services.audio import AudioNormalizer, AudioService
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
 from ..services.text_processing import smart_split
+from ..services.text_processing.ssml import translate_ssml
 from ..services.tts_service import TTSService
 from ..structures import (
     CaptionedSpeechRequest,
@@ -30,8 +32,11 @@ from ..structures.text_schemas import (
     GenerateFromPhonemesRequest,
     PhonemeRequest,
     PhonemeResponse,
+    SsmlRequest,
+    SsmlResponse,
 )
 from .openai_compatible import (
+    apply_alias_rate,
     create_speech,
     process_and_validate_voice_tags,
     process_and_validate_voices,
@@ -86,6 +91,32 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
         raise HTTPException(
             status_code=500, detail={"error": "Server error", "message": str(e)}
         )
+
+
+@router.post("/dev/ssml", response_model=SsmlResponse)
+async def translate_ssml_text(request: SsmlRequest) -> SsmlResponse:
+    """Translate SSML into the native inline control tokens.
+
+    The result is plain text for the speech endpoints; pass it with
+    allow_voice_tags=true when a voice was given so [voice:]/[rate:] spans
+    apply and get validated there. Non-SSML input passes through unchanged.
+    """
+    try:
+        translated = translate_ssml(
+            request.text,
+            default_voice=request.voice,
+            allow_voice_tags=bool(request.voice),
+        )
+    except ParseError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "validation_error",
+                "message": f"Malformed SSML: {e}",
+                "type": "invalid_request_error",
+            },
+        )
+    return SsmlResponse(text=translated)
 
 
 @router.post("/dev/generate_from_phonemes")
@@ -229,6 +260,7 @@ async def create_captioned_speech(
         request.input = await process_and_validate_voice_tags(
             request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
+        apply_alias_rate(request)
 
         # Set content type based on format
         content_type = {

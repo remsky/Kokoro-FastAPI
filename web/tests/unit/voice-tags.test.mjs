@@ -225,6 +225,30 @@ test('only names that stand for something else are sent as aliases', () => {
     assert.deepEqual(castAliases([]), {});
 });
 
+test('a pace is baked into the text, not carried on the alias', () => {
+    const cast = [
+        { name: 'af_bella', mix: 'af_bella', rate: 0.8 },
+        { name: 'narrator', mix: 'am_michael(2)' }
+    ];
+    // a self-named member usually stays home, and a pace does not change that
+    assert.deepEqual(castAliases(cast), { narrator: 'am_michael(2)' });
+    assert.deepEqual(exportCast(cast), {
+        voice_aliases: { af_bella: 'af_bella', narrator: 'am_michael(2)' }
+    });
+    // old-shape files with a {voice, rate} value still read back, rate just falls away
+    assert.deepEqual(
+        parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 0.8 } } }),
+        [{ name: 'a', mix: 'af_sky' }]
+    );
+});
+
+test('a pace travels beside the voice tag it was inserted with', () => {
+    const { text } = insertVoiceTag('Hello there.', 12, 'af_sky', 0.8);
+    assert.equal(text, 'Hello there. [voice:af_sky] [rate:0.8] ');
+    // no pace set, no rate tag added
+    assert.equal(insertVoiceTag('Hello there.', 12, 'af_sky').text, 'Hello there. [voice:af_sky] ');
+});
+
 test('a mix with an empty plus-part is unspeakable, even though parsing smooths it over', () => {
     const available = ['af_bella', 'af_sky'];
     assert.equal(isSpeakableMix('af_bella', available), true);

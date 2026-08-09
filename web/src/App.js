@@ -8,6 +8,7 @@ import TextEditor from './components/TextEditor.js';
 import ReadAlong from './components/ReadAlong.js';
 import config from './config.js';
 import { closeOnOutsidePress } from './dismiss.js';
+import { locateInsert, recordInsert } from './insertLog.js';
 import {
     CAST_NAME_PATTERN,
     addToCast,
@@ -18,6 +19,7 @@ import {
     insertVoiceTag,
     isSpeakableMix,
     leadingVoiceTag,
+    normalizeRate,
     parseCastFile,
     removeFromCast,
     removeVoiceTagsFor,
@@ -37,6 +39,8 @@ export class App {
         this.editing = null;
         this.tagMode = false;
         this.stagedBeforeTags = '';
+        this.insertLog = [];
+        this.insertSeq = 0;
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
@@ -56,6 +60,10 @@ export class App {
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
             removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn'),
+            castMembersTab: document.getElementById('cast-members-tab'),
+            castLogTab: document.getElementById('cast-log-tab'),
+            voiceCastList: document.getElementById('voice-cast-list'),
+            voiceCastLog: document.getElementById('voice-cast-log'),
             castFileMenu: document.getElementById('cast-file-menu'),
             saveCastBtn: document.getElementById('save-cast-btn'),
             importCastBtn: document.getElementById('import-cast-btn'),
@@ -135,6 +143,7 @@ export class App {
         if (this.elements.castFileMenu) {
             this.setupCastFileMenu();
         }
+        this.setupCastLog();
 
         this.setVoiceTagMode(this.tagMode);
     }
@@ -150,6 +159,10 @@ export class App {
             onCommit: () => this.commitMix(),
             onInsert: (name) => this.insertVoiceTag(name),
             onRename: (name, next) => this.renameCastMember(name, next),
+            onRate: (name, value) => {
+                const rate = normalizeRate(value);
+                this.setCast(this.cast.map((member) => (member.name === name ? { ...member, rate } : member)));
+            },
             onMenuAction: (action, name) => this.castMenuAction(action, name),
             isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
         });
@@ -212,6 +225,7 @@ export class App {
                 ? removeFromCast(cast, name)
                 : renameCastMember(cast, name, mix);
             this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, mix));
+            this.renameInLog(name, mix);
         }
 
         this.setCast(cast);
@@ -237,6 +251,7 @@ export class App {
             }
             this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, member.mix));
             this.setCast(renameCastMember(this.cast, name, member.mix));
+            this.renameInLog(name, member.mix);
         } else if (action === 'remove' && !hasVoiceTagFor(this.textEditor.getText(), name)) {
             if (this.editing === name) {
                 this.setEditing(null);
@@ -292,6 +307,7 @@ export class App {
         }
         this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
         this.setCast(renameCastMember(this.cast, name, next));
+        this.logRename(name, next);
     }
 
     setCast(cast) {
@@ -368,14 +384,15 @@ export class App {
         const available = this.voiceService.getAvailableVoices();
         const base = replace ? [] : this.cast;
         let cast = base;
-        for (const { name, mix } of members) {
+        for (const member of members) {
+            const { name, mix } = member;
             // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
             const folded = name.toLowerCase();
             const known = isSpeakableMix(mix, available);
             const taken = cast.some((entry) => entry.name.toLowerCase() === folded || entry.mix === mix)
                 || (name !== mix && available.some((voice) => voice.toLowerCase() === folded));
             if (known && !taken) {
-                cast = [...cast, { name, mix }];
+                cast = [...cast, member];
             }
         }
 
@@ -399,8 +416,138 @@ export class App {
     }
 
     insertVoiceTag(voice) {
-        const { text, cursor } = insertVoiceTag(this.textEditor.getPageText(), this.textEditor.getCursor(), voice);
+        const rate = this.cast.find((member) => member.name === voice)?.rate;
+        const page = this.textEditor.getPageText();
+        const { text, cursor } = insertVoiceTag(page, this.textEditor.getCursor(), voice, rate);
+        // the inserted span ends at the caret, spaces included
+        const inserted = text.slice(cursor - (text.length - page.length), cursor);
         this.textEditor.setPageText(text, cursor);
+        this.insertLog = recordInsert(this.insertLog, {
+            id: ++this.insertSeq,
+            inserted,
+            offset: this.textEditor.pageStart(this.textEditor.currentPage - 1) + cursor - inserted.length,
+            time: this.logTime()
+        });
+        this.renderInsertLog();
+    }
+
+    logTime() {
+        return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    /** Logged inserts follow a rename, so the log can still find them in the text. */
+    renameInLog(from, to) {
+        this.insertLog = this.insertLog.map((entry) => entry.inserted
+            ? { ...entry, inserted: entry.inserted.replaceAll(`[voice:${from}]`, `[voice:${to}]`) }
+            : entry);
+        this.renderInsertLog();
+    }
+
+    logRename(from, to) {
+        this.insertLog = recordInsert(this.insertLog, { id: ++this.insertSeq, from, to, time: this.logTime() });
+        this.renameInLog(from, to);
+    }
+
+    setupCastLog() {
+        const tabs = [this.elements.castMembersTab, this.elements.castLogTab];
+        if (tabs.some((tab) => !tab) || !this.elements.voiceCastLog) {
+            return;
+        }
+
+        tabs.forEach((tab, index) => {
+            tab.addEventListener('click', () => this.setCastPane(tab === this.elements.castLogTab));
+            tab.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
+                    return;
+                }
+                e.preventDefault();
+                const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1;
+                const next = tabs[(index + step) % tabs.length];
+                this.setCastPane(next === this.elements.castLogTab);
+                next.focus();
+            });
+        });
+
+        this.elements.voiceCastLog.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-log-action]');
+            if (button) {
+                this.insertLogAction(button.dataset.logAction, Number(button.closest('.cast-log-entry').dataset.id));
+            }
+        });
+    }
+
+    setCastPane(showLog) {
+        this.voiceSelector.closeCastMenu();
+        for (const tab of [this.elements.castMembersTab, this.elements.castLogTab]) {
+            const on = (tab === this.elements.castLogTab) === showLog;
+            tab.classList.toggle('is-active', on);
+            tab.setAttribute('aria-selected', String(on));
+            tab.tabIndex = on ? 0 : -1;
+        }
+        this.elements.voiceCastList.hidden = showLog;
+        this.elements.voiceCastLog.hidden = !showLog;
+    }
+
+    renderInsertLog() {
+        const log = this.elements.voiceCastLog;
+        if (!log) {
+            return;
+        }
+        // tag and cast names are pattern-limited, no markup can reach the html
+        log.innerHTML = this.insertLog
+            .map((entry) => entry.from
+                ? `
+                <div class="cast-log-entry" data-id="${entry.id}">
+                    <span class="cast-log-label" title="Renamed ${entry.from} to ${entry.to}">${entry.from} → ${entry.to}</span>
+                    <span class="cast-log-time">${entry.time}</span>
+                </div>
+            `
+                : `
+                <div class="cast-log-entry" data-id="${entry.id}">
+                    <span class="cast-log-label" title="${entry.inserted.trim()}">${entry.inserted.trim()}</span>
+                    <span class="cast-log-time">${entry.time}</span>
+                    <button type="button" class="cast-log-btn" data-log-action="goto" title="Show this insert in the text"
+                            aria-label="Go to ${entry.inserted.trim()}">Go to</button>
+                    <button type="button" class="cast-log-btn" data-log-action="undo" title="Remove this insert from the text"
+                            aria-label="Undo ${entry.inserted.trim()}">Undo</button>
+                </div>
+            `)
+            .join('');
+    }
+
+    insertLogAction(action, id) {
+        const entry = this.insertLog.find((item) => item.id === id);
+        if (!entry) {
+            return;
+        }
+
+        const at = locateInsert(this.textEditor.getText(), entry);
+        if (at === -1) {
+            // already edited out by hand
+            this.insertLog = this.insertLog.filter((item) => item !== entry);
+            this.renderInsertLog();
+            this.showStatus('That insert is no longer in the text', 'error');
+            return;
+        }
+
+        if (action === 'goto') {
+            const lead = entry.inserted.length - entry.inserted.trimStart().length;
+            this.textEditor.revealOffset(at + lead, entry.inserted.trim().length);
+            return;
+        }
+
+        const { page, offset } = this.textEditor.pageAt(at);
+        this.textEditor.goToPage(page + 1);
+        const pageText = this.textEditor.getPageText();
+        // an insert straddling a page seam is left to hand editing
+        if (pageText.slice(offset, offset + entry.inserted.length) !== entry.inserted) {
+            this.showStatus('That insert cannot be undone cleanly, edit it out by hand', 'error');
+            return;
+        }
+        this.textEditor.setPageText(pageText.slice(0, offset) + pageText.slice(offset + entry.inserted.length), offset);
+        this.insertLog = this.insertLog.filter((item) => item !== entry);
+        this.renderInsertLog();
+        this.showStatus(`Removed ${entry.inserted.trim()}`, 'success');
     }
 
     /**

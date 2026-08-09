@@ -375,13 +375,19 @@ export default class TextEditor {
         this.revealOffset(index, needle.length);
     }
 
-    revealOffset(index, length = 0) {
+    /** Maps a fullText offset to its page and the offset within that page. */
+    pageAt(index) {
         let page = 0;
         let offset = index;
         while (page < this.pages.length - 1 && offset > this.pages[page].length) {
             offset -= this.pages[page].length + 1;
             page++;
         }
+        return { page, offset };
+    }
+
+    revealOffset(index, length = 0) {
+        const { page, offset } = this.pageAt(index);
         this.currentPage = page + 1;
         this.updatePageDisplay();
         const box = this.elements.pageContent;

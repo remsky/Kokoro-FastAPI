@@ -82,31 +82,44 @@ def get_model_name(model: str) -> str:
     return base_name + ".pth"
 
 
-def resolve_voice_alias(voice: str, aliases: Optional[Dict[str, str]] = None) -> str:
-    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone.
+def _alias_target(voice: str, aliases: Optional[Dict]):
+    """Look up the alias entry for a name, case-insensitively, None when unaliased.
 
     Matching is case-insensitive, since VOICE_TAG_PATTERN already is: a tag written
     [voice:Narrator] has to reach the same alias as [voice:narrator].
     """
     if not aliases:
-        return voice
+        return None
 
     name = str(voice).strip()
     if name in aliases:
         return aliases[name]
 
     folded = name.casefold()
-    for alias, mix in aliases.items():
+    for alias, target in aliases.items():
         if str(alias).strip().casefold() == folded:
-            return mix
+            return target
+    return None
 
-    return voice
+
+def resolve_voice_alias(voice: str, aliases: Optional[Dict] = None) -> str:
+    """Swap a request-scoped short name for the mix it stands for, leaving anything else alone."""
+    target = _alias_target(voice, aliases)
+    if target is None:
+        return voice
+    return target if isinstance(target, str) else target.voice
+
+
+def alias_rate(voice: str, aliases: Optional[Dict] = None) -> Optional[float]:
+    """The rate a VoiceAlias target carries for this name, if any."""
+    target = _alias_target(voice, aliases)
+    return None if target is None or isinstance(target, str) else target.rate
 
 
 async def process_and_validate_voices(
     voice_input: str,
     tts_service: TTSService,
-    aliases: Optional[Dict[str, str]] = None,
+    aliases: Optional[Dict] = None,
     available_voices: Optional[List[str]] = None,
 ) -> str:
     """Process a voice string, resolving any alias and validating every voice in the combination
@@ -177,12 +190,13 @@ async def process_and_validate_voice_tags(
     text: str,
     tts_service: TTSService,
     allow_voice_tags: bool = False,
-    aliases: Optional[Dict[str, str]] = None,
+    aliases: Optional[Dict] = None,
 ) -> str:
     """Validate inline [voice:...] tags, rewriting them to resolved voice names.
 
     Runs the same mapping and validation as the voice parameter so a bad speaker
     tag fails the request up front rather than part way through the stream.
+    An alias carrying a rate expands to its [rate:] tag alongside the voice.
     """
     if not allow_voice_tags:
         return text
@@ -192,13 +206,33 @@ async def process_and_validate_voice_tags(
         return text
 
     available_voices = await tts_service.list_voices()
-    resolved = {
-        tag: await process_and_validate_voices(
+    resolved = {}
+    for tag in dict.fromkeys(tags):
+        name = await process_and_validate_voices(
             tag, tts_service, aliases, available_voices
         )
-        for tag in dict.fromkeys(tags)
-    }
-    return VOICE_TAG_PATTERN.sub(lambda m: f"[voice:{resolved[m.group(1)]}]", text)
+        rate = alias_rate(tag, aliases)
+        resolved[tag] = (
+            f"[voice:{name}] [rate:{rate}]" if rate else f"[voice:{name}]"
+        )
+    return VOICE_TAG_PATTERN.sub(lambda m: resolved[m.group(1)], text)
+
+
+def apply_alias_rate(
+    request: Union[OpenAISpeechRequest, CaptionedSpeechRequest],
+) -> None:
+    """Fold the request voice's alias rate in, when it has one.
+
+    With voice tags on it becomes the opening [rate:] tag so later tags can
+    override it; with tags off there is no tag pass, so it multiplies speed.
+    """
+    rate = alias_rate(request.voice, request.voice_aliases)
+    if not rate:
+        return
+    if request.allow_voice_tags:
+        request.input = f"[rate:{rate}] {request.input}"
+    else:
+        request.speed = min(max(request.speed * rate, 0.25), 4.0)
 
 
 async def stream_audio_chunks(
@@ -273,6 +307,7 @@ async def create_speech(
         request.input = await process_and_validate_voice_tags(
             request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
+        apply_alias_rate(request)
 
         # Set content type based on format
         content_type = {

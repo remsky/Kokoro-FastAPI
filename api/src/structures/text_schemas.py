@@ -39,3 +39,17 @@ class GenerateFromPhonemesRequest(BaseModel):
 
     phonemes: str = Field(..., description="Phoneme string to synthesize")
     voice: str = Field(..., description="Voice ID to use for generation")
+
+
+class SsmlRequest(BaseModel):
+    """Request to translate SSML into native inline control tokens"""
+
+    text: str = Field(..., description="SSML document starting with <speak>")
+    voice: str = Field(
+        default="",
+        description="Voice the speech request will use. Enables [voice:]/[rate:] emission with reverts; when empty those elements are stripped and their content kept.",
+    )
+
+
+class SsmlResponse(BaseModel):
+    text: str = Field(..., description="Native-tag text ready for the speech endpoints")

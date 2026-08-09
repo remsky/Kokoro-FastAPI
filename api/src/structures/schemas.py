@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import (
     AliasChoices,
@@ -88,11 +88,22 @@ VOICE_NAME_BODY = r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*"
 TURN_VOICE_PATTERN = re.compile(VOICE_NAME_BODY)
 
 
-def _reject_tag_breaking_aliases(
-    aliases: Optional[Dict[str, str]],
-) -> Optional[Dict[str, str]]:
+class VoiceAlias(BaseModel):
+    """Alias target that can carry a natural pace for the voice"""
+
+    voice: str
+    rate: Optional[float] = Field(
+        default=None,
+        ge=0.25,
+        le=4.0,
+        description="Multiplier on the request speed applied whenever this alias speaks",
+    )
+
+
+def _reject_tag_breaking_aliases(aliases):
     if aliases:
-        for mix in aliases.values():
+        for target in aliases.values():
+            mix = target if isinstance(target, str) else target.voice
             if not TURN_VOICE_PATTERN.fullmatch(mix.strip()):
                 raise ValueError(
                     f"Voice alias '{mix}' contains characters that cannot appear in a voice name"
@@ -103,9 +114,9 @@ def _reject_tag_breaking_aliases(
 class VoiceAliasesMixin(BaseModel):
     """Shared voice_aliases field for request models that accept them"""
 
-    voice_aliases: Optional[Dict[str, str]] = Field(
+    voice_aliases: Optional[Dict[str, Union[str, VoiceAlias]]] = Field(
         default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable wherever a voice name is given and in [voice:name] tags, matched case-insensitively.",
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. A value may also be {'voice': ..., 'rate': 0.8} to give the alias a natural pace. Usable wherever a voice name is given and in [voice:name] tags, matched case-insensitively.",
     )
 
     @field_validator("voice_aliases")
