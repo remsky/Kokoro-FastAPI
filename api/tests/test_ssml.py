@@ -1,10 +1,19 @@
 """Tests for SSML to native inline-tag translation."""
 
+import re
 import xml.etree.ElementTree as ET
+from pathlib import Path
 
 import pytest
 
+from api.src.core.config import settings
 from api.src.services.text_processing.ssml import SSML_ELEMENTS, translate_ssml
+
+# ref: docs from Azure, Polly, Google TTS
+CORPUS = sorted((Path(__file__).parent / "test_data" / "ssml").glob("*.xml"))
+MARKUP = re.compile(r"</?[A-Za-z]")
+
+assert CORPUS, "ssml corpus fixtures missing, the corpus test would collect nothing"
 
 
 def test_plain_text_passthrough():
@@ -85,6 +94,16 @@ def test_every_ignored_element_speaks_text_only(tag):
     assert out == "a x b"
 
 
+def test_adjacent_blocks_keep_a_separator():
+    ssml = "<speak><p><s>One.</s><s>Two.</s></p><p><s>Three.</s></p></speak>"
+    assert translate_ssml(ssml) == "One. Two. Three."
+
+
+def test_audio_desc_is_dropped_and_fallback_text_survives():
+    ssml = '<speak><audio src="purr.ogg"><desc>a cat purring</desc>PURR</audio></speak>'
+    assert translate_ssml(ssml) == "PURR"
+
+
 def test_unsupported_tags_are_noops():
     ssml = '<speak><p><s>Take <emphasis level="strong">this</emphasis> as <prosody rate="slow">given</prosody>.</s></p></speak>'
     assert translate_ssml(ssml) == "Take this as given."
@@ -93,3 +112,59 @@ def test_unsupported_tags_are_noops():
 def test_malformed_ssml_raises():
     with pytest.raises(ET.ParseError):
         translate_ssml("<speak>unclosed <voice>")
+
+
+@pytest.mark.parametrize(
+    "prolog",
+    [
+        '<?xml version="1.0"?>',
+        '<?xml version="1.0" encoding="UTF-8"?>\n',
+        "<!-- a leading comment -->",
+        '<?xml version="1.0"?>\n<!-- both -->\n',
+    ],
+)
+def test_prolog_before_the_root_still_translates(prolog):
+    """The spec's own examples all open with a declaration, so it can't defeat detection."""
+    assert translate_ssml(f'{prolog}<speak>Hi<break time="1s"/>there</speak>') == "Hi [pause:1.0s] there"
+
+
+def test_dtd_is_refused_rather_than_expanded():
+    ssml = '<!DOCTYPE speak [<!ENTITY a "aaa">]><speak>&a;</speak>'
+    with pytest.raises(ET.ParseError):
+        translate_ssml(ssml)
+
+
+def _nested(levels: int) -> str:
+    return "<speak>" + "<s>x" * levels + "</s>" * levels + "</speak>"
+
+
+def test_nesting_is_refused_past_the_configured_depth():
+    assert translate_ssml(_nested(settings.ssml_max_depth)) == " ".join("x" * settings.ssml_max_depth)
+    with pytest.raises(ET.ParseError):
+        translate_ssml(_nested(settings.ssml_max_depth + 1))
+
+
+def test_max_depth_is_configurable(monkeypatch):
+    """The cap has to come from settings, so a deployment with deeper documents can raise it."""
+    monkeypatch.setattr(settings, "ssml_max_depth", 3)
+    translate_ssml(_nested(3))
+    with pytest.raises(ET.ParseError):
+        translate_ssml(_nested(4))
+
+
+def test_depth_cap_fires_long_before_the_recursion_limit():
+    """The stack must never get near exhaustion, the 400 path needs frames to run."""
+    with pytest.raises(ET.ParseError):
+        translate_ssml(_nested(5000))
+
+
+@pytest.mark.parametrize("doc", CORPUS, ids=lambda p: p.stem)
+def test_provider_corpus_never_leaks_markup(doc):
+    """Whatever elements a provider's SSML uses, none of it may reach the pipeline as markup."""
+    out = translate_ssml(
+        doc.read_text(encoding="utf-8"),
+        default_voice="af_bella",
+        allow_voice_tags=True,
+    )
+    assert not MARKUP.search(out)
+    assert "xmlns" not in out and "interpret-as" not in out

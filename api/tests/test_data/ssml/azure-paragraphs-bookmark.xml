@@ -1,0 +1,13 @@
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+    <voice name="en-US-AvaNeural">
+        <p>
+            <s>Introducing the sentence element.</s>
+            <s>Used to mark individual sentences.</s>
+        </p>
+        <p>
+            Another simple paragraph.
+            Sentence structure in this paragraph is not explicitly marked.
+        </p>
+        We are selling <bookmark mark="flower_1"/>roses and <bookmark mark="flower_2"/>daisies.
+    </voice>
+</speak>

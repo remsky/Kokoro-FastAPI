@@ -14,6 +14,17 @@ from ..structures.text_schemas import SsmlCapabilities, SsmlRequest, SsmlRespons
 router = APIRouter(tags=["ssml"])
 
 
+def _rejected(message: str) -> HTTPException:
+    return HTTPException(
+        status_code=400,
+        detail={
+            "error": "validation_error",
+            "message": message,
+            "type": "invalid_request_error",
+        },
+    )
+
+
 @router.get("/dev/ssml", response_model=SsmlCapabilities)
 async def ssml_capabilities() -> SsmlCapabilities:
     """The SSML subset this build translates, and what the rest of it does instead."""
@@ -41,12 +52,8 @@ async def translate_ssml_text(request: SsmlRequest) -> SsmlResponse:
             allow_voice_tags=bool(request.voice),
         )
     except ParseError as e:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "validation_error",
-                "message": f"Malformed SSML: {e}",
-                "type": "invalid_request_error",
-            },
-        )
+        raise _rejected(f"Malformed SSML: {e}")
+    # backstop for an ssml_max_depth set high enough to reach the interpreter's own limit
+    except RecursionError:
+        raise _rejected("SSML is nested too deeply to translate")
     return SsmlResponse(text=translated)

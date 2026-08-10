@@ -10,6 +10,7 @@ import re
 import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
+from ...core.config import settings
 from ...structures.schemas import clamp_rate
 
 # element surface served by GET /dev/ssml, None means markup dropped and text spoken
@@ -20,6 +21,7 @@ SSML_ELEMENTS: Dict[str, Optional[str]] = {
     "prosody": "rate= only, becomes [rate:x] and reverts at the closing tag, pitch and volume are ignored",
     "phoneme": "Pronunciation from ph=, alphabet=ipa only, becomes [word](/ipa/)",
     "sub": "Speaks alias= in place of the text",
+    "desc": "Dropped with its text, an audio description is not speech",
     "emphasis": None,
     "say-as": None,
     "lang": None,
@@ -41,6 +43,12 @@ BREAK_STRENGTH_S = {
 }
 
 TIME_ATTR = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(ms|s)\s*$", re.IGNORECASE)
+
+# an xml declaration or comments may precede the root, the spec's own examples carry one
+PROLOG = re.compile(r"(?:\s|<\?[^>]*\?>|<!--.*?-->)*", re.DOTALL)
+
+# block level, adjacent ones need a separator, everything else is inline and must not gain one
+BLOCK_TAGS = {"p", "s"}
 
 PROSODY_RATE = {
     "x-slow": 0.5,
@@ -81,7 +89,12 @@ def _render(
     control_tags: bool,
     current_voice: str,
     current_rate: float = 1.0,
+    depth: int = 0,
 ) -> None:
+    if depth > settings.ssml_max_depth:
+        raise ET.ParseError(
+            f"nesting deeper than {settings.ssml_max_depth} levels is not translated"
+        )
     tag = el.tag.split("}")[-1].lower()  # tolerate namespaced tags
 
     if tag == "break":
@@ -97,6 +110,8 @@ def _render(
     if tag == "sub":
         parts.append(el.get("alias") or "".join(el.itertext()))
         return
+    if tag == "desc":
+        return
 
     inner_voice = current_voice
     inner_rate = current_rate
@@ -110,12 +125,16 @@ def _render(
             parts.append(f" [rate:{inner_rate}] ")
 
     # emphasis, say-as, p, s, lang, etc are no-ops: keep text, drop markup
+    if tag in BLOCK_TAGS:
+        parts.append(" ")
     if el.text:
         parts.append(el.text)
     for child in el:
-        _render(child, parts, control_tags, inner_voice, inner_rate)
+        _render(child, parts, control_tags, inner_voice, inner_rate, depth + 1)
         if child.tail:
             parts.append(child.tail)
+    if tag in BLOCK_TAGS:
+        parts.append(" ")
 
     if inner_voice != current_voice:
         parts.append(f" [voice:{current_voice}] ")
@@ -132,8 +151,12 @@ def translate_ssml(
     <voice> and <prosody rate> emit control tags only when allow_voice_tags
     is set, otherwise they are stripped and their content speaks unmodified.
     """
+    body = PROLOG.sub("", text, count=1)
+    # no SSML dialect needs a DTD, refusing one drops the entity expansion class outright
+    if body[:9].upper() == "<!DOCTYPE":
+        raise ET.ParseError("DTD is not supported")
     # the spec requires a <speak> root, so anything else is plain text
-    if not text.lstrip().startswith("<speak"):
+    if not body.startswith("<speak"):
         return text
     root = ET.fromstring(text)
 

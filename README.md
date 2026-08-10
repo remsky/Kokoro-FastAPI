@@ -499,16 +499,18 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 <details>
 <summary>SSML Input (experimental)</summary>
 
-`POST /dev/ssml` translates SSML into the tokens above; feed the result to the speech endpoints as normal input. The speech endpoints themselves never parse XML. Send `text` (the SSML) and optionally `voice` (the voice your speech request will use); with a voice set the translator emits `[voice:...]`/`[rate:...]` spans with reverts, so pass the result with `allow_voice_tags: true` to have them apply and get validated. Without a voice those elements are stripped and their content kept.
+`POST /dev/ssml` translates SSML into the tokens above; feed the result to the speech endpoints, which never parse XML themselves. Send `text`, plus `voice` if your speech request uses one, then pass the result back with `allow_voice_tags: true`. Without a voice, `<voice>`/`<prosody>` are stripped and their content kept.
 
-- `<break time="750ms"/>` or `strength="strong"` becomes a pause (none/x-weak: 0, weak: 0.25s, medium: 0.5s, strong: 1s, x-strong: 1.5s)
-- `<voice name="am_michael">` switches speaker and reverts at the closing tag
-- `<prosody rate="slow">` (or `80%`, or `1.2`) becomes a rate span, multiplying the request `speed` and reverting at the closing tag. Clamped to 0.25-4.0 like `[rate:]`. Other prosody attributes (`pitch`, `volume`) are ignored.
-- `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` maps to the pronunciation token (IPA only, English only)
+- `<break time="750ms"/>` becomes `[pause:0.75s]`. `strength=` instead of `time=` gives none/x-weak 0s, weak 0.25s, medium 0.5s, strong 1s, x-strong 1.5s
+- `<voice name="am_michael">` becomes `[voice:am_michael]`, reverts at the closing tag
+- `<prosody rate="slow">` becomes `[rate:0.75]`, and takes `80%` or `1.2` too. Multiplies the request `speed`, clamped 0.25-4.0, reverts. `pitch`/`volume` ignored
+- `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` becomes `[Worcester](/wˈʊstər/)`, IPA and English only
 - `<sub alias="World Wide Web">WWW</sub>` speaks the alias
-- Everything else (`<emphasis>`, `<say-as>`, `<p>`, `<s>`, `<lang>`, etc) is a no-op: the markup is dropped, the text is spoken. The model has no per-span control for these.
-- Malformed SSML returns a 400; non-SSML input passes through unchanged.
-- `GET /dev/ssml` returns the same list as data: supported elements, ignored ones, the break and rate keyword tables, and the rate bounds. It is built from the translator's own tables, so it cannot drift from what the build does.
+- `<desc>` is dropped with its text, an audio description is not speech
+- `<emphasis>`, `<say-as>`, `<p>`, `<s>`, `<lang>`, etc: markup dropped, text spoken
+- Malformed SSML is a 400, non-SSML passes through unchanged
+- Prefixed names (`google:style`, `mstts:express-as`, `amazon:effect`) need their `xmlns:` on `<speak>`, vendor docs often omit it
+- `GET /dev/ssml` serves these tables as data, read off the translator itself
 
 ```bash
 curl -s http://localhost:8880/dev/ssml -H "Content-Type: application/json" \

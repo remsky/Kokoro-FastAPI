@@ -1,0 +1,13 @@
+<speak xmlns:google="http://www.google.com/2017/ssml">
+  <say-as interpret-as="currency" language="en-US">$42.01</say-as>
+  <say-as interpret-as="telephone" google:style="zero-as-zero">1800-202-1212</say-as>
+  <say-as interpret-as="verbatim">abcdefg</say-as>
+  <say-as interpret-as="date" format="yyyymmdd" detail="1">1960-09-10</say-as>
+  <say-as interpret-as="date" format="dm">10-9</say-as>
+  <say-as interpret-as="fraction">5+1/2</say-as>
+  <say-as interpret-as="expletive">censor this</say-as>
+  <say-as interpret-as="unit">10 foot</say-as>
+  <say-as interpret-as="time" format="hms12">2:30pm</say-as>
+  <say-as interpret-as="duration" format="h:m">5:30</say-as>
+  <google:style name="lively">Hello I'm so happy today!</google:style>
+</speak>

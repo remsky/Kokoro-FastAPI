@@ -1,0 +1,10 @@
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="http://www.w3.org/2001/mstts" xml:lang="en-US">
+<voice name="en-US-Ava:DragonHDLatestNeural">
+<mstts:silence type="Sentenceboundary" value="200ms"/>
+<mstts:express-as style="cheerful" styledegree="2">
+If we're home schooling, the best we can do is roll with what each day brings and try to have fun along the way.
+</mstts:express-as>
+<mstts:viseme type="redlips_front"/>
+A good place to start is by trying out the slew of educational apps that are helping children stay happy and smash their schooling at the same time.
+</voice>
+</speak>

@@ -1,0 +1,13 @@
+<speak xmlns:amazon="https://aws.amazon.com/polly">
+    <amazon:domain name="news">
+        A <w role="amazon:SENSE_1">bass</w> is a fish, and I play the <w role="amazon:NN">bass</w>.
+        <amazon:effect name="whispered">I am whispering this part.</amazon:effect>
+        <amazon:effect name="drc">Compressed dynamic range.</amazon:effect>
+        <amazon:effect phonation="soft">Speaking softly now.</amazon:effect>
+        <amazon:effect vocal-tract-length="+15%">A deeper timbre.</amazon:effect>
+        <amazon:auto-breaths frequency="high">Breathing between these words.</amazon:auto-breaths>
+        <prosody amazon:max-duration="2s">This is capped in length.</prosody>
+        <phoneme alphabet="x-sampa" ph="pI&quot;kA:n">pecan</phoneme>
+        <say-as interpret-as="digits">2015</say-as>
+    </amazon:domain>
+</speak>
