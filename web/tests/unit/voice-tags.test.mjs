@@ -18,9 +18,9 @@ import {
     removeVoiceTagsFor,
     renameCastMember,
     renameVoiceTags,
-    retimeVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
+    suggestCastName,
     unspeakableTagNames,
     updateCastMix
 } from '../../src/voiceTags.js';
@@ -149,6 +149,33 @@ test('one mix backs several members, which is how one voice gets two paces', () 
     assert.deepEqual(cast.map((m) => m.mix), ['am_michael', 'am_michael']);
 });
 
+test('the suggested name is the mix, suffixed only when a pace is set', () => {
+    assert.equal(suggestCastName('af_bella', 1), 'af_bella');
+    assert.equal(suggestCastName('af_bella', '1.5'), 'af_bella__1.5');
+    assert.equal(suggestCastName('af_bella', ''), 'af_bella');
+});
+
+test('a paced create takes the suggested name, so the tag says it is not plain', () => {
+    assert.deepEqual(addToCast([], 'af_bella', '0.8'), [{ name: 'af_bella__0.8', mix: 'af_bella', rate: 0.8 }]);
+    // 1 is the default going unsaid
+    assert.deepEqual(addToCast([], 'af_sky', '1'), [{ name: 'af_sky', mix: 'af_sky' }]);
+});
+
+test('a chosen name wins over the suggestion, and a taken name adds nothing', () => {
+    const cast = addToCast([], 'af_bella', 1.5, 'peppy');
+    assert.deepEqual(cast, [{ name: 'peppy', mix: 'af_bella', rate: 1.5 }]);
+    assert.equal(addToCast(cast, 'af_sky', undefined, 'peppy'), cast);
+});
+
+test('a paced member over a weighted mix survives the cast file, suffixed or not', () => {
+    const cast = addToCast(addToCast([], 'am_michael(2)+af_sky(1)', 0.9, 'slowpair'), 'am_michael(2)+af_sky(1)', 1.5);
+    assert.deepEqual(cast, [
+        { name: 'slowpair', mix: 'am_michael(2)+af_sky(1)', rate: 0.9 },
+        { name: 'am_michael(2)+af_sky(1)__1.5', mix: 'am_michael(2)+af_sky(1)', rate: 1.5 }
+    ]);
+    assert.deepEqual(parseCastFile(exportCast(cast)), cast);
+});
+
 test('a new member invents no name, so there is nothing to define', () => {
     const cast = addToCast([], 'am_michael(2)+af_sky(1)');
     assert.deepEqual(castAliases(cast), {});
@@ -266,31 +293,9 @@ test('two presets over one voice round trip through the cast file at their own p
     );
 });
 
-test('a pace travels beside the voice tag it was inserted with', () => {
-    const { text } = insertVoiceTag('Hello there.', 12, 'af_sky', 0.8);
-    assert.equal(text, 'Hello there. [voice:af_sky] [rate:0.8] ');
-    // no pace set, no rate tag added: the server resets to 1 on every voice tag anyway
+test('a paced member inserts the bare tag, the pace rides in the alias instead', () => {
     assert.equal(insertVoiceTag('Hello there.', 12, 'af_sky').text, 'Hello there. [voice:af_sky] ');
-});
-
-test('changing a pace follows the tags already placed, the way a rename does', () => {
-    const text = '[voice:narrator] [rate:0.8] One. [voice:af_sky] Two. [voice:narrator] [rate:0.8] Three.';
-    assert.equal(
-        retimeVoiceTags(text, 'narrator', 0.95),
-        '[voice:narrator] [rate:0.95] One. [voice:af_sky] Two. [voice:narrator] [rate:0.95] Three.'
-    );
-    // back to normal takes the tag out rather than writing [rate:1]
-    assert.equal(
-        retimeVoiceTags(text, 'narrator', undefined),
-        '[voice:narrator] One. [voice:af_sky] Two. [voice:narrator] Three.'
-    );
-    // a voice with no rate tag yet gets one
-    assert.equal(retimeVoiceTags(text, 'af_sky', 1.2).includes('[voice:af_sky] [rate:1.2] Two.'), true);
-});
-
-test('a rate tag moved off its voice tag is the writer\'s, not ours to rewrite', () => {
-    const text = '[voice:narrator] One. [rate:0.8] Two.';
-    assert.equal(retimeVoiceTags(text, 'narrator', 1.5), '[voice:narrator] [rate:1.5] One. [rate:0.8] Two.');
+    assert.equal(insertVoiceTag('Hello there.', 12, 'af_bella_0.80').text, 'Hello there. [voice:af_bella_0.80] ');
 });
 
 test('a mix with an empty plus-part is unspeakable, even though parsing smooths it over', () => {
@@ -344,6 +349,14 @@ test('a member can have its mix retuned in place', () => {
     ]);
     assert.deepEqual(renameCastMember(cast, 'narrator', 'storyteller'), [
         { name: 'storyteller', mix: 'af_bella(2)' }
+    ]);
+});
+
+test('an edit saves the pace with the mix, and 1 takes it away', () => {
+    const paced = updateCastMix([{ name: 'narrator', mix: 'af_bella' }], 'narrator', 'af_bella', '0.8');
+    assert.deepEqual(paced, [{ name: 'narrator', mix: 'af_bella', rate: 0.8 }]);
+    assert.deepEqual(updateCastMix(paced, 'narrator', 'af_bella', 1), [
+        { name: 'narrator', mix: 'af_bella' }
     ]);
 });
 

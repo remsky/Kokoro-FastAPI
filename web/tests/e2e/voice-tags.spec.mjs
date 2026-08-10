@@ -550,7 +550,7 @@ test('text that does not open with a tag has nothing to speak with', async ({ pa
     await expect(editor(page)).toHaveValue(/^\[voice:/);
 });
 
-test('a fat-fingered insert is undone from the log', async ({ page }) => {
+test('a fat-fingered insert is undone', async ({ page }) => {
     await editor(page).fill('First line.');
     await tagsTab(page).click();
 
@@ -562,18 +562,14 @@ test('a fat-fingered insert is undone from the log', async ({ page }) => {
     await page.locator('.cast-member .cast-insert-btn').first().click();
     expect(await editor(page).inputValue()).not.toBe(before);
 
-    await page.locator('#cast-log-tab').click();
-    await expect(page.locator('.cast-log-entry')).toHaveCount(1);
-    await page.locator('.cast-log-btn[data-log-action="undo"]').click();
-
+    await page.locator('#undo-insert-btn').click();
     await expect(editor(page)).toHaveValue(before);
-    await expect(page.locator('.cast-log-entry')).toHaveCount(0);
+    await expect(page.locator('#undo-insert-btn')).toBeHidden();
 });
 
-test('the log follows a rename and notes it', async ({ page }) => {
+test('undo follows a rename', async ({ page }) => {
     await editor(page).fill('First line.');
     await tagsTab(page).click();
-    const mix = await page.locator('.cast-member').first().getAttribute('data-mix');
 
     await editor(page).evaluate((el) => {
         el.focus();
@@ -586,15 +582,8 @@ test('the log follows a rename and notes it', async ({ page }) => {
     await page.locator('.cast-rename-input').fill('narrator');
     await page.locator('.cast-rename-input').press('Enter');
 
-    await page.locator('#cast-log-tab').click();
-    const entries = page.locator('.cast-log-entry');
-    await expect(entries).toHaveCount(2);
-    // the rename is noted for the record, with nothing to press
-    await expect(entries.first().locator('.cast-log-label')).toHaveText(`${mix} → narrator`);
-    await expect(entries.first().locator('.cast-log-btn')).toHaveCount(0);
-
-    // the logged insert followed the rename, so its undo lifts the renamed tag back out
-    await entries.last().locator('[data-log-action="undo"]').click();
+    // the tracked insert followed the rename, so undo lifts the renamed tag back out
+    await page.locator('#undo-insert-btn').click();
     await expect(editor(page)).toHaveValue('[voice:narrator] First line.');
 });
 

@@ -1,5 +1,5 @@
 import { closeOnOutsidePress } from '../dismiss.js';
-import { parseVoiceMix } from '../voiceTags.js';
+import { parseVoiceMix, suggestCastName } from '../voiceTags.js';
 
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -18,10 +18,14 @@ export class VoiceSelector {
             voiceCast: document.getElementById('voice-cast'),
             voiceCastList: document.getElementById('voice-cast-list'),
             castMenu: document.getElementById('cast-menu'),
-            createTagBtn: document.getElementById('create-tag-btn')
+            createTagRow: document.getElementById('create-tag-row'),
+            createTagBtn: document.getElementById('create-tag-btn'),
+            createTagRate: document.getElementById('create-tag-rate'),
+            createTagName: document.getElementById('create-tag-name')
         };
         this.menuFor = null;
         this.editing = null;
+        this.nameEdited = false;
         this.settleRename = () => {};
 
         this.setupEventListeners();
@@ -38,8 +42,8 @@ export class VoiceSelector {
         if (this.elements.voiceCast) {
             this.elements.voiceCast.hidden = !enabled;
         }
-        if (this.elements.createTagBtn) {
-            this.elements.createTagBtn.hidden = !enabled;
+        if (this.elements.createTagRow) {
+            this.elements.createTagRow.hidden = !enabled;
         }
         if (!enabled) {
             this.settleRename();
@@ -49,7 +53,11 @@ export class VoiceSelector {
     }
 
     /** Replaces what is staged in the mixer, so a mix can be cleared or sent back to it. */
-    setMix(mix) {
+    setMix(mix, rate = 1) {
+        if (this.elements.createTagRate) {
+            this.elements.createTagRate.value = rate;
+        }
+        this.nameEdited = false;
         this.voiceService.clearSelectedVoices();
         parseVoiceMix(mix).forEach(({ voice, weight }) => this.voiceService.addVoice(voice, weight));
         this.renderVoiceOptions(this.voiceService.filterVoices(this.elements.voiceSearch.value));
@@ -65,21 +73,20 @@ export class VoiceSelector {
         this.closeCastMenu();
         list.innerHTML = cast
             .map((member) => {
-                const tagLabel = member.rate
-                    ? `[voice:${member.name}] [rate:${member.rate}]`
-                    : `[voice:${member.name}]`;
+                const tagLabel = `[voice:${member.name}]`;
+                const tip = [member.name === member.mix ? '' : member.mix, member.rate ? `${member.rate}x speed` : '']
+                    .filter(Boolean).join(', ');
                 return `
-                <span class="cast-member"
+                <span class="cast-member${member.name === this.editing ? ' is-editing' : ''}"
                       data-name="${esc(member.name)}"
                       data-mix="${esc(member.mix)}"
-                      title="${member.name === member.mix ? '' : esc(member.mix)}">
-                    <button type="button" class="cast-insert-btn cast-name" data-name="${esc(member.name)}"
+                      title="${esc(tip)}">
+                    <button type="button" class="cast-insert-btn" data-name="${esc(member.name)}"
                             title="Insert ${esc(tagLabel)} at the cursor"
-                            aria-label="Insert ${esc(tagLabel)} at the cursor">${esc(member.name)}</button>
-                    <input type="number" class="cast-rate" data-name="${esc(member.name)}"
-                           min="0.25" max="4" step="0.05" value="${member.rate ?? 1}"
-                           title="Speed for this voice, 0.25 to 4, 1 for normal"
-                           aria-label="Speed for ${esc(member.name)}">
+                            aria-label="Insert ${esc(tagLabel)} at the cursor">◂</button>
+                    <button type="button" class="cast-name" data-name="${esc(member.name)}"
+                            title="Edit the mix and speed"
+                            aria-label="Edit ${esc(member.name)}">${esc(member.name)}</button>
                     <span class="cast-sep" aria-hidden="true">|</span>
                     <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
                             aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
@@ -95,8 +102,17 @@ export class VoiceSelector {
 
         if (create) {
             create.addEventListener('mousedown', (e) => e.preventDefault());
-            create.addEventListener('click', () => this.handlers.onCommit?.());
+            create.addEventListener('click', () => {
+                this.handlers.onCommit?.(this.elements.createTagRate?.value, this.elements.createTagName?.value);
+            });
         }
+
+        this.elements.createTagRate?.addEventListener('input', () => this.updateCreateTagButton());
+        this.elements.createTagName?.addEventListener('input', (e) => {
+            e.target.setCustomValidity('');
+            this.nameEdited = e.target.value !== '';
+            this.updateCreateTagButton();
+        });
 
         if (!cast) {
             return;
@@ -104,16 +120,10 @@ export class VoiceSelector {
 
         // the caret is where the tag lands, so clicking in here must not steal focus
         cast.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('cast-rename-input') || e.target.classList.contains('cast-rate')) {
+            if (e.target.classList.contains('cast-rename-input')) {
                 return;
             }
             e.preventDefault();
-        });
-
-        this.elements.voiceCastList.addEventListener('change', (e) => {
-            if (e.target.classList.contains('cast-rate')) {
-                this.handlers.onRate?.(e.target.dataset.name, e.target.value);
-            }
         });
 
         this.elements.voiceCastList.addEventListener('click', (e) => {
@@ -124,11 +134,18 @@ export class VoiceSelector {
                 return;
             }
 
-            // only the insert button places a tag, a stray click on the row does nothing
+            // only the triangle places a tag, a stray click on the row does nothing
             const insertButton = e.target.closest('.cast-insert-btn');
             if (insertButton) {
                 this.closeCastMenu();
-                this.handlers.onInsert?.(insertButton.dataset.name);
+                this.insertMember(insertButton.dataset.name);
+                return;
+            }
+
+            const nameButton = e.target.closest('.cast-name');
+            if (nameButton) {
+                this.closeCastMenu();
+                this.handlers.onEdit?.(nameButton.dataset.name);
             }
         });
 
@@ -147,7 +164,7 @@ export class VoiceSelector {
                 return;
             }
             if (item.dataset.action === 'insert') {
-                this.handlers.onInsert?.(name);
+                this.insertMember(name);
                 return;
             }
             this.handlers.onMenuAction?.(item.dataset.action, name);
@@ -276,13 +293,32 @@ export class VoiceSelector {
         input.addEventListener('blur', () => commit(input.value));
     }
 
+    insertMember(name) {
+        if (this.editing) {
+            this.handlers.onCommit?.(this.elements.createTagRate?.value);
+        }
+        this.handlers.onInsert?.(name);
+    }
+
     /** Editing sends a member back to the mixer, so the same button saves it rather than adding another. */
     setEditing(name) {
         this.editing = name;
+        const box = this.elements.createTagName;
+        if (box) {
+            // the name is fixed while editing, rename is its own flow
+            box.value = name ?? '';
+            box.disabled = Boolean(name);
+            box.setCustomValidity('');
+            this.nameEdited = false;
+        }
         this.updateCreateTagButton();
+        this.elements.voiceCastList?.querySelectorAll('.cast-member').forEach((chip) => {
+            chip.classList.toggle('is-editing', chip.dataset.name === name);
+        });
     }
 
     updateCreateTagButton() {
+        this.syncSuggestedName();
         const button = this.elements.createTagBtn;
         if (!button) {
             return;
@@ -296,8 +332,26 @@ export class VoiceSelector {
             return;
         }
         button.title = mix
-            ? `Add [voice:${mix}] to the cast`
+            ? `Add [voice:${this.elements.createTagName?.value || mix}] to the cast`
             : 'Mix one or more voices first';
+    }
+
+    syncSuggestedName() {
+        const box = this.elements.createTagName;
+        if (!box || this.editing || this.nameEdited) {
+            return;
+        }
+        box.value = suggestCastName(this.voiceService.getSelectedVoiceString(), this.elements.createTagRate?.value);
+        box.setCustomValidity('');
+    }
+
+    showNameError(message) {
+        const box = this.elements.createTagName;
+        if (!box) {
+            return;
+        }
+        box.setCustomValidity(message);
+        box.reportValidity();
     }
 
     setupEventListeners() {

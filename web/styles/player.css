@@ -62,7 +62,7 @@
     align-items: center;
     gap: clamp(0.5rem, 1vw, 1rem);
     width: 100%;
-    max-width: 1500px;
+    max-width: 2200px;
     margin: 0 auto;
     padding: 0.45rem 0.65rem;
     border-radius: 0.5rem;

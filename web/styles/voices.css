@@ -2,12 +2,17 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
     width: 100%;
     flex: 1;
     min-height: 0;
 }
 
+.voice-select-container:has(.create-tag-row:not([hidden])) {
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+}
 .voice-search-wrapper {
     position: relative;
     width: 100%;
@@ -15,12 +20,12 @@
 
 .voice-search {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     color: var(--text);
-    font-size: 0.9375rem;
+    font-size: 0.85rem;
     transition: all 0.2s ease;
 }
 
@@ -38,7 +43,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.25rem;
@@ -48,14 +53,6 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
-}
-
-.selected-voices:empty::before {
-    content: "No voices selected";
-    color: var(--text-light);
-    font-size: 0.8125rem;
-    opacity: 0.7;
-    padding: 0.1rem 0.25rem;
 }
 
 .voice-dropdown {
@@ -152,7 +149,7 @@
 .selected-voice-tag {
     display: flex;
     align-items: center;
-    padding: 0.25rem 0.45rem;
+    padding: 0.1rem 0.45rem;
     background: rgba(99, 102, 241, 0.2);
     border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: 0.2rem;
@@ -179,7 +176,7 @@
 
 .selected-voice-tag input {
     width: 3rem;
-    padding: 0.25rem;
+    padding: 0.1rem 0.25rem;
     background: transparent;
     border: none;
     color: inherit;
@@ -208,9 +205,39 @@
     opacity: 1;
 }
 
+.create-tag-row {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.3rem;
+}
+
+.create-tag-row .cast-rate {
+    width: 2.8rem;
+    padding-right: 0.85rem;
+}
+
+.create-tag-row .cast-rate:hover + .create-tag-x,
+.create-tag-row .cast-rate:focus + .create-tag-x {
+    opacity: 0;
+}
+
+.create-tag-x {
+    margin-left: -1.05rem;
+    font-size: 0.65rem;
+    color: var(--text-light);
+    opacity: 0.7;
+    user-select: none;
+    pointer-events: none;
+}
+
+.create-tag-row[hidden] {
+    display: none;
+}
+
 .create-tag-btn {
-    align-self: flex-end;
-    margin-top: -0.15rem;
     padding: 0.15rem 0.45rem;
     background: rgba(99, 102, 241, 0.12);
     border: 1px solid var(--border);
@@ -221,10 +248,6 @@
     white-space: nowrap;
     cursor: pointer;
     transition: all 0.2s ease;
-}
-
-.create-tag-btn[hidden] {
-    display: none;
 }
 
 .create-tag-btn:hover:not(:disabled) {
@@ -240,9 +263,7 @@
 
 .voice-cast {
     position: relative;
-    margin-top: 0.6rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid var(--border);
+    margin-top: 0.5rem;
 }
 
 .voice-cast[hidden] {
@@ -256,34 +277,36 @@
     margin-bottom: 0.35rem;
 }
 
-.voice-cast-tabs {
-    display: flex;
-    gap: 0.15rem;
-}
-
-.voice-cast-tab {
+.voice-cast-title {
     padding: 0.1rem 0.3rem;
-    background: none;
-    border: none;
-    border-radius: 0.2rem;
     color: var(--text-light);
-    font-family: inherit;
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    opacity: 0.55;
+}
+
+.undo-insert-btn {
+    margin-left: auto;
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 
-.voice-cast-tab:hover {
-    opacity: 0.85;
+.undo-insert-btn[hidden] {
+    display: none;
 }
 
-.voice-cast-tab.is-active {
-    background: rgba(148, 163, 184, 0.12);
-    opacity: 1;
-    cursor: default;
+.undo-insert-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
 }
 
 .cast-file-menu {
@@ -330,18 +353,12 @@
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
-/* one shared surface, so the rows read as a list rather than floating chips */
-.voice-cast-list,
-.voice-cast-log {
+.voice-cast-list {
     display: flex;
     flex-direction: column;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.2rem;
-}
-
-.voice-cast-list[hidden] {
-    display: none;
 }
 
 .voice-cast-list:empty::before {
@@ -366,10 +383,11 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    text-align: left;
 }
 
-/* the name is the insert button, one rule for both so they cannot drift apart */
 .cast-insert-btn,
+.cast-name,
 .cast-menu-btn {
     padding: 0.1rem 0.35rem;
     background: none;
@@ -383,6 +401,7 @@
 }
 
 .cast-insert-btn:hover,
+.cast-name:hover,
 .cast-menu-btn:hover {
     background: rgba(99, 102, 241, 0.15);
     border-color: var(--fg-color);
@@ -391,18 +410,21 @@
 
 /* the triangle points at the text the tag lands in */
 .cast-insert-btn {
-    text-align: left;
-}
-
-.cast-insert-btn::before {
-    content: "◂";
-    margin-right: 0.35rem;
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.1rem 0.3rem;
     color: var(--fg-color);
-    opacity: 0.6;
+    opacity: 0.7;
 }
 
-.cast-insert-btn:hover::before {
+.cast-insert-btn:hover {
     opacity: 1;
+}
+
+.cast-member.is-editing .cast-name {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
 }
 
 .cast-sep {
@@ -411,7 +433,8 @@
     user-select: none;
 }
 
-.cast-rate {
+.cast-rate,
+.create-tag-name {
     width: 2.3rem;
     padding: 0.1rem 0.15rem;
     background: none;
@@ -422,68 +445,29 @@
     font-size: 0.65rem;
 }
 
-.cast-rate:focus {
+.cast-rate:focus,
+.create-tag-name:focus {
     outline: none;
     border-color: var(--fg-color);
     color: var(--text);
 }
 
-.voice-cast-log[hidden] {
-    display: none;
-}
-
-.voice-cast-log:empty::before {
-    content: "Inserted tags land here, with a way back out";
-    color: var(--text-light);
-    font-size: 0.7rem;
-    opacity: 0.7;
-    padding: 0.15rem 0.4rem;
-}
-
-.cast-log-entry {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    padding: 0.15rem 0.4rem;
-    font-size: 0.7rem;
-}
-
-.cast-log-label {
+.create-tag-name {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    width: auto;
+    padding: 0.1rem 0.25rem;
 }
 
-.cast-log-time {
-    color: var(--text-light);
-    font-size: 0.62rem;
-    opacity: 0.7;
-}
-
-.cast-log-btn {
-    padding: 0.1rem 0.35rem;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 0.2rem;
-    color: var(--text-light);
-    font-family: inherit;
-    font-size: 0.65rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.cast-log-btn:hover {
-    background: rgba(99, 102, 241, 0.15);
-    border-color: var(--fg-color);
-    color: var(--text);
+.create-tag-name:disabled {
+    opacity: 0.5;
 }
 
 /* bigger targets on touch */
 @media (pointer: coarse) {
     .cast-insert-btn,
-    .cast-log-btn,
+    .cast-name,
+    .undo-insert-btn,
     .cast-menu-btn {
         padding: 0.35rem 0.6rem;
     }

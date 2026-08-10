@@ -9,10 +9,6 @@ export function formatVoiceTag(voice) {
     return `[voice:${voice}]`;
 }
 
-export function formatRateTag(rate) {
-    return `[rate:${rate}]`;
-}
-
 export function countVoiceTags(text) {
     return (String(text).match(tagPattern()) || []).length;
 }
@@ -62,22 +58,6 @@ export function renameVoiceTags(text, from, to) {
     return String(text).replace(pattern, formatVoiceTag(to));
 }
 
-/**
- * Follows a pace change through the text the same way a rename is followed, so the
- * number in the cast row and the tags already placed cannot drift apart. Only the
- * rate tag sitting against its voice tag is ours to rewrite: one moved away, or
- * typed by hand, is a deliberate override and is left where it was put.
- */
-export function retimeVoiceTags(text, name, rate) {
-    // the space belongs to the optional group, so adding a tag cannot eat the one already there
-    const pattern = new RegExp(
-        String.raw`(\[voice:\s*${escapeRegExp(name)}\s*\])([ \t]*\[rate:\s*[\d.]+\s*\])?`,
-        'gi'
-    );
-    return String(text).replace(pattern, (match, voiceTag) =>
-        (rate ? `${voiceTag} ${formatRateTag(rate)}` : voiceTag));
-}
-
 /** Puts a tag at the front so enabling tags shows the syntax rather than describing it. */
 export function seedVoiceTag(text, voice) {
     const source = String(text);
@@ -112,21 +92,22 @@ function snapToBoundary(text, cursor) {
 // first char anchored like TAG_SOURCE, so a legal cast name always makes a matchable tag
 export const CAST_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,23}$/;
 
-/**
- * A new member stands for its own mix, so the tag placed in the text is the plain
- * one the server would take anyway and nothing has to be defined. Renaming is what
- * turns a member into an alias. Membership is by name, which is what everything else
- * here is keyed by, and a fresh member is named after its mix, so adding the same
- * voice twice still cannot stack a second chip. One mix can back several members,
- * which is how narrator_fast and narrator_slow share a voice at different paces.
- */
-export function addToCast(cast, mix) {
+export function suggestCastName(mix, rate) {
     const value = String(mix || '').trim();
-    if (!value || cast.some((member) => member.name === value)) {
+    const pace = normalizeRate(rate);
+    return pace && value ? `${value}__${pace}` : value;
+}
+
+/** Membership is keyed by name, so one mix can back several members. */
+export function addToCast(cast, mix, rate, name) {
+    const value = String(mix || '').trim();
+    const pace = normalizeRate(rate);
+    const chosen = String(name || '').trim() || suggestCastName(value, pace);
+    if (!value || cast.some((member) => member.name === chosen)) {
         return cast;
     }
 
-    return [...cast, { name: value, mix: value }];
+    return [...cast, { name: chosen, mix: value, ...(pace ? { rate: pace } : {}) }];
 }
 
 export function removeFromCast(cast, name) {
@@ -137,8 +118,11 @@ export function renameCastMember(cast, name, next) {
     return cast.map((member) => (member.name === name ? { ...member, name: next } : member));
 }
 
-export function updateCastMix(cast, name, mix) {
-    return cast.map((member) => (member.name === name ? { ...member, mix } : member));
+export function updateCastMix(cast, name, mix, rate) {
+    const pace = normalizeRate(rate);
+    return cast.map((member) => (member.name === name
+        ? { name: member.name, mix, ...(pace ? { rate: pace } : {}) }
+        : member));
 }
 
 /** A pace only counts inside the request bounds, and 1 is the default going unsaid. */
@@ -147,14 +131,11 @@ export function normalizeRate(value) {
     return Number.isFinite(rate) && rate >= 0.25 && rate <= 4 && rate !== 1 ? rate : undefined;
 }
 
-/** The alias value a member travels as: the bare mix, or the object shape when it
- *  carries a pace of its own. */
 function aliasValue(member) {
     return member.rate ? { voice: member.mix, rate: member.rate } : member.mix;
 }
 
-/** A name has to travel when it stands for something else, and now also when it stands
- *  for a pace, since a voice calibrated to itself is still saying something. */
+/** A member travels when renamed or paced. */
 export function castAliases(cast) {
     return cast.reduce((aliases, member) => {
         if (member.name !== member.mix || member.rate) {
@@ -164,11 +145,7 @@ export function castAliases(cast) {
     }, {});
 }
 
-/**
- * The cast as the request field it becomes, so a saved file drops straight into a call.
- * A member standing for its own mix is written out too, since a name meaning itself
- * resolves to itself and is the only way that chip comes back.
- */
+/** The cast as the request field it becomes, self-named members included. */
 export function exportCast(cast) {
     return {
         voice_aliases: cast.reduce((aliases, member) => {
@@ -192,7 +169,10 @@ export function parseCastFile(data) {
             const rate = plain ? undefined : normalizeRate(value?.rate);
             return { name: String(name).trim(), mix: mix.trim(), ...(rate ? { rate } : {}) };
         })
-        .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
+        // the third form is the suggested paced name, which carries the mix's punctuation
+        .filter(({ name, mix, rate }) => mix && (name === mix
+            || CAST_NAME_PATTERN.test(name)
+            || name === suggestCastName(mix, rate)));
 }
 
 /** parseVoiceMix drops empty +-parts, so speakability is judged before that smoothing hides them. */
@@ -231,18 +211,15 @@ export function parseVoiceMix(mix) {
         });
 }
 
-/** Returns the rewritten text and where the caret should land after it.
- *  A rate rides along as its own tag, right beside the voice, so a pace is
- *  something you can see and edit in the text same as a speaker change is. */
-export function insertVoiceTag(text, cursor, voice, rate) {
+/** Returns the rewritten text and where the caret should land after it. */
+export function insertVoiceTag(text, cursor, voice) {
     const source = String(text);
     const at = snapToBoundary(source, Math.max(0, Math.min(Number(cursor) || 0, source.length)));
     const before = source.slice(0, at);
     const after = source.slice(at);
     const lead = before && !/\s$/.test(before) ? ' ' : '';
     const trail = /^\s/.test(after) ? '' : ' ';
-    const tags = rate ? `${formatVoiceTag(voice)} ${formatRateTag(rate)}` : formatVoiceTag(voice);
-    const inserted = `${lead}${tags}${trail}`;
+    const inserted = `${lead}${formatVoiceTag(voice)}${trail}`;
 
     return { text: before + inserted + after, cursor: at + inserted.length };
 }
