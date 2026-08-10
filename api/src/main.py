@@ -17,6 +17,7 @@ from .core.config import settings
 from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
 from .routers.openai_compatible import router as openai_router
+from .routers.ssml import router as ssml_router
 from .routers.web_player import router as web_router
 
 
@@ -135,6 +136,7 @@ if settings.cors_enabled:
 # Include routers
 app.include_router(openai_router, prefix="/v1")
 app.include_router(dev_router)  # Development endpoints
+app.include_router(ssml_router)  # SSML translation and capabilities
 app.include_router(debug_router)  # Debug endpoints (403 unless enabled)
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files

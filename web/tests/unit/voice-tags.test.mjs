@@ -18,6 +18,7 @@ import {
     removeVoiceTagsFor,
     renameCastMember,
     renameVoiceTags,
+    retimeVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
     unspeakableTagNames,
@@ -130,7 +131,7 @@ test('an out of range caret is clamped rather than trusted', () => {
     assert.equal(insertVoiceTag('Hello', -4, 'af_sky').text, '[voice:af_sky] Hello');
 });
 
-test('the cast keeps insertion order and refuses the same mix twice', () => {
+test('the cast keeps insertion order and refuses the same name twice', () => {
     let cast = addToCast([], 'af_bella');
     cast = addToCast(cast, 'am_michael(2)+af_sky(1)');
     cast = addToCast(cast, 'af_bella');
@@ -139,6 +140,13 @@ test('the cast keeps insertion order and refuses the same mix twice', () => {
         { name: 'af_bella', mix: 'af_bella' },
         { name: 'am_michael(2)+af_sky(1)', mix: 'am_michael(2)+af_sky(1)' }
     ]);
+});
+
+test('one mix backs several members, which is how one voice gets two paces', () => {
+    // renamed out of the way, so the plain voice is free to be added again
+    const cast = addToCast(renameCastMember(addToCast([], 'am_michael'), 'am_michael', 'narrator_fast'), 'am_michael');
+    assert.deepEqual(cast.map((m) => m.name), ['narrator_fast', 'am_michael']);
+    assert.deepEqual(cast.map((m) => m.mix), ['am_michael', 'am_michael']);
 });
 
 test('a new member invents no name, so there is nothing to define', () => {
@@ -225,19 +233,35 @@ test('only names that stand for something else are sent as aliases', () => {
     assert.deepEqual(castAliases([]), {});
 });
 
-test('a pace is baked into the text, not carried on the alias', () => {
+test('a pace is part of the alias, so it travels and it persists', () => {
     const cast = [
         { name: 'af_bella', mix: 'af_bella', rate: 0.8 },
-        { name: 'narrator', mix: 'am_michael(2)' }
+        { name: 'narrator', mix: 'am_michael(2)' },
+        { name: 'af_sky', mix: 'af_sky' }
     ];
-    // a self-named member usually stays home, and a pace does not change that
-    assert.deepEqual(castAliases(cast), { narrator: 'am_michael(2)' });
-    assert.deepEqual(exportCast(cast), {
-        voice_aliases: { af_bella: 'af_bella', narrator: 'am_michael(2)' }
+    // a self-named member normally stays home, but one carrying a pace has something to say
+    assert.deepEqual(castAliases(cast), {
+        af_bella: { voice: 'af_bella', rate: 0.8 },
+        narrator: 'am_michael(2)'
     });
-    // old-shape files with a {voice, rate} value still read back, rate just falls away
+    assert.deepEqual(exportCast(cast), {
+        voice_aliases: {
+            af_bella: { voice: 'af_bella', rate: 0.8 },
+            narrator: 'am_michael(2)',
+            af_sky: 'af_sky'
+        }
+    });
+});
+
+test('two presets over one voice round trip through the cast file at their own paces', () => {
+    const cast = [
+        { name: 'narrator_fast', mix: 'am_michael', rate: 1.1 },
+        { name: 'narrator_slow', mix: 'am_michael', rate: 0.9 }
+    ];
+    assert.deepEqual(parseCastFile(exportCast(cast)), cast);
+    // 1 is the default going unsaid, so it comes back as no pace at all
     assert.deepEqual(
-        parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 0.8 } } }),
+        parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 1 } } }),
         [{ name: 'a', mix: 'af_sky' }]
     );
 });
@@ -245,8 +269,28 @@ test('a pace is baked into the text, not carried on the alias', () => {
 test('a pace travels beside the voice tag it was inserted with', () => {
     const { text } = insertVoiceTag('Hello there.', 12, 'af_sky', 0.8);
     assert.equal(text, 'Hello there. [voice:af_sky] [rate:0.8] ');
-    // no pace set, no rate tag added
+    // no pace set, no rate tag added: the server resets to 1 on every voice tag anyway
     assert.equal(insertVoiceTag('Hello there.', 12, 'af_sky').text, 'Hello there. [voice:af_sky] ');
+});
+
+test('changing a pace follows the tags already placed, the way a rename does', () => {
+    const text = '[voice:narrator] [rate:0.8] One. [voice:af_sky] Two. [voice:narrator] [rate:0.8] Three.';
+    assert.equal(
+        retimeVoiceTags(text, 'narrator', 0.95),
+        '[voice:narrator] [rate:0.95] One. [voice:af_sky] Two. [voice:narrator] [rate:0.95] Three.'
+    );
+    // back to normal takes the tag out rather than writing [rate:1]
+    assert.equal(
+        retimeVoiceTags(text, 'narrator', undefined),
+        '[voice:narrator] One. [voice:af_sky] Two. [voice:narrator] Three.'
+    );
+    // a voice with no rate tag yet gets one
+    assert.equal(retimeVoiceTags(text, 'af_sky', 1.2).includes('[voice:af_sky] [rate:1.2] Two.'), true);
+});
+
+test('a rate tag moved off its voice tag is the writer\'s, not ours to rewrite', () => {
+    const text = '[voice:narrator] One. [rate:0.8] Two.';
+    assert.equal(retimeVoiceTags(text, 'narrator', 1.5), '[voice:narrator] [rate:1.5] One. [rate:0.8] Two.');
 });
 
 test('a mix with an empty plus-part is unspeakable, even though parsing smooths it over', () => {

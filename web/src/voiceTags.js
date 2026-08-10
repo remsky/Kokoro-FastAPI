@@ -62,6 +62,22 @@ export function renameVoiceTags(text, from, to) {
     return String(text).replace(pattern, formatVoiceTag(to));
 }
 
+/**
+ * Follows a pace change through the text the same way a rename is followed, so the
+ * number in the cast row and the tags already placed cannot drift apart. Only the
+ * rate tag sitting against its voice tag is ours to rewrite: one moved away, or
+ * typed by hand, is a deliberate override and is left where it was put.
+ */
+export function retimeVoiceTags(text, name, rate) {
+    // the space belongs to the optional group, so adding a tag cannot eat the one already there
+    const pattern = new RegExp(
+        String.raw`(\[voice:\s*${escapeRegExp(name)}\s*\])([ \t]*\[rate:\s*[\d.]+\s*\])?`,
+        'gi'
+    );
+    return String(text).replace(pattern, (match, voiceTag) =>
+        (rate ? `${voiceTag} ${formatRateTag(rate)}` : voiceTag));
+}
+
 /** Puts a tag at the front so enabling tags shows the syntax rather than describing it. */
 export function seedVoiceTag(text, voice) {
     const source = String(text);
@@ -99,12 +115,14 @@ export const CAST_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,23}$/;
 /**
  * A new member stands for its own mix, so the tag placed in the text is the plain
  * one the server would take anyway and nothing has to be defined. Renaming is what
- * turns a member into an alias. Membership is by exact mix string, so af_bella and
- * af_bella(2) are separate members and the same mix cannot be staged twice.
+ * turns a member into an alias. Membership is by name, which is what everything else
+ * here is keyed by, and a fresh member is named after its mix, so adding the same
+ * voice twice still cannot stack a second chip. One mix can back several members,
+ * which is how narrator_fast and narrator_slow share a voice at different paces.
  */
 export function addToCast(cast, mix) {
     const value = String(mix || '').trim();
-    if (!value || cast.some((member) => member.mix === value)) {
+    if (!value || cast.some((member) => member.name === value)) {
         return cast;
     }
 
@@ -129,12 +147,18 @@ export function normalizeRate(value) {
     return Number.isFinite(rate) && rate >= 0.25 && rate <= 4 && rate !== 1 ? rate : undefined;
 }
 
-/** Only a name that stands for something else has to travel with the request. A pace
- *  is not one of its properties, it is baked into the text as its own [rate:] tag. */
+/** The alias value a member travels as: the bare mix, or the object shape when it
+ *  carries a pace of its own. */
+function aliasValue(member) {
+    return member.rate ? { voice: member.mix, rate: member.rate } : member.mix;
+}
+
+/** A name has to travel when it stands for something else, and now also when it stands
+ *  for a pace, since a voice calibrated to itself is still saying something. */
 export function castAliases(cast) {
     return cast.reduce((aliases, member) => {
-        if (member.name !== member.mix) {
-            aliases[member.name] = member.mix;
+        if (member.name !== member.mix || member.rate) {
+            aliases[member.name] = aliasValue(member);
         }
         return aliases;
     }, {});
@@ -148,7 +172,7 @@ export function castAliases(cast) {
 export function exportCast(cast) {
     return {
         voice_aliases: cast.reduce((aliases, member) => {
-            aliases[member.name] = member.mix;
+            aliases[member.name] = aliasValue(member);
             return aliases;
         }, {})
     };
@@ -163,8 +187,10 @@ export function parseCastFile(data) {
     const aliases = data.voice_aliases && typeof data.voice_aliases === 'object' ? data.voice_aliases : data;
     return Object.entries(aliases)
         .map(([name, value]) => {
-            const mix = typeof value === 'string' ? value : String(value?.voice ?? '');
-            return { name: String(name).trim(), mix: mix.trim() };
+            const plain = typeof value === 'string';
+            const mix = plain ? value : String(value?.voice ?? '');
+            const rate = plain ? undefined : normalizeRate(value?.rate);
+            return { name: String(name).trim(), mix: mix.trim(), ...(rate ? { rate } : {}) };
         })
         .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
 }

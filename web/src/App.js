@@ -25,6 +25,7 @@ import {
     removeVoiceTagsFor,
     renameCastMember,
     renameVoiceTags,
+    retimeVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
     unspeakableTagNames,
@@ -159,10 +160,7 @@ export class App {
             onCommit: () => this.commitMix(),
             onInsert: (name) => this.insertVoiceTag(name),
             onRename: (name, next) => this.renameCastMember(name, next),
-            onRate: (name, value) => {
-                const rate = normalizeRate(value);
-                this.setCast(this.cast.map((member) => (member.name === name ? { ...member, rate } : member)));
-            },
+            onRate: (name, value) => this.setCastRate(name, normalizeRate(value)),
             onMenuAction: (action, name) => this.castMenuAction(action, name),
             isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
         });
@@ -244,8 +242,9 @@ export class App {
         } else if (action === 'strip') {
             this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
             this.updateVoiceTagNotice();
-        } else if (action === 'reset' && member.name !== member.mix) {
-            // the tags stay where they are, so the name they answer to becomes the mix again
+        } else if (action === 'reset' && member.name !== member.mix
+            && !this.cast.some((entry) => entry.name === member.mix)) {
+            // tags stay put and answer to the mix again, unless it is already a member and a twin name would break every name-keyed lookup
             if (this.editing === name) {
                 this.setEditing(member.mix);
             }
@@ -307,7 +306,18 @@ export class App {
         }
         this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
         this.setCast(renameCastMember(this.cast, name, next));
-        this.logRename(name, next);
+        this.recordRename(name, next);
+    }
+
+    /**
+     * A pace lives on the member, so the request carries it wherever that name is used,
+     * and the tags already in the text follow it the way they follow a rename. Nothing
+     * to reconcile later: the number in the row and the text always say the same thing.
+     */
+    setCastRate(name, rate) {
+        this.textEditor.replaceText(retimeVoiceTags(this.textEditor.getText(), name, rate));
+        this.setCast(this.cast.map((member) => (member.name === name ? { ...member, rate } : member)));
+        this.retimeInLog(name, rate);
     }
 
     setCast(cast) {
@@ -389,7 +399,8 @@ export class App {
             // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
             const folded = name.toLowerCase();
             const known = isSpeakableMix(mix, available);
-            const taken = cast.some((entry) => entry.name.toLowerCase() === folded || entry.mix === mix)
+            // by name only: two presets over one mix at different paces are the point
+            const taken = cast.some((entry) => entry.name.toLowerCase() === folded)
                 || (name !== mix && available.some((voice) => voice.toLowerCase() === folded));
             if (known && !taken) {
                 cast = [...cast, member];
@@ -408,6 +419,13 @@ export class App {
         }
 
         const skipped = members.length - added;
+        // an imported pace reaches the tags already placed, or the text says the older number and wins
+        const imported = cast.slice(base.length);
+        this.textEditor.replaceText(imported.reduce(
+            (text, member) => retimeVoiceTags(text, member.name, member.rate),
+            this.textEditor.getText()
+        ));
+        imported.forEach((member) => this.retimeInLog(member.name, member.rate));
         this.setCast(cast);
         const orphans = replace ? unspeakableTagNames(this.textEditor.getText(), cast, available).length : 0;
         this.showStatus(replace
@@ -435,15 +453,24 @@ export class App {
         return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    /** Logged inserts follow a rename, so the log can still find them in the text. */
-    renameInLog(from, to) {
-        this.insertLog = this.insertLog.map((entry) => entry.inserted
-            ? { ...entry, inserted: entry.inserted.replaceAll(`[voice:${from}]`, `[voice:${to}]`) }
-            : entry);
+    /** Rewrites logged insert text so the log keeps matching what is in the editor. */
+    patchLog(rewrite) {
+        this.insertLog = this.insertLog.map((entry) => (entry.inserted
+            ? { ...entry, inserted: rewrite(entry.inserted) }
+            : entry));
         this.renderInsertLog();
     }
 
-    logRename(from, to) {
+    renameInLog(from, to) {
+        this.patchLog((inserted) => inserted.replaceAll(`[voice:${from}]`, `[voice:${to}]`));
+    }
+
+    retimeInLog(name, rate) {
+        this.patchLog((inserted) => retimeVoiceTags(inserted, name, rate));
+    }
+
+    /** Puts the rename itself in the log, then patches the inserts it touched. */
+    recordRename(from, to) {
         this.insertLog = recordInsert(this.insertLog, { id: ++this.insertSeq, from, to, time: this.logTime() });
         this.renameInLog(from, to);
     }

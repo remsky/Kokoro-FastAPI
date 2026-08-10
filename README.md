@@ -487,8 +487,9 @@ Four tokens can be embedded in the `input` text and are parsed server-side (API,
   - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), 
   - Short names/aliases can be defined in `voice_aliases`, 
   - Unknown values return a 400.
-- **Rate**: `[rate:1.5]` multiplies the request `speed` for everything that follows; `[rate:1.0]` reverts. Clamped to 0.25-4.0. Same gating as voice tags.
-  - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks (as the `voice` parameter or in tags). Aliases without a rate leave the current rate alone, so set `"rate": 1.0` explicitly to pin a character to normal speed alongside rated ones.
+- **Rate**: `[rate:1.5]` multiplies the request `speed` until the next rate tag or voice change; `[rate:1.0]` reverts. Clamped to 0.25-4.0. Same gating as voice tags.
+  - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks, as the `voice` parameter or in tags. Useful for voices that read fast or slow, and for named presets over one voice (`narrator_fast`, `narrator_slow`).
+  - Rate belongs to the voice speaking it. Every `[voice:...]` tag re-asserts that voice's own rate, `1.0` when it has none, so a calibrated speaker cannot drag its pace onto the next one. Use `speed` for a pace over the whole request.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
@@ -502,11 +503,12 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 
 - `<break time="750ms"/>` or `strength="strong"` becomes a pause (none/x-weak: 0, weak: 0.25s, medium: 0.5s, strong: 1s, x-strong: 1.5s)
 - `<voice name="am_michael">` switches speaker and reverts at the closing tag
-- `<prosody rate="slow">` (or `80%`, or `1.2`) becomes a rate span, multiplying the request `speed` and reverting at the closing tag. Other prosody attributes (`pitch`, `volume`) are ignored.
+- `<prosody rate="slow">` (or `80%`, or `1.2`) becomes a rate span, multiplying the request `speed` and reverting at the closing tag. Clamped to 0.25-4.0 like `[rate:]`. Other prosody attributes (`pitch`, `volume`) are ignored.
 - `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` maps to the pronunciation token (IPA only, English only)
 - `<sub alias="World Wide Web">WWW</sub>` speaks the alias
 - Everything else (`<emphasis>`, `<say-as>`, `<p>`, `<s>`, `<lang>`, etc) is a no-op: the markup is dropped, the text is spoken. The model has no per-span control for these.
 - Malformed SSML returns a 400; non-SSML input passes through unchanged.
+- `GET /dev/ssml` returns the same list as data: supported elements, ignored ones, the break and rate keyword tables, and the rate bounds. It is built from the translator's own tables, so it cannot drift from what the build does.
 
 ```bash
 curl -s http://localhost:8880/dev/ssml -H "Content-Type: application/json" \

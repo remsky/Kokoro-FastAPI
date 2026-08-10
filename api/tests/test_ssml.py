@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
-from api.src.services.text_processing.ssml import translate_ssml
+from api.src.services.text_processing.ssml import SSML_ELEMENTS, translate_ssml
 
 
 def test_plain_text_passthrough():
@@ -56,6 +56,15 @@ def test_prosody_rate_percent_and_number():
     assert out == "[rate:0.8] a [rate:1.0] [rate:1.2] b [rate:1.0]"
 
 
+def test_prosody_rate_clamps_to_the_request_bounds():
+    out = translate_ssml(
+        '<speak><prosody rate="900%">a</prosody><prosody rate="0.05">b</prosody></speak>',
+        default_voice="af_bella",
+        allow_voice_tags=True,
+    )
+    assert out == "[rate:4.0] a [rate:1.0] [rate:0.25] b [rate:1.0]"
+
+
 def test_prosody_pitch_only_stays_noop():
     out = translate_ssml(
         '<speak><prosody pitch="high">hi</prosody></speak>',
@@ -63,6 +72,17 @@ def test_prosody_pitch_only_stays_noop():
         allow_voice_tags=True,
     )
     assert out == "hi"
+
+
+@pytest.mark.parametrize("tag", [k for k, v in SSML_ELEMENTS.items() if v is None])
+def test_every_ignored_element_speaks_text_only(tag):
+    """Each None entry in the published table really is a no-op, so the table can't drift quietly."""
+    out = translate_ssml(
+        f"<speak>a <{tag}>x</{tag}> b</speak>",
+        default_voice="af_bella",
+        allow_voice_tags=True,
+    )
+    assert out == "a x b"
 
 
 def test_unsupported_tags_are_noops():

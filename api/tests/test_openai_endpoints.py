@@ -737,7 +737,7 @@ async def test_process_and_validate_voice_tags_maps_openai_names(
     result = await process_and_validate_voice_tags(
         "[voice:alloy] Hello. [voice:nova] Hi.", service, allow_voice_tags=True
     )
-    assert result == "[voice:am_adam] Hello. [voice:bf_isabella] Hi."
+    assert result == "[voice:am_adam] [rate:1.0] Hello. [voice:bf_isabella] [rate:1.0] Hi."
 
 
 @pytest.mark.asyncio
@@ -831,7 +831,9 @@ async def test_voice_aliases_stand_in_for_a_mix_in_tags():
         allow_voice_tags=True,
         aliases={"narrator": "af_bella(2)+af_sky", "villain": "am_michael"},
     )
-    assert result == "[voice:af_bella(2)+af_sky] Once. [voice:am_michael] Never."
+    assert result == (
+        "[voice:af_bella(2)+af_sky] [rate:1.0] Once. [voice:am_michael] [rate:1.0] Never."
+    )
 
 
 @pytest.mark.asyncio
@@ -865,7 +867,7 @@ async def test_unaliased_names_are_left_to_normal_validation():
         allow_voice_tags=True,
         aliases={"narrator": "am_michael"},
     )
-    assert result == "[voice:af_heart] One. [voice:am_michael] Two."
+    assert result == "[voice:af_heart] [rate:1.0] One. [voice:am_michael] [rate:1.0] Two."
 
 
 @pytest.mark.asyncio
@@ -882,7 +884,7 @@ async def test_alias_names_are_matched_regardless_of_case():
         allow_voice_tags=True,
         aliases={"narrator": "af_bella", "villain": "am_michael"},
     )
-    assert result == "[voice:af_bella] One. [voice:am_michael] Two."
+    assert result == "[voice:af_bella] [rate:1.0] One. [voice:am_michael] [rate:1.0] Two."
 
 
 @pytest.mark.asyncio
@@ -996,7 +998,7 @@ def test_speech_endpoint_accepts_voice_aliases(mock_tts_service, mock_audio_byte
     )
     assert response.status_code == 200
     kwargs = mock_tts_service.generate_audio.call_args.kwargs
-    assert kwargs["text"] == "[voice:voice1] Hello. [voice:voice2] Never."
+    assert kwargs["text"] == "[voice:voice1] [rate:1.0] Hello. [voice:voice2] [rate:1.0] Never."
     assert kwargs["voice"] == "voice1"
 
 
@@ -1251,6 +1253,17 @@ def test_dev_ssml_strips_controls_without_voice():
     assert response.json()["text"] == "one two [pause:1.0s] three"
 
 
+def test_dev_ssml_capabilities_lists_supported_and_ignored():
+    """The published surface is read off the translator's own table."""
+    body = client.get("/dev/ssml").json()
+
+    assert body["elements"]["break"]
+    assert "emphasis" in body["ignored"]
+    assert set(body["elements"]).isdisjoint(body["ignored"])
+    assert body["rate_range"] == [0.25, 4.0]
+    assert body["break_strengths"]["strong"] == 1.0
+
+
 def test_dev_ssml_malformed_returns_400():
     response = client.post(
         "/dev/ssml", json={"text": "<speak>unclosed <voice>", "voice": "af_bella"}
@@ -1267,8 +1280,13 @@ def test_dev_ssml_non_ssml_passes_through():
 
 @pytest.mark.asyncio
 async def test_alias_rate_expands_to_a_rate_tag():
-    """A rate-carrying alias speaks at its own pace; plain aliases leave rate alone"""
+    """A rate-carrying alias speaks at its own pace, and an uncalibrated one at 1.0
+
+    The plain alias gets a tag too, so grandpa's pace cannot follow him into the
+    kid's lines. That reset is the whole point of calibrating a voice.
+    """
     from api.src.routers.openai_compatible import process_and_validate_voice_tags
+    from api.src.services.text_processing.text_processor import split_by_voice
     from api.src.structures.schemas import VoiceAlias
 
     service = AsyncMock(spec=TTSService)
@@ -1283,7 +1301,13 @@ async def test_alias_rate_expands_to_a_rate_tag():
             "kid": "af_bella",
         },
     )
-    assert result == "[voice:am_michael] [rate:0.8] Hi. [voice:af_bella] Yo."
+    assert result == "[voice:am_michael] [rate:0.8] Hi. [voice:af_bella] [rate:1.0] Yo."
+
+    segments = split_by_voice(result, "af_bella")
+    assert segments == [
+        ("am_michael", 0.8, "Hi."),
+        ("af_bella", 1.0, "Yo."),
+    ]
 
 
 def test_alias_rate_on_voice_param_multiplies_speed_when_tags_off():

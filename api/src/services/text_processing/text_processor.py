@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...core.config import settings
-from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions
+from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
@@ -149,7 +149,7 @@ def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]
             continue
         if group == 2:
             if part is not None:
-                current_rate = min(max(float(part), 0.25), 4.0)
+                current_rate = clamp_rate(float(part))
             continue
         part = part.strip()
         if not part:

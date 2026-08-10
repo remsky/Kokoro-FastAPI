@@ -20,7 +20,7 @@ from ..inference.model_manager import (
     get_manager as get_model_manager,
 )
 from ..inference.voice_manager import get_manager as get_voice_manager
-from ..structures.schemas import NormalizationOptions
+from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
@@ -409,7 +409,7 @@ class TTSService:
                             tokens,  # Pass tokens for legacy backends
                             voice_name,  # Pass voice name
                             voice_path,  # Pass voice path
-                            min(max(speed * segment_rate, 0.25), 4.0),
+                            clamp_rate(speed * segment_rate),
                             writer,
                             output_format,
                             is_first=(chunk_index == 0),

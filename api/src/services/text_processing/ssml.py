@@ -8,7 +8,27 @@ stripped to its text content so valid SSML is never read aloud as markup.
 
 import re
 import xml.etree.ElementTree as ET
-from typing import List
+from typing import Dict, List, Optional
+
+from ...structures.schemas import clamp_rate
+
+# element surface served by GET /dev/ssml, None means markup dropped and text spoken
+SSML_ELEMENTS: Dict[str, Optional[str]] = {
+    "speak": "Root element, container only",
+    "break": "Silence from time= or strength=, becomes [pause:Ns]",
+    "voice": "Speaker change from name=, becomes [voice:name] and reverts at the closing tag, needs a request voice",
+    "prosody": "rate= only, becomes [rate:x] and reverts at the closing tag, pitch and volume are ignored",
+    "phoneme": "Pronunciation from ph=, alphabet=ipa only, becomes [word](/ipa/)",
+    "sub": "Speaks alias= in place of the text",
+    "emphasis": None,
+    "say-as": None,
+    "lang": None,
+    "audio": None,
+    "mark": None,
+    "p": None,
+    "s": None,
+    "w": None,
+}
 
 # break strength to seconds, medium matches a sentence-level pause
 BREAK_STRENGTH_S = {
@@ -32,11 +52,6 @@ PROSODY_RATE = {
 }
 
 
-def is_ssml(text: str) -> bool:
-    """Cheap detection, the spec requires a <speak> root element."""
-    return text.lstrip().startswith("<speak")
-
-
 def _break_seconds(el: ET.Element) -> float:
     time_attr = el.get("time")
     if time_attr:
@@ -53,7 +68,9 @@ def _prosody_rate(value: str) -> float:
     if value in PROSODY_RATE:
         return PROSODY_RATE[value]
     try:
-        return float(value[:-1]) / 100 if value.endswith("%") else float(value)
+        return clamp_rate(
+            float(value[:-1]) / 100 if value.endswith("%") else float(value)
+        )
     except ValueError:
         return 1.0
 
@@ -115,7 +132,8 @@ def translate_ssml(
     <voice> and <prosody rate> emit control tags only when allow_voice_tags
     is set, otherwise they are stripped and their content speaks unmodified.
     """
-    if not is_ssml(text):
+    # the spec requires a <speak> root, so anything else is plain text
+    if not text.lstrip().startswith("<speak"):
         return text
     root = ET.fromstring(text)
 

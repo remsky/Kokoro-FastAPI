@@ -22,7 +22,12 @@ from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import VOICE_TAG_PATTERN
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
-from ..structures.schemas import CaptionedSpeechRequest
+from ..structures.schemas import (
+    AliasMap,
+    CaptionedSpeechRequest,
+    VoiceAlias,
+    clamp_rate,
+)
 
 
 # Load OpenAI mappings
@@ -82,7 +87,9 @@ def get_model_name(model: str) -> str:
     return base_name + ".pth"
 
 
-def _alias_target(voice: str, aliases: Optional[Dict]):
+def _alias_target(
+    voice: str, aliases: Optional[AliasMap]
+) -> Optional[Union[str, VoiceAlias]]:
     """Look up the alias entry for a name, case-insensitively, None when unaliased.
 
     Matching is case-insensitive, since VOICE_TAG_PATTERN already is: a tag written
@@ -102,7 +109,7 @@ def _alias_target(voice: str, aliases: Optional[Dict]):
     return None
 
 
-def resolve_voice_alias(voice: str, aliases: Optional[Dict] = None) -> str:
+def resolve_voice_alias(voice: str, aliases: Optional[AliasMap] = None) -> str:
     """Swap a request-scoped short name for the mix it stands for, leaving anything else alone."""
     target = _alias_target(voice, aliases)
     if target is None:
@@ -110,7 +117,7 @@ def resolve_voice_alias(voice: str, aliases: Optional[Dict] = None) -> str:
     return target if isinstance(target, str) else target.voice
 
 
-def alias_rate(voice: str, aliases: Optional[Dict] = None) -> Optional[float]:
+def alias_rate(voice: str, aliases: Optional[AliasMap] = None) -> Optional[float]:
     """The rate a VoiceAlias target carries for this name, if any."""
     target = _alias_target(voice, aliases)
     return None if target is None or isinstance(target, str) else target.rate
@@ -119,7 +126,7 @@ def alias_rate(voice: str, aliases: Optional[Dict] = None) -> Optional[float]:
 async def process_and_validate_voices(
     voice_input: str,
     tts_service: TTSService,
-    aliases: Optional[Dict] = None,
+    aliases: Optional[AliasMap] = None,
     available_voices: Optional[List[str]] = None,
 ) -> str:
     """Process a voice string, resolving any alias and validating every voice in the combination
@@ -190,13 +197,15 @@ async def process_and_validate_voice_tags(
     text: str,
     tts_service: TTSService,
     allow_voice_tags: bool = False,
-    aliases: Optional[Dict] = None,
+    aliases: Optional[AliasMap] = None,
 ) -> str:
     """Validate inline [voice:...] tags, rewriting them to resolved voice names.
 
     Runs the same mapping and validation as the voice parameter so a bad speaker
     tag fails the request up front rather than part way through the stream.
-    An alias carrying a rate expands to its [rate:] tag alongside the voice.
+    Every tag expands to its rate alongside the voice, 1.0 when the alias carries
+    none, so a pace belongs to the voice that was calibrated with it and cannot
+    carry across a voice change onto one that was not.
     """
     if not allow_voice_tags:
         return text
@@ -211,10 +220,8 @@ async def process_and_validate_voice_tags(
         name = await process_and_validate_voices(
             tag, tts_service, aliases, available_voices
         )
-        rate = alias_rate(tag, aliases)
-        resolved[tag] = (
-            f"[voice:{name}] [rate:{rate}]" if rate else f"[voice:{name}]"
-        )
+        rate = alias_rate(tag, aliases) or 1.0
+        resolved[tag] = f"[voice:{name}] [rate:{rate}]"
     return VOICE_TAG_PATTERN.sub(lambda m: resolved[m.group(1)], text)
 
 
@@ -232,7 +239,7 @@ def apply_alias_rate(
     if request.allow_voice_tags:
         request.input = f"[rate:{rate}] {request.input}"
     else:
-        request.speed = min(max(request.speed * rate, 0.25), 4.0)
+        request.speed = clamp_rate(request.speed * rate)
 
 
 async def stream_audio_chunks(

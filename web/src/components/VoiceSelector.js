@@ -189,10 +189,11 @@ export class VoiceSelector {
         }
 
         const placed = this.handlers.isPlaced?.(chip.dataset.name) !== false;
+        const noReset = this.resetBlockedReason(chip.dataset.name, chip.dataset.mix);
         this.menuFor = chip.dataset.name;
         chip.querySelector('.cast-menu-btn')?.setAttribute('aria-expanded', 'true');
-        // a member standing for its own mix has no alias to undo, and one still spoken cannot leave
-        this.setMenuItem('reset', chip.dataset.name !== chip.dataset.mix, 'This name is its own mix, so there is no alias to undo');
+        // a member standing for its own mix has no alias to undo, one whose mix is already a member cannot take that name back, and one still spoken cannot leave
+        this.setMenuItem('reset', !noReset, noReset);
         this.setMenuItem('strip', placed, 'No tag in the text names this one');
         this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
         menu.hidden = false;
@@ -201,6 +202,16 @@ export class VoiceSelector {
         if (focusFirstItem) {
             menu.querySelector('.cast-menu-item')?.focus();
         }
+    }
+
+    /** Why undoing this alias is unavailable, empty when it is, read off the chips already rendered. */
+    resetBlockedReason(name, mix) {
+        if (name === mix) {
+            return 'This name is its own mix, so there is no alias to undo';
+        }
+        return this.elements.voiceCastList?.querySelector(`.cast-member[data-name="${CSS.escape(mix)}"]`)
+            ? `"${mix}" is already in the cast, so this name cannot go back to it`
+            : '';
     }
 
     /** An option that cannot be taken yet greys out and says why, rather than leaving the menu. */
