@@ -3,8 +3,8 @@
 
 <a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-192-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-66%25-tan)]()
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-253-darkgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-68%25-tan)]()
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
