@@ -143,6 +143,13 @@ export class VoiceSelector {
             });
         }
 
+        this.elements.createTagRow?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && create && !create.disabled) {
+                e.preventDefault();
+                create.click();
+            }
+        });
+
         this.elements.createTagRate?.addEventListener('input', () => this.updateCreateTagButton());
         this.elements.createTagName?.addEventListener('input', (e) => {
             e.target.setCustomValidity('');

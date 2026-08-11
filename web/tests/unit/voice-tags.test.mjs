@@ -18,7 +18,6 @@ import {
     removeVoiceTagsFor,
     renameCastMember,
     renameVoiceTags,
-    seedVoiceTag,
     stripVoiceTags,
     suggestCastName,
     unspeakableTagNames,
@@ -81,26 +80,6 @@ test('a tag ending a line takes the space that preceded it', () => {
 test('stripping leaves the surrounding paragraph breaks intact', () => {
     const text = '[voice:af_bella] First line.\n\n[voice:am_michael] Second line.';
     assert.equal(stripVoiceTags(text), 'First line.\n\nSecond line.');
-});
-
-test('seeding uses the mixer string and only fires once', () => {
-    const first = seedVoiceTag('Hello there.', 'af_bella(2)+am_michael(1)');
-    assert.equal(first.changed, true);
-    assert.equal(first.text, '[voice:af_bella(2)+am_michael(1)] Hello there.');
-
-    const again = seedVoiceTag(first.text, 'af_sky');
-    assert.equal(again.changed, false);
-    assert.equal(again.text, first.text);
-});
-
-test('seeding an empty editor still shows the pattern', () => {
-    assert.equal(seedVoiceTag('', 'af_bella').text, '[voice:af_bella] ');
-});
-
-test('seeding without a voice is a no-op', () => {
-    const result = seedVoiceTag('Hello there.', '');
-    assert.equal(result.changed, false);
-    assert.equal(result.text, 'Hello there.');
 });
 
 test('an existing space is reused rather than doubled', () => {

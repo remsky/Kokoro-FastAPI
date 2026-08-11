@@ -58,15 +58,6 @@ export function renameVoiceTags(text, from, to) {
     return String(text).replace(pattern, formatVoiceTag(to));
 }
 
-/** Puts a tag at the front so enabling tags shows the syntax rather than describing it. */
-export function seedVoiceTag(text, voice) {
-    const source = String(text);
-    if (!voice || hasVoiceTags(source)) {
-        return { text: source, changed: false };
-    }
-    return { text: `${formatVoiceTag(voice)} ${source.replace(/^[ \t]+/, '')}`, changed: true };
-}
-
 /**
  * Nearest whitespace boundary, ties going backwards, so a tag inserted from a
  * caret parked mid-word lands in front of that word instead of splitting it.

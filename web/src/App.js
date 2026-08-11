@@ -24,7 +24,6 @@ import {
     removeVoiceTagsFor,
     renameCastMember,
     renameVoiceTags,
-    seedVoiceTag,
     stripVoiceTags,
     suggestCastName,
     unspeakableTagNames,
@@ -146,6 +145,7 @@ export class App {
     }
 
     setVoiceTagMode(enabled) {
+        const switched = this.tagMode !== enabled;
         this.tagMode = enabled;
         this.renderVoiceTabs();
         if (!enabled) {
@@ -161,17 +161,12 @@ export class App {
             isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
         });
 
-        if (enabled) {
-            // the staged mix joins the cast but is remembered, so leaving the tab hands the same voice back
-            this.stagedBeforeTags = this.voiceService.getSelectedVoiceString() || this.cast[0]?.mix || '';
-            this.commitMix(undefined, undefined, { quiet: true });
-            // the seeded tag is the whole explanation of the syntax
-            const seeded = seedVoiceTag(this.textEditor.getText(), this.cast[0]?.name);
-            if (seeded.changed) {
-                this.textEditor.replaceText(seeded.text);
+        if (switched) {
+            // only a created tag carries over, so the tags tab neither takes the voices tab's mix nor leaves one
+            if (enabled) {
+                this.stagedBeforeTags = this.voiceService.getSelectedVoiceString();
             }
-        } else if (!this.voiceService.hasSelectedVoices() && this.cast.length) {
-            this.voiceSelector.setMix(this.stagedBeforeTags || this.cast[0].mix);
+            this.voiceSelector.setMix(enabled ? '' : this.stagedBeforeTags);
         }
 
         this.updateVoiceTagNotice();
@@ -793,7 +788,7 @@ export class App {
 
     validateInput() {
         const text = this.textEditor.getText().trim();
-        // a seeded tag on its own is not something to speak
+        // a tag on its own is not something to speak
         const spoken = this.tagMode ? stripVoiceTags(text).trim() : text;
         if (!spoken) {
             this.showStatus('Please enter some text', 'error');
