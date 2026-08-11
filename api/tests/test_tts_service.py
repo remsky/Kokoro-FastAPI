@@ -39,7 +39,7 @@ def tts_service(mock_managers):
     """Create TTSService instance with mocked dependencies."""
 
     async def _create_service():
-        return await TTSService.create("test_output")
+        return await TTSService.create()
 
     return _create_service()
 
@@ -57,8 +57,7 @@ async def test_service_creation():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
-        assert service.output_dir == "test_output"
+        service = await TTSService.create()
         assert service.model_manager is model_manager
         assert service._voice_manager is voice_manager
 
@@ -77,7 +76,7 @@ async def test_get_voice_path_single():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
@@ -100,7 +99,7 @@ async def test_get_voice_path_single_with_weight_normalized():
         mock_get_voice.return_value = voice_manager
         mock_settings.voice_weight_normalization = True
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1(2)")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
@@ -126,7 +125,7 @@ async def test_get_voice_path_combined():
         mock_temp.return_value = "/tmp"
         mock_load.return_value = torch.ones(10)
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
         # Verify the path points to a temporary file with expected format
@@ -150,7 +149,7 @@ async def test_list_voices():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         voices = await service.list_voices()
         assert voices == ["voice1", "voice2"]
         voice_manager.list_voices.assert_called_once()
@@ -169,7 +168,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -180,6 +179,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
             voice_name,
             _path,
             _lang,
+            _rate,
             _text,
             _tokens,
             _pause,
@@ -205,7 +205,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -213,7 +213,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
         langs = [
             lang
-            async for _name, _path, lang, _text, _tokens, _pause in (
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
                 service._split_multi_voice(
                     text, "af_heart", None, None, allow_voice_tags=True
                 )
@@ -236,7 +236,7 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -244,7 +244,7 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         text = "[voice:af_bella] Hello. [voice:bm_george] Hello."
         langs = [
             lang
-            async for _name, _path, lang, _text, _tokens, _pause in (
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
                 service._split_multi_voice(
                     text, "af_heart", "e", None, allow_voice_tags=True
                 )
@@ -265,7 +265,7 @@ async def _stubbed_service():
     ):
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = AsyncMock()
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
 
     service._get_voices_path = AsyncMock(
         side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
@@ -376,6 +376,34 @@ async def test_timings_carry_speaker_when_tags_allowed():
     ):
         pass
     assert plain and all("voice" not in t for t in plain)
+
+
+@pytest.mark.asyncio
+async def test_rate_tags_multiply_request_speed():
+    """Segment rates scale the request speed per chunk, clamped to the speed bounds."""
+    service = await _stubbed_service()
+
+    speeds = []
+    original = service._process_chunk
+
+    def capture(text, tokens, voice_name, voice_path, speed, *args, **kwargs):
+        if text:  # skip the empty stream-finalizer chunk
+            speeds.append(speed)
+        return original(text, tokens, voice_name, voice_path, speed, *args, **kwargs)
+
+    service._process_chunk = capture
+
+    async for _ in service.generate_audio_stream(
+        "One. [rate:1.5] Two. [rate:4.0] Three.",
+        "af_heart",
+        MagicMock(),
+        speed=2.0,
+        output_format=None,
+        allow_voice_tags=True,
+    ):
+        pass
+
+    assert speeds == [2.0, 3.0, 4.0]
 
 
 @pytest.mark.asyncio

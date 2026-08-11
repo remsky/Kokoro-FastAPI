@@ -87,11 +87,20 @@
                             </div>
                         </div>
                         <div class="selected-voices" id="selected-voices"></div>
-                        <button type="button" id="create-tag-btn" class="create-tag-btn" hidden>Create tag</button>
+                        <span id="create-tag-row" class="create-tag-row" hidden>
+                            <input type="text" id="create-tag-name" class="create-tag-name" placeholder="alias"
+                                   title="Name for the new tag, offered from the mix and speed" aria-label="Alias for the new tag">
+                            <input type="number" id="create-tag-rate" class="cast-rate" min="0.25" max="4" step="0.05" value="1"
+                                   title="Speed for the new tag, 0.25 to 4, 1 for normal" aria-label="Speed for the new tag">
+                            <span class="create-tag-x" aria-hidden="true">x</span>
+                            <button type="button" id="create-tag-btn" class="create-tag-btn">Create tag</button>
+                        </span>
                     </div>
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
                             <span class="voice-cast-title">Cast</span>
+                            <button type="button" id="undo-insert-btn" class="undo-insert-btn" hidden
+                                    title="Remove the last inserted tag from the text">Undo insert</button>
                             <details id="cast-file-menu" class="cast-file-menu">
                                 <summary class="cast-file-toggle" title="Save or load the cast" aria-label="Cast file options">▾</summary>
                                 <div class="cast-file-panel">

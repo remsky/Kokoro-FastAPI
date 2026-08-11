@@ -2,12 +2,17 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
     width: 100%;
     flex: 1;
     min-height: 0;
 }
 
+.voice-select-container:has(.create-tag-row:not([hidden])) {
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+}
 .voice-search-wrapper {
     position: relative;
     width: 100%;
@@ -15,12 +20,12 @@
 
 .voice-search {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     color: var(--text);
-    font-size: 0.9375rem;
+    font-size: 0.85rem;
     transition: all 0.2s ease;
 }
 
@@ -38,7 +43,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.25rem;
@@ -48,14 +53,6 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
-}
-
-.selected-voices:empty::before {
-    content: "No voices selected";
-    color: var(--text-light);
-    font-size: 0.8125rem;
-    opacity: 0.7;
-    padding: 0.1rem 0.25rem;
 }
 
 .voice-dropdown {
@@ -152,7 +149,7 @@
 .selected-voice-tag {
     display: flex;
     align-items: center;
-    padding: 0.25rem 0.45rem;
+    padding: 0.1rem 0.45rem;
     background: rgba(99, 102, 241, 0.2);
     border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: 0.2rem;
@@ -179,7 +176,7 @@
 
 .selected-voice-tag input {
     width: 3rem;
-    padding: 0.25rem;
+    padding: 0.1rem 0.25rem;
     background: transparent;
     border: none;
     color: inherit;
@@ -208,9 +205,39 @@
     opacity: 1;
 }
 
+.create-tag-row {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.3rem;
+}
+
+.create-tag-row .cast-rate {
+    width: 2.8rem;
+    padding-right: 0.85rem;
+}
+
+.create-tag-row .cast-rate:hover + .create-tag-x,
+.create-tag-row .cast-rate:focus + .create-tag-x {
+    opacity: 0;
+}
+
+.create-tag-x {
+    margin-left: -1.05rem;
+    font-size: 0.65rem;
+    color: var(--text-light);
+    opacity: 0.7;
+    user-select: none;
+    pointer-events: none;
+}
+
+.create-tag-row[hidden] {
+    display: none;
+}
+
 .create-tag-btn {
-    align-self: flex-end;
-    margin-top: -0.15rem;
     padding: 0.15rem 0.45rem;
     background: rgba(99, 102, 241, 0.12);
     border: 1px solid var(--border);
@@ -221,10 +248,6 @@
     white-space: nowrap;
     cursor: pointer;
     transition: all 0.2s ease;
-}
-
-.create-tag-btn[hidden] {
-    display: none;
 }
 
 .create-tag-btn:hover:not(:disabled) {
@@ -240,9 +263,7 @@
 
 .voice-cast {
     position: relative;
-    margin-top: 0.6rem;
-    padding-top: 0.6rem;
-    border-top: 1px solid var(--border);
+    margin-top: 0.5rem;
 }
 
 .voice-cast[hidden] {
@@ -257,11 +278,35 @@
 }
 
 .voice-cast-title {
+    padding: 0.1rem 0.3rem;
     color: var(--text-light);
     font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
+}
+
+.undo-insert-btn {
+    margin-left: auto;
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.undo-insert-btn[hidden] {
+    display: none;
+}
+
+.undo-insert-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
 }
 
 .cast-file-menu {
@@ -310,8 +355,10 @@
 
 .voice-cast-list {
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.35rem;
+    flex-direction: column;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
 }
 
 .voice-cast-list:empty::before {
@@ -319,40 +366,111 @@
     color: var(--text-light);
     font-size: 0.7rem;
     opacity: 0.7;
+    padding: 0.15rem 0.4rem;
 }
 
 .cast-member {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     gap: 0.35rem;
-    padding: 0.15rem 0.4rem;
-    background: rgba(15, 23, 42, 0.3);
-    border: 1px solid var(--border);
-    border-radius: 0.2rem;
+    padding: 0.15rem 0.3rem;
     font-size: 0.7rem;
+}
+
+.cast-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.cast-insert-btn,
+.cast-name,
+.cast-menu-btn {
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.cast-member:hover {
+.cast-insert-btn:hover,
+.cast-name:hover,
+.cast-menu-btn:hover {
     background: rgba(99, 102, 241, 0.15);
     border-color: var(--fg-color);
+    color: var(--text);
 }
 
-.cast-menu-btn {
-    padding: 0 0.15rem;
-    background: none;
-    border: none;
-    color: inherit;
-    font-family: inherit;
-    font-size: 1em;
+/* the triangle points at the text the tag lands in */
+.cast-insert-btn {
+    font-size: 0.9rem;
     line-height: 1;
-    opacity: 0.6;
-    cursor: pointer;
+    padding: 0.1rem 0.3rem;
+    color: var(--fg-color);
+    opacity: 0.7;
 }
 
-.cast-menu-btn:hover {
+.cast-insert-btn:hover {
     opacity: 1;
+}
+
+.cast-member.is-editing .cast-name {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.cast-sep {
+    color: var(--text-light);
+    opacity: 0.4;
+    user-select: none;
+}
+
+.cast-rate,
+.create-tag-name {
+    width: 2.3rem;
+    padding: 0.1rem 0.15rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+}
+
+.cast-rate:focus,
+.create-tag-name:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.create-tag-name {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    padding: 0.1rem 0.25rem;
+}
+
+.create-tag-name:disabled {
+    opacity: 0.5;
+}
+
+/* bigger targets on touch */
+@media (pointer: coarse) {
+    .cast-insert-btn,
+    .cast-name,
+    .undo-insert-btn,
+    .cast-menu-btn {
+        padding: 0.35rem 0.6rem;
+    }
 }
 
 .cast-rename-input {

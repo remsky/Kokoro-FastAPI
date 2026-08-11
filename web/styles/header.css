@@ -12,7 +12,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    max-width: 1500px;
+    max-width: 2200px;
     margin: 0 auto;
     padding: 0.6rem clamp(1rem, 2vw, 2rem);
 }

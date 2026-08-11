@@ -20,6 +20,7 @@ import {
     renameVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
+    suggestCastName,
     unspeakableTagNames,
     updateCastMix
 } from '../../src/voiceTags.js';
@@ -130,7 +131,7 @@ test('an out of range caret is clamped rather than trusted', () => {
     assert.equal(insertVoiceTag('Hello', -4, 'af_sky').text, '[voice:af_sky] Hello');
 });
 
-test('the cast keeps insertion order and refuses the same mix twice', () => {
+test('the cast keeps insertion order and refuses the same name twice', () => {
     let cast = addToCast([], 'af_bella');
     cast = addToCast(cast, 'am_michael(2)+af_sky(1)');
     cast = addToCast(cast, 'af_bella');
@@ -139,6 +140,40 @@ test('the cast keeps insertion order and refuses the same mix twice', () => {
         { name: 'af_bella', mix: 'af_bella' },
         { name: 'am_michael(2)+af_sky(1)', mix: 'am_michael(2)+af_sky(1)' }
     ]);
+});
+
+test('one mix backs several members, which is how one voice gets two paces', () => {
+    // renamed out of the way, so the plain voice is free to be added again
+    const cast = addToCast(renameCastMember(addToCast([], 'am_michael'), 'am_michael', 'narrator_fast'), 'am_michael');
+    assert.deepEqual(cast.map((m) => m.name), ['narrator_fast', 'am_michael']);
+    assert.deepEqual(cast.map((m) => m.mix), ['am_michael', 'am_michael']);
+});
+
+test('the suggested name is the mix, suffixed only when a pace is set', () => {
+    assert.equal(suggestCastName('af_bella', 1), 'af_bella');
+    assert.equal(suggestCastName('af_bella', '1.5'), 'af_bella__1.5');
+    assert.equal(suggestCastName('af_bella', ''), 'af_bella');
+});
+
+test('a paced create takes the suggested name, so the tag says it is not plain', () => {
+    assert.deepEqual(addToCast([], 'af_bella', '0.8'), [{ name: 'af_bella__0.8', mix: 'af_bella', rate: 0.8 }]);
+    // 1 is the default going unsaid
+    assert.deepEqual(addToCast([], 'af_sky', '1'), [{ name: 'af_sky', mix: 'af_sky' }]);
+});
+
+test('a chosen name wins over the suggestion, and a taken name adds nothing', () => {
+    const cast = addToCast([], 'af_bella', 1.5, 'peppy');
+    assert.deepEqual(cast, [{ name: 'peppy', mix: 'af_bella', rate: 1.5 }]);
+    assert.equal(addToCast(cast, 'af_sky', undefined, 'peppy'), cast);
+});
+
+test('a paced member over a weighted mix survives the cast file, suffixed or not', () => {
+    const cast = addToCast(addToCast([], 'am_michael(2)+af_sky(1)', 0.9, 'slowpair'), 'am_michael(2)+af_sky(1)', 1.5);
+    assert.deepEqual(cast, [
+        { name: 'slowpair', mix: 'am_michael(2)+af_sky(1)', rate: 0.9 },
+        { name: 'am_michael(2)+af_sky(1)__1.5', mix: 'am_michael(2)+af_sky(1)', rate: 1.5 }
+    ]);
+    assert.deepEqual(parseCastFile(exportCast(cast)), cast);
 });
 
 test('a new member invents no name, so there is nothing to define', () => {
@@ -225,6 +260,44 @@ test('only names that stand for something else are sent as aliases', () => {
     assert.deepEqual(castAliases([]), {});
 });
 
+test('a pace is part of the alias, so it travels and it persists', () => {
+    const cast = [
+        { name: 'af_bella', mix: 'af_bella', rate: 0.8 },
+        { name: 'narrator', mix: 'am_michael(2)' },
+        { name: 'af_sky', mix: 'af_sky' }
+    ];
+    // a self-named member normally stays home, but one carrying a pace has something to say
+    assert.deepEqual(castAliases(cast), {
+        af_bella: { voice: 'af_bella', rate: 0.8 },
+        narrator: 'am_michael(2)'
+    });
+    assert.deepEqual(exportCast(cast), {
+        voice_aliases: {
+            af_bella: { voice: 'af_bella', rate: 0.8 },
+            narrator: 'am_michael(2)',
+            af_sky: 'af_sky'
+        }
+    });
+});
+
+test('two presets over one voice round trip through the cast file at their own paces', () => {
+    const cast = [
+        { name: 'narrator_fast', mix: 'am_michael', rate: 1.1 },
+        { name: 'narrator_slow', mix: 'am_michael', rate: 0.9 }
+    ];
+    assert.deepEqual(parseCastFile(exportCast(cast)), cast);
+    // 1 is the default going unsaid, so it comes back as no pace at all
+    assert.deepEqual(
+        parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 1 } } }),
+        [{ name: 'a', mix: 'af_sky' }]
+    );
+});
+
+test('a paced member inserts the bare tag, the pace rides in the alias instead', () => {
+    assert.equal(insertVoiceTag('Hello there.', 12, 'af_sky').text, 'Hello there. [voice:af_sky] ');
+    assert.equal(insertVoiceTag('Hello there.', 12, 'af_bella_0.80').text, 'Hello there. [voice:af_bella_0.80] ');
+});
+
 test('a mix with an empty plus-part is unspeakable, even though parsing smooths it over', () => {
     const available = ['af_bella', 'af_sky'];
     assert.equal(isSpeakableMix('af_bella', available), true);
@@ -276,6 +349,14 @@ test('a member can have its mix retuned in place', () => {
     ]);
     assert.deepEqual(renameCastMember(cast, 'narrator', 'storyteller'), [
         { name: 'storyteller', mix: 'af_bella(2)' }
+    ]);
+});
+
+test('an edit saves the pace with the mix, and 1 takes it away', () => {
+    const paced = updateCastMix([{ name: 'narrator', mix: 'af_bella' }], 'narrator', 'af_bella', '0.8');
+    assert.deepEqual(paced, [{ name: 'narrator', mix: 'af_bella', rate: 0.8 }]);
+    assert.deepEqual(updateCastMix(paced, 'narrator', 'af_bella', 1), [
+        { name: 'narrator', mix: 'af_bella' }
     ]);
 });
 

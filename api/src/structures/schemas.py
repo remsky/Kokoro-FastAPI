@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from typing import Dict, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Mapping, Optional, Union
 
 from pydantic import (
     AliasChoices,
@@ -18,6 +18,16 @@ class TTSStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     DELETED = "deleted"  # For files removed by cleanup
+
+
+# pace bounds shared by every speed field, the ssml translator and the final clamp
+RATE_MIN, RATE_MAX = 0.25, 4.0
+Rate = Annotated[float, Field(ge=RATE_MIN, le=RATE_MAX)]
+
+
+def clamp_rate(value: float) -> float:
+    """Hold a computed pace inside the bounds the request fields already enforce."""
+    return min(max(value, RATE_MIN), RATE_MAX)
 
 
 # OpenAI-compatible schemas
@@ -88,11 +98,24 @@ VOICE_NAME_BODY = r"[a-zA-Z0-9_][a-zA-Z0-9_+\-(). ]*"
 TURN_VOICE_PATTERN = re.compile(VOICE_NAME_BODY)
 
 
-def _reject_tag_breaking_aliases(
-    aliases: Optional[Dict[str, str]],
-) -> Optional[Dict[str, str]]:
+class VoiceAlias(BaseModel):
+    """Alias target that can carry a natural pace for the voice"""
+
+    voice: str
+    rate: Optional[Rate] = Field(
+        default=None,
+        description="Multiplier on the request speed applied whenever this alias speaks",
+    )
+
+
+# the shape voice_aliases takes everywhere it is passed around, Mapping so plain str dicts fit
+AliasMap = Mapping[str, Union[str, VoiceAlias]]
+
+
+def _reject_tag_breaking_aliases(aliases: Optional[AliasMap]) -> Optional[AliasMap]:
     if aliases:
-        for mix in aliases.values():
+        for target in aliases.values():
+            mix = target if isinstance(target, str) else target.voice
             if not TURN_VOICE_PATTERN.fullmatch(mix.strip()):
                 raise ValueError(
                     f"Voice alias '{mix}' contains characters that cannot appear in a voice name"
@@ -103,9 +126,9 @@ def _reject_tag_breaking_aliases(
 class VoiceAliasesMixin(BaseModel):
     """Shared voice_aliases field for request models that accept them"""
 
-    voice_aliases: Optional[Dict[str, str]] = Field(
+    voice_aliases: Optional[AliasMap] = Field(
         default=None,
-        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. Usable wherever a voice name is given and in [voice:name] tags, matched case-insensitively.",
+        description="Optional short names for voices, e.g. {'narrator': 'af_bella(2)+af_sky'}. A value may also be {'voice': ..., 'rate': 0.8} to give the alias a natural pace. Usable wherever a voice name is given and in [voice:name] tags, matched case-insensitively.",
     )
 
     @field_validator("voice_aliases")
@@ -136,11 +159,8 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
             description="Optional different format for the final download. If not provided, uses response_format.",
         )
     )
-    speed: float = Field(
-        default=1.0,
-        ge=0.25,
-        le=4.0,
-        description="The speed of the generated audio. Select a value from 0.25 to 4.0.",
+    speed: Rate = Field(
+        default=1.0, description="The speed of the generated audio"
     )
     stream: bool = Field(
         default=True,  # Default to streaming for OpenAI compatibility
@@ -233,11 +253,8 @@ class DialogueRequest(VoiceAliasesMixin):
             description="Optional different format for the final download. If not provided, uses response_format.",
         )
     )
-    speed: float = Field(
-        default=1.0,
-        ge=0.25,
-        le=4.0,
-        description="The speed of the generated audio. Select a value from 0.25 to 4.0.",
+    speed: Rate = Field(
+        default=1.0, description="The speed of the generated audio"
     )
     stream: bool = Field(
         default=True,
@@ -289,11 +306,8 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default="mp3",
         description="The format to return audio in. Supported formats: mp3, opus, aac, flac, wav, pcm. PCM format returns raw 16-bit samples without headers.",
     )
-    speed: float = Field(
-        default=1.0,
-        ge=0.25,
-        le=4.0,
-        description="The speed of the generated audio. Select a value from 0.25 to 4.0.",
+    speed: Rate = Field(
+        default=1.0, description="The speed of the generated audio"
     )
     stream: bool = Field(
         default=True,  # Default to streaming for OpenAI compatibility

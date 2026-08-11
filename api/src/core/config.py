@@ -5,6 +5,7 @@ from importlib.metadata import (
 from pathlib import Path
 
 import torch
+from dotenv import dotenv_values
 from pydantic_settings import BaseSettings
 
 
@@ -27,8 +28,6 @@ class Settings(BaseSettings):
     port: int = 8880
 
     # Application Settings
-    output_dir: str = "output"
-    output_dir_size_limit_mb: float = 500.0  # Maximum size of output directory in MB
     default_voice: str = "af_heart"
     default_voice_code: str | None = (
         None  # If set, overrides the first letter of voice name, though api call param still takes precedence
@@ -45,6 +44,7 @@ class Settings(BaseSettings):
         False  # Whether to expose /debug/* host and process introspection routes
     )
     enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
+    enable_ssml: bool = True  # Kill switch for the /dev/ssml router, both routes 403 when off
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
@@ -52,12 +52,12 @@ class Settings(BaseSettings):
     model_repo_id: str = "hexgrad/Kokoro-82M"  # default if model not present in model_dir; silences warnings
 
     # Audio Settings
-    sample_rate: int = 24000
     default_volume_multiplier: float = 1.0
     # Text Processing Settings
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk
     absolute_max_tokens: int = 450  # Absolute maximum tokens per chunk
+    ssml_max_depth: int = 10  # Deepest SSML element nesting translated, real documents sit at 2-5
     advanced_text_normalization: bool = True  # Preproesses the text before misiki
     voice_weight_normalization: bool = (
         True  # Normalize the voice weights so they add up to 1
@@ -88,6 +88,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # a stale or unrelated key in a user's .env must not stop the server booting
 
     def get_device(self) -> str:
         """Get the appropriate device based on settings and availability"""
@@ -106,3 +107,12 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def unrecognized_env_file_keys() -> list[str]:
+    """Keys in the env file that match no setting, ignored at load so the caller can warn about them"""
+    env_file = Path(str(Settings.model_config.get("env_file") or ""))
+    if not env_file.is_file():
+        return []
+    known = {name.lower() for name in Settings.model_fields}
+    return sorted(k for k in dotenv_values(env_file) if k.lower() not in known)

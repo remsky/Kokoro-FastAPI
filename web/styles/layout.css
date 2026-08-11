@@ -7,10 +7,10 @@ body {
 
 .app-shell {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 25vw, 460px);
     gap: 1rem;
     width: 100%;
-    max-width: 1500px;
+    max-width: 2200px;
     margin: 0 auto;
     padding: 1rem clamp(1rem, 2vw, 2rem);
     min-height: 0;
@@ -45,7 +45,7 @@ body {
 }
 
 .side-pane > section {
-    padding: 0.7rem 0.85rem;
+    padding: 0.35rem 0.85rem;
 }
 
 /* voices card absorbs leftover height so the pane meets the editor's bottom edge */
@@ -75,6 +75,10 @@ body {
 
 .side-pane > section + section {
     border-top: 1px solid var(--border);
+}
+
+.side-pane > .voice-card + section {
+    border-top: none;
 }
 
 .side-pane::-webkit-scrollbar {

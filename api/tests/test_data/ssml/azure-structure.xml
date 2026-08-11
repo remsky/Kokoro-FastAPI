@@ -1,0 +1,14 @@
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+    <voice name="en-US-Ava:DragonHDLatestNeural">
+        Welcome <break /> to text to speech.
+        Welcome <break strength="medium" /> to text to speech.
+        Welcome <break time="750ms" /> to text to speech.
+        My favorite colors are green &amp; yellow.
+        <emphasis level="moderate">This is an important announcement</emphasis>
+        <prosody pitch="-2st" rate="slow" volume="90">Can you hear me now?</prosody>
+        <phoneme alphabet="ipa" ph="t&#x259;mei&#x325;&#x27E;ou&#x325;">tomato</phoneme>
+        <sub alias="World Wide Web Consortium">W3C</sub>
+        <lang xml:lang="fr-FR">chat</lang>
+        <say-as interpret-as="cardinal">12345</say-as>
+    </voice>
+</speak>

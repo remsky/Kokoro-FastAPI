@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...core.config import settings
-from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions
+from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
@@ -20,6 +20,11 @@ CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
+# Pattern to find voice and rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
+CONTROL_TAG_PATTERN = re.compile(
+    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]|\[rate:\s*(\d+(?:\.\d+)?)\s*\]",
+    re.IGNORECASE,
+)
 
 
 def process_text_chunk(
@@ -119,32 +124,40 @@ def get_sentence_info(
     return results
 
 
-def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, str]]:
-    """Split text into (voice, text) segments on [voice:name] tags.
+def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
+    """Split text into (voice, rate, text) segments on [voice:name] and [rate:x] tags.
 
-    Text ahead of the first tag belongs to default_voice. Runs of segments
-    sharing a voice are merged so a tag that doesn't change speaker costs
-    nothing downstream, and so chunking still sees whole paragraphs.
+    Text ahead of the first tag belongs to default_voice at rate 1.0. Runs of
+    segments sharing (voice, rate) are merged so a tag that changes nothing
+    costs nothing downstream, and so chunking still sees whole paragraphs.
+    Rates clamp to the request speed bounds (0.25-4.0).
     """
-    parts = VOICE_TAG_PATTERN.split(text)
+    parts = CONTROL_TAG_PATTERN.split(text)
     if len(parts) == 1:
-        return [(default_voice, text)]
+        return [(default_voice, 1.0, text)]
 
-    segments: List[Tuple[str, str]] = []
+    segments: List[Tuple[str, float, str]] = []
     current_voice = default_voice
+    current_rate = 1.0
 
     for index, part in enumerate(parts):
-        # split() with one capture group alternates text, voice, text, ...
-        if index % 2:
-            current_voice = part.strip()
+        # split() with two groups cycles text, voice, rate, ... (None for the unmatched group)
+        group = index % 3
+        if group == 1:
+            if part is not None:
+                current_voice = part.strip()
+            continue
+        if group == 2:
+            if part is not None:
+                current_rate = clamp_rate(float(part))
             continue
         part = part.strip()
         if not part:
             continue
-        if segments and segments[-1][0] == current_voice:
-            segments[-1] = (current_voice, f"{segments[-1][1]} {part}")
+        if segments and segments[-1][:2] == (current_voice, current_rate):
+            segments[-1] = (current_voice, current_rate, f"{segments[-1][2]} {part}")
         else:
-            segments.append((current_voice, part))
+            segments.append((current_voice, current_rate, part))
 
     # tags were present, so an empty result means there was nothing to say
     return segments

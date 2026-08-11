@@ -1,5 +1,5 @@
 import { closeOnOutsidePress } from '../dismiss.js';
-import { parseVoiceMix } from '../voiceTags.js';
+import { parseVoiceMix, suggestCastName } from '../voiceTags.js';
 
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -18,10 +18,14 @@ export class VoiceSelector {
             voiceCast: document.getElementById('voice-cast'),
             voiceCastList: document.getElementById('voice-cast-list'),
             castMenu: document.getElementById('cast-menu'),
-            createTagBtn: document.getElementById('create-tag-btn')
+            createTagRow: document.getElementById('create-tag-row'),
+            createTagBtn: document.getElementById('create-tag-btn'),
+            createTagRate: document.getElementById('create-tag-rate'),
+            createTagName: document.getElementById('create-tag-name')
         };
         this.menuFor = null;
         this.editing = null;
+        this.nameEdited = false;
         this.settleRename = () => {};
 
         this.setupEventListeners();
@@ -38,8 +42,8 @@ export class VoiceSelector {
         if (this.elements.voiceCast) {
             this.elements.voiceCast.hidden = !enabled;
         }
-        if (this.elements.createTagBtn) {
-            this.elements.createTagBtn.hidden = !enabled;
+        if (this.elements.createTagRow) {
+            this.elements.createTagRow.hidden = !enabled;
         }
         if (!enabled) {
             this.settleRename();
@@ -49,7 +53,11 @@ export class VoiceSelector {
     }
 
     /** Replaces what is staged in the mixer, so a mix can be cleared or sent back to it. */
-    setMix(mix) {
+    setMix(mix, rate = 1) {
+        if (this.elements.createTagRate) {
+            this.elements.createTagRate.value = rate;
+        }
+        this.nameEdited = false;
         this.voiceService.clearSelectedVoices();
         parseVoiceMix(mix).forEach(({ voice, weight }) => this.voiceService.addVoice(voice, weight));
         this.renderVoiceOptions(this.voiceService.filterVoices(this.elements.voiceSearch.value));
@@ -64,16 +72,27 @@ export class VoiceSelector {
 
         this.closeCastMenu();
         list.innerHTML = cast
-            .map((member) => `
-                <span class="cast-member"
+            .map((member) => {
+                const tagLabel = `[voice:${member.name}]`;
+                const tip = [member.name === member.mix ? '' : member.mix, member.rate ? `${member.rate}x speed` : '']
+                    .filter(Boolean).join(', ');
+                return `
+                <span class="cast-member${member.name === this.editing ? ' is-editing' : ''}"
                       data-name="${esc(member.name)}"
                       data-mix="${esc(member.mix)}"
-                      title="Insert [voice:${esc(member.name)}]${member.name === member.mix ? '' : ` (${esc(member.mix)})`}">
-                    <span class="cast-name">${esc(member.name)}</span>
-                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}" title="More"
-                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">⋯</button>
+                      title="${esc(tip)}">
+                    <button type="button" class="cast-insert-btn" data-name="${esc(member.name)}"
+                            title="Insert ${esc(tagLabel)} at the cursor"
+                            aria-label="Insert ${esc(tagLabel)} at the cursor">◂</button>
+                    <button type="button" class="cast-name" data-name="${esc(member.name)}"
+                            title="Edit the mix and speed"
+                            aria-label="Edit ${esc(member.name)}">${esc(member.name)}</button>
+                    <span class="cast-sep" aria-hidden="true">|</span>
+                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
+                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
                 </span>
-            `)
+            `;
+            })
             .join('');
     }
 
@@ -83,8 +102,17 @@ export class VoiceSelector {
 
         if (create) {
             create.addEventListener('mousedown', (e) => e.preventDefault());
-            create.addEventListener('click', () => this.handlers.onCommit?.());
+            create.addEventListener('click', () => {
+                this.handlers.onCommit?.(this.elements.createTagRate?.value, this.elements.createTagName?.value);
+            });
         }
+
+        this.elements.createTagRate?.addEventListener('input', () => this.updateCreateTagButton());
+        this.elements.createTagName?.addEventListener('input', (e) => {
+            e.target.setCustomValidity('');
+            this.nameEdited = e.target.value !== '';
+            this.updateCreateTagButton();
+        });
 
         if (!cast) {
             return;
@@ -106,10 +134,18 @@ export class VoiceSelector {
                 return;
             }
 
-            const member = e.target.closest('.cast-member');
-            if (member && !e.target.classList.contains('cast-rename-input')) {
+            // only the triangle places a tag, a stray click on the row does nothing
+            const insertButton = e.target.closest('.cast-insert-btn');
+            if (insertButton) {
                 this.closeCastMenu();
-                this.handlers.onInsert?.(member.dataset.name);
+                this.insertMember(insertButton.dataset.name);
+                return;
+            }
+
+            const nameButton = e.target.closest('.cast-name');
+            if (nameButton) {
+                this.closeCastMenu();
+                this.handlers.onEdit?.(nameButton.dataset.name);
             }
         });
 
@@ -128,7 +164,7 @@ export class VoiceSelector {
                 return;
             }
             if (item.dataset.action === 'insert') {
-                this.handlers.onInsert?.(name);
+                this.insertMember(name);
                 return;
             }
             this.handlers.onMenuAction?.(item.dataset.action, name);
@@ -170,10 +206,11 @@ export class VoiceSelector {
         }
 
         const placed = this.handlers.isPlaced?.(chip.dataset.name) !== false;
+        const noReset = this.resetBlockedReason(chip.dataset.name, chip.dataset.mix);
         this.menuFor = chip.dataset.name;
         chip.querySelector('.cast-menu-btn')?.setAttribute('aria-expanded', 'true');
-        // a member standing for its own mix has no alias to undo, and one still spoken cannot leave
-        this.setMenuItem('reset', chip.dataset.name !== chip.dataset.mix, 'This name is its own mix, so there is no alias to undo');
+        // a member standing for its own mix has no alias to undo, one whose mix is already a member cannot take that name back, and one still spoken cannot leave
+        this.setMenuItem('reset', !noReset, noReset);
         this.setMenuItem('strip', placed, 'No tag in the text names this one');
         this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
         menu.hidden = false;
@@ -182,6 +219,16 @@ export class VoiceSelector {
         if (focusFirstItem) {
             menu.querySelector('.cast-menu-item')?.focus();
         }
+    }
+
+    /** Why undoing this alias is unavailable, empty when it is, read off the chips already rendered. */
+    resetBlockedReason(name, mix) {
+        if (name === mix) {
+            return 'This name is its own mix, so there is no alias to undo';
+        }
+        return this.elements.voiceCastList?.querySelector(`.cast-member[data-name="${CSS.escape(mix)}"]`)
+            ? `"${mix}" is already in the cast, so this name cannot go back to it`
+            : '';
     }
 
     /** An option that cannot be taken yet greys out and says why, rather than leaving the menu. */
@@ -246,13 +293,32 @@ export class VoiceSelector {
         input.addEventListener('blur', () => commit(input.value));
     }
 
+    insertMember(name) {
+        if (this.editing) {
+            this.handlers.onCommit?.(this.elements.createTagRate?.value);
+        }
+        this.handlers.onInsert?.(name);
+    }
+
     /** Editing sends a member back to the mixer, so the same button saves it rather than adding another. */
     setEditing(name) {
         this.editing = name;
+        const box = this.elements.createTagName;
+        if (box) {
+            // the name is fixed while editing, rename is its own flow
+            box.value = name ?? '';
+            box.disabled = Boolean(name);
+            box.setCustomValidity('');
+            this.nameEdited = false;
+        }
         this.updateCreateTagButton();
+        this.elements.voiceCastList?.querySelectorAll('.cast-member').forEach((chip) => {
+            chip.classList.toggle('is-editing', chip.dataset.name === name);
+        });
     }
 
     updateCreateTagButton() {
+        this.syncSuggestedName();
         const button = this.elements.createTagBtn;
         if (!button) {
             return;
@@ -266,8 +332,26 @@ export class VoiceSelector {
             return;
         }
         button.title = mix
-            ? `Add [voice:${mix}] to the cast`
+            ? `Add [voice:${this.elements.createTagName?.value || mix}] to the cast`
             : 'Mix one or more voices first';
+    }
+
+    syncSuggestedName() {
+        const box = this.elements.createTagName;
+        if (!box || this.editing || this.nameEdited) {
+            return;
+        }
+        box.value = suggestCastName(this.voiceService.getSelectedVoiceString(), this.elements.createTagRate?.value);
+        box.setCustomValidity('');
+    }
+
+    showNameError(message) {
+        const box = this.elements.createTagName;
+        if (!box) {
+            return;
+        }
+        box.setCustomValidity(message);
+        box.reportValidity();
     }
 
     setupEventListeners() {

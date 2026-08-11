@@ -32,6 +32,7 @@ from ..structures.text_schemas import (
     PhonemeResponse,
 )
 from .openai_compatible import (
+    apply_alias_rate,
     create_speech,
     process_and_validate_voice_tags,
     process_and_validate_voices,
@@ -229,6 +230,7 @@ async def create_captioned_speech(
         request.input = await process_and_validate_voice_tags(
             request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
+        apply_alias_rate(request)
 
         # Set content type based on format
         content_type = {

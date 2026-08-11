@@ -20,7 +20,7 @@ from ..inference.model_manager import (
     get_manager as get_model_manager,
 )
 from ..inference.voice_manager import get_manager as get_voice_manager
-from ..structures.schemas import NormalizationOptions
+from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
@@ -37,16 +37,15 @@ class TTSService:
     # Limit concurrent chunk processing
     _chunk_semaphore = asyncio.Semaphore(4)
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self):
         """Initialize service."""
-        self.output_dir = output_dir
         self.model_manager: Optional[ModelManager] = None
         self._voice_manager = None
 
     @classmethod
-    async def create(cls, output_dir: str = None) -> "TTSService":
+    async def create(cls) -> "TTSService":
         """Create and initialize TTSService instance."""
-        service = cls(output_dir)
+        service = cls()
         service.model_manager = await get_model_manager()
         service._voice_manager = await get_voice_manager()
         return service
@@ -269,10 +268,10 @@ class TTSService:
         lang_code: Optional[str],
         normalization_options: Optional[NormalizationOptions],
         allow_voice_tags: bool = False,
-    ) -> AsyncGenerator[Tuple[str, str, str, str, List[int], Optional[float]], None]:
-        """Chunk text across [voice:...] segments.
+    ) -> AsyncGenerator[Tuple[str, str, str, float, str, List[int], Optional[float]], None]:
+        """Chunk text across [voice:...] and [rate:...] segments.
 
-        Yields (voice_name, voice_path, lang_code, chunk_text, tokens, pause_s).
+        Yields (voice_name, voice_path, lang_code, rate, chunk_text, tokens, pause_s).
         Each distinct speaker is resolved once per request; the backend then
         caches its tensor and pipeline, so switching voices between chunks costs
         no extra model work.
@@ -282,9 +281,11 @@ class TTSService:
         """
         resolved: Dict[str, Tuple[str, str]] = {}
         normalization_options = normalization_options or NormalizationOptions()
-        segments = split_by_voice(text, voice) if allow_voice_tags else [(voice, text)]
+        segments = (
+            split_by_voice(text, voice) if allow_voice_tags else [(voice, 1.0, text)]
+        )
 
-        for segment_voice, segment_text in segments:
+        for segment_voice, segment_rate, segment_text in segments:
             if segment_voice not in resolved:
                 resolved[segment_voice] = await self._get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
@@ -304,6 +305,7 @@ class TTSService:
                     voice_name,
                     voice_path,
                     segment_lang,
+                    segment_rate,
                     chunk_text,
                     tokens,
                     pause_duration_s,
@@ -336,6 +338,7 @@ class TTSService:
                 voice_name,
                 voice_path,
                 pipeline_lang_code,
+                segment_rate,
                 chunk_text,
                 tokens,
                 pause_duration_s,
@@ -405,7 +408,7 @@ class TTSService:
                             tokens,  # Pass tokens for legacy backends
                             voice_name,  # Pass voice name
                             voice_path,  # Pass voice path
-                            speed,
+                            clamp_rate(speed * segment_rate),
                             writer,
                             output_format,
                             is_first=(chunk_index == 0),

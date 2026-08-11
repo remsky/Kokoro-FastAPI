@@ -8,6 +8,7 @@ import TextEditor from './components/TextEditor.js';
 import ReadAlong from './components/ReadAlong.js';
 import config from './config.js';
 import { closeOnOutsidePress } from './dismiss.js';
+import { locateInsert } from './insertLog.js';
 import {
     CAST_NAME_PATTERN,
     addToCast,
@@ -25,6 +26,7 @@ import {
     renameVoiceTags,
     seedVoiceTag,
     stripVoiceTags,
+    suggestCastName,
     unspeakableTagNames,
     updateCastMix
 } from './voiceTags.js';
@@ -37,6 +39,7 @@ export class App {
         this.editing = null;
         this.tagMode = false;
         this.stagedBeforeTags = '';
+        this.lastInsert = null;
         this.elements = {
             generateBtn: document.getElementById('generate-btn'),
             generateBtnText: document.querySelector('#generate-btn .btn-text'),
@@ -56,6 +59,8 @@ export class App {
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
             removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn'),
+            voiceCastList: document.getElementById('voice-cast-list'),
+            undoInsertBtn: document.getElementById('undo-insert-btn'),
             castFileMenu: document.getElementById('cast-file-menu'),
             saveCastBtn: document.getElementById('save-cast-btn'),
             importCastBtn: document.getElementById('import-cast-btn'),
@@ -135,6 +140,7 @@ export class App {
         if (this.elements.castFileMenu) {
             this.setupCastFileMenu();
         }
+        this.elements.undoInsertBtn?.addEventListener('click', () => this.undoLastInsert());
 
         this.setVoiceTagMode(this.tagMode);
     }
@@ -147,9 +153,10 @@ export class App {
             this.setEditing(null);
         }
         this.voiceSelector.setTagMode(enabled, {
-            onCommit: () => this.commitMix(),
+            onCommit: (rate, name) => this.commitMix(rate, name),
             onInsert: (name) => this.insertVoiceTag(name),
             onRename: (name, next) => this.renameCastMember(name, next),
+            onEdit: (name) => this.toggleEditMix(name),
             onMenuAction: (action, name) => this.castMenuAction(action, name),
             isPlaced: (name) => hasVoiceTagFor(this.textEditor.getText(), name)
         });
@@ -157,7 +164,7 @@ export class App {
         if (enabled) {
             // the staged mix joins the cast but is remembered, so leaving the tab hands the same voice back
             this.stagedBeforeTags = this.voiceService.getSelectedVoiceString() || this.cast[0]?.mix || '';
-            this.commitMix();
+            this.commitMix(undefined, undefined, { quiet: true });
             // the seeded tag is the whole explanation of the syntax
             const seeded = seedVoiceTag(this.textEditor.getText(), this.cast[0]?.name);
             if (seeded.changed) {
@@ -181,29 +188,50 @@ export class App {
         }
     }
 
-    /**
-     * Moves the staged mix into the cast and empties the mixer, so building the next
-     * voice starts from nothing. Placing it in the text stays a separate click.
-     */
-    commitMix() {
+    /** Moves the staged mix into the cast and empties the mixer. */
+    commitMix(rate, name, { quiet = false } = {}) {
         const mix = this.voiceService.getSelectedVoiceString();
         if (!mix) {
             return;
         }
 
         if (this.editing) {
-            this.saveEditedMix(this.editing, mix);
+            this.saveEditedMix(this.editing, mix, rate);
         } else {
-            this.setCast(addToCast(this.cast, mix));
+            const chosen = String(name || '').trim() || suggestCastName(mix, rate);
+            const error = this.castNameError(chosen, mix, rate);
+            // a refused create keeps the mixer and the name, so they can be adjusted
+            if (error && !quiet) {
+                this.voiceSelector.showNameError(error);
+                return;
+            }
+            if (!error) {
+                this.setCast(addToCast(this.cast, mix, rate, chosen));
+            }
         }
 
         this.voiceSelector.setMix('');
     }
 
+    /** Why the staged name cannot join the cast, empty when it can. */
+    castNameError(name, mix, rate) {
+        if (name !== mix && name !== suggestCastName(mix, rate) && !CAST_NAME_PATTERN.test(name)) {
+            return 'A cast name is 1 to 24 letters, numbers, dashes or underscores';
+        }
+        const folded = name.toLowerCase();
+        if (this.cast.some((entry) => entry.name.toLowerCase() === folded)) {
+            return `"${name}" is already in the cast`;
+        }
+        if (name !== mix && this.voiceService.getAvailableVoices().some((voice) => voice.toLowerCase() === folded)) {
+            return `"${name}" is already taken by a voice`;
+        }
+        return '';
+    }
+
     /** A renamed member keeps its name, so the tags already in the text still point at it. */
-    saveEditedMix(name, mix) {
+    saveEditedMix(name, mix, rate) {
         const member = this.cast.find((entry) => entry.name === name);
-        let cast = updateCastMix(this.cast, name, mix);
+        let cast = updateCastMix(this.cast, name, mix, rate);
 
         // a member still standing for its own mix has to follow it, tags and all
         if (member && member.name === member.mix && member.mix !== mix) {
@@ -211,11 +239,21 @@ export class App {
             cast = this.cast.some((entry) => entry.name === mix)
                 ? removeFromCast(cast, name)
                 : renameCastMember(cast, name, mix);
+            this.renameInLog(name, mix);
             this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, mix));
         }
 
         this.setCast(cast);
         this.setEditing(null);
+    }
+
+    toggleEditMix(name) {
+        if (this.editing === name) {
+            this.setEditing(null);
+            this.voiceSelector.setMix('');
+            return;
+        }
+        this.castMenuAction('edit', name);
     }
 
     castMenuAction(action, name) {
@@ -226,15 +264,17 @@ export class App {
 
         if (action === 'edit') {
             this.setEditing(name);
-            this.voiceSelector.setMix(member.mix);
+            this.voiceSelector.setMix(member.mix, member.rate);
         } else if (action === 'strip') {
             this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
             this.updateVoiceTagNotice();
-        } else if (action === 'reset' && member.name !== member.mix) {
-            // the tags stay where they are, so the name they answer to becomes the mix again
+        } else if (action === 'reset' && member.name !== member.mix
+            && !this.cast.some((entry) => entry.name === member.mix)) {
+            // tags stay put and answer to the mix again, unless it is already a member and a twin name would break every name-keyed lookup
             if (this.editing === name) {
                 this.setEditing(member.mix);
             }
+            this.renameInLog(name, member.mix);
             this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, member.mix));
             this.setCast(renameCastMember(this.cast, name, member.mix));
         } else if (action === 'remove' && !hasVoiceTagFor(this.textEditor.getText(), name)) {
@@ -251,10 +291,7 @@ export class App {
         this.voiceSelector.setEditing(name);
     }
 
-    /**
-     * A short name is only a label for the mix, so the rules are the tag syntax plus
-     * anything that would shadow a real voice or another member.
-     */
+    /** A name is the tag syntax, minus anything shadowing a voice or member. */
     renameCastMember(name, requested) {
         const next = String(requested || '').trim();
         // re-rendering is what puts the chip back, so it also ends the edit that was refused
@@ -290,6 +327,7 @@ export class App {
         if (this.editing === name) {
             this.setEditing(next);
         }
+        this.renameInLog(name, next);
         this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
         this.setCast(renameCastMember(this.cast, name, next));
     }
@@ -368,14 +406,16 @@ export class App {
         const available = this.voiceService.getAvailableVoices();
         const base = replace ? [] : this.cast;
         let cast = base;
-        for (const { name, mix } of members) {
+        for (const member of members) {
+            const { name, mix } = member;
             // folded like the server resolves aliases, so a case-variant name cannot shadow a voice or member
             const folded = name.toLowerCase();
             const known = isSpeakableMix(mix, available);
-            const taken = cast.some((entry) => entry.name.toLowerCase() === folded || entry.mix === mix)
+            // by name only: two presets over one mix at different paces are the point
+            const taken = cast.some((entry) => entry.name.toLowerCase() === folded)
                 || (name !== mix && available.some((voice) => voice.toLowerCase() === folded));
             if (known && !taken) {
-                cast = [...cast, { name, mix }];
+                cast = [...cast, member];
             }
         }
 
@@ -399,14 +439,71 @@ export class App {
     }
 
     insertVoiceTag(voice) {
-        const { text, cursor } = insertVoiceTag(this.textEditor.getPageText(), this.textEditor.getCursor(), voice);
+        const page = this.textEditor.getPageText();
+        const { text, cursor } = insertVoiceTag(page, this.textEditor.getCursor(), voice);
+        // the inserted span ends at the caret, spaces included
+        const inserted = text.slice(cursor - (text.length - page.length), cursor);
         this.textEditor.setPageText(text, cursor);
+        this.lastInsert = {
+            inserted,
+            offset: this.textEditor.pageStart(this.textEditor.currentPage - 1) + cursor - inserted.length
+        };
+        this.renderUndoInsert();
     }
 
-    /**
-     * Tags left in the text outside tag mode are sent as prose and read aloud, so the
-     * count is offered with a way out rather than a warning to act on.
-     */
+    renderUndoInsert() {
+        this.elements.undoInsertBtn?.toggleAttribute('hidden', !this.lastInsert);
+    }
+
+    // runs before the rename rewrites the text
+    renameInLog(from, to) {
+        const entry = this.lastInsert;
+        if (!entry) {
+            return;
+        }
+        const tag = `[voice:${from}]`;
+        const before = this.textEditor.getText().slice(0, entry.offset).split(tag).length - 1;
+        this.lastInsert = {
+            inserted: entry.inserted.replaceAll(tag, `[voice:${to}]`),
+            offset: entry.offset + (`[voice:${to}]`.length - tag.length) * before
+        };
+    }
+
+    undoLastInsert() {
+        const entry = this.lastInsert;
+        if (!entry) {
+            return;
+        }
+
+        const { at, sure } = locateInsert(this.textEditor.getText(), entry);
+        if (at === -1) {
+            this.lastInsert = null;
+            this.renderUndoInsert();
+            this.showStatus('That insert is no longer in the text', 'error');
+            return;
+        }
+
+        if (!sure) {
+            const lead = entry.inserted.length - entry.inserted.trimStart().length;
+            this.textEditor.revealOffset(at + lead, entry.inserted.trim().length);
+            this.showStatus('The text has changed around it, remove the tag by hand', 'error');
+            return;
+        }
+
+        const { page, offset } = this.textEditor.pageAt(at);
+        this.textEditor.goToPage(page + 1);
+        const pageText = this.textEditor.getPageText();
+        if (pageText.slice(offset, offset + entry.inserted.length) !== entry.inserted) {
+            this.showStatus('That insert cannot be undone cleanly, edit it out by hand', 'error');
+            return;
+        }
+        this.textEditor.setPageText(pageText.slice(0, offset) + pageText.slice(offset + entry.inserted.length), offset);
+        this.lastInsert = null;
+        this.renderUndoInsert();
+        this.showStatus(`Removed ${entry.inserted.trim()}`, 'success');
+    }
+
+    /** Tags left in the text outside tag mode are sent as prose and read aloud. */
     updateVoiceTagNotice() {
         const notice = this.elements.voiceTagNotice;
         if (!notice) {

@@ -92,19 +92,22 @@ function snapToBoundary(text, cursor) {
 // first char anchored like TAG_SOURCE, so a legal cast name always makes a matchable tag
 export const CAST_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,23}$/;
 
-/**
- * A new member stands for its own mix, so the tag placed in the text is the plain
- * one the server would take anyway and nothing has to be defined. Renaming is what
- * turns a member into an alias. Membership is by exact mix string, so af_bella and
- * af_bella(2) are separate members and the same mix cannot be staged twice.
- */
-export function addToCast(cast, mix) {
+export function suggestCastName(mix, rate) {
     const value = String(mix || '').trim();
-    if (!value || cast.some((member) => member.mix === value)) {
+    const pace = normalizeRate(rate);
+    return pace && value ? `${value}__${pace}` : value;
+}
+
+/** Membership is keyed by name, so one mix can back several members. */
+export function addToCast(cast, mix, rate, name) {
+    const value = String(mix || '').trim();
+    const pace = normalizeRate(rate);
+    const chosen = String(name || '').trim() || suggestCastName(value, pace);
+    if (!value || cast.some((member) => member.name === chosen)) {
         return cast;
     }
 
-    return [...cast, { name: value, mix: value }];
+    return [...cast, { name: chosen, mix: value, ...(pace ? { rate: pace } : {}) }];
 }
 
 export function removeFromCast(cast, name) {
@@ -115,29 +118,38 @@ export function renameCastMember(cast, name, next) {
     return cast.map((member) => (member.name === name ? { ...member, name: next } : member));
 }
 
-export function updateCastMix(cast, name, mix) {
-    return cast.map((member) => (member.name === name ? { ...member, mix } : member));
+export function updateCastMix(cast, name, mix, rate) {
+    const pace = normalizeRate(rate);
+    return cast.map((member) => (member.name === name
+        ? { name: member.name, mix, ...(pace ? { rate: pace } : {}) }
+        : member));
 }
 
-/** Only a name that stands for something else has to travel with the request. */
+/** A pace only counts inside the request bounds, and 1 is the default going unsaid. */
+export function normalizeRate(value) {
+    const rate = typeof value === 'string' ? parseFloat(value) : value;
+    return Number.isFinite(rate) && rate >= 0.25 && rate <= 4 && rate !== 1 ? rate : undefined;
+}
+
+function aliasValue(member) {
+    return member.rate ? { voice: member.mix, rate: member.rate } : member.mix;
+}
+
+/** A member travels when renamed or paced. */
 export function castAliases(cast) {
     return cast.reduce((aliases, member) => {
-        if (member.name !== member.mix) {
-            aliases[member.name] = member.mix;
+        if (member.name !== member.mix || member.rate) {
+            aliases[member.name] = aliasValue(member);
         }
         return aliases;
     }, {});
 }
 
-/**
- * The cast as the request field it becomes, so a saved file drops straight into a call.
- * A member standing for its own mix is written out too, since a name meaning itself
- * resolves to itself and is the only way that chip comes back.
- */
+/** The cast as the request field it becomes, self-named members included. */
 export function exportCast(cast) {
     return {
         voice_aliases: cast.reduce((aliases, member) => {
-            aliases[member.name] = member.mix;
+            aliases[member.name] = aliasValue(member);
             return aliases;
         }, {})
     };
@@ -151,9 +163,16 @@ export function parseCastFile(data) {
 
     const aliases = data.voice_aliases && typeof data.voice_aliases === 'object' ? data.voice_aliases : data;
     return Object.entries(aliases)
-        .filter(([, mix]) => typeof mix === 'string')
-        .map(([name, mix]) => ({ name: String(name).trim(), mix: mix.trim() }))
-        .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
+        .map(([name, value]) => {
+            const plain = typeof value === 'string';
+            const mix = plain ? value : String(value?.voice ?? '');
+            const rate = plain ? undefined : normalizeRate(value?.rate);
+            return { name: String(name).trim(), mix: mix.trim(), ...(rate ? { rate } : {}) };
+        })
+        // the third form is the suggested paced name, which carries the mix's punctuation
+        .filter(({ name, mix, rate }) => mix && (name === mix
+            || CAST_NAME_PATTERN.test(name)
+            || name === suggestCastName(mix, rate)));
 }
 
 /** parseVoiceMix drops empty +-parts, so speakability is judged before that smoothing hides them. */

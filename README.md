@@ -326,17 +326,7 @@ import requests
 response = requests.get("http://localhost:8880/v1/audio/voices")
 voices = [v["id"] for v in response.json()["voices"]]
 
-# Example 1: Simple voice combination (50%/50% mix)
-response = requests.post(
-    "http://localhost:8880/v1/audio/speech",
-    json={
-        "input": "Hello world!",
-        "voice": "af_bella+af_sky",  # Equal weights
-        "response_format": "mp3"
-    }
-)
-
-# Example 2: Weighted voice combination (67%/33% mix)
+# Weighted voice combination (67%/33% mix)
 response = requests.post(
     "http://localhost:8880/v1/audio/speech",
     json={
@@ -346,7 +336,7 @@ response = requests.post(
     }
 )
 
-# Example 3: Download combined voice as .pt file
+# Download combined voice as .pt file
 response = requests.post(
     "http://localhost:8880/v1/audio/voices/combine",
     json="af_bella(2)+af_sky(1)"  # 2:1 ratio = 67%/33%
@@ -416,9 +406,9 @@ curl -X POST http://localhost:8880/v1/audio/speech \
 <details>
 <summary>Multi-Speaker / Dialogue</summary>
 
-- `[voice:...]` tags work anywhere `input` is accepted when enabled (on by default). 
-- OpenAI endpoint requires `allow_voice_tags=true` passed per request to enable (off by default)
-- Opt-out entirely by setting `ENABLE_VOICE_TAGS=false` to refuse the parameter, and disable `/dev/dialogue` server-wide (403). 
+- `[voice:...]` tags switch speakers inline, anywhere `input` is accepted
+- `/v1/audio/speech` needs `allow_voice_tags: true` per request; `/dev/dialogue` allows them by default
+- `ENABLE_VOICE_TAGS=false` opts out server-wide: the parameter is refused and `/dev/dialogue` 403s
 
 ```bash
 curl -X POST http://localhost:8880/v1/audio/speech \
@@ -460,7 +450,6 @@ curl -X POST http://localhost:8880/dev/dialogue \
 
 Notes:
 - Any text before the first tag uses the request's `voice`/default. 
-- Only the inline form on `/v1/audio/speech` requires `allow_voice_tags`, `/dev/dialogue` does so by default
 - Each speaker keeps its own language pipeline based on voice prefix. An explicit `lang_code` will override every speaker.
 - Consecutive turns sharing a voice are merged automatically.
 - Tags accept short names from **Voice Aliases** above, instead of full weighted mixes.
@@ -470,7 +459,7 @@ Notes:
   <img src="assets/gpu_dialogue_text_length.png" width="45%" alt="Throughput at two voice change rates as the generation grows" style="border: 2px solid #333; padding: 10px;">
 </div>
 
-Number of voices has minimal impact on generation speed. For continuous swaps though, if each speaker gets less than about 2 sentences, chunking requirements slow generation down. Still faster than what was previously required, and it stays a flat cost rather than compounding as the text grows. Regenerate with `examples/assorted_checks/test_dialogue/`.
+Number of voices has minimal impact on generation speed. For continuous swaps though, if each speaker gets less than about 2 sentences, chunking requirements slow generation down. Still a flat cost, not compounding as the text grows. Regenerate with `examples/assorted_checks/test_dialogue/`.
 </details>
 
 ### Text Control
@@ -478,18 +467,45 @@ Number of voices has minimal impact on generation speed. For continuous swaps th
 <details>
 <summary>Inline Control Tokens</summary>
 
-Three tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
+Four tokens can be embedded in the `input` text and are parsed server-side (API, WebUI, or any client):
 
-- **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]`, `[PAUSE 1.0]`, and SSML `<break/>` are not recognized and get read aloud.
+- **Pause**: `[pause:1.5s]` inserts that much silence. Must be exactly this form (colon, trailing `s`, case-insensitive). `[pause=1.5]` and `[PAUSE 1.0]` are not recognized and get read aloud.
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
 - **Voice**: `[voice:am_michael]` switches speaker for everything that follows.
   - Requires `allow_voice_tags: true` per request, and `ENABLE_VOICE_TAGS` server-side (on by default). Otherwise the tag is spoken as written.
   - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), 
   - Short names/aliases can be defined in `voice_aliases`, 
   - Unknown values return a 400.
+- **Rate**: `[rate:1.5]` multiplies the request `speed` until the next rate tag or voice change; `[rate:1.0]` reverts. Clamped to 0.25-4.0. Same gating as voice tags.
+  - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks, as the `voice` parameter or in tags. Useful for voices that read fast or slow, and for named presets over one voice (`narrator_fast`, `narrator_slow`).
+  - Rate belongs to the voice speaking it. Every `[voice:...]` tag re-asserts that voice's own rate, `1.0` when it has none, so a calibrated speaker cannot drag its pace onto the next one. Use `speed` for a pace over the whole request.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
+```
+</details>
+
+<details>
+<summary>SSML Input (experimental)</summary>
+
+`POST /dev/ssml` translates SSML into the tokens above; feed the result to the speech endpoints, which never parse XML themselves. Send `text`, plus `voice` if your speech request uses one, then pass the result back with `allow_voice_tags: true`. Without a voice, `<voice>`/`<prosody>` are stripped and their content kept.
+
+- `<break time="750ms"/>` becomes `[pause:0.75s]`. `strength=` instead of `time=` gives none/x-weak 0s, weak 0.25s, medium 0.5s, strong 1s, x-strong 1.5s
+- `<voice name="am_michael">` becomes `[voice:am_michael]`, reverts at the closing tag
+- `<prosody rate="slow">` becomes `[rate:0.75]`, and takes `80%` or `1.2` too. Multiplies the request `speed`, clamped 0.25-4.0, reverts. `pitch`/`volume` ignored
+- `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` becomes `[Worcester](/wˈʊstər/)`, IPA and English only
+- `<sub alias="World Wide Web">WWW</sub>` speaks the alias
+- `<desc>` is dropped with its text, an audio description is not speech
+- `<emphasis>`, `<say-as>`, `<p>`, `<s>`, `<lang>`, etc: markup dropped, text spoken
+- Malformed SSML is a 400, non-SSML passes through unchanged
+- DTDs are refused and nesting past `SSML_MAX_DEPTH` (10) is a 400; no dialect uses a DTD, real documents nest 2-5
+- Prefixed names (`google:style`, `mstts:express-as`, `amazon:effect`) need their `xmlns:` on `<speak>`, vendor docs often omit it
+- `GET /dev/ssml` serves these tables as data, read off the translator itself
+
+```bash
+curl -s http://localhost:8880/dev/ssml -H "Content-Type: application/json" \
+  -d '{"text": "<speak>The city of <phoneme alphabet=\"ipa\" ph=\"wˈʊstər\">Worcester</phoneme> is easy.<break time=\"1s\"/>See?</speak>"}'
+# {"text": "The city of [Worcester](/wˈʊstər/) is easy. [pause:1.0s] See?"}
 ```
 </details>
 
@@ -735,12 +751,96 @@ To reproduce, see `examples/assorted_checks/test_transcription/README.md`.
 </details>
 
 <details>
+<summary>Configuration Variables</summary>
+
+Every setting is an environment variable, or a line in a `.env` file at the project root. Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Two rows below are marked process-only: they are read outside the settings object, so they work as environment variables but not from `.env`.
+
+**API**
+
+| Variable | Default | |
+|---|---|---|
+| `HOST` | `0.0.0.0` | Bind address |
+| `PORT` | `8880` | Bind port |
+| `API_TITLE` | `Kokoro TTS API` | OpenAPI title |
+| `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
+| `API_VERSION` | from `VERSION` | OpenAPI version string |
+| `API_LOG_LEVEL` | `DEBUG` | loguru level, see Logging below (process-only) |
+
+**Model & device**
+
+| Variable | Default | |
+|---|---|---|
+| `USE_GPU` | `true` | Use GPU if one is available |
+| `DEVICE_TYPE` | auto | Force `cuda`, `mps`, or `cpu` |
+| `MODEL_DIR` | `/app/api/src/models` | Where model weights live, container path |
+| `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where voice packs live, container path |
+| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Fallback download source when `MODEL_DIR` is empty |
+| `DOWNLOAD_MODEL` | `true` | Fetch weights at image build and container start (process-only) |
+
+**Voices**
+
+| Variable | Default | |
+|---|---|---|
+| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
+| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter |
+| `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
+| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
+| `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
+
+**Text processing**
+
+| Variable | Default | |
+|---|---|---|
+| `TARGET_MIN_TOKENS` | `175` | Chunker aims for at least this many tokens |
+| `TARGET_MAX_TOKENS` | `250` | Chunker aims for at most this many |
+| `ABSOLUTE_MAX_TOKENS` | `450` | Hard ceiling per chunk, model limit is 510 |
+| `ENABLE_SSML` | `true` | Kill switch for the `/dev/ssml` router, both routes 403 when off |
+| `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
+| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
+
+**Audio**
+
+| Variable | Default | |
+|---|---|---|
+| `DEFAULT_VOLUME_MULTIPLIER` | `1.0` | Global gain applied to generated audio |
+| `GAP_TRIM_MS` | `1` | Base trim from each streaming chunk end |
+| `DYNAMIC_GAP_TRIM_PADDING_MS` | `410` | Padding added back for dynamic gap trim |
+| `DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER` | `{".": 1, "!": 0.9, "?": 1, ",": 0.8}` | Per-punctuation scaling of that padding, dict-valued so set it in `.env` rather than a shell |
+
+**Web player & CORS**
+
+| Variable | Default | |
+|---|---|---|
+| `ENABLE_WEB_PLAYER` | `true` | Serve the browser UI |
+| `WEB_PLAYER_PATH` | `web` | Static file root for it |
+| `CORS_ENABLED` | `true` | Send CORS headers |
+| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost |
+
+**Temp files**
+
+| Variable | Default | |
+|---|---|---|
+| `TEMP_FILE_DIR` | `api/temp_files` | Where `return_download_link` files are written |
+| `MAX_TEMP_DIR_SIZE_MB` | `2048` | Prune temp files past this total |
+| `MAX_TEMP_DIR_AGE_HOURS` | `1` | Prune temp files older than this |
+| `MAX_TEMP_DIR_COUNT` | `3` | Keep at most this many temp files |
+
+**Operational routes**
+
+| Variable | Default | |
+|---|---|---|
+| `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
+| `ALLOW_DEV_UNLOAD` | `false` | Expose `POST /dev/unload` |
+
+</details>
+
+<details>
 <summary>Debug Endpoints</summary>
 
 System state and resource usage, for debugging exhaustion or performance issues. The `/debug/*` routes expose host and process internals, so they are off by default; set `ENABLE_DEBUG_ENDPOINTS=true` to enable.
 
 - `/debug/threads` - Get thread information and stack traces
-- `/debug/storage` - Monitor temp file and output directory usage
+- `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
 - `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 

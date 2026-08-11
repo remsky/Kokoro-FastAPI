@@ -136,7 +136,7 @@ test('a created tag is placed at the caret when its chip is clicked', async ({ p
         el.focus();
         el.setSelectionRange(at, at);
     }, seeded.indexOf('Second'));
-    await page.locator(`.cast-member[data-mix="${mix}"]`).click();
+    await page.locator(`.cast-member[data-mix="${mix}"] .cast-insert-btn`).click();
 
     await expect(editor(page)).toHaveValue(seeded.replace('Second', `[voice:${mix}] Second`));
     await expect(castNames(page)).toHaveCount(2);
@@ -146,7 +146,7 @@ test('a cast voice is placed again and again from its chip', async ({ page }) =>
     await editor(page).fill('One. Two. Three.');
     await tagsTab(page).click();
 
-    const chip = page.locator('.cast-member').first();
+    const chip = page.locator('.cast-member .cast-insert-btn').first();
     await editor(page).click();
     await chip.click();
     await chip.click();
@@ -278,7 +278,7 @@ test('a cast member can be renamed, and the tags follow', async ({ page }) => {
     await editor(page).fill('First line. Second line.');
     await tagsTab(page).click();
 
-    const chip = page.locator('.cast-member').first();
+    const chip = page.locator('.cast-member .cast-insert-btn').first();
     await editor(page).click();
     await chip.click(); // a second tag, so the rename has more than one to follow
 
@@ -373,7 +373,7 @@ test('one speaker can be cleared out of the text from its own menu', async ({ pa
     await other.click();
     await editor(page).click();
     await page.locator('#create-tag-btn').click();
-    await page.locator(`.cast-member[data-mix="${mix}"]`).click();
+    await page.locator(`.cast-member[data-mix="${mix}"] .cast-insert-btn`).click();
     expect((await editor(page).inputValue()).match(/\[voice:/g)).toHaveLength(2);
 
     await page.locator(`.cast-member[data-mix="${mix}"] .cast-menu-btn`).click();
@@ -513,7 +513,7 @@ test('tags left behind on the voices tab can be removed in one click', async ({ 
     await option.click();
     await editor(page).click();
     await page.locator('#create-tag-btn').click();
-    await page.locator(`.cast-member[data-mix="${mix}"]`).click();
+    await page.locator(`.cast-member[data-mix="${mix}"] .cast-insert-btn`).click();
     await expect(page.locator('#voice-tag-notice')).toBeHidden();
 
     await voicesTab(page).click();
@@ -546,8 +546,45 @@ test('text that does not open with a tag has nothing to speak with', async ({ pa
         el.focus();
         el.setSelectionRange(0, 0);
     });
-    await page.locator('.cast-member').first().click();
+    await page.locator('.cast-member .cast-insert-btn').first().click();
     await expect(editor(page)).toHaveValue(/^\[voice:/);
+});
+
+test('a fat-fingered insert is undone', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+
+    const before = await editor(page).inputValue();
+    await editor(page).evaluate((el) => {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+    });
+    await page.locator('.cast-member .cast-insert-btn').first().click();
+    expect(await editor(page).inputValue()).not.toBe(before);
+
+    await page.locator('#undo-insert-btn').click();
+    await expect(editor(page)).toHaveValue(before);
+    await expect(page.locator('#undo-insert-btn')).toBeHidden();
+});
+
+test('undo follows a rename', async ({ page }) => {
+    await editor(page).fill('First line.');
+    await tagsTab(page).click();
+
+    await editor(page).evaluate((el) => {
+        el.focus();
+        el.setSelectionRange(el.value.length, el.value.length);
+    });
+    await page.locator('.cast-member .cast-insert-btn').first().click();
+
+    await page.locator('.cast-menu-btn').first().click();
+    await page.locator('.cast-menu-item[data-action="rename"]').click();
+    await page.locator('.cast-rename-input').fill('narrator');
+    await page.locator('.cast-rename-input').press('Enter');
+
+    // the tracked insert followed the rename, so undo lifts the renamed tag back out
+    await page.locator('#undo-insert-btn').click();
+    await expect(editor(page)).toHaveValue('[voice:narrator] First line.');
 });
 
 test('a tag on its own is not enough to generate', async ({ page }) => {

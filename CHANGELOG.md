@@ -6,9 +6,10 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
+- `/dev/ssml` endpoint, aligning with the SSML standard (experimental). Disable server-wide with `ENABLE_SSML=false`.
 - Multi-speaker input (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
   - Inline `[voice:name]` tags switch speaker mid-text.
-  - `voice_aliases` mapping for named weighted voice mixes.
+  - `voice_aliases` mapping for named weighted voice mixes, with optional per-alias `rate`.
 - `/v1/audio/speech`:
   - Chunk timing sidecar (`return_timing`), writes per-chunk `{text, start, end}` JSON next to the download file. A lighter weight timestamps response (used in the web reader feature)
 - `/dev/` endpoints:
@@ -19,13 +20,18 @@ Per-PR attribution and contributor credits are published automatically on the co
   - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
   - Find/replace across pages, directly accessible page numbers.
   - Download menu (audio / chunk timings / both).
+  - Alias rate in the cast builder, synced with the editor.
 
 ### Changed
 - Dropped unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
+- Speed bounds (0.25 to 4.0) shared across speed fields and SSML.
+- Unrecognized `.env` keys warn at startup instead of refusing to boot.
+- README config table, covering every setting.
 
 ### Removed
 - Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
 - Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
+- `OUTPUT_DIR`, `OUTPUT_DIR_SIZE_LIMIT_MB`, `SAMPLE_RATE` settings, never read.
 
 ## [v0.7.2] 2026-08-06
 ### Security
