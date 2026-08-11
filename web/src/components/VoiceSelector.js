@@ -89,7 +89,6 @@ export class VoiceSelector {
         this.paintCast();
     }
 
-    /** Pinned first, then whatever survives the filter box, so a long cast stays workable. */
     paintCast() {
         const list = this.elements.voiceCastList;
         if (!list) {
@@ -157,7 +156,7 @@ export class VoiceSelector {
 
         // the caret is where the tag lands, so clicking in here must not steal focus
         cast.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('cast-rename-input')) {
+            if (e.target.matches('input')) {
                 return;
             }
             e.preventDefault();
@@ -287,7 +286,7 @@ export class VoiceSelector {
         try {
             localStorage.setItem(PINS_KEY, JSON.stringify([...this.pins]));
         } catch {
-            // pins still hold for this session
+            //
         }
         this.paintCast();
     }
@@ -381,9 +380,7 @@ export class VoiceSelector {
         this.editing = name;
         const box = this.elements.createTagName;
         if (box) {
-            // the name is fixed while editing, rename is its own flow
             box.value = name ?? '';
-            box.disabled = Boolean(name);
             box.setCustomValidity('');
             this.nameEdited = false;
         }

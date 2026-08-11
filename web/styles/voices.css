@@ -370,9 +370,8 @@
 }
 
 .cast-filter {
-    width: 100%;
-    margin-bottom: 0.35rem;
-    padding: 0.15rem 0.3rem;
+    width: 5rem;
+    padding: 0.1rem 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.2rem;

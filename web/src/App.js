@@ -196,6 +196,10 @@ export class App {
         }
 
         if (this.editing) {
+            const renamed = String(name || '').trim();
+            if (renamed && renamed !== this.editing && !this.renameCastMember(this.editing, renamed)) {
+                return;
+            }
             this.saveEditedMix(this.editing, mix, rate);
         } else {
             const chosen = String(name || '').trim() || suggestCastName(mix, rate);
@@ -304,12 +308,12 @@ export class App {
 
         if (next === name) {
             keepName();
-            return;
+            return true;
         }
 
         if (!CAST_NAME_PATTERN.test(next)) {
             keepName('A cast name is 1 to 24 letters, numbers, dashes or underscores');
-            return;
+            return false;
         }
 
         const taken = [
@@ -321,7 +325,7 @@ export class App {
         const folded = next.toLowerCase();
         if (taken.some((entry) => entry.toLowerCase() === folded)) {
             keepName(`"${next}" is already taken`);
-            return;
+            return false;
         }
 
         if (this.editing === name) {
@@ -331,6 +335,7 @@ export class App {
         this.voiceSelector.renamePin(name, next);
         this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
         this.setCast(renameCastMember(this.cast, name, next));
+        return true;
     }
 
     setCast(cast) {
@@ -759,6 +764,7 @@ export class App {
 
     showStatus(message, type = 'info') {
         this.elements.status.textContent = message;
+        this.elements.status.title = message;
         this.elements.status.className = 'status ' + type;
         // an uncleared timer from an earlier status would blank this one early
         clearTimeout(this._statusTimer);
