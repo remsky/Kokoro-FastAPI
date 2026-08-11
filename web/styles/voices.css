@@ -485,9 +485,9 @@
 }
 
 .cast-menu {
-    position: absolute;
-    z-index: 20;
-    display: flex;
+    position: fixed;
+    inset: auto;
+    margin: 0;
     flex-direction: column;
     min-width: 9.5rem;
     padding: 0.2rem;
@@ -497,8 +497,8 @@
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
 }
 
-.cast-menu[hidden] {
-    display: none;
+.cast-menu:popover-open {
+    display: flex;
 }
 
 .cast-menu-item {

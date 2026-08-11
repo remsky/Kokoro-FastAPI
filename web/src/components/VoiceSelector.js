@@ -196,6 +196,9 @@ export class VoiceSelector {
         });
 
         closeOnOutsidePress(cast, () => this.closeCastMenu());
+
+        window.addEventListener('scroll', () => this.closeCastMenu(), true);
+        window.addEventListener('resize', () => this.closeCastMenu());
     }
 
     toggleCastMenu(chip, focusFirstItem = false) {
@@ -205,20 +208,32 @@ export class VoiceSelector {
             return;
         }
 
+        this.closeCastMenu();
         const placed = this.handlers.isPlaced?.(chip.dataset.name) !== false;
         const noReset = this.resetBlockedReason(chip.dataset.name, chip.dataset.mix);
         this.menuFor = chip.dataset.name;
-        chip.querySelector('.cast-menu-btn')?.setAttribute('aria-expanded', 'true');
+        const button = chip.querySelector('.cast-menu-btn');
+        button?.setAttribute('aria-expanded', 'true');
         // a member standing for its own mix has no alias to undo, one whose mix is already a member cannot take that name back, and one still spoken cannot leave
         this.setMenuItem('reset', !noReset, noReset);
         this.setMenuItem('strip', placed, 'No tag in the text names this one');
         this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
-        menu.hidden = false;
-        menu.style.left = `${chip.offsetLeft}px`;
-        menu.style.top = `${chip.offsetTop + chip.offsetHeight + 4}px`;
+        menu.togglePopover(true);
+        this.placeCastMenu(button ?? chip);
         if (focusFirstItem) {
-            menu.querySelector('.cast-menu-item')?.focus();
+            menu.querySelector('.cast-menu-item')?.focus({ preventScroll: true });
         }
+    }
+
+    placeCastMenu(anchor) {
+        const menu = this.elements.castMenu;
+        const rect = anchor.getBoundingClientRect();
+        const room = window.innerHeight - rect.bottom - menu.offsetHeight - 8;
+        const left = Math.min(rect.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 4);
+        menu.style.left = `${Math.max(4, left)}px`;
+        menu.style.top = room > 0
+            ? `${rect.bottom + 4}px`
+            : `${Math.max(4, rect.top - menu.offsetHeight - 4)}px`;
     }
 
     /** Why undoing this alias is unavailable, empty when it is, read off the chips already rendered. */
@@ -243,9 +258,7 @@ export class VoiceSelector {
             ?.querySelector(`.cast-menu-btn[data-name="${CSS.escape(this.menuFor)}"]`);
         button?.setAttribute('aria-expanded', 'false');
         this.menuFor = null;
-        if (this.elements.castMenu) {
-            this.elements.castMenu.hidden = true;
-        }
+        this.elements.castMenu?.togglePopover(false);
         if (restoreFocus) {
             button?.focus();
         }
