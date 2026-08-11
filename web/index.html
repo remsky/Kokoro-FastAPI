@@ -99,8 +99,6 @@
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
                             <span class="voice-cast-title">Cast</span>
-                            <button type="button" id="undo-insert-btn" class="undo-insert-btn" hidden
-                                    title="Remove the last inserted tag from the text">Undo insert</button>
                             <details id="cast-file-menu" class="cast-file-menu">
                                 <summary class="cast-file-toggle" title="Save or load the cast" aria-label="Cast file options">▾</summary>
                                 <div class="cast-file-panel">
@@ -109,10 +107,15 @@
                                     <button type="button" id="import-cast-replace-btn" class="cast-menu-item">Import (replace)</button>
                                 </div>
                             </details>
+                            <button type="button" id="undo-insert-btn" class="undo-insert-btn" hidden
+                                    title="Remove the last inserted tag from the text">Undo insert</button>
                             <input type="file" id="import-cast-input" accept="application/json,.json" hidden>
                         </div>
+                        <input type="text" id="cast-filter" class="cast-filter" placeholder="Filter cast"
+                               aria-label="Filter cast" autocomplete="off" hidden>
                         <div id="voice-cast-list" class="voice-cast-list"></div>
                         <div id="cast-menu" class="cast-menu" role="menu" popover="manual">
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="pin">Pin</button>
                             <button type="button" role="menuitem" class="cast-menu-item" data-action="insert">Insert at cursor</button>
                             <button type="button" role="menuitem" class="cast-menu-item" data-action="rename">Rename</button>
                             <button type="button" role="menuitem" class="cast-menu-item" data-action="reset">Reset alias</button>

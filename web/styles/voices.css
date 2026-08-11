@@ -369,6 +369,34 @@
     padding: 0.15rem 0.4rem;
 }
 
+.cast-filter {
+    width: 100%;
+    margin-bottom: 0.35rem;
+    padding: 0.15rem 0.3rem;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.65rem;
+}
+
+.cast-filter[hidden] {
+    display: none;
+}
+
+.cast-filter:focus {
+    outline: none;
+    border-color: var(--fg-color);
+}
+
+.cast-no-match {
+    padding: 0.15rem 0.4rem;
+    color: var(--text-light);
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
 .cast-member {
     display: flex;
     align-items: center;
@@ -408,17 +436,14 @@
     color: var(--text);
 }
 
-/* the triangle points at the text the tag lands in */
 .cast-insert-btn {
-    font-size: 0.9rem;
     line-height: 1;
-    padding: 0.1rem 0.3rem;
-    color: var(--fg-color);
-    opacity: 0.7;
+    white-space: nowrap;
 }
 
-.cast-insert-btn:hover {
-    opacity: 1;
+.cast-member.is-pinned .cast-name::before {
+    content: "★ ";
+    color: var(--fg-color);
 }
 
 .cast-member.is-editing .cast-name {

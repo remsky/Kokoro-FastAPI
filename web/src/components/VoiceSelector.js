@@ -1,6 +1,16 @@
 import { closeOnOutsidePress } from '../dismiss.js';
 import { parseVoiceMix, suggestCastName } from '../voiceTags.js';
 
+const PINS_KEY = 'kokoro.cast-pins';
+
+function readPins() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(PINS_KEY)) || []);
+    } catch {
+        return new Set();
+    }
+}
+
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
         .replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -18,6 +28,7 @@ export class VoiceSelector {
             voiceCast: document.getElementById('voice-cast'),
             voiceCastList: document.getElementById('voice-cast-list'),
             castMenu: document.getElementById('cast-menu'),
+            castFilter: document.getElementById('cast-filter'),
             createTagRow: document.getElementById('create-tag-row'),
             createTagBtn: document.getElementById('create-tag-btn'),
             createTagRate: document.getElementById('create-tag-rate'),
@@ -25,6 +36,8 @@ export class VoiceSelector {
         };
         this.menuFor = null;
         this.editing = null;
+        this.cast = [];
+        this.pins = readPins();
         this.nameEdited = false;
         this.settleRename = () => {};
 
@@ -65,31 +78,55 @@ export class VoiceSelector {
     }
 
     renderCast(cast) {
+        this.cast = cast;
+        const filter = this.elements.castFilter;
+        if (filter) {
+            filter.hidden = !cast.length;
+            if (filter.hidden) {
+                filter.value = '';
+            }
+        }
+        this.paintCast();
+    }
+
+    /** Pinned first, then whatever survives the filter box, so a long cast stays workable. */
+    paintCast() {
         const list = this.elements.voiceCastList;
         if (!list) {
             return;
         }
 
         this.closeCastMenu();
-        list.innerHTML = cast
+        const query = (this.elements.castFilter?.value || '').trim().toLowerCase();
+        const shown = this.cast
+            .filter((m) => !query || m.name.toLowerCase().includes(query) || m.mix.toLowerCase().includes(query))
+            .sort((a, b) => this.pins.has(b.name) - this.pins.has(a.name));
+
+        if (!shown.length && query) {
+            list.innerHTML = '<span class="cast-no-match">Nothing matches</span>';
+            return;
+        }
+
+        list.innerHTML = shown
             .map((member) => {
                 const tagLabel = `[voice:${member.name}]`;
+                const pinned = this.pins.has(member.name);
                 const tip = [member.name === member.mix ? '' : member.mix, member.rate ? `${member.rate}x speed` : '']
                     .filter(Boolean).join(', ');
                 return `
-                <span class="cast-member${member.name === this.editing ? ' is-editing' : ''}"
+                <span class="cast-member${member.name === this.editing ? ' is-editing' : ''}${pinned ? ' is-pinned' : ''}"
                       data-name="${esc(member.name)}"
                       data-mix="${esc(member.mix)}"
                       title="${esc(tip)}">
                     <button type="button" class="cast-insert-btn" data-name="${esc(member.name)}"
                             title="Insert ${esc(tagLabel)} at the cursor"
-                            aria-label="Insert ${esc(tagLabel)} at the cursor">◂</button>
+                            aria-label="Insert ${esc(tagLabel)} at the cursor">◂ Insert</button>
+                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
+                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
+                    <span class="cast-sep" aria-hidden="true">|</span>
                     <button type="button" class="cast-name" data-name="${esc(member.name)}"
                             title="Edit the mix and speed"
                             aria-label="Edit ${esc(member.name)}">${esc(member.name)}</button>
-                    <span class="cast-sep" aria-hidden="true">|</span>
-                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
-                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
                 </span>
             `;
             })
@@ -159,6 +196,10 @@ export class VoiceSelector {
             this.closeCastMenu();
             // a rename open on another chip lands before this action re-renders the list under it
             this.settleRename();
+            if (item.dataset.action === 'pin') {
+                this.togglePin(name);
+                return;
+            }
             if (item.dataset.action === 'rename') {
                 this.startRename(name);
                 return;
@@ -195,6 +236,8 @@ export class VoiceSelector {
             }
         });
 
+        this.elements.castFilter?.addEventListener('input', () => this.paintCast());
+
         closeOnOutsidePress(cast, () => this.closeCastMenu());
 
         window.addEventListener('scroll', () => this.closeCastMenu(), true);
@@ -215,6 +258,7 @@ export class VoiceSelector {
         const button = chip.querySelector('.cast-menu-btn');
         button?.setAttribute('aria-expanded', 'true');
         // a member standing for its own mix has no alias to undo, one whose mix is already a member cannot take that name back, and one still spoken cannot leave
+        menu.querySelector('[data-action="pin"]').textContent = this.pins.has(chip.dataset.name) ? 'Unpin' : 'Pin';
         this.setMenuItem('reset', !noReset, noReset);
         this.setMenuItem('strip', placed, 'No tag in the text names this one');
         this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
@@ -229,11 +273,30 @@ export class VoiceSelector {
         const menu = this.elements.castMenu;
         const rect = anchor.getBoundingClientRect();
         const room = window.innerHeight - rect.bottom - menu.offsetHeight - 8;
-        const left = Math.min(rect.right - menu.offsetWidth, window.innerWidth - menu.offsetWidth - 4);
+        const left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 4);
         menu.style.left = `${Math.max(4, left)}px`;
         menu.style.top = room > 0
             ? `${rect.bottom + 4}px`
             : `${Math.max(4, rect.top - menu.offsetHeight - 4)}px`;
+    }
+
+    togglePin(name) {
+        if (!this.pins.delete(name)) {
+            this.pins.add(name);
+        }
+        try {
+            localStorage.setItem(PINS_KEY, JSON.stringify([...this.pins]));
+        } catch {
+            // pins still hold for this session
+        }
+        this.paintCast();
+    }
+
+    renamePin(from, to) {
+        if (this.pins.has(from)) {
+            this.togglePin(from);
+            this.togglePin(to);
+        }
     }
 
     /** Why undoing this alias is unavailable, empty when it is, read off the chips already rendered. */

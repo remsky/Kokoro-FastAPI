@@ -328,6 +328,7 @@ export class App {
             this.setEditing(next);
         }
         this.renameInLog(name, next);
+        this.voiceSelector.renamePin(name, next);
         this.textEditor.replaceText(renameVoiceTags(this.textEditor.getText(), name, next));
         this.setCast(renameCastMember(this.cast, name, next));
     }
