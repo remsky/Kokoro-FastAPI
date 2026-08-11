@@ -16,6 +16,7 @@ from numpy import number
 from torch import mul
 
 from ...structures.schemas import NormalizationOptions
+from .latex import normalize_latex
 
 # Constants
 VALID_TLDS = [
@@ -419,6 +420,10 @@ def handle_time(t: re.Match[str]) -> str:
 
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
+
+    # before money and symbol replacement claim the $ and backslashes
+    if normalization_options.latex_normalization:
+        text = normalize_latex(text)
 
     # Expand the "'re" contractions that espeak mis-phonemizes with a spurious
     # /ɹeɪ/ ("-ray") ending, e.g. "how're" -> /haʊɹeɪ/ which sounds like "harry".

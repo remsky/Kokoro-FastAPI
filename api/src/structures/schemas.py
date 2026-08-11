@@ -91,6 +91,10 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Replaces the remaining symbols after normalization with their words",
     )
+    latex_normalization: bool = Field(
+        default=False,
+        description="Speaks delimited LaTeX math ($..$, $$..$$, \\(..\\), \\[..\\]) as words, best on flat expressions",
+    )
 
 
 # shared with text_processor's VOICE_TAG_PATTERN so a rendered [voice:...] round-trips as one tag
