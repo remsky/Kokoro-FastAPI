@@ -1,7 +1,8 @@
 from xml.etree.ElementTree import ParseError
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from ..core.config import settings
 from ..services.text_processing.ssml import (
     BREAK_STRENGTH_S,
     PROSODY_RATE,
@@ -11,7 +12,20 @@ from ..services.text_processing.ssml import (
 from ..structures.schemas import RATE_MAX, RATE_MIN
 from ..structures.text_schemas import SsmlCapabilities, SsmlRequest, SsmlResponse
 
-router = APIRouter(tags=["ssml"])
+async def _require_ssml_enabled() -> None:
+    """403 when the server-level SSML kill switch is off"""
+    if not settings.enable_ssml:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "error": "permission_denied",
+                "message": "SSML translation is disabled on this server",
+                "type": "permission_error",
+            },
+        )
+
+
+router = APIRouter(tags=["ssml"], dependencies=[Depends(_require_ssml_enabled)])
 
 
 def _rejected(message: str) -> HTTPException:

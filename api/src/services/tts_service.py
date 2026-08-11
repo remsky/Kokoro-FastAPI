@@ -37,16 +37,15 @@ class TTSService:
     # Limit concurrent chunk processing
     _chunk_semaphore = asyncio.Semaphore(4)
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self):
         """Initialize service."""
-        self.output_dir = output_dir
         self.model_manager: Optional[ModelManager] = None
         self._voice_manager = None
 
     @classmethod
-    async def create(cls, output_dir: str = None) -> "TTSService":
+    async def create(cls) -> "TTSService":
         """Create and initialize TTSService instance."""
-        service = cls(output_dir)
+        service = cls()
         service.model_manager = await get_model_manager()
         service._voice_manager = await get_voice_manager()
         return service

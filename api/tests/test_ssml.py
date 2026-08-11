@@ -158,6 +158,19 @@ def test_depth_cap_fires_long_before_the_recursion_limit():
         translate_ssml(_nested(5000))
 
 
+@pytest.mark.parametrize("route", ["get", "post"])
+def test_kill_switch_403s_both_routes(route, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from api.src.main import app
+
+    monkeypatch.setattr(settings, "enable_ssml", False)
+    client = TestClient(app)
+    resp = client.get("/dev/ssml") if route == "get" else client.post("/dev/ssml", json={"text": "<speak>hi</speak>"})
+    assert resp.status_code == 403
+    assert resp.json()["detail"]["error"] == "permission_denied"
+
+
 @pytest.mark.parametrize("doc", CORPUS, ids=lambda p: p.stem)
 def test_provider_corpus_never_leaks_markup(doc):
     """Whatever elements a provider's SSML uses, none of it may reach the pipeline as markup."""

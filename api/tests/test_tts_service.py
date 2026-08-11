@@ -39,7 +39,7 @@ def tts_service(mock_managers):
     """Create TTSService instance with mocked dependencies."""
 
     async def _create_service():
-        return await TTSService.create("test_output")
+        return await TTSService.create()
 
     return _create_service()
 
@@ -57,8 +57,7 @@ async def test_service_creation():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
-        assert service.output_dir == "test_output"
+        service = await TTSService.create()
         assert service.model_manager is model_manager
         assert service._voice_manager is voice_manager
 
@@ -77,7 +76,7 @@ async def test_get_voice_path_single():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
@@ -100,7 +99,7 @@ async def test_get_voice_path_single_with_weight_normalized():
         mock_get_voice.return_value = voice_manager
         mock_settings.voice_weight_normalization = True
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1(2)")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
@@ -126,7 +125,7 @@ async def test_get_voice_path_combined():
         mock_temp.return_value = "/tmp"
         mock_load.return_value = torch.ones(10)
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         name, path = await service._get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
         # Verify the path points to a temporary file with expected format
@@ -150,7 +149,7 @@ async def test_list_voices():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         voices = await service.list_voices()
         assert voices == ["voice1", "voice2"]
         voice_manager.list_voices.assert_called_once()
@@ -169,7 +168,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -206,7 +205,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -237,7 +236,7 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = voice_manager
 
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
         service._get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
@@ -266,7 +265,7 @@ async def _stubbed_service():
     ):
         mock_get_model.return_value = model_manager
         mock_get_voice.return_value = AsyncMock()
-        service = await TTSService.create("test_output")
+        service = await TTSService.create()
 
     service._get_voices_path = AsyncMock(
         side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")

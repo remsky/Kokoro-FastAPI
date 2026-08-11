@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
-from .core.config import settings
+from .core.config import settings, unrecognized_env_file_keys
 from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
 from .routers.openai_compatible import router as openai_router
@@ -48,6 +48,10 @@ def setup_logger():
 
 # Configure logger
 setup_logger()
+
+# unknown keys are ignored rather than fatal, so name them or a typo'd setting fails silently
+for _key in unrecognized_env_file_keys():
+    logger.warning(f"ignoring unrecognized env file key: {_key}")
 
 
 @asynccontextmanager
