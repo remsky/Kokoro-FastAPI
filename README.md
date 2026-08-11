@@ -326,17 +326,7 @@ import requests
 response = requests.get("http://localhost:8880/v1/audio/voices")
 voices = [v["id"] for v in response.json()["voices"]]
 
-# Example 1: Simple voice combination (50%/50% mix)
-response = requests.post(
-    "http://localhost:8880/v1/audio/speech",
-    json={
-        "input": "Hello world!",
-        "voice": "af_bella+af_sky",  # Equal weights
-        "response_format": "mp3"
-    }
-)
-
-# Example 2: Weighted voice combination (67%/33% mix)
+# Weighted voice combination (67%/33% mix)
 response = requests.post(
     "http://localhost:8880/v1/audio/speech",
     json={
@@ -346,7 +336,7 @@ response = requests.post(
     }
 )
 
-# Example 3: Download combined voice as .pt file
+# Download combined voice as .pt file
 response = requests.post(
     "http://localhost:8880/v1/audio/voices/combine",
     json="af_bella(2)+af_sky(1)"  # 2:1 ratio = 67%/33%
@@ -416,9 +406,9 @@ curl -X POST http://localhost:8880/v1/audio/speech \
 <details>
 <summary>Multi-Speaker / Dialogue</summary>
 
-- `[voice:...]` tags work anywhere `input` is accepted when enabled (on by default). 
-- OpenAI endpoint requires `allow_voice_tags=true` passed per request to enable (off by default)
-- Opt-out entirely by setting `ENABLE_VOICE_TAGS=false` to refuse the parameter, and disable `/dev/dialogue` server-wide (403). 
+- `[voice:...]` tags switch speakers inline, anywhere `input` is accepted
+- `/v1/audio/speech` needs `allow_voice_tags: true` per request; `/dev/dialogue` allows them by default
+- `ENABLE_VOICE_TAGS=false` opts out server-wide: the parameter is refused and `/dev/dialogue` 403s
 
 ```bash
 curl -X POST http://localhost:8880/v1/audio/speech \
@@ -460,7 +450,6 @@ curl -X POST http://localhost:8880/dev/dialogue \
 
 Notes:
 - Any text before the first tag uses the request's `voice`/default. 
-- Only the inline form on `/v1/audio/speech` requires `allow_voice_tags`, `/dev/dialogue` does so by default
 - Each speaker keeps its own language pipeline based on voice prefix. An explicit `lang_code` will override every speaker.
 - Consecutive turns sharing a voice are merged automatically.
 - Tags accept short names from **Voice Aliases** above, instead of full weighted mixes.
@@ -470,7 +459,7 @@ Notes:
   <img src="assets/gpu_dialogue_text_length.png" width="45%" alt="Throughput at two voice change rates as the generation grows" style="border: 2px solid #333; padding: 10px;">
 </div>
 
-Number of voices has minimal impact on generation speed. For continuous swaps though, if each speaker gets less than about 2 sentences, chunking requirements slow generation down. Still faster than what was previously required, and it stays a flat cost rather than compounding as the text grows. Regenerate with `examples/assorted_checks/test_dialogue/`.
+Number of voices has minimal impact on generation speed. For continuous swaps though, if each speaker gets less than about 2 sentences, chunking requirements slow generation down. Still a flat cost, not compounding as the text grows. Regenerate with `examples/assorted_checks/test_dialogue/`.
 </details>
 
 ### Text Control
