@@ -123,7 +123,7 @@ test('long MP3 generation uses MediaSource streaming', async ({ page }) => {
     await expect.poll(() => page.evaluate(() => window.__sourceBufferCreated)).toBeGreaterThan(0);
 });
 
-test('the streamed track shows its real length and stays unscrubbable', async ({ page }) => {
+test('the timing json gives the length, and a swap onto a missing file stays locked', async ({ page }) => {
     await mockServer(page, { 'X-Timing-Path': '/timing/test.json' });
 
     await page.route('**/v1/timing/test.json', async (route) => {
@@ -131,6 +131,10 @@ test('the streamed track shows its real length and stays unscrubbable', async ({
             contentType: 'application/json',
             body: JSON.stringify({ chunks: [{ text: 'one', start_time: 0, end_time: 156.35 }] }),
         });
+    });
+
+    await page.route('**/v1/download/test.mp3', async (route) => {
+        await route.fulfill({ status: 404, body: 'gone' });
     });
 
     await page.goto('/');

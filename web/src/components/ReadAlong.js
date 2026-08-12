@@ -91,7 +91,7 @@ export class ReadAlong {
             this.elements.editor.classList.add('read-along-active');
             // one swap to the finished file: real duration for the fraction math, plain seeks after
             if (this.audioService.canSwapToFileSource()) {
-                this.audioService.swapToFileSource(null, this.audioService.isPlaying());
+                this.audioService.swapToFileSource();
             }
             this.loadTiming();
             this.startSync();

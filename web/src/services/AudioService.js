@@ -246,15 +246,10 @@ export class AudioService {
                 await this.loadKnownDuration();
                 this.dispatchEvent('complete');
 
-                setTimeout(() => {
-                    this.dispatchEvent('downloadReady');
-                    // if the user isn't actively listening (autoplay off, or paused),
-                    // switch to the full file now so duration + seeking are correct
-                    // the moment generation finishes. otherwise defer to pause/ended.
-                    if (this.audio && this.audio.paused) {
-                        this.swapToFileSource();
-                    }
-                }, 800);
+                setTimeout(() => this.dispatchEvent('downloadReady'), 800);
+
+                // the whole file is on the server now, so stop trickling the bounded buffer
+                await this.swapToFileSource();
             }
         });
 
@@ -310,22 +305,39 @@ export class AudioService {
         );
     }
 
-    // tear down the bounded MSE buffer and point the same <audio> element at the
-    // finished server file (FileResponse serves range requests, so duration and
-    // seeking become correct). reusing the element keeps every listener attached.
-    // only called at safe moments (idle on completion, on pause, on ended) so active
-    // playback is never interrupted mid-stream.
-    async swapToFileSource(targetTime = null, shouldPlay = false) {
+    // swap the bounded MSE buffer for the finished file, held in memory so the switch costs a decode rather than a network seek (#150)
+    async swapToFileSource(targetTime = null) {
         if (!this.canSwapToFileSource()) {
             return false;
         }
         this.swapInProgress = true;
 
         const audio = this.audio;
+        let blobUrl = null;
+        try {
+            const response = await fetch(this.serverDownloadPath, { signal: this.controller?.signal });
+            if (response.ok) {
+                blobUrl = URL.createObjectURL(await response.blob());
+            }
+        } catch (error) {
+            console.warn('Could not preload the finished file:', error);
+        }
+
+        // without the bytes in hand the stream buffer is worth more than a swap onto a url that just failed
+        if (!blobUrl || audio !== this.audio || audio.error || !this.msePipeline) {
+            if (blobUrl) {
+                URL.revokeObjectURL(blobUrl);
+            }
+            this.swapInProgress = false;
+            return false;
+        }
+
+        this.objectUrl = blobUrl;
+        const fileUrl = blobUrl;
+        const resumePlaying = !audio.paused;
         const resumeTime = targetTime != null ? targetTime : (audio.currentTime || 0);
         const volume = audio.volume;
         const rate = audio.playbackRate;
-        const fileUrl = this.serverDownloadPath;
 
         // gut the pipeline up front so a late feeder/updateend can't touch MSE state.
         const previousObjectUrl = this.msePipeline.handoff();
@@ -351,7 +363,7 @@ export class AudioService {
                 this.usingFileSource = true;
                 this.swapInProgress = false;
                 this.dispatchEvent('ready');
-                if (shouldPlay) {
+                if (resumePlaying) {
                     this.play();
                 }
                 resolve(true);
@@ -400,7 +412,7 @@ export class AudioService {
     }
 
     isSeekable() {
-        return !!this.audio && !this.msePipeline;
+        return !!this.audio && !this.audio.error && !this.msePipeline;
     }
 
     async loadKnownDuration() {

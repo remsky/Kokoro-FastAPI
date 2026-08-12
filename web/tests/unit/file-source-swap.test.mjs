@@ -81,54 +81,104 @@ function finishedMseService(audio) {
     return service;
 }
 
-function stubRevoke() {
-    const original = global.URL.revokeObjectURL;
-    const calls = [];
-    global.URL.revokeObjectURL = (u) => calls.push(u);
-    return { calls, restore: () => { global.URL.revokeObjectURL = original; } };
+// the swap preloads the file before touching the element, so fetch and the blob url factory both need standing in
+function stubBrowserIo({ ok = true } = {}) {
+    const original = {
+        fetch: global.fetch,
+        create: global.URL.createObjectURL,
+        revoke: global.URL.revokeObjectURL,
+    };
+    const revoked = [];
+    global.fetch = async () => ({ ok, blob: async () => ({}) });
+    global.URL.createObjectURL = () => 'blob:file-url';
+    global.URL.revokeObjectURL = (u) => revoked.push(u);
+    return {
+        revoked,
+        restore: () => {
+            global.fetch = original.fetch;
+            global.URL.createObjectURL = original.create;
+            global.URL.revokeObjectURL = original.revoke;
+        },
+    };
 }
 
-test('swapToFileSource switches a finished MSE stream to the server file', async () => {
+test('swapToFileSource switches a finished MSE stream to the preloaded file', async () => {
     const audio = new FakeAudio();
     audio.currentTime = 42;
     const service = finishedMseService(audio);
 
-    const revoke = stubRevoke();
+    const io = stubBrowserIo();
     let readyFired = false;
     service.addEventListener('ready', () => { readyFired = true; });
 
     const result = await service.swapToFileSource();
-    revoke.restore();
+    io.restore();
 
     assert.equal(result, true);
-    assert.equal(audio.src, '/v1/download/test.mp3');
+    assert.equal(audio.src, 'blob:file-url');
     assert.equal(service.usingFileSource, true);
     assert.equal(service.msePipeline, null);
-    assert.deepEqual(revoke.calls, ['blob:mse-url']);
+    assert.deepEqual(io.revoked, ['blob:mse-url']);
     assert.equal(readyFired, true);
     assert.equal(audio.currentTime, 42); // playhead preserved across the swap
 });
 
-test('swapToFileSource honors an explicit target time and resume flag', async () => {
+test('swapToFileSource honors an explicit target time and keeps playing audio playing', async () => {
     const audio = new FakeAudio();
+    audio.paused = false;
     const service = finishedMseService(audio);
-    const revoke = stubRevoke();
+    const io = stubBrowserIo();
 
-    await service.swapToFileSource(123, true);
-    revoke.restore();
+    await service.swapToFileSource(123);
+    io.restore();
 
     assert.equal(audio.currentTime, 123);
-    assert.equal(audio.paused, false); // resumed playback after the swap
+    assert.equal(audio.paused, false);
+});
+
+test('a pause during the preload is honored rather than overridden', async () => {
+    const audio = new FakeAudio();
+    audio.paused = false;
+    const service = finishedMseService(audio);
+    const io = stubBrowserIo();
+    const realFetch = global.fetch;
+    global.fetch = async (...args) => {
+        audio.paused = true; // the user hits pause while the bytes are still coming
+        return realFetch(...args);
+    };
+
+    await service.swapToFileSource();
+    io.restore();
+
+    assert.equal(audio.paused, true);
+});
+
+test('a failed preload leaves the stream alone rather than swapping onto a dead url', async () => {
+    const audio = new FakeAudio();
+    audio.paused = false;
+    const service = finishedMseService(audio);
+    const io = stubBrowserIo({ ok: false });
+
+    const result = await service.swapToFileSource();
+    io.restore();
+
+    assert.equal(result, false);
+    assert.equal(audio.src, '');
+    assert.equal(audio.paused, false); // still playing off the stream buffer
+    assert.equal(service.usingFileSource, false);
+    assert.equal(service.swapInProgress, false);
+    assert.ok(service.msePipeline);
+    assert.deepEqual(io.revoked, []);
 });
 
 test('swapToFileSource clamps a target past the end of the file', async () => {
     const audio = new FakeAudio();
     audio.nextDuration = 100;
     const service = finishedMseService(audio);
-    const revoke = stubRevoke();
+    const io = stubBrowserIo();
 
     await service.swapToFileSource(99999);
-    revoke.restore();
+    io.restore();
 
     assert.ok(audio.currentTime <= 100 && audio.currentTime > 99);
 });
@@ -136,11 +186,11 @@ test('swapToFileSource clamps a target past the end of the file', async () => {
 test('swapToFileSource is a no-op once already on the file source', async () => {
     const audio = new FakeAudio();
     const service = finishedMseService(audio);
-    const revoke = stubRevoke();
+    const io = stubBrowserIo();
 
     assert.equal(await service.swapToFileSource(), true);
     assert.equal(await service.swapToFileSource(), false);
-    revoke.restore();
+    io.restore();
 });
 
 test('canSwapToFileSource is false for block mode (no MediaSource)', () => {
@@ -165,14 +215,14 @@ test('pause() swaps a finished MSE stream to the file source', async () => {
     audio.currentTime = 10;
     const service = finishedMseService(audio);
     service.msePipeline.objectUrl = null;
-    const revoke = stubRevoke();
+    const io = stubBrowserIo();
 
     service.pause();
     await new Promise((r) => setTimeout(r, 0)); // let the async swap settle
-    revoke.restore();
+    io.restore();
 
     assert.equal(audio.paused, true);
-    assert.equal(audio.src, '/v1/download/test.mp3');
+    assert.equal(audio.src, 'blob:file-url');
     assert.equal(service.usingFileSource, true);
     assert.equal(audio.currentTime, 10);
 });
