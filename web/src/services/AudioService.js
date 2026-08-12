@@ -16,6 +16,7 @@ export class AudioService {
         this.serverDownloadPath = null;
         this.downloadName = null;
         this.timingPath = null;
+        this.knownDuration = null;
         this.objectUrl = null;
         // once an MSE generation finishes, the full file lives on the server. swapping
         // the <audio> element over to it restores true duration + full seeking, which
@@ -242,6 +243,7 @@ export class AudioService {
                 }
 
                 onProgress?.(estimatedChunks, estimatedChunks);
+                await this.loadKnownDuration();
                 this.dispatchEvent('complete');
 
                 setTimeout(() => {
@@ -390,7 +392,37 @@ export class AudioService {
     }
 
     getDuration() {
-        return this.audio ? this.audio.duration : 0;
+        const duration = this.audio ? this.audio.duration : 0;
+        if (Number.isFinite(duration) && duration > 0) {
+            return duration;
+        }
+        return this.knownDuration ?? duration;
+    }
+
+    isSeekable() {
+        return !!this.audio && !this.msePipeline;
+    }
+
+    async loadKnownDuration() {
+        const url = await this.getTimingUrl();
+        if (!url) {
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            const last = data.chunks?.[data.chunks.length - 1];
+            const end = last?.end_time ?? last?.end;
+            if (Number.isFinite(end) && end > 0) {
+                this.knownDuration = end;
+                this.dispatchEvent('ready');
+            }
+        } catch (error) {
+            console.warn('Could not read the generated length:', error);
+        }
     }
 
     isPlaying() {
@@ -448,6 +480,7 @@ export class AudioService {
         this.serverDownloadPath = null;
         this.downloadName = null;
         this.timingPath = null;
+        this.knownDuration = null;
         this.usingFileSource = false;
         this.swapInProgress = false;
         this.revokeObjectUrl();
@@ -480,6 +513,7 @@ export class AudioService {
         this.serverDownloadPath = null;
         this.downloadName = null;
         this.timingPath = null;
+        this.knownDuration = null;
         this.usingFileSource = false;
         this.swapInProgress = false;
         this.revokeObjectUrl();

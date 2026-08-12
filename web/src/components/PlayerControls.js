@@ -51,10 +51,11 @@ export class PlayerControls {
         const currentTime = this.audioService.getCurrentTime();
         const duration = this.audioService.getDuration();
         
-        // Update time display
-        this.elements.timeDisplay.textContent = 
-            `${this.formatTime(currentTime)} / ${this.formatTime(duration || 0)}`;
-        
+        const known = Number.isFinite(duration) && duration > 0;
+        this.elements.timeDisplay.textContent = known
+            ? `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`
+            : this.formatTime(currentTime);
+
         // Update seek slider
         if (Number.isFinite(duration) && duration > 0 && !this.elements.seekSlider.dragging) {
             this.elements.seekSlider.value = (currentTime / duration) * 100;
@@ -155,6 +156,7 @@ export class PlayerControls {
         this.audioService.addEventListener('ready', () => {
             this.playerState.setReady(true);
             this.updateTimeDisplay();
+            this.updateControls(this.playerState.getState());
         });
 
         // Initial time display
@@ -168,7 +170,9 @@ export class PlayerControls {
     updateControls(state) {
         // Update button states
         this.elements.playPauseBtn.disabled = !state.isReady && !state.isGenerating;
-        this.elements.seekSlider.disabled = !state.isReady || !Number.isFinite(state.duration) || state.duration <= 0;
+        const known = state.isReady && Number.isFinite(state.duration) && state.duration > 0;
+        this.elements.seekSlider.disabled = !known || !this.audioService.isSeekable();
+        this.elements.seekSlider.classList.toggle('no-duration', !known);
         this.elements.cancelBtn.style.display = state.isGenerating ? 'block' : 'none';
         
         // Update volume and speed if changed externally
