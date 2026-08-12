@@ -125,4 +125,3 @@ pipeline = backend._get_pipeline(pipeline_lang_code)
 
 - This solution works with misaki's new dependencies while maintaining our setup
 - Environment variable approach is simpler than file copying
-- May want to contribute improvements back to misaki later

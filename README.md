@@ -32,8 +32,8 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 ### Integration Guides
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
 
- [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Setup-Kubernetes) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-DigitalOcean) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-SillyTavern)
-[![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](https://github.com/remsky/Kokoro-FastAPI/wiki/Integrations-OpenWebUi)
+ [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](docs/deployment/kubernetes.md) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](docs/deployment/digitalocean.md) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](docs/integrations/sillytavern.md)
+[![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](docs/integrations/openwebui.md)
 
 ## Get Started
 
@@ -74,7 +74,7 @@ docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokor
 ./start-gpu_mac.sh
 ```
 
-`gpu:latest` is the same image as `gpu:latest-cu126`. Configuration via environment variables, see `core/config.py`.
+`gpu:latest` is the same image as `gpu:latest-cu126`. Configuration via environment variables, see [the configuration guide](docs/configuration.md).
 
 </details>
 
@@ -102,11 +102,9 @@ docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokor
 
         # Models will auto-download, but if needed you can manually download:
         python docker/scripts/download_model.py --output api/src/models/v1_0
-
-        # Or run directly via UV:
-        ./start-gpu.sh  # For GPU support
-        ./start-cpu.sh  # For CPU support
         ```
+
+[Configuration guide](docs/configuration.md) covers image vs build, the volume mounts, and env vars.
 </details>
 <details>
 <summary>Direct Run (via uv) </summary>
@@ -667,22 +665,6 @@ timings = requests.get(f"http://localhost:8880/v1{response.headers['x-timing-pat
 <details>
 <summary>Performance & Benchmarks</summary>
 
-### Hardware variants
-
-```bash
-# GPU: Requires NVIDIA driver with CUDA 12.6+ support (~35x-100x realtime speed)
-cd docker/gpu
-docker compose up --build
-
-# CPU: PyTorch CPU inference
-cd docker/cpu
-docker compose up --build
-
-# AMD GPU: ROCm 6.4 (experimental, amd64 only)
-cd docker/rocm
-docker compose up --build
-```
-
 ### Throughput
 
 Generation through the local API, text lengths up to feature-length books (~1.5 hours output), measuring processing time and realtime factor. Run on:
@@ -753,84 +735,7 @@ To reproduce, see `examples/assorted_checks/test_transcription/README.md`.
 <details>
 <summary>Configuration Variables</summary>
 
-Every setting is an environment variable, or a line in a `.env` file at the project root. Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Two rows below are marked process-only: they are read outside the settings object, so they work as environment variables but not from `.env`.
-
-**API**
-
-| Variable | Default | |
-|---|---|---|
-| `HOST` | `0.0.0.0` | Bind address |
-| `PORT` | `8880` | Bind port |
-| `API_TITLE` | `Kokoro TTS API` | OpenAPI title |
-| `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
-| `API_VERSION` | from `VERSION` | OpenAPI version string |
-| `API_LOG_LEVEL` | `DEBUG` | loguru level, see Logging below (process-only) |
-
-**Model & device**
-
-| Variable | Default | |
-|---|---|---|
-| `USE_GPU` | `true` | Use GPU if one is available |
-| `DEVICE_TYPE` | auto | Force `cuda`, `mps`, or `cpu` |
-| `MODEL_DIR` | `/app/api/src/models` | Where model weights live, container path |
-| `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where voice packs live, container path |
-| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Fallback download source when `MODEL_DIR` is empty |
-| `DOWNLOAD_MODEL` | `true` | Fetch weights at image build and container start (process-only) |
-
-**Voices**
-
-| Variable | Default | |
-|---|---|---|
-| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
-| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter |
-| `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
-| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
-| `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
-
-**Text processing**
-
-| Variable | Default | |
-|---|---|---|
-| `TARGET_MIN_TOKENS` | `175` | Chunker aims for at least this many tokens |
-| `TARGET_MAX_TOKENS` | `250` | Chunker aims for at most this many |
-| `ABSOLUTE_MAX_TOKENS` | `450` | Hard ceiling per chunk, model limit is 510 |
-| `ENABLE_SSML` | `true` | Kill switch for the `/dev/ssml` router, both routes 403 when off |
-| `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
-| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
-
-**Audio**
-
-| Variable | Default | |
-|---|---|---|
-| `DEFAULT_VOLUME_MULTIPLIER` | `1.0` | Global gain applied to generated audio |
-| `GAP_TRIM_MS` | `1` | Base trim from each streaming chunk end |
-| `DYNAMIC_GAP_TRIM_PADDING_MS` | `410` | Padding added back for dynamic gap trim |
-| `DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER` | `{".": 1, "!": 0.9, "?": 1, ",": 0.8}` | Per-punctuation scaling of that padding, dict-valued so set it in `.env` rather than a shell |
-
-**Web player & CORS**
-
-| Variable | Default | |
-|---|---|---|
-| `ENABLE_WEB_PLAYER` | `true` | Serve the browser UI |
-| `WEB_PLAYER_PATH` | `web` | Static file root for it |
-| `CORS_ENABLED` | `true` | Send CORS headers |
-| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost |
-
-**Temp files**
-
-| Variable | Default | |
-|---|---|---|
-| `TEMP_FILE_DIR` | `api/temp_files` | Where `return_download_link` files are written |
-| `MAX_TEMP_DIR_SIZE_MB` | `2048` | Prune temp files past this total |
-| `MAX_TEMP_DIR_AGE_HOURS` | `1` | Prune temp files older than this |
-| `MAX_TEMP_DIR_COUNT` | `3` | Keep at most this many temp files |
-
-**Operational routes**
-
-| Variable | Default | |
-|---|---|---|
-| `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
-| `ALLOW_DEV_UNLOAD` | `false` | Expose `POST /dev/unload` |
+Every setting is an environment variable, or a line in a `.env` file at the project root. Full reference in [the configuration guide](docs/configuration.md).
 
 </details>
 
@@ -850,30 +755,7 @@ Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and
 <details>
 <summary>Logging</summary>
 
-Global API [loguru logging level](https://loguru.readthedocs.io/en/stable/api/logger.html#levels) can be set using the `API_LOG_LEVEL` environment variable. Defaults to `DEBUG`.
-
-**Docker**
-
-Modify the appropriate compose `yml` or append to command line.
-```bash
-docker run --env 'API_LOG_LEVEL=WARNING' ...
-```
-
-**Direct via UV**
-
-Linux and macOS
-```bash
-export API_LOG_LEVEL=WARNING
-./start-cpu.sh OR
-./start-gpu.sh
-```
-
-Windows
-```powershell
-$env:API_LOG_LEVEL = 'WARNING'
-.\start-cpu.ps1 OR
-.\start-gpu.ps1
-```
+Global API [loguru logging level](https://loguru.readthedocs.io/en/stable/api/logger.html#levels) can be set using the `API_LOG_LEVEL` environment variable. Defaults to `DEBUG`. Per run method in [the configuration guide](docs/configuration.md#logging).
 </details>
 
 ## Known Issues & Troubleshooting
@@ -910,111 +792,21 @@ for chunk in response.iter_content(chunk_size=1024):
 <details>
 <summary>Linux GPU Permissions</summary>
 
-Some Linux users may encounter GPU permission issues when running as non-root. 
-Can't guarantee anything, but here are some common solutions, consider your security requirements carefully
-
-### Option 1: Container Groups (Likely the best option)
-```yaml
-services:
-  kokoro-tts:
-    # ... existing config ...
-    group_add:
-      - "video"
-      - "render"
-```
-
-### Option 2: Host System Groups
-```yaml
-services:
-  kokoro-tts:
-    # ... existing config ...
-    user: "${UID}:${GID}"
-    group_add:
-      - "video"
-```
-Note: May require adding host user to groups: `sudo usermod -aG docker,video $USER` and system restart.
-
-### Option 3: Device Permissions (Use with caution)
-```yaml
-services:
-  kokoro-tts:
-    # ... existing config ...
-    devices:
-      - /dev/nvidia0:/dev/nvidia0
-      - /dev/nvidiactl:/dev/nvidiactl
-      - /dev/nvidia-uvm:/dev/nvidia-uvm
-```
-⚠️ Warning: Reduces system security. Use only in development environments.
-
-Prerequisites: NVIDIA GPU, drivers, and container toolkit must be properly configured.
-
-Visit [NVIDIA Container Toolkit installation](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) for more detailed information
+See [docs/troubleshooting.md#linux-gpu-permissions](docs/troubleshooting.md#linux-gpu-permissions) for container group, host group, and device permission options.
 
 </details>
 
 <details>
 <summary>AMD GPU (ROCm) troubleshooting</summary>
 
-The ROCm image is experimental, x86_64 only. Findings below are largely from [discussion #151](https://github.com/remsky/Kokoro-FastAPI/discussions/151).
-
-### Native Linux host required
-
-`/dev/kfd` and `/dev/dri` passthrough does not work through Docker Desktop on Windows, or through WSL2. Reports of it working are all on a native Linux host.
-
-### "HIP error: invalid device function" / card not detected
-
-Set `HSA_OVERRIDE_GFX_VERSION` to the LLVM target of the closest officially supported architecture. Common values:
-
-| Card | Value |
-| --- | --- |
-| RX 7900 XTX / XT | `11.0.0` |
-| RDNA 3 iGPU (780M, 7840HS) | `11.0.2` or `11.0.3` |
-| RX 6700 XT / 6600 (gfx1031, gfx1032) | `10.3.0` |
-| RX 5700 XT (unofficial, mixed reports) | `10.3.0` |
-
-The RX 6800/6900 (gfx1030) are supported directly and need no override.
-
-```yaml
-services:
-  kokoro-tts:
-    environment:
-      - HSA_OVERRIDE_GFX_VERSION=11.0.0
-```
-
-Check what your card reports with `rocminfo | grep gfx`.
-
-### Slow or unstable matmuls
-
-hipBLASLt does not cover every architecture. Falling back to hipBLAS is slower on paper but more reliable on consumer cards:
-
-```yaml
-      - TORCH_BLAS_PREFER_HIPBLASLT=0
-      - PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED=0
-```
-
-### First request is slow
-
-MIOpen searches for a kernel per unique tensor shape, which costs 5-60s a shape. The image ships `MIOPEN_FIND_MODE=2` and prebaked kernel databases, but only for the architectures listed in `docker/rocm/kdb_install.sh` (CDNA plus gfx1030). RDNA 3 has no prebaked database, so the search runs on first use.
-
-To pre-populate the on-disk cache, which `docker/rocm/docker-compose.yml` persists in named volumes:
-
-```bash
-cd docker/rocm
-docker compose run --rm \
-  -e MIOPEN_FIND_MODE=3 -e MIOPEN_FIND_ENFORCE=3 \
-  kokoro-tts python docker/rocm/warmup_miopen.py
-```
-
-This sweeps every phoneme length up to 340 and takes hours (~2 on Strix Halo). Run it once per ROCm or PyTorch upgrade. Then start normally: the default `MIOPEN_FIND_MODE=2` reuses the cache. `docker compose down -v` clears it.
-
-Generating audio for a few paragraphs of varied length under the same overrides is the cheaper, partial version.
+See [docs/troubleshooting.md#amd-gpu-rocm](docs/troubleshooting.md#amd-gpu-rocm) for HSA overrides, MIOpen warmup, hipBLAS fallback, and native Linux host requirement.
 
 </details>
 
 <details>
 <summary>WAV duration reported as nonsense in some readers</summary>
 
-WAV responses ship with streaming-sentinel (`0xFFFFFFFF`) size fields in the header. Most readers (`soundfile`, `pydub`/ffmpeg, browsers, OS players) handle this fine. Python's stdlib `wave` does not, and reports a bogus duration. Use `soundfile.info(path).duration` or `ffprobe` for exact length.
+WAV responses use a streaming-sentinel (`0xFFFFFFFF`) for the size fields in the header. Most readers handle this fine: `soundfile`, `pydub`/ffmpeg, browsers, OS players. Python's stdlib `wave` does not, and reports a bogus duration. For exact length use `soundfile.info(path).duration` or `ffprobe`.
 
 </details>
 

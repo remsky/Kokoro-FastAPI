@@ -1,7 +1,7 @@
 name: kokoro-fastapi-rocm
 services:
   kokoro-tts:
-      # image: ghcr.io/remsky/kokoro-fastapi-rocm:v${VERSION}
+      # image: ghcr.io/remsky/kokoro-fastapi-rocm:${VERSION:-latest}
       build:
         context: ../..
         dockerfile: docker/rocm/Dockerfile
@@ -27,6 +27,9 @@ services:
         - miopen_cache:/home/appuser/.cache/miopen
       ports:
         - 8880:8880
+      env_file:
+        - path: ../../.env
+          required: false
       environment:
         - USE_GPU=true
         # - ALLOW_DEV_UNLOAD=true

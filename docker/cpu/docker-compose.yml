@@ -1,7 +1,7 @@
 name: kokoro-fastapi-cpu
 services:
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-cpu:v${VERSION}
+    # image: ghcr.io/remsky/kokoro-fastapi-cpu:${VERSION:-latest}
     build:
       context: ../..
       dockerfile: docker/cpu/Dockerfile.optimized
@@ -13,6 +13,9 @@ services:
       - ../../web:/app/web  # hot reload the web player, files are read per request
     ports:
       - "8880:8880"
+    env_file:
+      - path: ../../.env
+        required: false
     environment:
       - PYTHONPATH=/app:/app/api
       - API_LOG_LEVEL=DEBUG
