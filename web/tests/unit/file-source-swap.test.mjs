@@ -16,6 +16,7 @@ class FakeAudio {
         this.volume = 1;
         this.playbackRate = 1;
         this.error = null;
+        this.readyState = 0;
         this.loadCount = 0;
         this.nextDuration = 720; // 12:00, longer than the bounded MSE window
     }
@@ -56,6 +57,8 @@ class FakeAudio {
         queueMicrotask(() => {
             this.duration = this.nextDuration;
             this.emit('loadedmetadata');
+            this.readyState = 4;
+            this.emit('canplay');
         });
     }
 
@@ -169,6 +172,44 @@ test('a failed preload leaves the stream alone rather than swapping onto a dead 
     assert.equal(service.swapInProgress, false);
     assert.ok(service.msePipeline);
     assert.deepEqual(io.revoked, []);
+});
+
+test('a seek while still streaming swaps at the requested time', async () => {
+    const audio = new FakeAudio();
+    audio.paused = false;
+    audio.currentTime = 5;
+    const service = finishedMseService(audio);
+    const io = stubBrowserIo();
+
+    assert.equal(service.isSeekable(), false);
+    await service.preloadFileSource();
+    assert.equal(service.isSeekable(), true); // the slider unlocks before any swap happens
+
+    service.seek(300);
+    await new Promise((r) => setTimeout(r, 0));
+    io.restore();
+
+    assert.equal(audio.src, 'blob:file-url');
+    assert.equal(audio.currentTime, 300);
+    assert.equal(audio.paused, false);
+    assert.equal(service.usingFileSource, true);
+});
+
+test('a drag that keeps moving during the swap lands on its last position', async () => {
+    const audio = new FakeAudio();
+    const service = finishedMseService(audio);
+    const io = stubBrowserIo();
+
+    await service.preloadFileSource();
+    service.seek(100);
+    service.seek(200);
+    service.seek(305);
+    await new Promise((r) => setTimeout(r, 0));
+    io.restore();
+
+    assert.equal(audio.currentTime, 305);
+    assert.equal(audio.loadCount, 1);
+    assert.equal(service.pendingSeek, null);
 });
 
 test('swapToFileSource clamps a target past the end of the file', async () => {

@@ -23,6 +23,10 @@ export class AudioService {
         // the bounded streaming buffer can't provide for long generations (#150).
         this.usingFileSource = false;
         this.swapInProgress = false;
+        this.fileBlobUrl = null;
+        this.preloadPromise = null;
+        this.pendingSeek = null;
+        this.pendingResume = false;
     }
 
     supportsMSEMp3() {
@@ -248,8 +252,10 @@ export class AudioService {
 
                 setTimeout(() => this.dispatchEvent('downloadReady'), 800);
 
-                // the whole file is on the server now, so stop trickling the bounded buffer
-                await this.swapToFileSource();
+                // hold the finished file for the next seek rather than interrupting playback to install it now
+                if (await this.preloadFileSource()) {
+                    this.dispatchEvent('ready');
+                }
             }
         });
 
@@ -272,6 +278,7 @@ export class AudioService {
 
     pause() {
         if (this.audio) {
+            this.pendingResume = false;
             this.audio.pause();
             this.dispatchEvent('pause');
             // pausing a finished generation is a safe break point: swap to the full
@@ -283,12 +290,24 @@ export class AudioService {
     }
 
     seek(time) {
-        if (this.audio && !this.audio.error) {
-            const wasPlaying = !this.audio.paused;
-            this.audio.currentTime = time;
-            if (wasPlaying) {
-                this.play();
-            }
+        if (!this.audio || this.audio.error) {
+            return;
+        }
+        // a seek is already a discontinuity, so spend the swap here instead of interrupting playback
+        if (this.swapInProgress || this.canSwapToFileSource()) {
+            this.pendingSeek = time;
+            this.swapToFileSource(time).then((swapped) => {
+                if (!swapped && !this.swapInProgress && !this.usingFileSource &&
+                    this.audio && !this.audio.error) {
+                    this.audio.currentTime = time;
+                }
+            });
+            return;
+        }
+        const wasPlaying = !this.audio.paused;
+        this.audio.currentTime = time;
+        if (wasPlaying) {
+            this.play();
         }
     }
 
@@ -305,7 +324,31 @@ export class AudioService {
         );
     }
 
-    // swap the bounded MSE buffer for the finished file, held in memory so the switch costs a decode rather than a network seek (#150)
+    // keep the finished file in memory so the switch costs a decode rather than a network seek (#150)
+    async preloadFileSource() {
+        if (!this.serverDownloadPath) {
+            return null;
+        }
+        if (!this.preloadPromise) {
+            this.preloadPromise = (async () => {
+                try {
+                    const response = await fetch(this.serverDownloadPath, { signal: this.controller?.signal });
+                    if (response.ok) {
+                        this.fileBlobUrl = URL.createObjectURL(await response.blob());
+                    }
+                } catch (error) {
+                    console.warn('Could not preload the finished file:', error);
+                }
+                if (!this.fileBlobUrl) {
+                    this.preloadPromise = null;
+                }
+                return this.fileBlobUrl;
+            })();
+        }
+        return await this.preloadPromise;
+    }
+
+    // swap the bounded MSE buffer for the finished file. callers pick a moment where the gap is free.
     async swapToFileSource(targetTime = null) {
         if (!this.canSwapToFileSource()) {
             return false;
@@ -313,27 +356,17 @@ export class AudioService {
         this.swapInProgress = true;
 
         const audio = this.audio;
-        let blobUrl = null;
-        try {
-            const response = await fetch(this.serverDownloadPath, { signal: this.controller?.signal });
-            if (response.ok) {
-                blobUrl = URL.createObjectURL(await response.blob());
-            }
-        } catch (error) {
-            console.warn('Could not preload the finished file:', error);
-        }
+        const fileUrl = await this.preloadFileSource();
 
         // without the bytes in hand the stream buffer is worth more than a swap onto a url that just failed
-        if (!blobUrl || audio !== this.audio || audio.error || !this.msePipeline) {
-            if (blobUrl) {
-                URL.revokeObjectURL(blobUrl);
-            }
+        if (!fileUrl || audio !== this.audio || audio.error || !this.msePipeline) {
             this.swapInProgress = false;
+            this.pendingSeek = null;
             return false;
         }
 
-        this.objectUrl = blobUrl;
-        const fileUrl = blobUrl;
+        this.objectUrl = fileUrl;
+        this.fileBlobUrl = null;
         const resumePlaying = !audio.paused;
         const resumeTime = targetTime != null ? targetTime : (audio.currentTime || 0);
         const volume = audio.volume;
@@ -353,10 +386,12 @@ export class AudioService {
                 detach();
                 if (audio !== this.audio) { this.swapInProgress = false; resolve(false); return; }
                 const duration = audio.duration;
+                // a drag that kept moving during the load wins over the position it started from
+                const target = this.pendingSeek != null ? this.pendingSeek : resumeTime;
+                this.pendingSeek = null;
                 if (Number.isFinite(duration) && duration > 0) {
-                    // 1:1 timeline (sequence mode appended the same bytes), so the
-                    // playhead lands where the stream left off.
-                    audio.currentTime = Math.min(Math.max(resumeTime, 0), Math.max(0, duration - 0.05));
+                    // 1:1 timeline (sequence mode appended the same bytes), so the playhead lands where the stream left off
+                    audio.currentTime = Math.min(Math.max(target, 0), Math.max(0, duration - 0.05));
                 }
                 audio.volume = volume;
                 audio.playbackRate = rate;
@@ -364,7 +399,7 @@ export class AudioService {
                 this.swapInProgress = false;
                 this.dispatchEvent('ready');
                 if (resumePlaying) {
-                    this.play();
+                    this.resumeWhenReady(audio);
                 }
                 resolve(true);
             };
@@ -373,8 +408,8 @@ export class AudioService {
                 detach();
                 if (audio !== this.audio) { this.swapInProgress = false; resolve(false); return; }
                 this.swapInProgress = false;
-                // the stream buffer is gone, but the file is still downloadable. surface
-                // that so the user isn't left with a dead player.
+                this.pendingSeek = null;
+                // the stream buffer is gone but the file is still downloadable, so say so rather than leaving a dead player
                 console.warn('Failed to switch to file playback:', audio.error);
                 this.dispatchEvent('playbackUnavailable');
                 resolve(false);
@@ -391,6 +426,21 @@ export class AudioService {
                 URL.revokeObjectURL(previousObjectUrl);
             }
         });
+    }
+
+    // starting at readyState 1 plays what is decoded and stalls on the rest, which is audible as a stutter
+    resumeWhenReady(audio) {
+        if (audio.readyState >= 3) {
+            this.play();
+            return;
+        }
+        this.pendingResume = true;
+        audio.addEventListener('canplay', () => {
+            if (this.pendingResume && audio === this.audio) {
+                this.pendingResume = false;
+                this.play();
+            }
+        }, { once: true });
     }
 
     setVolume(volume) {
@@ -412,7 +462,7 @@ export class AudioService {
     }
 
     isSeekable() {
-        return !!this.audio && !this.audio.error && !this.msePipeline;
+        return !!this.audio && !this.audio.error && (!this.msePipeline || !!this.fileBlobUrl);
     }
 
     async loadKnownDuration() {
@@ -474,6 +524,12 @@ export class AudioService {
             URL.revokeObjectURL(this.objectUrl);
             this.objectUrl = null;
         }
+        if (this.fileBlobUrl) {
+            URL.revokeObjectURL(this.fileBlobUrl);
+            this.fileBlobUrl = null;
+        }
+        this.preloadPromise = null;
+        this.pendingSeek = null;
     }
 
     cancel() {

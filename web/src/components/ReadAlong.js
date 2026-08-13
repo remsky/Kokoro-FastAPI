@@ -89,8 +89,8 @@ export class ReadAlong {
             this.renderView();
             // css-hidden, not torn down, so the editor keeps its pages, caret and listeners
             this.elements.editor.classList.add('read-along-active');
-            // one swap to the finished file: real duration for the fraction math, plain seeks after
-            if (this.audioService.canSwapToFileSource()) {
+            // the fraction math needs a real length, so pay for a swap only when nothing else supplied one
+            if (!Number.isFinite(this.audioService.getDuration()) && this.audioService.canSwapToFileSource()) {
                 this.audioService.swapToFileSource();
             }
             this.loadTiming();
