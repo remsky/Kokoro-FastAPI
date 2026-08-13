@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     target_max_tokens: int = 250  # Target maximum tokens per chunk
     absolute_max_tokens: int = 450  # Absolute maximum tokens per chunk
     ssml_max_depth: int = 10  # Deepest SSML element nesting translated, real documents sit at 2-5
+    max_pause_duration_s: float = 60.0
     advanced_text_normalization: bool = True  # Preproesses the text before misiki
     voice_weight_normalization: bool = (
         True  # Normalize the voice weights so they add up to 1

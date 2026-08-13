@@ -118,6 +118,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `ABSOLUTE_MAX_TOKENS` | `450` | Hard ceiling per chunk, model limit is 510 |
 | `ENABLE_SSML` | `true` | Kill switch for the `/dev/ssml` router, both routes 403 when off |
 | `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
+| `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
 
 **Audio**
