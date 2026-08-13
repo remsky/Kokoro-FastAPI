@@ -198,7 +198,7 @@ export class App {
             this.saveEditedMix(this.editing, mix, rate);
         } else {
             const chosen = String(name || '').trim() || suggestCastName(mix, rate);
-            const error = this.castNameError(chosen, mix, rate);
+            const error = this.castNameError(chosen, mix);
             // a refused create keeps the mixer and the name, so they can be adjusted
             if (error && !quiet) {
                 this.voiceSelector.showNameError(error);
@@ -212,9 +212,21 @@ export class App {
         this.voiceSelector.setMix('');
     }
 
+    /** The base with the first free -2, -3... suffix, sanitized since a self-named mix carries punctuation. */
+    freeCopyName(name) {
+        const base = name.replace(/[^A-Za-z0-9_-]+/g, '_').replace(/_+$/, '');
+        for (let n = 2; ; n++) {
+            const suffix = `-${n}`;
+            const copy = base.slice(0, 24 - suffix.length) + suffix;
+            if (!this.castNameError(copy)) {
+                return copy;
+            }
+        }
+    }
+
     /** Why the staged name cannot join the cast, empty when it can. */
-    castNameError(name, mix, rate) {
-        if (name !== mix && name !== suggestCastName(mix, rate) && !CAST_NAME_PATTERN.test(name)) {
+    castNameError(name, mix) {
+        if (name !== mix && !CAST_NAME_PATTERN.test(name)) {
             return 'A cast name is 1 to 24 letters, numbers, dashes or underscores';
         }
         const folded = name.toLowerCase();
@@ -264,6 +276,10 @@ export class App {
         if (action === 'edit') {
             this.setEditing(name);
             this.voiceSelector.setMix(member.mix, member.rate);
+        } else if (action === 'duplicate') {
+            const copy = this.freeCopyName(member.name);
+            this.setCast(addToCast(this.cast, member.mix, member.rate, copy));
+            this.castMenuAction('edit', copy);
         } else if (action === 'strip') {
             this.textEditor.replaceText(removeVoiceTagsFor(this.textEditor.getText(), name));
             this.updateVoiceTagNotice();

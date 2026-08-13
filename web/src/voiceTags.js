@@ -86,7 +86,12 @@ export const CAST_NAME_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,23}$/;
 export function suggestCastName(mix, rate) {
     const value = String(mix || '').trim();
     const pace = normalizeRate(rate);
-    return pace && value ? `${value}__${pace}` : value;
+    if (!pace || !value) {
+        return value;
+    }
+    const suffix = `__${String(Math.round(pace * 100)).padStart(3, '0')}`;
+    const base = value.replace(/[^A-Za-z0-9_-]+/g, '_');
+    return base.slice(0, 24 - suffix.length) + suffix;
 }
 
 /** Membership is keyed by name, so one mix can back several members. */
@@ -160,10 +165,7 @@ export function parseCastFile(data) {
             const rate = plain ? undefined : normalizeRate(value?.rate);
             return { name: String(name).trim(), mix: mix.trim(), ...(rate ? { rate } : {}) };
         })
-        // the third form is the suggested paced name, which carries the mix's punctuation
-        .filter(({ name, mix, rate }) => mix && (name === mix
-            || CAST_NAME_PATTERN.test(name)
-            || name === suggestCastName(mix, rate)));
+        .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
 }
 
 /** parseVoiceMix drops empty +-parts, so speakability is judged before that smoothing hides them. */

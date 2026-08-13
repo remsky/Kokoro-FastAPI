@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
     addToCast,
+    CAST_NAME_PATTERN,
     castAliases,
     countVoiceTags,
     exportCast,
@@ -130,12 +131,16 @@ test('one mix backs several members, which is how one voice gets two paces', () 
 
 test('the suggested name is the mix, suffixed only when a pace is set', () => {
     assert.equal(suggestCastName('af_bella', 1), 'af_bella');
-    assert.equal(suggestCastName('af_bella', '1.5'), 'af_bella__1.5');
+    assert.equal(suggestCastName('af_bella', '1.5'), 'af_bella__150');
+    assert.equal(suggestCastName('af_bella', '0.25'), 'af_bella__025');
     assert.equal(suggestCastName('af_bella', ''), 'af_bella');
+    // punctuation flattens and the total stays within the 24-char name rule
+    assert.equal(suggestCastName('am_michael(2)+af_sky(1)', 4), 'am_michael_2_af_sky__400');
+    assert.match(suggestCastName('am_michael(2)+af_sky(1)', 4), CAST_NAME_PATTERN);
 });
 
 test('a paced create takes the suggested name, so the tag says it is not plain', () => {
-    assert.deepEqual(addToCast([], 'af_bella', '0.8'), [{ name: 'af_bella__0.8', mix: 'af_bella', rate: 0.8 }]);
+    assert.deepEqual(addToCast([], 'af_bella', '0.8'), [{ name: 'af_bella__080', mix: 'af_bella', rate: 0.8 }]);
     // 1 is the default going unsaid
     assert.deepEqual(addToCast([], 'af_sky', '1'), [{ name: 'af_sky', mix: 'af_sky' }]);
 });
@@ -150,9 +155,15 @@ test('a paced member over a weighted mix survives the cast file, suffixed or not
     const cast = addToCast(addToCast([], 'am_michael(2)+af_sky(1)', 0.9, 'slowpair'), 'am_michael(2)+af_sky(1)', 1.5);
     assert.deepEqual(cast, [
         { name: 'slowpair', mix: 'am_michael(2)+af_sky(1)', rate: 0.9 },
-        { name: 'am_michael(2)+af_sky(1)__1.5', mix: 'am_michael(2)+af_sky(1)', rate: 1.5 }
+        { name: 'am_michael_2_af_sky__150', mix: 'am_michael(2)+af_sky(1)', rate: 1.5 }
     ]);
     assert.deepEqual(parseCastFile(exportCast(cast)), cast);
+});
+
+test('an old punctuated suggested name is refused at import', () => {
+    assert.deepEqual(parseCastFile({
+        voice_aliases: { 'af_bella__1.5': { voice: 'af_bella', rate: 1.5 } }
+    }), []);
 });
 
 test('a new member invents no name, so there is nothing to define', () => {
