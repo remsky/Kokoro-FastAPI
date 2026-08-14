@@ -66,7 +66,8 @@ def _break_seconds(el: ET.Element) -> float:
         match = TIME_ATTR.match(time_attr)
         if match:
             value = float(match.group(1))
-            return value / 1000 if match.group(2).lower() == "ms" else value
+            seconds = value / 1000 if match.group(2).lower() == "ms" else value
+            return min(seconds, settings.max_pause_duration_s)
     return BREAK_STRENGTH_S.get(el.get("strength", "medium"), 0.5)
 
 

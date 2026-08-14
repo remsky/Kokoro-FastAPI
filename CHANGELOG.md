@@ -7,28 +7,26 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `/dev/ssml` endpoint, aligning with the SSML standard (experimental). Disable server-wide with `ENABLE_SSML=false`.
-- Multi-speaker input (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
+- Multi-speaker input on `/v1/audio/speech` and `/dev/captioned_speech` (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
   - Inline `[voice:name]` tags switch speaker mid-text.
   - `voice_aliases` mapping for named weighted voice mixes, with optional per-alias `rate`.
-- `/v1/audio/speech`:
-  - Chunk timing sidecar (`return_timing`), writes per-chunk `{text, start, end}` JSON next to the download file. A lighter weight timestamps response (used in the web reader feature)
-- `/dev/` endpoints:
-  - `POST /dev/dialogue` for ordered multi-speaker turns.
-  - `/dev/captioned_speech` timestamps include the speaking `voice` when tags are on.
+- `return_timing` on `/v1/audio/speech`: per-chunk `{text, start, end}` JSON sidecar next to the download (powers the web reader).
+- `POST /dev/dialogue` for ordered multi-speaker turns; `/dev/captioned_speech` timestamps now include the speaking `voice`.
 - Web UI:
-  - Voice alias/tag cast builder with import/export (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
+  - Voice alias/tag cast builder with import/export and per-alias rate, synced with the editor (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
   - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
-  - Find/replace across pages, directly accessible page numbers.
-  - Download menu (audio / chunk timings / both).
-  - Alias rate in the cast builder, synced with the editor.
+  - Find/replace across pages, direct page-number entry, download menu (audio / timings / both).
 
 ### Changed
-- Dropped unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
+- Docker images compile to bytecode at build, ~40% faster startup, all builds install frozen from uv.lock for consistency. 
 - Speed bounds (0.25 to 4.0) shared across speed fields and SSML.
 - Unrecognized `.env` keys warn at startup instead of refusing to boot.
 - README config table, covering every setting.
 
 ### Removed
+- Unused `ffmpeg` from all images (~600MB); audio encoding already runs through PyAV's bundled copy.
+- Dead `pydub` dependency.
+- Unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
 - Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
 - Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
 - `OUTPUT_DIR`, `OUTPUT_DIR_SIZE_LIMIT_MB`, `SAMPLE_RATE` settings, never read.

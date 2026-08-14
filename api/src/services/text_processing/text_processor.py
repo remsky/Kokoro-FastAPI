@@ -186,7 +186,7 @@ async def smart_split(
     chunk_count = 0
     logger.info(f"Starting smart split for {len(text)} chars")
 
-    # --- Step 1: Split by Pause Tags FIRST ---
+    # Split First by Pause Tags
     # This operates on the raw input text
     parts = PAUSE_TAG_PATTERN.split(text)
     logger.debug(f"Split raw text into {len(parts)} parts by pause tags.")
@@ -196,7 +196,7 @@ async def smart_split(
         text_part_raw = parts[part_idx]  # This part is raw text
         part_idx += 1
 
-        # --- Process Text Part ---
+        # Processing Text Part
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
@@ -219,7 +219,7 @@ async def smart_split(
                         "Skipping text normalization as it is only supported for english"
                     )
 
-            # Process all sentences (original logic)
+            # Process all sentences
             sentences = get_sentence_info(processed_text, lang_code=lang_code)
 
             current_chunk = []
@@ -227,7 +227,7 @@ async def smart_split(
             current_count = 0
 
             for sentence, tokens, count in sentences:
-                # Handle sentences that exceed max tokens (original logic)
+                # Handle sentences that exceed max tokens
                 if count > max_tokens:
                     # Yield current chunk if any
                     if current_chunk:
@@ -241,7 +241,7 @@ async def smart_split(
                         current_tokens = []
                         current_count = 0
 
-                    # Split long sentence on commas (original logic)
+                    # Split long sentence on commas
                     clauses = re.split(r"([,])", sentence)
                     clause_chunk = []
                     clause_tokens = []
@@ -340,7 +340,7 @@ async def smart_split(
                 )
                 yield chunk_text, current_tokens, None
 
-        # --- Handle Pause Part ---
+        # Handle Pause
         # Check if the next part is a pause duration string
         if part_idx < len(parts):
             duration_str = parts[part_idx]
@@ -348,7 +348,9 @@ async def smart_split(
             if re.fullmatch(r"\d+(?:\.\d+)?", duration_str):
                 part_idx += 1  # Consume the duration string as it's been processed
                 try:
-                    duration = float(duration_str)
+                    duration = min(
+                        float(duration_str), settings.max_pause_duration_s
+                    )
                     if duration > 0:
                         chunk_count += 1
                         logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")
@@ -359,8 +361,8 @@ async def smart_split(
                         f"Could not parse valid-looking pause duration: {duration_str}"
                     )
 
-    # --- End of parts loop ---
+    # End of parts loop
     total_time = time.time() - start_time
-    logger.info(
+    logger.debug(
         f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )

@@ -103,3 +103,4 @@ playwright-report/
 test-results/
 ROCM_TRIM.md
 Kokoro-FastAPI.code-workspace
+experiments/*

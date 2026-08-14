@@ -27,6 +27,7 @@ export class AudioService {
         this.preloadPromise = null;
         this.pendingSeek = null;
         this.pendingResume = false;
+        this.volume = 1;
     }
 
     supportsMSEMp3() {
@@ -183,6 +184,7 @@ export class AudioService {
         const blobType = response.headers.get('content-type') || 'audio/mpeg';
         const blob = new Blob(chunks, { type: blobType });
         this.audio = new Audio();
+        this.audio.volume = this.volume;
         this.attachAudioReadinessEvents();
         this.objectUrl = URL.createObjectURL(blob);
         this.audio.src = this.objectUrl;
@@ -215,6 +217,7 @@ export class AudioService {
         }
 
         this.audio = new Audio();
+        this.audio.volume = this.volume;
         this.attachAudioReadinessEvents();
         this.attachAudioErrorEvents('stream');
 
@@ -264,6 +267,11 @@ export class AudioService {
 
     play() {
         if (this.audio && !this.audio.error) {
+            const duration = this.audio.duration;
+            if (this.usingFileSource && Number.isFinite(duration) &&
+                duration - this.audio.currentTime <= 0.1) {
+                this.audio.currentTime = 0;
+            }
             const playPromise = this.audio.play();
             if (playPromise) {
                 playPromise.catch(error => {
@@ -444,8 +452,9 @@ export class AudioService {
     }
 
     setVolume(volume) {
+        this.volume = Math.max(0, Math.min(1, volume));
         if (this.audio) {
-            this.audio.volume = Math.max(0, Math.min(1, volume));
+            this.audio.volume = this.volume;
         }
     }
 
@@ -455,6 +464,9 @@ export class AudioService {
 
     getDuration() {
         const duration = this.audio ? this.audio.duration : 0;
+        if (this.msePipeline && this.knownDuration) {
+            return this.knownDuration;
+        }
         if (Number.isFinite(duration) && duration > 0) {
             return duration;
         }
