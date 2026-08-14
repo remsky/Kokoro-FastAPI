@@ -56,6 +56,16 @@ def test_prosody_rate_gated_and_reverts():
     assert allowed == "one [rate:0.75] two [rate:1.0] three"
 
 
+def test_prosody_spanning_a_voice_reasserts_the_rate():
+    """A voice tag resets the pace downstream, so an enclosing prosody re-emits it"""
+    ssml = '<speak><prosody rate="slow">a <voice name="am_michael">b</voice> c</prosody></speak>'
+    out = translate_ssml(ssml, default_voice="af_bella", allow_voice_tags=True)
+    assert out == (
+        "[rate:0.75] a [voice:am_michael] [rate:0.75] b "
+        "[voice:af_bella] [rate:0.75] c [rate:1.0]"
+    )
+
+
 def test_prosody_rate_percent_and_number():
     out = translate_ssml(
         '<speak><prosody rate="80%">a</prosody><prosody rate="1.2">b</prosody></speak>',

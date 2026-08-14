@@ -321,10 +321,26 @@ def test_split_by_rate_clamps_to_speed_bounds():
     assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [("af_heart", 0.25, "Crawl.")]
 
 
-def test_split_rate_and_voice_combine():
-    """Voice and rate are independent state carried by one pass."""
-    text = "[voice:af_bella] [rate:0.75] Slow Bella. [voice:am_michael] Slow Michael."
+def test_split_voice_tag_resets_rate():
+    """A pace stays with the voice it was set on, a voice change reverts to 1.0."""
+    text = "[voice:af_bella] [rate:0.75] Slow Bella. [voice:am_michael] Normal Michael."
     assert split_by_voice(text, "af_heart") == [
         ("af_bella", 0.75, "Slow Bella."),
-        ("am_michael", 0.75, "Slow Michael."),
+        ("am_michael", 1.0, "Normal Michael."),
+    ]
+
+
+def test_split_rate_scales_baserate():
+    """An explicit rate stays relative to the voice's calibrated base pace."""
+    text = "[baserate:0.5] Base. [rate:1.5] Faster. [rate:1.0] Base again."
+    assert split_by_voice(text, "af_heart") == [
+        ("af_heart", 0.5, "Base."),
+        ("af_heart", 0.75, "Faster."),
+        ("af_heart", 0.5, "Base again."),
+    ]
+
+
+def test_split_baserate_product_clamps_to_speed_bounds():
+    assert split_by_voice("[baserate:2.5] [rate:2.0] Whoa.", "af_heart") == [
+        ("af_heart", 4.0, "Whoa.")
     ]

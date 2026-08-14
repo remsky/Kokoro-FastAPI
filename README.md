@@ -474,9 +474,9 @@ Four tokens can be embedded in the `input` text and are parsed server-side (API,
   - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), 
   - Short names/aliases can be defined in `voice_aliases`, 
   - Unknown values return a 400.
-- **Rate**: `[rate:1.5]` multiplies the request `speed` until the next rate tag or voice change; `[rate:1.0]` reverts. Clamped to 0.25-4.0. Same gating as voice tags.
+- **Rate**: `[rate:1.5]` scales the speaking voice's pace until the next rate tag or voice change; `[rate:1.0]` reverts. Applies on top of the request `speed`, clamped to 0.25-4.0. Same gating as voice tags.
   - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks, as the `voice` parameter or in tags. Useful for voices that read fast or slow, and for named presets over one voice (`narrator_fast`, `narrator_slow`).
-  - Rate belongs to the voice speaking it. Every `[voice:...]` tag re-asserts that voice's own rate, `1.0` when it has none, so a calibrated speaker cannot drag its pace onto the next one. Use `speed` for a pace over the whole request.
+  - Rate belongs to the voice speaking it. A `[rate:]` tag scales the speaker's calibrated pace rather than replacing it, so an alias throttled to `0.8` stays proportionally slower under `[rate:1.1]`. Every `[voice:...]` tag resets to the new voice's own rate, so a calibrated speaker cannot drag its pace onto the next one. Use `speed` for a pace over the whole request.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
@@ -490,7 +490,7 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 
 - `<break time="750ms"/>` becomes `[pause:0.75s]`. `strength=` instead of `time=` gives none/x-weak 0s, weak 0.25s, medium 0.5s, strong 1s, x-strong 1.5s
 - `<voice name="am_michael">` becomes `[voice:am_michael]`, reverts at the closing tag
-- `<prosody rate="slow">` becomes `[rate:0.75]`, and takes `80%` or `1.2` too. Multiplies the request `speed`, clamped 0.25-4.0, reverts. `pitch`/`volume` ignored
+- `<prosody rate="slow">` becomes `[rate:0.75]`, and takes `80%` or `1.2` too. Scales the speaking voice's pace on top of the request `speed`, clamped 0.25-4.0, reverts. `pitch`/`volume` ignored
 - `<phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme>` becomes `[Worcester](/wˈʊstər/)`, IPA and English only
 - `<sub alias="World Wide Web">WWW</sub>` speaks the alias
 - `<desc>` is dropped with its text, an audio description is not speech

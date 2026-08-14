@@ -737,7 +737,7 @@ async def test_process_and_validate_voice_tags_maps_openai_names(
     result = await process_and_validate_voice_tags(
         "[voice:alloy] Hello. [voice:nova] Hi.", service, allow_voice_tags=True
     )
-    assert result == "[voice:am_adam] [rate:1.0] Hello. [voice:bf_isabella] [rate:1.0] Hi."
+    assert result == "[voice:am_adam] Hello. [voice:bf_isabella] Hi."
 
 
 @pytest.mark.asyncio
@@ -831,9 +831,7 @@ async def test_voice_aliases_stand_in_for_a_mix_in_tags():
         allow_voice_tags=True,
         aliases={"narrator": "af_bella(2)+af_sky", "villain": "am_michael"},
     )
-    assert result == (
-        "[voice:af_bella(2)+af_sky] [rate:1.0] Once. [voice:am_michael] [rate:1.0] Never."
-    )
+    assert result == "[voice:af_bella(2)+af_sky] Once. [voice:am_michael] Never."
 
 
 @pytest.mark.asyncio
@@ -867,7 +865,7 @@ async def test_unaliased_names_are_left_to_normal_validation():
         allow_voice_tags=True,
         aliases={"narrator": "am_michael"},
     )
-    assert result == "[voice:af_heart] [rate:1.0] One. [voice:am_michael] [rate:1.0] Two."
+    assert result == "[voice:af_heart] One. [voice:am_michael] Two."
 
 
 @pytest.mark.asyncio
@@ -884,7 +882,7 @@ async def test_alias_names_are_matched_regardless_of_case():
         allow_voice_tags=True,
         aliases={"narrator": "af_bella", "villain": "am_michael"},
     )
-    assert result == "[voice:af_bella] [rate:1.0] One. [voice:am_michael] [rate:1.0] Two."
+    assert result == "[voice:af_bella] One. [voice:am_michael] Two."
 
 
 @pytest.mark.asyncio
@@ -998,7 +996,7 @@ def test_speech_endpoint_accepts_voice_aliases(mock_tts_service, mock_audio_byte
     )
     assert response.status_code == 200
     kwargs = mock_tts_service.generate_audio.call_args.kwargs
-    assert kwargs["text"] == "[voice:voice1] [rate:1.0] Hello. [voice:voice2] [rate:1.0] Never."
+    assert kwargs["text"] == "[voice:voice1] Hello. [voice:voice2] Never."
     assert kwargs["voice"] == "voice1"
 
 
@@ -1279,11 +1277,11 @@ def test_dev_ssml_non_ssml_passes_through():
 
 
 @pytest.mark.asyncio
-async def test_alias_rate_expands_to_a_rate_tag():
+async def test_alias_rate_expands_to_a_baserate_tag():
     """A rate-carrying alias speaks at its own pace, and an uncalibrated one at 1.0
 
-    The plain alias gets a tag too, so grandpa's pace cannot follow him into the
-    kid's lines. That reset is the whole point of calibrating a voice.
+    The voice tag itself resets the pace, so grandpa's cannot follow him into
+    the kid's lines. That reset is the whole point of calibrating a voice.
     """
     from api.src.routers.openai_compatible import process_and_validate_voice_tags
     from api.src.services.text_processing.text_processor import split_by_voice
@@ -1301,12 +1299,35 @@ async def test_alias_rate_expands_to_a_rate_tag():
             "kid": "af_bella",
         },
     )
-    assert result == "[voice:am_michael] [rate:0.8] Hi. [voice:af_bella] [rate:1.0] Yo."
+    assert result == "[voice:am_michael] [baserate:0.8] Hi. [voice:af_bella] Yo."
 
     segments = split_by_voice(result, "af_bella")
     assert segments == [
         ("am_michael", 0.8, "Hi."),
         ("af_bella", 1.0, "Yo."),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_rate_tag_scales_the_alias_base_rate():
+    """An explicit rate is relative to the voice's calibrated pace, not absolute"""
+    from api.src.routers.openai_compatible import process_and_validate_voice_tags
+    from api.src.services.text_processing.text_processor import split_by_voice
+    from api.src.structures.schemas import VoiceAlias
+
+    service = AsyncMock(spec=TTSService)
+    service.list_voices.return_value = ["af_bella"]
+
+    result = await process_and_validate_voice_tags(
+        "[voice:kore] Calibrated. [rate:1.5] Faster, still hers.",
+        service,
+        allow_voice_tags=True,
+        aliases={"kore": VoiceAlias(voice="af_bella", rate=0.5)},
+    )
+    segments = split_by_voice(result, "af_bella")
+    assert segments == [
+        ("af_bella", 0.5, "Calibrated."),
+        ("af_bella", 0.75, "Faster, still hers."),
     ]
 
 
@@ -1324,8 +1345,8 @@ def test_alias_rate_on_voice_param_multiplies_speed_when_tags_off():
     assert request.input == "Hello."
 
 
-def test_alias_rate_on_voice_param_opens_a_rate_tag_when_tags_on():
-    """As the opening tag it sets the floor rate but lets later tags override"""
+def test_alias_rate_on_voice_param_opens_a_baserate_tag_when_tags_on():
+    """As the opening tag it sets the base pace that later rate tags scale"""
     from api.src.routers.openai_compatible import apply_alias_rate
 
     request = OpenAISpeechRequest(
@@ -1337,7 +1358,7 @@ def test_alias_rate_on_voice_param_opens_a_rate_tag_when_tags_on():
     )
     apply_alias_rate(request)
     assert request.speed == 2.0
-    assert request.input == "[rate:0.8] Hello."
+    assert request.input == "[baserate:0.8] Hello."
 
 
 def test_alias_rate_outside_speed_bounds_rejected():
