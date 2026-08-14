@@ -21,6 +21,17 @@ def test_plain_text_passthrough():
     assert translate_ssml("[pause:1s] native tags untouched") == "[pause:1s] native tags untouched"
 
 
+def test_roots_merely_starting_with_speak_pass_through():
+    """<speaker> is not SSML, only an exact <speak> root may be translated."""
+    for text in ("<speaker>Hello</speaker>", "<speak-notes>Hello</speak-notes>"):
+        assert translate_ssml(text) == text
+
+
+def test_namespaced_speak_root_still_translates():
+    ssml = '<speak xmlns="http://www.w3.org/2001/10/synthesis">Hi<break time="1s"/>there</speak>'
+    assert translate_ssml(ssml) == "Hi [pause:1.0s] there"
+
+
 def test_break_time_and_strength():
     assert translate_ssml('<speak>Hi<break time="750ms"/>there</speak>') == "Hi [pause:0.75s] there"
     assert translate_ssml('<speak>Hi<break time="1.5s"/>there</speak>') == "Hi [pause:1.5s] there"

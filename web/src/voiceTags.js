@@ -161,11 +161,16 @@ export function parseCastFile(data) {
     return Object.entries(aliases)
         .map(([name, value]) => {
             const plain = typeof value === 'string';
+            const pace = plain ? undefined : value?.rate;
+            const rate = normalizeRate(pace);
+            if (pace != null && rate === undefined && parseFloat(pace) !== 1) {
+                return null;
+            }
             const mix = plain ? value : String(value?.voice ?? '');
-            const rate = plain ? undefined : normalizeRate(value?.rate);
             return { name: String(name).trim(), mix: mix.trim(), ...(rate ? { rate } : {}) };
         })
-        .filter(({ name, mix }) => mix && (name === mix || CAST_NAME_PATTERN.test(name)));
+        .filter((member) => member && member.mix
+            && (member.name === member.mix || CAST_NAME_PATTERN.test(member.name)));
 }
 
 /** parseVoiceMix drops empty +-parts, so speakability is judged before that smoothing hides them. */

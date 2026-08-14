@@ -476,6 +476,11 @@
     color: var(--text);
 }
 
+.cast-rate:user-invalid {
+    border-color: var(--error);
+    color: var(--error);
+}
+
 .create-tag-name {
     flex: 1;
     min-width: 0;

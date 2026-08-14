@@ -231,6 +231,16 @@ test('a saved cast reads back out of a whole request body just as well', () => {
     assert.deepEqual(parseCastFile({ narrator: 'am_michael(2)' }), member);
 });
 
+test('a member with an unusable pace is refused rather than silently repaced', () => {
+    assert.deepEqual(parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 5 } } }), []);
+    assert.deepEqual(parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 0.1 } } }), []);
+    assert.deepEqual(parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 'fast' } } }), []);
+    assert.deepEqual(
+        parseCastFile({ voice_aliases: { a: { voice: 'af_sky', rate: 9 }, b: { voice: 'af_sky', rate: 0.9 } } }),
+        [{ name: 'b', mix: 'af_sky', rate: 0.9 }]
+    );
+});
+
 test('an entry that could never be a tag is left out of the import', () => {
     assert.deepEqual(parseCastFile({ voice_aliases: { 'not a name': 'af_bella' } }), []);
     // a leading dash parses as prose in TAG_SOURCE, so the name is refused up front

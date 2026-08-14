@@ -376,7 +376,7 @@ export class VoiceSelector {
     }
 
     insertMember(name) {
-        if (this.editing) {
+        if (this.editing && !this.rateOutOfBounds()) {
             this.handlers.onCommit?.(this.elements.createTagRate?.value);
         }
         this.handlers.onInsert?.(name);
@@ -397,6 +397,11 @@ export class VoiceSelector {
         });
     }
 
+    rateOutOfBounds() {
+        const validity = this.elements.createTagRate?.validity;
+        return !!validity && (validity.badInput || validity.rangeUnderflow || validity.rangeOverflow);
+    }
+
     updateCreateTagButton() {
         this.syncSuggestedName();
         const button = this.elements.createTagBtn;
@@ -405,8 +410,13 @@ export class VoiceSelector {
         }
 
         const mix = this.voiceService.getSelectedVoiceString();
-        button.disabled = !mix;
+        const badRate = this.rateOutOfBounds();
+        button.disabled = !mix || badRate;
         button.textContent = this.editing ? 'Save mix' : 'Create tag';
+        if (badRate) {
+            button.title = 'Speed must be between 0.25 and 4';
+            return;
+        }
         if (this.editing) {
             button.title = mix ? `Retune ${this.editing}` : 'Mix one or more voices first';
             return;

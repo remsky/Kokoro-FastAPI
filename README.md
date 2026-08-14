@@ -3,7 +3,7 @@
 
 <a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-253-darkgreen)]()
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-257-darkgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-68%25-tan)]()
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
@@ -44,32 +44,32 @@ Pre-built multi-arch images with models baked in.
 
 `:latest` is available, but please pin to a release tag for stable usage.
 
-**No GPU** (laptop, CPU-only server)
+<sub><ins>**No GPU**</ins> (laptop, CPU-only server)</sub>
 ```bash
 docker run -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 ```
 
-**NVIDIA** (GTX 900-series through RTX 40; ships cu126)
+<sub><ins>**NVIDIA**</ins> (GTX 900-series through RTX 40; ships cu126)</sub>
 ```bash
 docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
 ```
 
-**NVIDIA RTX 50-series / Blackwell** (ships cu128)
+<sub><ins>**NVIDIA RTX 50-series / Blackwell**</ins> (ships cu128)</sub>
 ```bash
 docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest-cu128
 ```
 
-**NVIDIA arm64** (Jetson, GH200; same tag, ships cu129)
+<sub><ins>**NVIDIA arm64**</ins> (Jetson, GH200; same tag, ships cu129)</sub>
 ```bash
 docker run --gpus all -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-gpu:latest
 ```
 
-**AMD GPU** (ROCm, experimental, x86_64 only)
+<sub><ins>**AMD GPU**</ins> (ROCm, experimental, x86_64 only)</sub>
 ```bash
 docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-rocm:latest
 ```
 
-**Apple Silicon** (native MPS, from a clone; the CPU image also works in Docker)
+<sub><ins>**Apple Silicon**</ins> (native MPS clone; the CPU image also works)</sub>
 ```bash
 ./start-gpu_mac.sh
 ```
@@ -163,8 +163,8 @@ with client.audio.speech.with_streaming_response.create(
 - Web Interface: http://localhost:8880/web
 
 <div align="center">
-  <img src="assets/webui-screenshot.png" width="52.9%" alt="Web UI Screenshot">
-  <img src="assets/docs-screenshot.png" width="45.1%" alt="API Documentation">
+  <img src="assets/webui-screenshot.png" width="51.4%" alt="Web UI Screenshot">
+  <img src="assets/docs-screenshot.png" width="46.6%" alt="API Documentation">
 </div>
 
 </details>

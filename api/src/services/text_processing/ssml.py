@@ -161,7 +161,7 @@ def translate_ssml(
     if body[:9].upper() == "<!DOCTYPE":
         raise ET.ParseError("DTD is not supported")
     # the spec requires a <speak> root, so anything else is plain text
-    if not body.startswith("<speak"):
+    if not re.match(r"<speak[\s/>]", body):
         return text
     root = ET.fromstring(text)
 
