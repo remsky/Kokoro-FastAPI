@@ -39,6 +39,7 @@ from .openai_compatible import (
     require_voice_tags_enabled,
     stream_audio_chunks,
 )
+from .ssml import apply_ssml
 
 router = APIRouter(tags=["text processing"])
 
@@ -219,6 +220,9 @@ async def create_captioned_speech(
 
     if request.allow_voice_tags:
         require_voice_tags_enabled()
+
+    if request.ssml:
+        await apply_ssml(request)
 
     try:
         # model_name = get_model_name(request.model)

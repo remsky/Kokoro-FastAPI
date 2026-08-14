@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         False  # Whether to expose /debug/* host and process introspection routes
     )
     enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
-    enable_ssml: bool = True  # Kill switch for the /dev/ssml router, both routes 403 when off
+    enable_ssml: bool = True  # Kill switch for SSML translation, the /dev/ssml routes and ssml=true on the speech endpoints 403 when off
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container

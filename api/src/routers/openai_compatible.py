@@ -28,6 +28,7 @@ from ..structures.schemas import (
     VoiceAlias,
     clamp_rate,
 )
+from .ssml import apply_ssml
 
 
 # Load OpenAI mappings
@@ -307,6 +308,9 @@ async def create_speech(
 
     if request.allow_voice_tags:
         require_voice_tags_enabled()
+
+    if request.ssml:
+        await apply_ssml(request)
 
     try:
         # model_name = get_model_name(request.model)

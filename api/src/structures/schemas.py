@@ -159,9 +159,7 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
             description="Optional different format for the final download. If not provided, uses response_format.",
         )
     )
-    speed: Rate = Field(
-        default=1.0, description="The speed of the generated audio"
-    )
+    speed: Rate = Field(default=1.0, description="The speed of the generated audio")
     stream: bool = Field(
         default=True,  # Default to streaming for OpenAI compatibility
         description="If true (default), audio will be streamed as it's generated. Each chunk will be a complete sentence.",
@@ -188,6 +186,10 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     allow_voice_tags: bool = Field(
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
+    )
+    ssml: bool = Field(
+        default=False,
+        description="If true, the input is translated from SSML before synthesis. Requires allow_voice_tags, since the translation emits [voice:] and [rate:] spans.",
     )
 
 
@@ -253,9 +255,7 @@ class DialogueRequest(VoiceAliasesMixin):
             description="Optional different format for the final download. If not provided, uses response_format.",
         )
     )
-    speed: Rate = Field(
-        default=1.0, description="The speed of the generated audio"
-    )
+    speed: Rate = Field(default=1.0, description="The speed of the generated audio")
     stream: bool = Field(
         default=True,
         description="If true (default), audio will be streamed as it's generated.",
@@ -306,9 +306,7 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default="mp3",
         description="The format to return audio in. Supported formats: mp3, opus, aac, flac, wav, pcm. PCM format returns raw 16-bit samples without headers.",
     )
-    speed: Rate = Field(
-        default=1.0, description="The speed of the generated audio"
-    )
+    speed: Rate = Field(default=1.0, description="The speed of the generated audio")
     stream: bool = Field(
         default=True,  # Default to streaming for OpenAI compatibility
         description="If true (default), audio will be streamed as it's generated. Each chunk will be a complete sentence.",
@@ -335,4 +333,8 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
     allow_voice_tags: bool = Field(
         default=False,
         description="If true, [voice:name] in the input switches speaker. Off by default so bracketed text is spoken as written.",
+    )
+    ssml: bool = Field(
+        default=False,
+        description="If true, the input is translated from SSML before synthesis. Requires allow_voice_tags, since the translation emits [voice:] and [rate:] spans.",
     )

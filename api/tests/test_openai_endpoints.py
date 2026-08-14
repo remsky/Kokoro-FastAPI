@@ -817,6 +817,176 @@ def test_speech_endpoint_ignores_voice_tags_by_default(mock_tts_service):
     assert kwargs["allow_voice_tags"] is False
 
 
+def test_speech_endpoint_translates_ssml_input(mock_tts_service):
+    """ssml=true translates the markup before synthesis, no second call needed"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": '<speak>Hi<break time="750ms"/>there</speak>',
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 200
+    assert (
+        mock_tts_service.generate_audio.call_args.kwargs["text"]
+        == "Hi [pause:0.75s] there"
+    )
+
+
+def test_ssml_without_voice_tags_is_rejected(mock_tts_service):
+    """Translating without tag parsing would speak the emitted spans as written"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>Hi there</speak>",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+    mock_tts_service.generate_audio.assert_not_called()
+
+
+def test_malformed_ssml_on_the_speech_endpoint_is_a_400(mock_tts_service):
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>unclosed <voice>",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 400
+    mock_tts_service.generate_audio.assert_not_called()
+
+
+def test_ssml_kill_switch_403s_the_speech_endpoint(mock_tts_service, monkeypatch):
+    from api.src.core.config import settings
+
+    monkeypatch.setattr(settings, "enable_ssml", False)
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>Hi there</speak>",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+            "allow_voice_tags": True,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 403
+    mock_tts_service.generate_audio.assert_not_called()
+
+
+def test_plain_text_is_untouched_when_ssml_is_off(mock_tts_service):
+    """The flag is opt-in, an unflagged request never reaches the translator"""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>Hi there</speak>",
+            "voice": "test_voice",
+            "response_format": "mp3",
+            "stream": False,
+        },
+    )
+    assert response.status_code == 200
+    assert (
+        mock_tts_service.generate_audio.call_args.kwargs["text"]
+        == "<speak>Hi there</speak>"
+    )
+
+
+def test_captioned_endpoint_translates_ssml_input(mock_tts_service):
+    """ssml=true translates before the timestamped stream opens"""
+    seen = {}
+
+    async def fake_stream(tts_service, request, *args, **kwargs):
+        seen["text"] = request.input
+        return
+        yield
+
+    with (
+        patch("api.src.routers.development.stream_audio_chunks", fake_stream),
+        patch(
+            "api.src.routers.development.process_and_validate_voices",
+            AsyncMock(return_value="test_voice"),
+        ),
+    ):
+        response = client.post(
+            "/dev/captioned_speech",
+            json={
+                "model": "kokoro",
+                "input": '<speak>Hi<break time="750ms"/>there</speak>',
+                "voice": "test_voice",
+                "response_format": "mp3",
+                "allow_voice_tags": True,
+                "ssml": True,
+            },
+        )
+    assert response.status_code == 200
+    assert seen["text"] == "Hi [pause:0.75s] there"
+
+
+def test_captioned_ssml_without_voice_tags_is_rejected():
+    """Same guard as the speech endpoint, the spans would be read aloud"""
+    response = client.post(
+        "/dev/captioned_speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>Hi there</speak>",
+            "voice": "test_voice",
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_malformed_ssml_on_the_captioned_endpoint_is_a_400():
+    response = client.post(
+        "/dev/captioned_speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>unclosed <voice>",
+            "voice": "test_voice",
+            "allow_voice_tags": True,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 400
+
+
+def test_ssml_kill_switch_403s_the_captioned_endpoint(monkeypatch):
+    monkeypatch.setattr(settings, "enable_ssml", False)
+    response = client.post(
+        "/dev/captioned_speech",
+        json={
+            "model": "kokoro",
+            "input": "<speak>Hi there</speak>",
+            "voice": "test_voice",
+            "allow_voice_tags": True,
+            "ssml": True,
+        },
+    )
+    assert response.status_code == 403
+
+
 @pytest.mark.asyncio
 async def test_voice_aliases_stand_in_for_a_mix_in_tags():
     """A short name keeps the mix out of the text without changing what is spoken"""

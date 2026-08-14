@@ -9,8 +9,14 @@ from ..services.text_processing.ssml import (
     SSML_ELEMENTS,
     translate_ssml,
 )
-from ..structures.schemas import RATE_MAX, RATE_MIN
+from ..structures.schemas import (
+    RATE_MAX,
+    RATE_MIN,
+    CaptionedSpeechRequest,
+    OpenAISpeechRequest,
+)
 from ..structures.text_schemas import SsmlCapabilities, SsmlRequest, SsmlResponse
+
 
 async def _require_ssml_enabled() -> None:
     """403 when the server-level SSML kill switch is off"""
@@ -39,6 +45,36 @@ def _rejected(message: str) -> HTTPException:
     )
 
 
+def translate_or_reject(text: str, voice: str, allow_voice_tags: bool) -> str:
+    """Translate SSML, turning the translator's failures into 400s."""
+    try:
+        return translate_ssml(
+            text,
+            default_voice=voice,
+            allow_voice_tags=allow_voice_tags,
+        )
+    except ParseError as e:
+        raise _rejected(f"Malformed SSML: {e}")
+    # backstop for an ssml_max_depth set high enough to reach the interpreter's own limit
+    except RecursionError:
+        raise _rejected("SSML is nested too deeply to translate")
+
+
+async def apply_ssml(request: OpenAISpeechRequest | CaptionedSpeechRequest) -> None:
+    """Translate an SSML speech request's input in place.
+
+    403 when the server kill switch is off, 400 when voice tags are not
+    allowed, since the translation emits [voice:] and [rate:] spans that
+    would otherwise be spoken as written.
+    """
+    await _require_ssml_enabled()
+    if not request.allow_voice_tags:
+        raise _rejected(
+            "SSML input requires allow_voice_tags=true, the translation emits [voice:] and [rate:] spans"
+        )
+    request.input = translate_or_reject(request.input, request.voice, True)
+
+
 @router.get("/dev/ssml", response_model=SsmlCapabilities)
 async def ssml_capabilities() -> SsmlCapabilities:
     """The SSML subset this build translates, and what the rest of it does instead."""
@@ -59,15 +95,6 @@ async def translate_ssml_text(request: SsmlRequest) -> SsmlResponse:
     allow_voice_tags=true when a voice was given so [voice:]/[rate:] spans
     apply and get validated there. Non-SSML input passes through unchanged.
     """
-    try:
-        translated = translate_ssml(
-            request.text,
-            default_voice=request.voice,
-            allow_voice_tags=bool(request.voice),
-        )
-    except ParseError as e:
-        raise _rejected(f"Malformed SSML: {e}")
-    # backstop for an ssml_max_depth set high enough to reach the interpreter's own limit
-    except RecursionError:
-        raise _rejected("SSML is nested too deeply to translate")
-    return SsmlResponse(text=translated)
+    return SsmlResponse(
+        text=translate_or_reject(request.text, request.voice, bool(request.voice))
+    )
