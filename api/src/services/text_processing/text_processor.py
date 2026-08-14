@@ -20,9 +20,9 @@ CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
-# Pattern to find voice and rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
+# Pattern to find voice, rate, and alias base-rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
 CONTROL_TAG_PATTERN = re.compile(
-    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]|\[rate:\s*(\d+(?:\.\d+)?)\s*\]",
+    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]|\[rate:\s*(\d+(?:\.\d+)?)\s*\]|\[baserate:\s*(\d+(?:\.\d+)?)\s*\]",
     re.IGNORECASE,
 )
 
@@ -127,10 +127,15 @@ def get_sentence_info(
 def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
     """Split text into (voice, rate, text) segments on [voice:name] and [rate:x] tags.
 
-    Text ahead of the first tag belongs to default_voice at rate 1.0. Runs of
-    segments sharing (voice, rate) are merged so a tag that changes nothing
-    costs nothing downstream, and so chunking still sees whole paragraphs.
-    Rates clamp to the request speed bounds (0.25-4.0).
+    Text ahead of the first tag belongs to default_voice at rate 1.0. A
+    [baserate:x] tag (injected by alias resolution) carries the speaking
+    voice's calibrated pace; [rate:y] tags scale that base rather than
+    replace it, so an explicit rate stays relative to how fast the voice
+    normally speaks. A voice tag resets both, keeping a pace with the voice
+    that was calibrated for it. Runs of segments sharing (voice, rate) are
+    merged so a tag that changes nothing costs nothing downstream, and so
+    chunking still sees whole paragraphs. Effective rates clamp to the
+    request speed bounds (0.25-4.0).
     """
     parts = CONTROL_TAG_PATTERN.split(text)
     if len(parts) == 1:
@@ -138,22 +143,30 @@ def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]
 
     segments: List[Tuple[str, float, str]] = []
     current_voice = default_voice
-    current_rate = 1.0
+    base_rate = 1.0
+    tag_rate = 1.0
 
     for index, part in enumerate(parts):
-        # split() with two groups cycles text, voice, rate, ... (None for the unmatched group)
-        group = index % 3
+        # split() with three groups cycles text, voice, rate, baserate, ... (None for unmatched groups)
+        group = index % 4
         if group == 1:
             if part is not None:
                 current_voice = part.strip()
+                base_rate = 1.0
+                tag_rate = 1.0
             continue
         if group == 2:
             if part is not None:
-                current_rate = clamp_rate(float(part))
+                tag_rate = float(part)
+            continue
+        if group == 3:
+            if part is not None:
+                base_rate = float(part)
             continue
         part = part.strip()
         if not part:
             continue
+        current_rate = clamp_rate(base_rate * tag_rate)
         if segments and segments[-1][:2] == (current_voice, current_rate):
             segments[-1] = (current_voice, current_rate, f"{segments[-1][2]} {part}")
         else:

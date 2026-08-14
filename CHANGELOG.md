@@ -19,6 +19,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - Docker images compile to bytecode at build, ~40% faster startup, all builds install frozen from uv.lock for consistency. 
+- `[rate:]` tags scale the speaking voice's alias rate instead of replacing it, so a voice calibrated to 0.8 stays proportionally slower under `[rate:1.1]`. Matches how SSML engines treat rate.
 - Speed bounds (0.25 to 4.0) shared across speed fields and SSML.
 - Unrecognized `.env` keys warn at startup instead of refusing to boot.
 - README config table, covering every setting.

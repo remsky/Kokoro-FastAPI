@@ -203,9 +203,10 @@ async def process_and_validate_voice_tags(
 
     Runs the same mapping and validation as the voice parameter so a bad speaker
     tag fails the request up front rather than part way through the stream.
-    Every tag expands to its rate alongside the voice, 1.0 when the alias carries
-    none, so a pace belongs to the voice that was calibrated with it and cannot
-    carry across a voice change onto one that was not.
+    A rate-carrying alias expands to a [baserate:] tag alongside the voice, the
+    calibrated pace later [rate:] tags scale instead of overwrite; a voice tag
+    itself resets both rates, so a pace belongs to the voice that was calibrated
+    with it and cannot carry across a voice change onto one that was not.
     """
     if not allow_voice_tags:
         return text
@@ -220,8 +221,10 @@ async def process_and_validate_voice_tags(
         name = await process_and_validate_voices(
             tag, tts_service, aliases, available_voices
         )
-        rate = alias_rate(tag, aliases) or 1.0
-        resolved[tag] = f"[voice:{name}] [rate:{rate}]"
+        rate = alias_rate(tag, aliases)
+        resolved[tag] = (
+            f"[voice:{name}] [baserate:{rate}]" if rate else f"[voice:{name}]"
+        )
     return VOICE_TAG_PATTERN.sub(lambda m: resolved[m.group(1)], text)
 
 
@@ -230,14 +233,15 @@ def apply_alias_rate(
 ) -> None:
     """Fold the request voice's alias rate in, when it has one.
 
-    With voice tags on it becomes the opening [rate:] tag so later tags can
-    override it; with tags off there is no tag pass, so it multiplies speed.
+    With voice tags on it becomes the opening [baserate:] tag that later
+    [rate:] tags scale; with tags off there is no tag pass, so it multiplies
+    speed.
     """
     rate = alias_rate(request.voice, request.voice_aliases)
     if not rate:
         return
     if request.allow_voice_tags:
-        request.input = f"[rate:{rate}] {request.input}"
+        request.input = f"[baserate:{rate}] {request.input}"
     else:
         request.speed = clamp_rate(request.speed * rate)
 

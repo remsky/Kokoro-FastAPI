@@ -120,6 +120,8 @@ def _render(
     if tag == "voice" and control_tags and name:
         inner_voice = name.strip()
         parts.append(f" [voice:{inner_voice}] ")
+        if current_rate != 1.0:
+            parts.append(f" [rate:{current_rate}] ")
     if tag == "prosody" and control_tags and el.get("rate"):
         inner_rate = _prosody_rate(el.get("rate", ""))
         if inner_rate != current_rate:
@@ -139,6 +141,8 @@ def _render(
 
     if inner_voice != current_voice:
         parts.append(f" [voice:{current_voice}] ")
+        if current_rate != 1.0:
+            parts.append(f" [rate:{current_rate}] ")
     if inner_rate != current_rate:
         parts.append(f" [rate:{current_rate}] ")
 
