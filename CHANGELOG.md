@@ -4,25 +4,35 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [v0.8.0] - 2026-08-14
 ### Added
-- `/dev/ssml` endpoint, aligning with the SSML standard (experimental). Disable server-wide with `ENABLE_SSML=false`.
 - Multi-speaker input on `/v1/audio/speech` and `/dev/captioned_speech` (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
   - Inline `[voice:name]` tags switch speaker mid-text.
   - `voice_aliases` mapping for named weighted voice mixes, with optional per-alias `rate`.
+  - `/dev/captioned_speech` timestamps carry the resolved `voice` per word; the field is absent unless `allow_voice_tags` is on, so existing responses are unchanged.
+- `POST /dev/dialogue` for ordered multi-speaker turns.
+- SSML input (experimental). Disable server-wide with `ENABLE_SSML=false`.
+  - `ssml: true` on `/v1/audio/speech` and `/dev/captioned_speech` translates and speaks in one call. Requires `allow_voice_tags: true`, since the translation emits `[voice:]` and `[rate:]` spans.
+  - `POST /dev/ssml` returns the translated tokens as text instead, for inspecting them before synthesis.
 - `return_timing` on `/v1/audio/speech`: per-chunk `{text, start, end}` JSON sidecar next to the download (powers the web reader).
-- `POST /dev/dialogue` for ordered multi-speaker turns; `/dev/captioned_speech` timestamps now include the speaking `voice`.
+- `MAX_PAUSE_DURATION_S` (default 60) caps a single `[pause:Ns]` tag or SSML `<break>`.
 - Web UI:
-  - Voice alias/tag cast builder with import/export and per-alias rate, synced with the editor (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
+  - Voice alias/tag cast builder with import/export, pinning, and per-alias rate, synced with the editor (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
   - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
   - Find/replace across pages, direct page-number entry, download menu (audio / timings / both).
+- Wiki pages moved into `docs/`, versioned alongside the code.
 
 ### Changed
-- Docker images compile to bytecode at build, ~40% faster startup, all builds install frozen from uv.lock for consistency. 
+- Docker images compile to bytecode at build, ~40% faster startup.
+- Containers launch uvicorn directly rather than through `uv run`, which resolves startup permission failures on Unraid and similar hosts.
 - `[rate:]` tags scale the speaking voice's alias rate instead of replacing it, so a voice calibrated to 0.8 stays proportionally slower under `[rate:1.1]`. Matches how SSML engines treat rate.
 - Speed bounds (0.25 to 4.0) shared across speed fields and SSML.
 - Unrecognized `.env` keys warn at startup instead of refusing to boot.
-- README config table, covering every setting.
+- README config table now covers every setting.
+
+### Fixed
+- Long generations swap from the live stream to the finished file as soon as it lands, so the scrubber shows true duration and seeking works mid-run.
+- Volume control state reconnected to the player.
 
 ### Removed
 - Unused `ffmpeg` from all images (~600MB); audio encoding already runs through PyAV's bundled copy.

@@ -20,7 +20,7 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
 - Optional integrated WebUI; read-along long-generation
-- Inline multi-speaker generation & voice mixing with weighted combinations
+- Inline multi-speaker generation & voice mixing + aliasing weighted combinations, SSML support
 - Per-word, or per-chunk timestamped caption generation
 - Phoneme endpoints: generate phonemes from text, or generate audio from phonemes
 - Prebuilt multiplatform images
@@ -486,7 +486,19 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 <details>
 <summary>SSML Input (experimental)</summary>
 
-`POST /dev/ssml` translates SSML into the tokens above; feed the result to the speech endpoints, which never parse XML themselves. Send `text`, plus `voice` if your speech request uses one, then pass the result back with `allow_voice_tags: true`. Without a voice, `<voice>`/`<prosody>` are stripped and their content kept.
+Send `ssml: true` with `allow_voice_tags: true` on `/v1/audio/speech` or `/dev/captioned_speech` to translate and speak in one call. Both flags are needed, since the translation emits `[voice:]` and `[rate:]` spans that would otherwise be read aloud; `ssml` without them is a 400.
+
+```json
+{
+  "model": "kokoro",
+  "input": "<speak>Hi<break time=\"750ms\"/>there</speak>",
+  "voice": "af_bella",
+  "allow_voice_tags": true,
+  "ssml": true
+}
+```
+
+`POST /dev/ssml` does the translation on its own when you want the tokens back as text rather than audio, or want to inspect them before synthesis. Send `text`, plus `voice` if your speech request uses one, then pass the result back with `allow_voice_tags: true`. Without a voice, `<voice>`/`<prosody>` are stripped and their content kept.
 
 - `<break time="750ms"/>` becomes `[pause:0.75s]`. `strength=` instead of `time=` gives none/x-weak 0s, weak 0.25s, medium 0.5s, strong 1s, x-strong 1.5s
 - `<voice name="am_michael">` becomes `[voice:am_michael]`, reverts at the closing tag
