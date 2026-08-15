@@ -7,7 +7,7 @@ from typing import AsyncGenerator, Dict, List, Optional, Tuple
 from loguru import logger
 
 from ...core.config import settings
-from ...structures.schemas import NormalizationOptions
+from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
 from .normalizer import normalize_text
 from .phonemizer import phonemize
 from .vocabulary import tokenize
@@ -18,6 +18,13 @@ from .vocabulary import tokenize
 CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
+# Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
+VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
+# Pattern to find voice, rate, and alias base-rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
+CONTROL_TAG_PATTERN = re.compile(
+    rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]|\[rate:\s*(\d+(?:\.\d+)?)\s*\]|\[baserate:\s*(\d+(?:\.\d+)?)\s*\]",
+    re.IGNORECASE,
+)
 
 
 def process_text_chunk(
@@ -43,23 +50,13 @@ def process_text_chunk(
 
     if skip_phonemize:
         # Input is already phonemes, just tokenize
-        t0 = time.time()
         tokens = tokenize(text)
-        t1 = time.time()
     else:
         # Normal text processing pipeline
-        t0 = time.time()
-        t1 = time.time()
-
-        t0 = time.time()
         phonemes = phonemize(text, language)
         # Strip phonemes result to ensure no extra spaces
         phonemes = phonemes.strip()
-        t1 = time.time()
-
-        t0 = time.time()
         tokens = tokenize(phonemes)
-        t1 = time.time()
 
     total_time = time.time() - start_time
     logger.debug(
@@ -127,6 +124,58 @@ def get_sentence_info(
     return results
 
 
+def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
+    """Split text into (voice, rate, text) segments on [voice:name] and [rate:x] tags.
+
+    Text ahead of the first tag belongs to default_voice at rate 1.0. A
+    [baserate:x] tag (injected by alias resolution) carries the speaking
+    voice's calibrated pace; [rate:y] tags scale that base rather than
+    replace it, so an explicit rate stays relative to how fast the voice
+    normally speaks. A voice tag resets both, keeping a pace with the voice
+    that was calibrated for it. Runs of segments sharing (voice, rate) are
+    merged so a tag that changes nothing costs nothing downstream, and so
+    chunking still sees whole paragraphs. Effective rates clamp to the
+    request speed bounds (0.25-4.0).
+    """
+    parts = CONTROL_TAG_PATTERN.split(text)
+    if len(parts) == 1:
+        return [(default_voice, 1.0, text)]
+
+    segments: List[Tuple[str, float, str]] = []
+    current_voice = default_voice
+    base_rate = 1.0
+    tag_rate = 1.0
+
+    for index, part in enumerate(parts):
+        # split() with three groups cycles text, voice, rate, baserate, ... (None for unmatched groups)
+        group = index % 4
+        if group == 1:
+            if part is not None:
+                current_voice = part.strip()
+                base_rate = 1.0
+                tag_rate = 1.0
+            continue
+        if group == 2:
+            if part is not None:
+                tag_rate = float(part)
+            continue
+        if group == 3:
+            if part is not None:
+                base_rate = float(part)
+            continue
+        part = part.strip()
+        if not part:
+            continue
+        current_rate = clamp_rate(base_rate * tag_rate)
+        if segments and segments[-1][:2] == (current_voice, current_rate):
+            segments[-1] = (current_voice, current_rate, f"{segments[-1][2]} {part}")
+        else:
+            segments.append((current_voice, current_rate, part))
+
+    # tags were present, so an empty result means there was nothing to say
+    return segments
+
+
 def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> str:
     latest_id = f"</|custom_phonemes_{len(phenomes_list)}|/>"
     phenomes_list[latest_id] = s.group(0).strip()
@@ -150,7 +199,7 @@ async def smart_split(
     chunk_count = 0
     logger.info(f"Starting smart split for {len(text)} chars")
 
-    # --- Step 1: Split by Pause Tags FIRST ---
+    # Split First by Pause Tags
     # This operates on the raw input text
     parts = PAUSE_TAG_PATTERN.split(text)
     logger.debug(f"Split raw text into {len(parts)} parts by pause tags.")
@@ -160,7 +209,7 @@ async def smart_split(
         text_part_raw = parts[part_idx]  # This part is raw text
         part_idx += 1
 
-        # --- Process Text Part ---
+        # Processing Text Part
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
@@ -183,7 +232,7 @@ async def smart_split(
                         "Skipping text normalization as it is only supported for english"
                     )
 
-            # Process all sentences (original logic)
+            # Process all sentences
             sentences = get_sentence_info(processed_text, lang_code=lang_code)
 
             current_chunk = []
@@ -191,7 +240,7 @@ async def smart_split(
             current_count = 0
 
             for sentence, tokens, count in sentences:
-                # Handle sentences that exceed max tokens (original logic)
+                # Handle sentences that exceed max tokens
                 if count > max_tokens:
                     # Yield current chunk if any
                     if current_chunk:
@@ -205,7 +254,7 @@ async def smart_split(
                         current_tokens = []
                         current_count = 0
 
-                    # Split long sentence on commas (original logic)
+                    # Split long sentence on commas
                     clauses = re.split(r"([,])", sentence)
                     clause_chunk = []
                     clause_tokens = []
@@ -304,7 +353,7 @@ async def smart_split(
                 )
                 yield chunk_text, current_tokens, None
 
-        # --- Handle Pause Part ---
+        # Handle Pause
         # Check if the next part is a pause duration string
         if part_idx < len(parts):
             duration_str = parts[part_idx]
@@ -312,7 +361,9 @@ async def smart_split(
             if re.fullmatch(r"\d+(?:\.\d+)?", duration_str):
                 part_idx += 1  # Consume the duration string as it's been processed
                 try:
-                    duration = float(duration_str)
+                    duration = min(
+                        float(duration_str), settings.max_pause_duration_s
+                    )
                     if duration > 0:
                         chunk_count += 1
                         logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")
@@ -323,8 +374,8 @@ async def smart_split(
                         f"Could not parse valid-looking pause duration: {duration_str}"
                     )
 
-    # --- End of parts loop ---
+    # End of parts loop
     total_time = time.time() - start_time
-    logger.info(
+    logger.debug(
         f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )

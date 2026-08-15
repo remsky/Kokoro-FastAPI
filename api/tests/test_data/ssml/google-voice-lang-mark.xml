@@ -1,0 +1,7 @@
+<speak>
+  And then she asked, <voice language="fr-FR" gender="female">qu'est-ce qui t'amène ici</voice><break time="250ms"/> in her sweet and gentle voice.
+  The dog is friendly <voice name="fr-CA-Wavenet-B">mais la chat est mignon</voice><break time="250ms"/> said a pet shop owner.
+  And there it was <voice language="en-GB" gender="male" required="gender" ordering="gender language">a flying bird </voice>roaring in the skies for the first time.
+  The french word for cat is <lang xml:lang="fr-FR">chat</lang>.
+  Hello <mark name="timepoint_1"/> Mark. Good to <mark name="timepoint_2"/> see you.
+</speak>

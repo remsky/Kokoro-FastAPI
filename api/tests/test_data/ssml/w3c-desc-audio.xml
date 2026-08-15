@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<speak version="1.1" xmlns="http://www.w3.org/2001/10/synthesis"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xsi:schemaLocation="http://www.w3.org/2001/10/synthesis
+ http://www.w3.org/TR/speech-synthesis11/synthesis.xsd"
+ xml:lang="en-US">
+
+ <!-- Normal use of <desc> -->
+ Heads of State often make mistakes when speaking in a foreign language.
+ One of the most well-known examples is that of John F. Kennedy:
+ <audio src="ichbineinberliner.wav">If you could hear it, this would be
+ a recording of John F. Kennedy speaking in Berlin.
+ <desc>Kennedy's famous German language gaffe</desc>
+ </audio>
+
+ <!-- Suggesting the language of the recording -->
+ Here's the same thing again but with a different fallback:
+ <lang xml:lang="de-DE">
+ <audio src="ichbineinberliner.wav">Ich bin ein Berliner.
+ <desc xml:lang="en-US">Kennedy's famous German language gaffe</desc>
+ </audio>
+ </lang>
+</speak>

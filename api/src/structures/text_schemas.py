@@ -1,4 +1,4 @@
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -39,3 +39,38 @@ class GenerateFromPhonemesRequest(BaseModel):
 
     phonemes: str = Field(..., description="Phoneme string to synthesize")
     voice: str = Field(..., description="Voice ID to use for generation")
+
+
+class SsmlRequest(BaseModel):
+    """Request to translate SSML into native inline control tokens"""
+
+    text: str = Field(..., description="SSML document starting with <speak>")
+    voice: str = Field(
+        default="",
+        description="Voice the speech request will use. Enables [voice:]/[rate:] emission with reverts; when empty those elements are stripped and their content kept.",
+    )
+
+
+class SsmlResponse(BaseModel):
+    text: str = Field(..., description="Native-tag text ready for the speech endpoints")
+
+
+class SsmlCapabilities(BaseModel):
+    """The translator's whole surface, read off the tables it translates with"""
+
+    elements: Dict[str, str] = Field(
+        ..., description="Supported element to what the translator turns it into"
+    )
+    ignored: List[str] = Field(
+        ...,
+        description="Elements that are parsed but not implemented: the markup is dropped and the text is spoken",
+    )
+    break_strengths: Dict[str, float] = Field(
+        ..., description="strength= keyword to seconds of silence"
+    )
+    prosody_rates: Dict[str, float] = Field(
+        ..., description="rate= keyword to multiplier, other values parse as % or bare"
+    )
+    rate_range: List[float] = Field(
+        ..., description="Min and max a resolved rate is clamped to"
+    )

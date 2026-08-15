@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.7.2"
+version = "0.8.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,6 @@ dependencies = [
     "tiktoken==0.8.0",
     "loguru==0.7.3",
     "openai>=1.59.6",
-    "pydub>=0.25.1",
     "mutagen>=1.47.0",
     "psutil>=6.1.1",
     "espeakng-loader==0.2.4",
@@ -133,7 +132,7 @@ package-dir = { "" = "api/src" }
 packages.find = { where = ["api/src"], namespaces = true }
 
 [tool.pytest.ini_options]
-testpaths = ["api/tests", "ui/tests"]
+testpaths = ["api/tests"]
 python_files = ["test_*.py"]
-addopts = "--cov=api --cov=ui --cov-report=term-missing --cov-config=.coveragerc --full-trace"
+addopts = "--cov=api --cov-report=term-missing --cov-config=.coveragerc --full-trace"
 asyncio_mode = "auto"

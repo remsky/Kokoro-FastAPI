@@ -10,12 +10,6 @@ Accept: application/json
 GET http://localhost:8880/debug/system
 Accept: application/json
 
-### Get Session Pool Status
-# Shows active ONNX sessions, CUDA stream usage, and session ages
-# Useful for debugging resource exhaustion issues
-GET http://localhost:8880/debug/session_pools
-Accept: application/json
-
 ### List Available Models
 # Returns list of all available models in OpenAI format
 # Response includes tts-1, tts-1-hd, and kokoro models

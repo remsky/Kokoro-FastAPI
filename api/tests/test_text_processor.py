@@ -4,6 +4,7 @@ from api.src.services.text_processing.text_processor import (
     get_sentence_info,
     process_text_chunk,
     smart_split,
+    split_by_voice,
 )
 
 
@@ -240,3 +241,106 @@ async def test_smart_split_with_two_pause():
     assert chunks[2][2] is None  # No pause
     assert "zero point five" in chunks[2][0]
     assert len(chunks[2][1]) > 0
+
+
+def test_split_by_voice_no_tags():
+    """Text without voice tags is a single segment on the default voice."""
+    segments = split_by_voice("Just plain text.", "af_heart")
+    assert segments == [("af_heart", 1.0, "Just plain text.")]
+
+
+def test_split_by_voice_multiple_speakers():
+    """Each tag starts a new segment."""
+    text = "[voice:af_bella] Hello there. [voice:am_michael] Hi back."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [
+        ("af_bella", 1.0, "Hello there."),
+        ("am_michael", 1.0, "Hi back."),
+    ]
+
+
+def test_split_by_voice_leading_text_uses_default():
+    """Text ahead of the first tag belongs to the request voice."""
+    text = "Narrator opens. [voice:af_bella] Then Bella speaks."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [
+        ("af_heart", 1.0, "Narrator opens."),
+        ("af_bella", 1.0, "Then Bella speaks."),
+    ]
+
+
+def test_split_by_voice_merges_repeated_voice():
+    """A tag that doesn't change speaker shouldn't fragment chunking."""
+    text = "[voice:af_bella] One. [voice:af_bella] Two."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [("af_bella", 1.0, "One. Two.")]
+
+
+def test_split_by_voice_accepts_combined_voices():
+    """Weighted combine syntax survives the tag round trip."""
+    segments = split_by_voice("[voice: af_bella(2)+af_sky ] Mixed.", "af_heart")
+    assert segments == [("af_bella(2)+af_sky", 1.0, "Mixed.")]
+
+
+def test_split_by_voice_keeps_pause_tags():
+    """Pause tags stay in the text for smart_split to handle."""
+    text = "[voice:af_bella] One. [pause:0.5s] [voice:am_michael] Two."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [
+        ("af_bella", 1.0, "One. [pause:0.5s]"),
+        ("am_michael", 1.0, "Two."),
+    ]
+
+
+def test_split_by_voice_empty_text():
+    """Empty input still yields one segment so callers keep their fallback."""
+    assert split_by_voice("", "af_heart") == [("af_heart", 1.0, "")]
+
+
+def test_split_by_voice_tags_only():
+    """Tags with no speech yield nothing rather than reading the markup aloud."""
+    assert split_by_voice("[voice:af_bella] [voice:am_michael]", "af_heart") == []
+
+
+def test_split_by_rate_segments():
+    """Rate tags open segments on the same voice, reverting when re-tagged."""
+    text = "Normal. [rate:1.5] Fast. [rate:1.0] Normal again."
+    assert split_by_voice(text, "af_heart") == [
+        ("af_heart", 1.0, "Normal."),
+        ("af_heart", 1.5, "Fast."),
+        ("af_heart", 1.0, "Normal again."),
+    ]
+
+
+def test_split_by_rate_clamps_to_speed_bounds():
+    assert split_by_voice("[rate:99] Whoa.", "af_heart") == [("af_heart", 4.0, "Whoa.")]
+    assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [("af_heart", 0.25, "Crawl.")]
+
+
+def test_split_voice_tag_resets_rate():
+    """A pace stays with the voice it was set on, a voice change reverts to 1.0."""
+    text = "[voice:af_bella] [rate:0.75] Slow Bella. [voice:am_michael] Normal Michael."
+    assert split_by_voice(text, "af_heart") == [
+        ("af_bella", 0.75, "Slow Bella."),
+        ("am_michael", 1.0, "Normal Michael."),
+    ]
+
+
+def test_split_rate_scales_baserate():
+    """An explicit rate stays relative to the voice's calibrated base pace."""
+    text = "[baserate:0.5] Base. [rate:1.5] Faster. [rate:1.0] Base again."
+    assert split_by_voice(text, "af_heart") == [
+        ("af_heart", 0.5, "Base."),
+        ("af_heart", 0.75, "Faster."),
+        ("af_heart", 0.5, "Base again."),
+    ]
+
+
+def test_split_baserate_product_clamps_to_speed_bounds():
+    assert split_by_voice("[baserate:2.5] [rate:2.0] Whoa.", "af_heart") == [
+        ("af_heart", 4.0, "Whoa.")
+    ]

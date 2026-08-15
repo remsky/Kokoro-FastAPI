@@ -52,7 +52,6 @@ api/src/models/**/*.download
 !.claude/skills/readme-benchmarks/
 .agents/*
 Kokoro-82M/
-ui/data/
 EXTERNAL_UV_DOCUMENTATION*
 app
 api/temp_files/
@@ -103,3 +102,5 @@ examples/assorted_checks/test_silence/out/*
 playwright-report/
 test-results/
 ROCM_TRIM.md
+Kokoro-FastAPI.code-workspace
+experiments/*

@@ -75,12 +75,12 @@ def update_readme_badges(passed_tests, coverage_percentage, dep_info):
         print("README.md not found")
         return False
 
-    content = readme_path.read_text()
+    content = readme_path.read_text(encoding="utf-8")
 
     # Update tests badge
     content = re.sub(
-        r"!\[Tests\]\(https://img\.shields\.io/badge/tests-\d+%20passed-[a-zA-Z]+\)",
-        f"![Tests](https://img.shields.io/badge/tests-{passed_tests}%20passed-darkgreen)",
+        r"!\[Tests\]\(https://img\.shields\.io/badge/tests-\d+-[a-zA-Z]+\)",
+        f"![Tests](https://img.shields.io/badge/tests-{passed_tests}-darkgreen)",
         content,
     )
 
@@ -111,7 +111,7 @@ def update_readme_badges(passed_tests, coverage_percentage, dep_info):
             content,
         )
 
-    readme_path.write_text(content)
+    readme_path.write_text(content, encoding="utf-8")
     return True
 
 

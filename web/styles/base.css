@@ -24,6 +24,11 @@ html {
     height: 100%;
 }
 
+/* buttons and inputs don't inherit the page font on their own */
+button, input, select, textarea {
+    font-family: inherit;
+}
+
 body {
     font-family: var(--font-family);
     line-height: 1.6;
@@ -115,13 +120,57 @@ body {
     outline-offset: 2px;
 }
 
-.card-title {
+.card-tabs {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: fit-content;
+    margin-bottom: 0.3rem;
+    padding: 0.15rem;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+}
+
+.card-tabs::before {
+    content: "";
+    position: absolute;
+    inset: 0.15rem auto 0.15rem 0.15rem;
+    width: calc(50% - 0.15rem);
+    background: rgba(99, 102, 241, 0.25);
+    border: 1px solid rgba(99, 102, 241, 0.5);
+    border-radius: 0.15rem;
+    transition: transform 0.2s ease;
+}
+
+.card-tabs.is-tags::before {
+    transform: translateX(100%);
+}
+
+.card-tab {
+    position: relative;
+    padding: 0.25rem 0.65rem;
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-family: inherit;
     font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--text-light);
-    margin-bottom: 0.5rem;
+    white-space: nowrap;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.card-tab:hover {
+    opacity: 1;
+}
+
+.card-tab.is-active {
+    color: var(--text);
+    opacity: 1;
 }
 
 /* takes no space until App.js applies a state class */
@@ -133,6 +182,9 @@ body {
     font-weight: 500;
     font-size: 0.8125rem;
     text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .status.info,
@@ -173,5 +225,9 @@ body {
     .scene .scanline {
         animation: none;
         display: none;
+    }
+
+    .card-tabs::before {
+        transition: none;
     }
 }

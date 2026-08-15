@@ -26,9 +26,11 @@ export class PlayerControls {
             return '0:00';
         }
 
-        const minutes = Math.floor(secs / 60);
+        const hours = Math.floor(secs / 3600);
+        const minutes = Math.floor((secs % 3600) / 60);
         const seconds = Math.floor(secs % 60);
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        const mmss = `${hours ? minutes.toString().padStart(2, '0') : minutes}:${seconds.toString().padStart(2, '0')}`;
+        return hours ? `${hours}:${mmss}` : mmss;
     }
 
     startTimeUpdate() {
@@ -49,10 +51,11 @@ export class PlayerControls {
         const currentTime = this.audioService.getCurrentTime();
         const duration = this.audioService.getDuration();
         
-        // Update time display
-        this.elements.timeDisplay.textContent = 
-            `${this.formatTime(currentTime)} / ${this.formatTime(duration || 0)}`;
-        
+        const known = Number.isFinite(duration) && duration > 0;
+        this.elements.timeDisplay.textContent = known
+            ? `${this.formatTime(currentTime)} / ${this.formatTime(duration)}`
+            : this.formatTime(currentTime);
+
         // Update seek slider
         if (Number.isFinite(duration) && duration > 0 && !this.elements.seekSlider.dragging) {
             this.elements.seekSlider.value = (currentTime / duration) * 100;
@@ -118,27 +121,34 @@ export class PlayerControls {
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
             this.audioService.cancel();
-            this.playerState.reset();
-            this.updateControls({ isGenerating: false });
             this.stopTimeUpdate();
+            this.playerState.reset();
         });
+    }
+
+    setPlayIcon(playing) {
+        const btn = this.elements.playPauseBtn;
+        const label = playing ? 'Pause' : 'Play';
+        btn.classList.toggle('playing', playing);
+        btn.setAttribute('aria-label', label);
+        btn.setAttribute('title', label);
     }
 
     setupAudioEvents() {
         this.audioService.addEventListener('play', () => {
-            this.elements.playPauseBtn.textContent = 'Pause';
+            this.setPlayIcon(true);
             this.playerState.setPlaying(true);
             this.startTimeUpdate();
         });
 
         this.audioService.addEventListener('pause', () => {
-            this.elements.playPauseBtn.textContent = 'Play';
+            this.setPlayIcon(false);
             this.playerState.setPlaying(false);
             this.stopTimeUpdate();
         });
 
         this.audioService.addEventListener('ended', () => {
-            this.elements.playPauseBtn.textContent = 'Play';
+            this.setPlayIcon(false);
             this.playerState.setPlaying(false);
             this.stopTimeUpdate();
         });
@@ -146,6 +156,7 @@ export class PlayerControls {
         this.audioService.addEventListener('ready', () => {
             this.playerState.setReady(true);
             this.updateTimeDisplay();
+            this.updateControls(this.playerState.getState());
         });
 
         // Initial time display
@@ -159,7 +170,9 @@ export class PlayerControls {
     updateControls(state) {
         // Update button states
         this.elements.playPauseBtn.disabled = !state.isReady && !state.isGenerating;
-        this.elements.seekSlider.disabled = !state.isReady || !Number.isFinite(state.duration) || state.duration <= 0;
+        const known = state.isReady && Number.isFinite(state.duration) && state.duration > 0;
+        this.elements.seekSlider.disabled = !known || !this.audioService.isSeekable();
+        this.elements.seekSlider.classList.toggle('no-duration', !known);
         this.elements.cancelBtn.style.display = state.isGenerating ? 'block' : 'none';
         
         // Update volume and speed if changed externally
@@ -182,7 +195,7 @@ export class PlayerControls {
             this.playerState.reset();
         }
         // Reset UI elements
-        this.elements.playPauseBtn.textContent = 'Play';
+        this.setPlayIcon(false);
         this.elements.playPauseBtn.disabled = true;
         this.elements.seekSlider.value = 0;
         this.elements.seekSlider.disabled = true;

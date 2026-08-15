@@ -44,6 +44,7 @@
     flex-direction: column;
     gap: 0.75rem;
     min-height: 0;
+    container-type: inline-size;
 }
 
 .page-content {
@@ -79,11 +80,18 @@
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.35rem;
+    position: relative;
 }
 
-/* single page: both nav buttons disabled, hide the whole row */
-.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) {
+/* both nav buttons disabled means a single page: drop the pagination, find keeps the bar */
+.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) .pagination {
     display: none;
+}
+
+.page-navigation:has(.prev-btn:disabled):has(.next-btn:disabled) .find-menu {
+    position: static;
+    transform: none;
+    margin-left: auto;
 }
 
 .pagination {
@@ -114,10 +122,124 @@
 }
 
 .page-info {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     color: var(--text-light);
     font-size: 0.875rem;
     min-width: 100px;
+    justify-content: center;
+}
+
+.page-jump {
+    width: 3.2rem;
+    padding: 0.2rem 0.3rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-size: 0.875rem;
     text-align: center;
+}
+
+.page-jump:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.find-menu {
+    position: absolute;
+    right: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.find-toggle {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+    color: var(--text-light);
+    padding: 0.3rem 0.45rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    transition: all 0.2s ease;
+}
+
+.find-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.find-toggle:hover,
+.find-menu[open] .find-toggle {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.find-panel {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.35rem);
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    width: 230px;
+    padding: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.find-panel input {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-size: 0.875rem;
+}
+
+.find-panel input:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.find-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+/* own line with reserved height, so a changing count never moves the buttons */
+.find-count {
+    min-height: 1em;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.find-actions button {
+    flex: 1;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.8125rem;
+    transition: all 0.2s ease;
+}
+
+.find-actions button:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: var(--fg-color);
+    color: var(--text);
 }
 
 /* text buttons absorb the free space so the row fills edge to edge */
@@ -202,7 +324,6 @@
 
 .editor-status-row .char-count {
     margin-right: auto;
-    /* match the button text inset above (1px border + 0.9rem padding) */
     padding-left: calc(0.9rem + 1px);
 }
 
@@ -210,6 +331,169 @@
     color: var(--text-light);
     font-size: 0.875rem;
     white-space: nowrap;
+}
+
+.read-along-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    padding: 0.25rem 0.6rem;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+    font-size: 0.8125rem;
+    white-space: nowrap;
+}
+
+.read-along-btn::after {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.4;
+}
+
+.read-along-btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+/* ready matches the generate button, black border and green dot mean on */
+.read-along-btn:not(:disabled) {
+    background: var(--fg-color);
+    border-color: var(--fg-color);
+    color: #fff;
+}
+
+.read-along-btn:not(:disabled):not(.is-active):hover {
+    background: #7b82f4;
+    border-color: #7b82f4;
+}
+
+.read-along-btn.is-active {
+    border-color: #0f172a;
+    box-shadow: inset 0 0 0 1px #0f172a;
+}
+
+.read-along-btn.is-active::after {
+    background: #6ee7b7;
+    opacity: 1;
+    animation: read-along-pulse 5s ease-in-out infinite;
+}
+
+@keyframes read-along-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 5px rgba(110, 231, 183, 0.5); }
+    50% { opacity: 0.55; box-shadow: none; }
+}
+
+.page-navigation .read-along-btn {
+    position: absolute;
+    left: 0.4rem;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+#text-editor.read-along-active .read-along-btn {
+    position: static;
+    transform: none;
+    margin-right: auto;
+}
+
+#text-editor.read-along-active .page-content,
+#text-editor.read-along-active .editor-footer,
+#text-editor.read-along-active .pagination,
+#text-editor.read-along-active .find-menu {
+    display: none;
+}
+
+@container (max-width: 480px) {
+    .page-navigation {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.25rem;
+    }
+
+    .page-navigation .read-along-btn {
+        position: static;
+        transform: none;
+        order: 1;
+    }
+
+    .find-menu {
+        position: static;
+        transform: none;
+        order: 2;
+    }
+
+    .pagination {
+        order: 3;
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+}
+
+/* stands in for the editor view, so it mirrors the textarea chrome */
+.read-along-view {
+    flex: 1 1 auto;
+    min-height: 200px;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    background: rgba(15, 23, 42, 0.3);
+    color: var(--text);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
+    scroll-padding-block: 25% 45%;
+}
+
+.read-along-view::-webkit-scrollbar {
+    width: 6px;
+}
+
+.read-along-view::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.2);
+    border-radius: 3px;
+}
+
+/* offscreen paragraphs skip layout and paint, so book-length texts stay cheap */
+.read-paragraph {
+    content-visibility: auto;
+    contain-intrinsic-size: auto none auto 4rem;
+}
+
+.read-paragraph.gap {
+    margin-bottom: 1.6em;
+}
+
+.read-sentence {
+    border-radius: 0.2rem;
+    transition: background-color 0.15s ease;
+}
+
+.read-sentence:not(.silent) {
+    cursor: pointer;
+}
+
+.read-sentence:not(.silent):hover {
+    background: rgba(99, 102, 241, 0.12);
+}
+
+.read-sentence.is-active {
+    background: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.7);
+    /* wrapped lines each get their own ring instead of one broken box */
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
 }
 
 @media (max-width: 900px) {
@@ -221,7 +505,74 @@
         min-height: 260px;
     }
 
-    .chars-per-page {
-        justify-content: center;
+    /* the page scrolls on narrow layouts, so the view needs its own cap to scroll inside */
+    .read-along-view {
+        min-height: 260px;
+        max-height: 60dvh;
+    }
+
+    .editor-footer,
+    .chars-per-page,
+    .file-controls {
+        gap: 0.4rem;
+    }
+
+    .editor-footer {
+        justify-content: flex-start;
+    }
+
+    .file-controls {
+        flex: 0 1 auto;
+    }
+
+    .upload-btn,
+    .clear-btn,
+    .format-btn {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.8125rem;
+    }
+
+    .chars-input {
+        width: 56px;
+        padding: 0.25rem 0.2rem;
+        font-size: 0.8125rem;
+    }
+
+    .chars-label {
+        font-size: 0.8125rem;
+    }
+
+    .editor-status-row {
+        gap: 0.25rem 0.6rem;
+    }
+
+    .editor-status-row .char-count {
+        padding-left: 0;
+    }
+
+    .char-count {
+        font-size: 0.75rem;
+    }
+
+    .streaming-notice {
+        font-size: 0.6875rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .editor-footer,
+    .chars-per-page,
+    .file-controls {
+        gap: 0.3rem;
+    }
+
+    .upload-btn,
+    .clear-btn,
+    .format-btn {
+        padding: 0.35rem 0.4rem;
+    }
+
+    .chars-input {
+        width: 50px;
     }
 }

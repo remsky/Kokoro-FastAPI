@@ -105,10 +105,11 @@ def _score(lang: str, reference: str, hypothesis: str) -> float:
 
 
 def _wav_seconds(audio_bytes: bytes) -> float:
+    """Streamed WAVs carry a placeholder frame count, so size the data chunk instead."""
     with wave.open(io.BytesIO(audio_bytes), "rb") as wf:
-        frames = wf.getnframes()
-        rate = wf.getframerate()
-        return frames / float(rate) if rate else 0.0
+        bytes_per_second = wf.getframerate() * wf.getnchannels() * wf.getsampwidth()
+    data_start = audio_bytes.find(b"data") + 8
+    return (len(audio_bytes) - data_start) / bytes_per_second if bytes_per_second else 0.0
 
 
 @pytest.mark.parametrize(
