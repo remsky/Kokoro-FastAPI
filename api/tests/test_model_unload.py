@@ -217,6 +217,28 @@ async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_idle_auto_unload_log_includes_configured_timeout(monkeypatch):
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    manager._backend = mock_backend
+    manager._last_used_at = 0.0
+
+    with (
+        patch("api.src.inference.model_manager.time.monotonic", return_value=31.0),
+        patch("api.src.inference.model_manager.torch") as mock_torch,
+        patch("api.src.inference.model_manager.logger.info") as mock_log_info,
+    ):
+        mock_torch.cuda.is_available.return_value = False
+        await manager._idle_unload_after(0)
+
+    mock_backend.unload.assert_called_once()
+    mock_log_info.assert_any_call("Model auto-unloaded after idle timeout of 30s")
+
+
+@pytest.mark.asyncio
 async def test_load_model_schedules_idle_unload_when_enabled(monkeypatch):
     """Startup-style model loads also schedule unload without waiting for traffic."""
     monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
