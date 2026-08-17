@@ -40,6 +40,10 @@ class Settings(BaseSettings):
         False  # Whether to allow saving combined voices locally
     )
     allow_dev_unload: bool = False  # Whether to expose the POST /dev/unload endpoint
+    model_auto_unload_enabled: bool = False  # Whether to unload the model after an idle timeout
+    model_auto_unload_timeout_seconds: float = (
+        300.0  # Idle seconds before unloading when MODEL_AUTO_UNLOAD_ENABLED=true
+    )
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )

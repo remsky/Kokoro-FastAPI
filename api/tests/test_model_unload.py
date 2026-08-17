@@ -1,4 +1,4 @@
-"""Tests for ModelManager.unload(), lazy reinit in generate(), and POST /dev/unload."""
+"""Tests for model unload, auto-unload, lazy reload, and dev lifecycle endpoints."""
 
 import asyncio
 from contextlib import contextmanager
@@ -36,6 +36,8 @@ def override_tts_service(service):
 def _enable_dev_unload(monkeypatch):
     """Enable the /dev/unload gate for the endpoint tests in this module."""
     monkeypatch.setattr(settings, "allow_dev_unload", True)
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", False)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 300.0)
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +48,7 @@ def _enable_dev_unload(monkeypatch):
 def test_manager_init_creates_lock():
     manager = ModelManager()
     assert isinstance(manager._lock, asyncio.Lock)
+    assert manager._active_requests == 0
 
 
 @pytest.mark.asyncio
@@ -185,6 +188,85 @@ async def test_generate_skips_reinit_when_backend_set():
     assert len(chunks) == 1
 
 
+@pytest.mark.asyncio
+async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
+    """Finished generation schedules model unload after the configured idle period."""
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    audio_chunk = AudioChunk(np.zeros(10, dtype=np.float32))
+
+    async def fake_generate(*args, **kwargs):
+        yield audio_chunk
+
+    mock_backend.generate = fake_generate
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        chunks = []
+        async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+            chunks.append(chunk)
+        await asyncio.sleep(0.03)
+
+    assert len(chunks) == 1
+    mock_backend.unload.assert_called_once()
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_active_request_blocks_idle_unload(monkeypatch):
+    """The idle timer does not unload while generation is still active."""
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+
+    async def slow_generate(*args, **kwargs):
+        await asyncio.sleep(0.03)
+        yield AudioChunk(np.zeros(10, dtype=np.float32))
+
+    mock_backend.generate = slow_generate
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        chunks = []
+        async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+            assert manager._active_requests == 1
+            mock_backend.unload.assert_not_called()
+            chunks.append(chunk)
+
+    assert len(chunks) == 1
+    assert manager._active_requests == 0
+    assert manager._idle_unload_task is not None
+    manager._cancel_idle_unload_timer()
+
+
+def test_status_reports_model_lifecycle_state(monkeypatch):
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
+    manager = ModelManager()
+    manager._backend = MagicMock()
+    manager._device = "cuda"
+    manager._last_used_at = 10.0
+
+    with patch("api.src.inference.model_manager.time.monotonic", return_value=15.0):
+        status = manager.status()
+
+    assert status["backend"] == "kokoro_v1"
+    assert status["device"] == "cuda"
+    assert status["loaded"] is True
+    assert status["active_requests"] == 0
+    assert status["auto_unload_enabled"] is True
+    assert status["auto_unload_timeout_seconds"] == 30.0
+    assert status["idle_seconds"] == 5.0
+    assert status["seconds_until_auto_unload"] == 25.0
+
+
 # ---------------------------------------------------------------------------
 # POST /dev/unload endpoint tests
 # ---------------------------------------------------------------------------
@@ -261,3 +343,29 @@ def test_unload_endpoint_500_on_exception():
 
     assert response.status_code == 500
     assert "GPU exploded" in response.json()["detail"]["error"]
+
+
+def test_reload_endpoint_returns_status():
+    mock_manager = MagicMock()
+    mock_manager.reload = AsyncMock()
+    mock_manager.status.return_value = {"loaded": True}
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/reload")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "loaded", "model": {"loaded": True}}
+    mock_manager.reload.assert_called_once()
+
+
+def test_model_status_endpoint_returns_status():
+    mock_manager = MagicMock()
+    mock_manager.status.return_value = {"loaded": False}
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.get("/dev/model")
+
+    assert response.status_code == 200
+    assert response.json() == {"loaded": False}
