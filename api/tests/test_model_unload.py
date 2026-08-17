@@ -217,6 +217,50 @@ async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_load_model_schedules_idle_unload_when_enabled(monkeypatch):
+    """Startup-style model loads also schedule unload without waiting for traffic."""
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.load_model = AsyncMock()
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        await manager.load_model("/path/model.pt")
+        await asyncio.sleep(0.03)
+
+    mock_backend.load_model.assert_called_once_with("/path/model.pt")
+    mock_backend.unload.assert_called_once()
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_load_model_does_not_schedule_idle_unload_during_active_request(
+    monkeypatch,
+):
+    """Lazy loads during generation wait for request completion before scheduling."""
+    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.load_model = AsyncMock()
+    manager._backend = mock_backend
+    manager._active_requests = 1
+
+    await manager.load_model("/path/model.pt")
+    await asyncio.sleep(0.03)
+
+    mock_backend.load_model.assert_called_once_with("/path/model.pt")
+    mock_backend.unload.assert_not_called()
+    assert manager._backend is mock_backend
+    assert manager._idle_unload_task is None
+
+
+@pytest.mark.asyncio
 async def test_active_request_blocks_idle_unload(monkeypatch):
     """The idle timer does not unload while generation is still active."""
     monkeypatch.setattr(settings, "model_auto_unload_enabled", True)

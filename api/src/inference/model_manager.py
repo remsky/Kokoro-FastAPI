@@ -143,6 +143,7 @@ Model files not found! You need to download the Kokoro V1 model:
         try:
             await self._backend.load_model(path)
             self._last_used_at = time.monotonic()
+            self._schedule_idle_unload_timer_locked()
         except FileNotFoundError as e:
             raise e
         except Exception as e:
