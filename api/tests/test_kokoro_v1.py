@@ -68,6 +68,47 @@ def test_unload_with_pipelines(kokoro_backend):
     assert kokoro_backend._voice_cache == {}  # Voice tensors should be released
 
 
+def test_cpu_cache_unload_moves_model_to_cpu_and_clears_runtime_caches(
+    kokoro_backend,
+):
+    """CPU-cache unload keeps model weights but clears device-backed runtime state."""
+    cuda_model = MagicMock()
+    cpu_model = MagicMock()
+    cuda_model.cpu.return_value = cpu_model
+    kokoro_backend._model = cuda_model
+    kokoro_backend._device = "cuda"
+    kokoro_backend._pipelines = {"a": MagicMock()}
+    kokoro_backend._voice_cache = {"af_heart.pt:cuda": MagicMock()}
+
+    with patch.object(kokoro_backend, "_clear_memory") as mock_clear:
+        kokoro_backend.unload(strategy="cpu_cache")
+
+    cuda_model.cpu.assert_called_once()
+    mock_clear.assert_called_once()
+    assert kokoro_backend._model is cpu_model
+    assert kokoro_backend.is_loaded
+    assert kokoro_backend.is_cpu_cached
+    assert kokoro_backend._pipelines == {}
+    assert kokoro_backend._voice_cache == {}
+
+
+def test_restore_to_device_moves_cpu_cached_model_to_cuda(kokoro_backend):
+    cpu_model = MagicMock()
+    cuda_model = MagicMock()
+    cpu_model.cuda.return_value = cuda_model
+    kokoro_backend._model = cpu_model
+    kokoro_backend._device = "cuda"
+    kokoro_backend._model_cpu_cached = True
+
+    with patch("api.src.inference.kokoro_v1.torch") as mock_torch:
+        kokoro_backend.restore_to_device()
+
+    cpu_model.cuda.assert_called_once()
+    mock_torch.cuda.synchronize.assert_called_once()
+    assert kokoro_backend._model is cuda_model
+    assert not kokoro_backend.is_cpu_cached
+
+
 @pytest.mark.asyncio
 async def test_generate_validation(kokoro_backend):
     """Test generation validation."""

@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     model_auto_unload_timeout_seconds: float = (
         300.0  # Idle seconds before unloading when MODEL_AUTO_UNLOAD_ENABLED=true
     )
+    model_unload_strategy: str = "destroy"  # "destroy" or "cpu_cache"
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )
