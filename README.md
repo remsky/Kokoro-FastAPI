@@ -698,8 +698,8 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. To automatically unload the model after an idle timeout, set MODEL_AUTO_UNLOAD_ENABLED=true and adjust MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS.
-Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+
 
 <p align="center">
   <img src="assets/gpu_model_unload_short.png" width="45%" alt="Short workload" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
@@ -712,6 +712,8 @@ Reclaim scales with load (the activation pool, not just weights) but plateaus: c
 | Long-form (7.5m) | 3.98 GB | 2.37 GB | 1,656 MiB | +5.1s |
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
+
+To automatically unload the model after an idle timeout, set MODEL_AUTO_UNLOAD_ENABLED=true and adjust MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS.
 
 ### Transcription roundtrip (WER/CER)
 
@@ -761,7 +763,7 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
 - `/dev/model` - Get model load state and auto-unload timing
-- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 - `POST /dev/reload` - Load the model immediately after an unload or before traffic arrives
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
