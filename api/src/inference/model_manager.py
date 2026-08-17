@@ -159,6 +159,9 @@ Model files not found! You need to download the Kokoro V1 model:
     def _auto_unload_timeout(self) -> float:
         return max(0.0, float(settings.model_auto_unload_timeout_seconds))
 
+    def _format_seconds(self, seconds: float) -> str:
+        return f"{seconds:g}s"
+
     def _auto_unload_enabled(self) -> bool:
         return settings.model_auto_unload_enabled and self._auto_unload_timeout() > 0
 
@@ -270,7 +273,8 @@ Model files not found! You need to download the Kokoro V1 model:
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
                 logger.info(
-                    f"Model auto-unload completed with strategy={self._unload_strategy()}"
+                    "Model auto-unloaded after idle timeout of "
+                    f"{self._format_seconds(self._auto_unload_timeout())}"
                 )
         except asyncio.CancelledError:
             logger.debug("Model auto-unload timer cancelled")
