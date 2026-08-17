@@ -84,6 +84,39 @@ async def test_unload_cpu_cache_keeps_backend(monkeypatch):
     assert manager._backend is mock_backend
 
 
+def test_cpu_cache_strategy_warns_and_uses_destroy_without_gpu(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", False)
+    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+
+    manager = ModelManager()
+
+    with patch("api.src.inference.model_manager.logger.warning") as mock_warning:
+        assert manager._unload_strategy() == "destroy"
+
+    mock_warning.assert_called_once_with(
+        "MODEL_UNLOAD_STRATEGY=cpu_cache requires USE_GPU=true; using destroy"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unload_cpu_cache_destroys_backend_without_gpu(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", False)
+    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        await manager.unload()
+
+    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    assert manager._backend is None
+
+
 @pytest.mark.asyncio
 async def test_reload_restores_cpu_cached_backend(monkeypatch):
     monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")

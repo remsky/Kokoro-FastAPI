@@ -182,6 +182,11 @@ Model files not found! You need to download the Kokoro V1 model:
                 f"Unknown MODEL_UNLOAD_STRATEGY={settings.model_unload_strategy!r}; using destroy"
             )
             return "destroy"
+        if strategy == "cpu_cache" and not settings.use_gpu:
+            logger.warning(
+                "MODEL_UNLOAD_STRATEGY=cpu_cache requires USE_GPU=true; using destroy"
+            )
+            return "destroy"
         return strategy
 
     def _cancel_idle_unload_timer(self) -> None:
