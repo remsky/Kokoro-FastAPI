@@ -698,7 +698,11 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Set `ALLOW_DEV_UNLOAD=true` to expose the lifecycle controls: `GET /dev/model`, `POST /dev/unload`, and `POST /dev/reload`.
+
+For shared-GPU hosts, set `MODEL_AUTO_UNLOAD_ENABLED=true` and tune `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to unload automatically after the model has been idle. In-flight generation keeps the model loaded; the next request reloads it automatically, or `POST /dev/reload` can pre-warm it.
+
+Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
 
 <p align="center">
   <img src="assets/gpu_model_unload_short.png" width="45%" alt="Short workload" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
@@ -759,7 +763,9 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
-- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
+- `/dev/model` - Get model load state and auto-unload timing
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request
+- `POST /dev/reload` - Load the model immediately after an unload or before traffic arrives
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
 </details>
