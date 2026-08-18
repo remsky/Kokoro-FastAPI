@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.8.1-rc1"
+version = "0.8.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,7 +34,6 @@ dependencies = [
     "kokoro==0.9.4",
     "transformers>=5.5.0,<6",
     "misaki[en,ja,ko,zh]==0.9.4",
-    "pyopenjtalk-plus>=0.4.1 ; sys_platform == 'win32'",
     "spacy==3.8.5",
     "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "inflect>=7.5.0",
@@ -83,8 +82,7 @@ conflicts = [
     ],
 ]
 override-dependencies = [
-    "triton>=3.5.1 ; platform_machine == 'aarch64'",
-    "pyopenjtalk ; sys_platform != 'win32'",
+    "triton>=3.5.1 ; platform_machine == 'aarch64'"
 ]
 
 [tool.uv.sources]
