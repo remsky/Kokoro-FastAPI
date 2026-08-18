@@ -55,6 +55,7 @@ class Settings(BaseSettings):
 
     # Model selection
     model_version: str = "v1_0"  # "v1_0" (baked default) or "v1_1-zh" (Chinese-focused, downloaded at startup)
+    model_repo_id: str = "hexgrad/Kokoro-82M"  # follows model_version unless set explicitly
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
@@ -112,11 +113,9 @@ class Settings(BaseSettings):
                 self.voices_dir = self.voices_dir.replace("v1_0", self.model_version)
             if "default_voice" not in self.model_fields_set:
                 self.default_voice = "zf_001"
+        if "model_repo_id" not in self.model_fields_set:
+            self.model_repo_id = MODEL_REPOS[self.model_version]
         return self
-
-    @property
-    def model_repo_id(self) -> str:
-        return MODEL_REPOS[self.model_version]
 
     @property
     def model_file(self) -> str:
