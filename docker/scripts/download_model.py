@@ -27,7 +27,7 @@ def verify_files(model_path: str, config_path: str) -> bool:
             return False
 
         # Verify config file is valid JSON
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             config = json.load(f)
 
         # Check model file size (should be non-zero)
