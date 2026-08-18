@@ -41,7 +41,10 @@ conflicts = [[
 ]]
 
 [manifest]
-overrides = [{ name = "triton", marker = "platform_machine == 'aarch64'", specifier = ">=3.5.1" }]
+overrides = [
+    { name = "pyopenjtalk", marker = "sys_platform != 'win32'" },
+    { name = "triton", marker = "platform_machine == 'aarch64'", specifier = ">=3.5.1" },
+]
 
 [[package]]
 name = "addict"
@@ -768,16 +771,18 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.116.1"
+version = "0.141.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "annotated-doc" },
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
+    { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/78/d7/6c8b3bfe33eeffa208183ec037fee0cce9f7f024089ab1c5d12ef04bd27c/fastapi-0.116.1.tar.gz", hash = "sha256:ed52cbf946abfd70c5a0dccb24673f0670deeb517a88b3544d03c2a6bf283143", size = 296485, upload-time = "2025-07-11T16:22:32.057Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8a/02/91e3416a8fdd715abb903a952a6bec7cdd8d14eed55d415fc8595524c319/fastapi-0.141.1.tar.gz", hash = "sha256:e8822fc40db1e1858054d7a949a888695bc9bdce70139178e33bd2871a453ca1", size = 425799, upload-time = "2026-07-29T17:18:05.568Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e5/47/d63c60f59a59467fda0f93f46335c9d18526d7071f025cb5b89d5353ea42/fastapi-0.116.1-py3-none-any.whl", hash = "sha256:c46ac7c312df840f0c9e220f7964bada936781bc4e2e6eb71f1c4d7553786565", size = 95631, upload-time = "2025-07-11T16:22:30.485Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/03/10388a42375ee7e4ac9b94eb2c5c569c8b5795e377e701c9ac3ad63de890/fastapi-0.141.1-py3-none-any.whl", hash = "sha256:bfb91aa2d334c61cb35ba9a116fc123b3d3df31640b801cf57a7a78ec3f603b3", size = 131954, upload-time = "2026-07-29T17:18:04.364Z" },
 ]
 
 [[package]]
@@ -1223,7 +1228,7 @@ wheels = [
 
 [[package]]
 name = "kokoro-fastapi"
-version = "0.7.0"
+version = "0.8.1rc1"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },
@@ -1244,7 +1249,7 @@ dependencies = [
     { name = "psutil" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
-    { name = "pydub" },
+    { name = "pyopenjtalk-plus", marker = "sys_platform == 'win32' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
     { name = "python-dotenv" },
     { name = "regex" },
     { name = "requests" },
@@ -1293,7 +1298,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.0.0" },
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
     { name = "espeakng-loader", specifier = "==0.2.4" },
-    { name = "fastapi", specifier = "==0.116.1" },
+    { name = "fastapi", specifier = ">=0.128.8" },
     { name = "httpx", marker = "extra == 'test'", specifier = "==0.26.0" },
     { name = "inflect", specifier = ">=7.5.0" },
     { name = "jinja2", marker = "extra == 'test'", specifier = ">=3.1.6" },
@@ -1308,7 +1313,7 @@ requires-dist = [
     { name = "psutil", specifier = ">=6.1.1" },
     { name = "pydantic", specifier = "==2.10.4" },
     { name = "pydantic-settings", specifier = "==2.7.0" },
-    { name = "pydub", specifier = ">=0.25.1" },
+    { name = "pyopenjtalk-plus", marker = "sys_platform == 'win32'", specifier = ">=0.4.1" },
     { name = "pytest", marker = "extra == 'test'", specifier = "==8.3.5" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = "==0.25.3" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = "==6.0.0" },
@@ -1320,7 +1325,7 @@ requires-dist = [
     { name = "soundfile", specifier = "==0.13.0" },
     { name = "spacy", specifier = "==3.8.5" },
     { name = "sqlalchemy", specifier = "==2.0.27" },
-    { name = "starlette", specifier = ">=0.47.2" },
+    { name = "starlette", specifier = ">=1.3.1" },
     { name = "text2num", specifier = ">=2.5.1" },
     { name = "tiktoken", specifier = "==0.8.0" },
     { name = "tomli", marker = "extra == 'test'", specifier = ">=2.0.1" },
@@ -1498,7 +1503,7 @@ ja = [
     { name = "fugashi" },
     { name = "jaconv" },
     { name = "mojimoji" },
-    { name = "pyopenjtalk" },
+    { name = "pyopenjtalk", marker = "sys_platform != 'win32' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
     { name = "unidic" },
 ]
 ko = [
@@ -2490,15 +2495,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pydub"
-version = "0.25.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/fe/9a/e6bca0eed82db26562c73b5076539a4a08d3cffd19c3cc5913a3e61145fd/pydub-0.25.1.tar.gz", hash = "sha256:980a33ce9949cab2a569606b65674d748ecbca4f0796887fd6f46173a7b0d30f", size = 38326, upload-time = "2021-03-10T02:09:54.659Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a6/53/d78dc063216e62fc55f6b2eebb447f6a4b0a59f55c8406376f76bf959b08/pydub-0.25.1-py2.py3-none-any.whl", hash = "sha256:65617e33033874b59d87db603aa1ed450633288aefead953b30bded59cb599a6", size = 32327, upload-time = "2021-03-10T02:09:53.503Z" },
-]
-
-[[package]]
 name = "pygments"
 version = "2.19.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2516,6 +2512,41 @@ dependencies = [
     { name = "tqdm" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/58/74/ccd31c696f047ba381f9b11a504bf1199756c3f30f3de64e3eeb83e10b4a/pyopenjtalk-0.4.1.tar.gz", hash = "sha256:d5ada46f7fc2b52c1c79c273eb9668ff6ad7ab276a8db9d8be119ef93440f0dc", size = 1397999, upload-time = "2025-04-08T06:27:46.528Z" }
+
+[[package]]
+name = "pyopenjtalk-plus"
+version = "0.4.1.post9"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "pydantic", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "sudachidict-core", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "sudachipy", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "typing-extensions", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1a/e7/03cc1d971260ae90cc35370965d6d8e612cc8b8588d2f81db7cd2accf9ad/pyopenjtalk_plus-0.4.1.post9.tar.gz", hash = "sha256:cdcb0746659857554c6dad23956cad77e21f76c9f3dfa000ea2f8d4f0ba11d99", size = 25023543, upload-time = "2026-08-11T21:13:31.021Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fc/b6/faca99e7015b81706f819fb7239e1e1d73d941ba6c9b420e63d6a245a911/pyopenjtalk_plus-0.4.1.post9-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:1f0de887a624b86109464d9ec819e705d7412ebeda87a6abc0f828fc48091932", size = 25654409, upload-time = "2026-08-11T21:12:00.274Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/32/ebfe5a5153ec7fb468142ed674418ba1381afcb2f50d5fb3f6f2e64e569e/pyopenjtalk_plus-0.4.1.post9-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:5b0e6ddebf2cf60ef480e1a9861ff2f08e6b04e70fe3ca62f349f601af6adb5b", size = 31198254, upload-time = "2026-08-11T21:12:05.602Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/4d/a95e20214716b07ba89260c24bab157ff3f3b91a0a41c5e04ff103a2d844/pyopenjtalk_plus-0.4.1.post9-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5acf59e7a0750a5a35e1a76a724f257e995a71f8c06ff945f8436b8f9b62b5b9", size = 31281542, upload-time = "2026-08-11T21:12:10.513Z" },
+    { url = "https://files.pythonhosted.org/packages/40/02/939abaa07066337ce1a9e405159f186b2b383fd4ab89754c68af6af29026/pyopenjtalk_plus-0.4.1.post9-cp310-cp310-win_amd64.whl", hash = "sha256:c2624815bef0528628bbdc52dec298b0eb577df261f19088b7bb5018c5ca0b51", size = 25064332, upload-time = "2026-08-11T21:12:14.817Z" },
+    { url = "https://files.pythonhosted.org/packages/02/2c/8dacb54db5148d65802d2932fae702227e7ebbc4e8578ba417da872cc61d/pyopenjtalk_plus-0.4.1.post9-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:5e91f4d43740e550bc8a1fb8923fd5a490f06f5fbcac0fba9280e3b7d7b954e9", size = 25652290, upload-time = "2026-08-11T21:12:19.479Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/29/e55ccaeffb6746aa5c5d9f5365472c8899e21e788f33a7e4d8156045aa73/pyopenjtalk_plus-0.4.1.post9-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f35a6b1f977347c8b6b233728bc971fa6561cbcb1a23f6c94a79a8c763d64401", size = 31298276, upload-time = "2026-08-11T21:12:24.419Z" },
+    { url = "https://files.pythonhosted.org/packages/fa/71/e6937ce16f4d1c35a161e463e0176220a3147ee214f9f56ebc0b1632cc60/pyopenjtalk_plus-0.4.1.post9-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:b3a991396d641cf5983bf3c49e932d6f878c8a12215cad64871c82354d22cd78", size = 31388339, upload-time = "2026-08-11T21:12:29.587Z" },
+    { url = "https://files.pythonhosted.org/packages/18/df/50e8185a5a5d441e404af7c0407491bc92ca76d44ceaf8cd086066365184/pyopenjtalk_plus-0.4.1.post9-cp311-cp311-win_amd64.whl", hash = "sha256:58cda3998e1c8f4d820e07757803e8cd9ad324c359af59f398c30ba38fb88865", size = 25065816, upload-time = "2026-08-11T21:12:34.144Z" },
+    { url = "https://files.pythonhosted.org/packages/49/46/f509711876c6997842586bd7a55f8803dc0d37d8aa2ab65485d36b844507/pyopenjtalk_plus-0.4.1.post9-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:3a0c9e3d7a61e72be10c6e2dc37449037e72b2b6c7a97633eb03e393836936a2", size = 25656701, upload-time = "2026-08-11T21:12:38.91Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/ce/d1d01cbdc4b2ba9b01919f6f017856997d8fe4fac035e8e0fd08923384b5/pyopenjtalk_plus-0.4.1.post9-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:f98993e1e943d4313e4113992b137714c0ac8f6a383d1fd89747a592222bdddf", size = 31274657, upload-time = "2026-08-11T21:12:43.76Z" },
+    { url = "https://files.pythonhosted.org/packages/81/37/aa7b83620b5aadd7f47c42d0f04a2cad535e7fece52cc0c2387b97db3e85/pyopenjtalk_plus-0.4.1.post9-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:856b1ee7be326015490c23fc55046688492e2d99554852e476a24a10c8e77ba0", size = 31362445, upload-time = "2026-08-11T21:12:48.526Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/f3/bf7c62d0c0e8543a6b93d18df4527a0f060b5a21dd7e64408fa16e98ebad/pyopenjtalk_plus-0.4.1.post9-cp312-cp312-win_amd64.whl", hash = "sha256:7c13d8370d82e625c3ac0712d813da498c8f145f6ff246aec482753db952a5a9", size = 25059224, upload-time = "2026-08-11T21:12:52.391Z" },
+    { url = "https://files.pythonhosted.org/packages/28/2b/3b77d3b18808f719106988df846956762026150447f6bc4e37372a195294/pyopenjtalk_plus-0.4.1.post9-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:7122013811e02ac7c2676c4bd7e5c2d37eb6f02b11944ff1fdf3fa4667d4cd5c", size = 25655431, upload-time = "2026-08-11T21:12:56.419Z" },
+    { url = "https://files.pythonhosted.org/packages/13/27/ebf087640df43f6f319cde946a69dba082b1ecb82f56b8106e62e09c4c05/pyopenjtalk_plus-0.4.1.post9-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:10d3b80ac91f193861909f08b945b11e037965f6eadb767529b975465382282c", size = 31267213, upload-time = "2026-08-11T21:13:00.516Z" },
+    { url = "https://files.pythonhosted.org/packages/22/d9/19994eae3451aafdff7d24ef73d06c259d310c8fe5b091725d42b291e234/pyopenjtalk_plus-0.4.1.post9-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:f7c1048013e8ce100f4f9d489d2acfc603756fb1a62ca0a2310475bc7e4fa365", size = 31357892, upload-time = "2026-08-11T21:13:04.907Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/ea/f5f4c9d1dd9f1788e9bf22a05ed28e6aa15698decda247bf1563610a5538/pyopenjtalk_plus-0.4.1.post9-cp313-cp313-win_amd64.whl", hash = "sha256:f3699de7491d958685ffd2656cb0f3ac1d5c1ca469f3da7caf2e5aa4617ef3b1", size = 25059130, upload-time = "2026-08-11T21:13:09.144Z" },
+    { url = "https://files.pythonhosted.org/packages/de/d1/04c4a08db318048ca632994bcae2b46a5401dd25b1ea53effd19aacf642d/pyopenjtalk_plus-0.4.1.post9-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:75d1a93e97fe627ee88a5cc9c03af48cef440a957e66aab801e4be0bc1972384", size = 25656908, upload-time = "2026-08-11T21:13:13.148Z" },
+    { url = "https://files.pythonhosted.org/packages/81/e5/8d555862f0f7f929aab041fb51d1afc6240552bbcbd2d6cf4af0a1e3ed9d/pyopenjtalk_plus-0.4.1.post9-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d669b461203e453698da8f3a1772d15802e64cc4f0d0278d65223d30339d0302", size = 31262061, upload-time = "2026-08-11T21:13:17.638Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/de/2cb80918d0a7b7f0260a97203f383ed79cc222b28e5b1cd95eed10b17f84/pyopenjtalk_plus-0.4.1.post9-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:71d06f9318d6fcdf63ba61549ea22765d674a8cfb8a29984b73915cd7cf40486", size = 31344566, upload-time = "2026-08-11T21:13:22.131Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/0d/a8542f269f7e912fb2920fa7d1eaf8e88c36bd1ea915c63c350fc5378f45/pyopenjtalk_plus-0.4.1.post9-cp314-cp314-win_amd64.whl", hash = "sha256:273a7829ebbc4ddfa94c11bdf47d0aac89b418a144afb6b9d80c745416e47578", size = 25745062, upload-time = "2026-08-11T21:13:26.909Z" },
+]
 
 [[package]]
 name = "pyparsing"
@@ -3323,15 +3354,75 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "0.47.3"
+version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
     { name = "typing-extensions", marker = "python_full_version < '3.13' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/15/b9/cc3017f9a9c9b6e27c5106cc10cc7904653c3eec0729793aec10479dd669/starlette-0.47.3.tar.gz", hash = "sha256:6bc94f839cc176c4858894f1f8908f0ab79dfec1a6b8402f6da9be26ebea52e9", size = 2584144, upload-time = "2025-08-24T13:36:42.122Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/3c/76d2fd1f1357ed0f0108d8a5aa233dcf16e2946a8559c84912fe08e01ac7/starlette-1.4.1.tar.gz", hash = "sha256:b7332de6e9375593a29ba9eee1e6ecfeb3eb2043e2e19a13b4b71da73ff35540", size = 2709041, upload-time = "2026-08-05T15:17:26.23Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/fd/901cfa59aaa5b30a99e16876f11abe38b59a1a2c51ffb3d7142bb6089069/starlette-0.47.3-py3-none-any.whl", hash = "sha256:89c0778ca62a76b826101e7c709e70680a1699ca7da6b44d38eb0a7e61fe4b51", size = 72991, upload-time = "2025-08-24T13:36:40.887Z" },
+    { url = "https://files.pythonhosted.org/packages/75/0a/67e95f21498de41433babf7b1db0eeab449eb58872dfb831b27747a70fd0/starlette-1.4.1-py3-none-any.whl", hash = "sha256:7d078e0fbefae0d2cecfb80a799d6fb84b1c0c6acd4f14ac79d17d0e7ec27f19", size = 74019, upload-time = "2026-08-05T15:17:24.357Z" },
+]
+
+[[package]]
+name = "sudachidict-core"
+version = "20260723"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sudachipy", marker = "sys_platform != 'darwin' or extra != 'extra-14-kokoro-fastapi-cpu' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2f/69/e8df4402744319080f9db9f20dc40a0cc3f2042db82ab7c040b785becf14/sudachidict_core-20260723.tar.gz", hash = "sha256:d50c302f907c0bb9b048b9d224abc3b24cdbeb8416a73942de00b74235798fe7", size = 9119, upload-time = "2026-07-24T05:40:57.315Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/46/fe/68a146fced55319af40d25a4fe19b94c3a988406ce4674a8b2f0237fbc9f/sudachidict_core-20260723-py3-none-any.whl", hash = "sha256:b3869ce6b12b4bfa09575dc19030703bb669ab41bac12a74cafcbb28c6be2498", size = 72275897, upload-time = "2026-07-24T05:41:52.52Z" },
+]
+
+[[package]]
+name = "sudachipy"
+version = "0.6.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/34/a52dc020e1ac67ffe2469d22771a850589a1184e0d91d48addd364ee02ba/sudachipy-0.6.11.tar.gz", hash = "sha256:4f03310fd3fc779b3000f49395c939d18a30081632d3cb14488426f7c07cc526", size = 180616, upload-time = "2026-04-13T05:27:26.857Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/56/04/433c86f0de93298a99e90591a87b67023e636c8550165d88fdc499dee7a8/sudachipy-0.6.11-cp310-cp310-macosx_10_12_universal2.whl", hash = "sha256:7764933f190e480886df2c6ddb0c1d9171833f23d40d278c65250031232779af", size = 2967486, upload-time = "2026-04-13T05:26:21.151Z" },
+    { url = "https://files.pythonhosted.org/packages/e3/e1/70c1dcae497e2847f97edf567ed46bbf1f1e97eaf4854666794f40c89f5b/sudachipy-0.6.11-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:72c2f91ab3693013709a9fb42f94954e98cecfed4bcba77c9afdd3eb85d8628d", size = 1527688, upload-time = "2026-04-13T05:26:22.609Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/7a/54b541e6c0a30e3dbca68fac6c2eaf4aa55a970b363f494db0dbed3e5ac6/sudachipy-0.6.11-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:ec915f0784d4ee1bf2ea58e50ee7193a4336b6cf9ee1103782771684a3967081", size = 1462309, upload-time = "2026-04-13T05:26:24.273Z" },
+    { url = "https://files.pythonhosted.org/packages/26/77/db396bc1b57c74d0e8d3b08f62616fa372321d64df70df5d048e9cb68178/sudachipy-0.6.11-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:c6b2ad953530963a55968762cc6fd359211f4f98fc90fac2ece2f04e60efdc17", size = 1586258, upload-time = "2026-04-13T05:26:25.75Z" },
+    { url = "https://files.pythonhosted.org/packages/35/df/374d05965bd636f0c18fcc1a22ed26cb92ff0035342025203264ee87578c/sudachipy-0.6.11-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2f266faf29125a9d2b26a62683ebf872b248ac5d3b24542a3c016f496fb7d5f2", size = 1629665, upload-time = "2026-04-13T05:26:26.848Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/18/89f4e5b3d828db0d7c518f3e7b8221e6d7170d395d2bdeb59f27ee20ab2d/sudachipy-0.6.11-cp310-cp310-win_amd64.whl", hash = "sha256:e0963d1f06162bdb640f0f21210d9c08c5854985f4dbec089dcf9e0cd91cf716", size = 1327948, upload-time = "2026-04-13T05:26:28.184Z" },
+    { url = "https://files.pythonhosted.org/packages/35/75/723bfa0ee554ec5947fc78ebcf427916db1b6cdfee565ff7615f87e385e6/sudachipy-0.6.11-cp311-cp311-macosx_10_12_universal2.whl", hash = "sha256:347d208864c40e4879535768ca30093ccf9f578cb37613850a8eef8850e40a55", size = 2967412, upload-time = "2026-04-13T05:26:29.401Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/ea/2aac0721549a490e3648d5b0ab828dffdcec48ac2c3981731b065750ca18/sudachipy-0.6.11-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:0312e3d87383c0a2d1357f3d7158132860a0b73d89f1d3c8887ed008359f3778", size = 1527649, upload-time = "2026-04-13T05:26:31.098Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/61/f00001ebb2cb3955b1f4369a80d7c4c48d8faa8cda70b111c9781284a35f/sudachipy-0.6.11-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:8c1870ad045d09dcdf71aaf40d49d895caf8890d4873fc4e72739e79855ac20d", size = 1462049, upload-time = "2026-04-13T05:26:32.607Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/91/992b5b7538611c0017c582d935bf58784d2c52a44a403171f8858834e95e/sudachipy-0.6.11-cp311-cp311-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:628525d988834d021308cab49feb94b8870f9e2d929562fd619abc9933221366", size = 1587295, upload-time = "2026-04-13T05:26:33.998Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/a8/e0a1e75de7fb45375f9c916b4955273eb3decb5ff824e0a5d325cce76266/sudachipy-0.6.11-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:b9142b1f255f075a5e6768e0dee32b7ded1f2c159653698b9ce931484fbca442", size = 1630044, upload-time = "2026-04-13T05:26:35.556Z" },
+    { url = "https://files.pythonhosted.org/packages/51/57/bec9b2d140a7bcb1b598a82285477d9a2a193e2f56870fe4033977e53bee/sudachipy-0.6.11-cp311-cp311-win_amd64.whl", hash = "sha256:a702c684d5f255bd861b94a56332886a7ec6af995e7ca00ff13eff3ee0b417d1", size = 1327884, upload-time = "2026-04-13T05:26:36.969Z" },
+    { url = "https://files.pythonhosted.org/packages/48/ad/13f75fb5e1da9c76a3a4080e371ba261fac32d5035fd76707366765f93ac/sudachipy-0.6.11-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:c83bcca7ab332a00eec3852d4386de53cf68fea140170d5dda4fafbe59f85885", size = 2965197, upload-time = "2026-04-13T05:26:38.902Z" },
+    { url = "https://files.pythonhosted.org/packages/46/eb/30283736a29184e962358e7678863f423ddf0f098d196321149c58b9cf08/sudachipy-0.6.11-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:d19e44445bf994755ae500acf0c61c445f65152b0e2cb5c7608c094a317f6934", size = 1526969, upload-time = "2026-04-13T05:26:40.511Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/51/44ae0420b6715472a9a3e04ed6ac6b9c2b8c7d8d90e2192e1e938ee1db3d/sudachipy-0.6.11-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:cf105a60a705fa540be074197e95d2acf0a8f9e9a9bab5c999b98fade85c539a", size = 1460945, upload-time = "2026-04-13T05:26:41.66Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/da/4df93405f5f7453a4fd4a8f5fa34628d2621d6705889a9032fd297377698/sudachipy-0.6.11-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:49dbcd237a0041f7beae867b03afb53da3c6f1a119c8f9aafc53bd1a4fc1a46a", size = 1583304, upload-time = "2026-04-13T05:26:42.774Z" },
+    { url = "https://files.pythonhosted.org/packages/49/ee/f7c20d6e17619c83f5ffa3ed7bd1582174809fd8b396fb9250f24210dd57/sudachipy-0.6.11-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:9d024efea4ff8b5bd0709f1afbb8e8f230ebd4ec83f9cd76f47b0542b7c22e91", size = 1628277, upload-time = "2026-04-13T05:26:44.335Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/43/6c9fcd712bdcbd9968ec20d70504bd33fe1eb9959e611f6e29bb2bce4583/sudachipy-0.6.11-cp312-cp312-win_amd64.whl", hash = "sha256:390352e01d195c15c9a5aa0b2a2270a987baaac64888cc03e164791a7d78fe9f", size = 1326632, upload-time = "2026-04-13T05:26:45.503Z" },
+    { url = "https://files.pythonhosted.org/packages/09/71/4d4a6b771fef1571d2f6e73d25ffcb3e8de462af674464c1fd41c9787899/sudachipy-0.6.11-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:f38624fc01c2bb087c875a32750e3735b67b6b66487ac30a8e3f2d3599c4e3ea", size = 2964705, upload-time = "2026-04-13T05:26:46.895Z" },
+    { url = "https://files.pythonhosted.org/packages/3c/6f/cc4b530725321c098dbaf57fdc74306e22224b8b5c5fd88feaf8a501aa20/sudachipy-0.6.11-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:7a07a9a9232137353bb96d1ae2ce7e33def1ac48b571e338b3433b90581a9bbb", size = 1526522, upload-time = "2026-04-13T05:26:48.038Z" },
+    { url = "https://files.pythonhosted.org/packages/ec/a8/94cbedeef4179536ee716504bdf5772060944dce7fa6cf0d3648c50a46de/sudachipy-0.6.11-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:d074154c652ed6637a6a3581c67346ce642e47173e849267deb8c711b74157c4", size = 1461288, upload-time = "2026-04-13T05:26:49.388Z" },
+    { url = "https://files.pythonhosted.org/packages/98/52/447115dc0a638081fd3f48a54f4ac8f455847366504fc68029ab1b7bd59b/sudachipy-0.6.11-cp313-cp313-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:b87831c5f98d634da04629bb6e3cace2a9aee275e83c1b62c8fdd7da4aca2876", size = 1582788, upload-time = "2026-04-13T05:26:50.664Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/7e/1b2cbdc8f1a889b76db9aad5599a86ed08d894a197b41dcdab265b1f8440/sudachipy-0.6.11-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:cc86a6832448a56bcc6200b078a9bebd6059d925328214b96ee6b8830b8d34ab", size = 1627623, upload-time = "2026-04-13T05:26:52.701Z" },
+    { url = "https://files.pythonhosted.org/packages/69/4a/d5c1021335edfe8d0e78befb591fb11f4f8543bc0db1acf0ffc4ba135650/sudachipy-0.6.11-cp313-cp313-win_amd64.whl", hash = "sha256:c56d8308e799bff8f0edc0a9921f0bacf9b0b65c5c5df031022a048402f1d9ac", size = 1326405, upload-time = "2026-04-13T05:26:54.709Z" },
+    { url = "https://files.pythonhosted.org/packages/db/20/c1ed0b8ab7a9f21d8954659de8113c5ae2f3a1667f21260b408038a94d78/sudachipy-0.6.11-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:ca04ecca9530d7b663f34f32309ad0961b3f85a8921908ecf39274e00522b598", size = 2963252, upload-time = "2026-04-13T05:26:56.263Z" },
+    { url = "https://files.pythonhosted.org/packages/67/a3/064353cbc163866aaf42f7735c9b85ea1ff8376ae1ad1b0a60f5a4e97a35/sudachipy-0.6.11-cp313-cp313t-macosx_10_13_x86_64.whl", hash = "sha256:445cd4f8596d308582743cc48425b2c0aebcda04b37b7f18e00ad927d86194b1", size = 1525951, upload-time = "2026-04-13T05:26:57.48Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/2c/022b1c2e491bddfd2daa488314973f864941992e20d602e8713672b37765/sudachipy-0.6.11-cp313-cp313t-macosx_11_0_arm64.whl", hash = "sha256:b49d244423c39acb6ffa44a32c0296464f7454213f872d8738e9c43db4bc33d4", size = 1460367, upload-time = "2026-04-13T05:26:58.719Z" },
+    { url = "https://files.pythonhosted.org/packages/02/51/42de4a2cb82e428b3f2d04cc5f40370477724429f6dcb5acadb3af488128/sudachipy-0.6.11-cp313-cp313t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:5f7d234e77577ac62fb207e65bb925bdec08fb8a3ac8df52302d3903fd581e26", size = 1581432, upload-time = "2026-04-13T05:26:59.836Z" },
+    { url = "https://files.pythonhosted.org/packages/24/e9/b6fb38b6788fdbdeb5e08c26200468a636df4e0ed8fb85b44572e184f6e5/sudachipy-0.6.11-cp313-cp313t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:2e5316b6279c93eca1b325a0f6eda16c284d647daaa1215ee994dd9c543decd4", size = 1627693, upload-time = "2026-04-13T05:27:00.929Z" },
+    { url = "https://files.pythonhosted.org/packages/95/ad/4b7d895e47924195f2feb0f07c4379cd6973b321200aa2ca7046e04e7e57/sudachipy-0.6.11-cp314-cp314-macosx_10_13_universal2.whl", hash = "sha256:0fa6c8279d2eaa4abf9f4d2921708a518be019cd32894546640ac1f60060b600", size = 2961076, upload-time = "2026-04-13T05:27:02.42Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/e5/972d5fc4af5f114b081e3280e669b91a5b6a1cb2740c4efb06b3f9748d07/sudachipy-0.6.11-cp314-cp314-macosx_10_13_x86_64.whl", hash = "sha256:bc4e9c0882d0b44dea4955416a9e862a80c8d73802ec90546b268d575e4ed985", size = 1524973, upload-time = "2026-04-13T05:27:03.744Z" },
+    { url = "https://files.pythonhosted.org/packages/24/23/8734144dbfb7c30d2ffc19a50442b07ad1db9563b6acccd1434e0716ce37/sudachipy-0.6.11-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:16c99b6f54c5b9e490cacd2a6f773115b9999226ef365c9fb5d88077ec01a96f", size = 1459634, upload-time = "2026-04-13T05:27:04.835Z" },
+    { url = "https://files.pythonhosted.org/packages/19/15/fab04da917e0d73b937dfe1a1886db913ef6a53def93686e81403fdb4aec/sudachipy-0.6.11-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:9ce45838a633d708761ad86bda165076dbcb9c08bba3c9b8cba6ed9b50c6a917", size = 1581548, upload-time = "2026-04-13T05:27:06.504Z" },
+    { url = "https://files.pythonhosted.org/packages/41/df/468830dac0c56be104dd46cd91d20229f7d194705552f2916f0c45766a54/sudachipy-0.6.11-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:0dcdb872648fa0678880cc21c09c5fc9928eb997321a5ecc2916a51697be6fb4", size = 1623217, upload-time = "2026-04-13T05:27:07.999Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/3b/498efb8fccf32b9e3032e74ec0c54004d070517c507a6546d9cd3c726507/sudachipy-0.6.11-cp314-cp314-win_amd64.whl", hash = "sha256:7392701cb6f97926b61e82362b8c438e53ffffa9b8be7b01bb4e550cade54406", size = 1386569, upload-time = "2026-04-13T05:27:09.131Z" },
+    { url = "https://files.pythonhosted.org/packages/21/d7/f30121219d1be9dd41dc1d444f6d66cf11c1b7bbcd02cdcf326fa4c97456/sudachipy-0.6.11-cp314-cp314t-macosx_10_13_universal2.whl", hash = "sha256:92f5152a8ef8174c46dd78906ef60d0f5b1eca29471fe2574eb018d088f86980", size = 2961196, upload-time = "2026-04-13T05:27:10.346Z" },
+    { url = "https://files.pythonhosted.org/packages/f0/f4/138f9a4189b63c90312088f876817c89143e34a27b703e8b5b39e2cfcffe/sudachipy-0.6.11-cp314-cp314t-macosx_10_13_x86_64.whl", hash = "sha256:7448cbf2efca7c03c620853aefee7e7a3a383e72dbd336fe7bb70aa72b7f982c", size = 1525213, upload-time = "2026-04-13T05:27:11.601Z" },
+    { url = "https://files.pythonhosted.org/packages/6d/e5/914fa9aa8075ac8e06b95d876a151488b766f17d0e796bba7f1ca8073a4a/sudachipy-0.6.11-cp314-cp314t-macosx_11_0_arm64.whl", hash = "sha256:43c82d7932f00ea7b10707e4dc8c435cea1d4d4984ed020fda6b0b6e33f8a0cd", size = 1458970, upload-time = "2026-04-13T05:27:13.139Z" },
+    { url = "https://files.pythonhosted.org/packages/57/46/6e72b5d96646b472ccce0bd75d2e2318963f1bdda95cc92f7761ebc86ff1/sudachipy-0.6.11-cp314-cp314t-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:263083769bb6a60c3b4d98d789ea860c39354bb078ab17fd1418b56e1d58280e", size = 1580002, upload-time = "2026-04-13T05:27:14.923Z" },
+    { url = "https://files.pythonhosted.org/packages/4b/81/eb7c3e8b9dd8d2b9759830239869328a50764bd406d00ba1fe6a8eb70d81/sudachipy-0.6.11-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:0d49c97ae999f78e8d11f6b5a5da4909d7e8ee7fa1ab650047db97ed1dcee642", size = 1625145, upload-time = "2026-04-13T05:27:16.511Z" },
 ]
 
 [[package]]
@@ -4015,6 +4106,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/72/94/1a15dd82efb362ac84269196e94cf00f187f7ed21c242792a923cdb1c61f/typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466", size = 109391, upload-time = "2025-08-25T13:49:26.313Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/18/67/36e9267722cc04a6b9f15c7f3441c2363321a3ea07da7ae0c0707beb2a9c/typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548", size = 44614, upload-time = "2025-08-25T13:49:24.86Z" },
+]
+
+[[package]]
+name = "typing-inspection"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/55/e3/70399cb7dd41c10ac53367ae42139cf4b1ca5f36bb3dc6c9d33acdb43655/typing_inspection-0.4.2.tar.gz", hash = "sha256:ba561c48a67c5958007083d386c3295464928b01faa735ab8547c5692e87f464", size = 75949, upload-time = "2025-10-01T02:14:41.687Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/9b/47798a6c91d8bdb567fe2698fe81e0c6b7cb7ef4d13da4114b41d239f65d/typing_inspection-0.4.2-py3-none-any.whl", hash = "sha256:4ed1cacbdc298c220f1bd249ed5287caa16f34d44ef4e9c3d0cbad5b521545e7", size = 14611, upload-time = "2025-10-01T02:14:40.154Z" },
 ]
 
 [[package]]

@@ -5,7 +5,6 @@ PROJECT_ROOT=$(pwd)
 
 # Set environment variables
 export USE_GPU=false
-export USE_ONNX=false
 export PYTHONPATH=$PROJECT_ROOT:$PROJECT_ROOT/api
 export MODEL_DIR=src/models
 export MODEL_VERSION=${MODEL_VERSION:-v1_0}

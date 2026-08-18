@@ -5,7 +5,7 @@ import os
 import re
 import tempfile
 import time
-from typing import AsyncGenerator, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -20,11 +20,15 @@ from ..inference.model_manager import (
     get_manager as get_model_manager,
 )
 from ..inference.voice_manager import get_manager as get_voice_manager
-from ..structures.schemas import NormalizationOptions
+from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
-from .text_processing.text_processor import process_text_chunk, smart_split
+from .text_processing.text_processor import (
+    process_text_chunk,
+    smart_split,
+    split_by_voice,
+)
 
 
 class TTSService:
@@ -33,16 +37,15 @@ class TTSService:
     # Limit concurrent chunk processing
     _chunk_semaphore = asyncio.Semaphore(4)
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self):
         """Initialize service."""
-        self.output_dir = output_dir
         self.model_manager: Optional[ModelManager] = None
         self._voice_manager = None
 
     @classmethod
-    async def create(cls, output_dir: str = None) -> "TTSService":
+    async def create(cls) -> "TTSService":
         """Create and initialize TTSService instance."""
-        service = cls(output_dir)
+        service = cls()
         service.model_manager = await get_model_manager()
         service._voice_manager = await get_voice_manager()
         return service
@@ -198,14 +201,14 @@ class TTSService:
             # If it is only once voice there is no point in loading it up, doing nothing with it, then saving it
             if len(split_voice) == 1:
                 # Since its a single voice the only time that the weight would matter is if voice_weight_normalization is off
-                if (
-                    "(" not in voice and ")" not in voice
-                ) or settings.voice_weight_normalization == True:
-                    path = await self._voice_manager.get_voice_path(voice)
+                has_weight = "(" in voice and ")" in voice
+                if not has_weight or settings.voice_weight_normalization:
+                    voice_name = voice.split("(")[0].strip() if has_weight else voice
+                    path = await self._voice_manager.get_voice_path(voice_name)
                     if not path:
-                        raise RuntimeError(f"Voice not found: {voice}")
+                        raise RuntimeError(f"Voice not found: {voice_name}")
                     logger.debug(f"Using single voice path: {path}")
-                    return voice, path
+                    return voice_name, path
 
             total_weight = 0
 
@@ -258,6 +261,56 @@ class TTSService:
             logger.error(f"Failed to get voice path: {e}")
             raise
 
+    async def _split_multi_voice(
+        self,
+        text: str,
+        voice: str,
+        lang_code: Optional[str],
+        normalization_options: Optional[NormalizationOptions],
+        allow_voice_tags: bool = False,
+    ) -> AsyncGenerator[Tuple[str, str, str, float, str, List[int], Optional[float]], None]:
+        """Chunk text across [voice:...] and [rate:...] segments.
+
+        Yields (voice_name, voice_path, lang_code, rate, chunk_text, tokens, pause_s).
+        Each distinct speaker is resolved once per request; the backend then
+        caches its tensor and pipeline, so switching voices between chunks costs
+        no extra model work.
+
+        With allow_voice_tags off the text is one segment on the request voice,
+        so a bracketed word is spoken rather than read as a speaker change.
+        """
+        resolved: Dict[str, Tuple[str, str]] = {}
+        normalization_options = normalization_options or NormalizationOptions()
+        segments = (
+            split_by_voice(text, voice) if allow_voice_tags else [(voice, 1.0, text)]
+        )
+
+        for segment_voice, segment_rate, segment_text in segments:
+            if segment_voice not in resolved:
+                resolved[segment_voice] = await self._get_voices_path(segment_voice)
+            voice_name, voice_path = resolved[segment_voice]
+
+            # request lang_code wins, else each speaker gets the pipeline their prefix implies
+            segment_lang = lang_code if lang_code else segment_voice[:1].lower()
+            logger.debug(
+                f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"
+            )
+
+            async for chunk_text, tokens, pause_duration_s in smart_split(
+                segment_text,
+                lang_code=segment_lang,
+                normalization_options=normalization_options,
+            ):
+                yield (
+                    voice_name,
+                    voice_path,
+                    segment_lang,
+                    segment_rate,
+                    chunk_text,
+                    tokens,
+                    pause_duration_s,
+                )
+
     async def generate_audio_stream(
         self,
         text: str,
@@ -269,6 +322,8 @@ class TTSService:
         volume_multiplier: Optional[float] = 1.0,
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         return_timestamps: Optional[bool] = False,
+        allow_voice_tags: bool = False,
+        timings: Optional[List[dict]] = None,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
@@ -278,21 +333,17 @@ class TTSService:
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
-            # Get voice path, handling combined voices
-            voice_name, voice_path = await self._get_voices_path(voice)
-            logger.debug(f"Using voice path: {voice_path}")
-
-            # Use provided lang_code or determine from voice name
-            pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-            logger.info(
-                f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in audio stream"
-            )
-
-            # Process text in chunks with smart splitting, handling pause tags
-            async for chunk_text, tokens, pause_duration_s in smart_split(
-                text,
-                lang_code=pipeline_lang_code,
-                normalization_options=normalization_options,
+            # Process text in chunks with smart splitting, handling voice and pause tags
+            async for (
+                voice_name,
+                voice_path,
+                pipeline_lang_code,
+                segment_rate,
+                chunk_text,
+                tokens,
+                pause_duration_s,
+            ) in self._split_multi_voice(
+                text, voice, lang_code, normalization_options, allow_voice_tags
             ):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
@@ -330,6 +381,16 @@ class TTSService:
                         # Update offset based on silence duration
                         current_offset += pause_duration_s
                         chunk_index += 1  # Count pause as a yielded chunk
+                        if timings is not None:
+                            timings.append(
+                                {
+                                    "text": "",
+                                    "start": round(
+                                        current_offset - pause_duration_s, 3
+                                    ),
+                                    "end": round(current_offset, 3),
+                                }
+                            )
 
                     except Exception as e:
                         logger.error(f"Failed to process pause chunk: {str(e)}")
@@ -340,13 +401,14 @@ class TTSService:
                 ):  # Process if there are tokens OR non-whitespace text
                     # --- Handle Text Chunk ---
                     try:
+                        chunk_start_offset = current_offset
                         # Process audio for chunk
                         async for chunk_data in self._process_chunk(
                             chunk_text,  # Pass text for Kokoro V1
                             tokens,  # Pass tokens for legacy backends
                             voice_name,  # Pass voice name
                             voice_path,  # Pass voice path
-                            speed,
+                            clamp_rate(speed * segment_rate),
                             writer,
                             output_format,
                             is_first=(chunk_index == 0),
@@ -360,6 +422,8 @@ class TTSService:
                                 for timestamp in chunk_data.word_timestamps:
                                     timestamp.start_time += current_offset
                                     timestamp.end_time += current_offset
+                                    if allow_voice_tags:
+                                        timestamp.voice = voice_name
 
                             # Update offset based on the actual duration of the generated audio chunk
                             chunk_duration = 0
@@ -384,6 +448,15 @@ class TTSService:
                                 )
 
                         chunk_index += 1  # Increment chunk index after processing text
+                        if timings is not None and current_offset > chunk_start_offset:
+                            entry = {
+                                "text": chunk_text,
+                                "start": round(chunk_start_offset, 3),
+                                "end": round(current_offset, 3),
+                            }
+                            if allow_voice_tags:
+                                entry["voice"] = voice_name
+                            timings.append(entry)
                     except Exception as e:
                         logger.error(
                             f"Failed to process audio for chunk: '{chunk_text[:100]}...'. Error: {str(e)}"
@@ -427,6 +500,7 @@ class TTSService:
         volume_multiplier: Optional[float] = 1.0,
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         lang_code: Optional[str] = None,
+        allow_voice_tags: bool = False,
     ) -> AudioChunk:
         """Generate complete audio for text using streaming internally."""
         audio_data_chunks = []
@@ -442,9 +516,13 @@ class TTSService:
                 return_timestamps=return_timestamps,
                 lang_code=lang_code,
                 output_format=None,
+                allow_voice_tags=allow_voice_tags,
             ):
                 if len(audio_stream_data.audio) > 0:
                     audio_data_chunks.append(audio_stream_data)
+
+            if not audio_data_chunks:
+                raise ValueError("Input contains no speakable text")
 
             combined_audio_data = AudioChunk.combine(audio_data_chunks)
             return combined_audio_data

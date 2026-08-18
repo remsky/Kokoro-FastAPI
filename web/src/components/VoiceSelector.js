@@ -1,14 +1,447 @@
+import { closeOnOutsidePress } from '../dismiss.js';
+import { parseVoiceMix, suggestCastName } from '../voiceTags.js';
+
+const PINS_KEY = 'kokoro.cast-pins';
+
+function readPins() {
+    try {
+        return new Set(JSON.parse(localStorage.getItem(PINS_KEY)) || []);
+    } catch {
+        return new Set();
+    }
+}
+
+function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export class VoiceSelector {
     constructor(voiceService) {
         this.voiceService = voiceService;
+        this.handlers = {};
         this.elements = {
             voiceSearch: document.getElementById('voice-search'),
             voiceDropdown: document.getElementById('voice-dropdown'),
             voiceOptions: document.getElementById('voice-options'),
-            selectedVoices: document.getElementById('selected-voices')
+            selectedVoices: document.getElementById('selected-voices'),
+            voiceCast: document.getElementById('voice-cast'),
+            voiceCastList: document.getElementById('voice-cast-list'),
+            castMenu: document.getElementById('cast-menu'),
+            castFilter: document.getElementById('cast-filter'),
+            createTagRow: document.getElementById('create-tag-row'),
+            createTagBtn: document.getElementById('create-tag-btn'),
+            createTagRate: document.getElementById('create-tag-rate'),
+            createTagName: document.getElementById('create-tag-name')
         };
-        
+        this.menuFor = null;
+        this.editing = null;
+        this.cast = [];
+        this.pins = readPins();
+        this.nameEdited = false;
+        this.settleRename = () => {};
+
         this.setupEventListeners();
+        this.setupCastListeners();
+    }
+
+    /**
+     * In tag mode the mixer keeps working exactly as it does otherwise, but as a
+     * staging area: creating a tag moves the mix into the cast below and empties the
+     * mixer for the next voice, so the same handful can be placed over and over.
+     */
+    setTagMode(enabled, handlers = {}) {
+        this.handlers = handlers;
+        if (this.elements.voiceCast) {
+            this.elements.voiceCast.hidden = !enabled;
+        }
+        if (this.elements.createTagRow) {
+            this.elements.createTagRow.hidden = !enabled;
+        }
+        if (!enabled) {
+            this.settleRename();
+            this.closeCastMenu();
+        }
+        this.updateCreateTagButton();
+    }
+
+    /** Replaces what is staged in the mixer, so a mix can be cleared or sent back to it. */
+    setMix(mix, rate = 1) {
+        if (this.elements.createTagRate) {
+            this.elements.createTagRate.value = rate;
+        }
+        this.nameEdited = false;
+        this.voiceService.clearSelectedVoices();
+        parseVoiceMix(mix).forEach(({ voice, weight }) => this.voiceService.addVoice(voice, weight));
+        this.renderVoiceOptions(this.voiceService.filterVoices(this.elements.voiceSearch.value));
+        this.updateSelectedVoicesDisplay();
+    }
+
+    renderCast(cast) {
+        this.cast = cast;
+        const filter = this.elements.castFilter;
+        if (filter) {
+            filter.hidden = !cast.length;
+            if (filter.hidden) {
+                filter.value = '';
+            }
+        }
+        this.paintCast();
+    }
+
+    paintCast() {
+        const list = this.elements.voiceCastList;
+        if (!list) {
+            return;
+        }
+
+        this.closeCastMenu();
+        const query = (this.elements.castFilter?.value || '').trim().toLowerCase();
+        const shown = this.cast
+            .filter((m) => !query || m.name.toLowerCase().includes(query) || m.mix.toLowerCase().includes(query))
+            .sort((a, b) => this.pins.has(b.name) - this.pins.has(a.name));
+
+        if (!shown.length && query) {
+            list.innerHTML = '<span class="cast-no-match">Nothing matches</span>';
+            return;
+        }
+
+        list.innerHTML = shown
+            .map((member) => {
+                const tagLabel = `[voice:${member.name}]`;
+                const pinned = this.pins.has(member.name);
+                const tip = [member.name === member.mix ? '' : member.mix, member.rate ? `${member.rate}x speed` : '']
+                    .filter(Boolean).join(', ');
+                return `
+                <span class="cast-member${member.name === this.editing ? ' is-editing' : ''}${pinned ? ' is-pinned' : ''}"
+                      data-name="${esc(member.name)}"
+                      data-mix="${esc(member.mix)}"
+                      title="${esc(tip)}">
+                    <button type="button" class="cast-insert-btn" data-name="${esc(member.name)}"
+                            title="Insert ${esc(tagLabel)} at the cursor"
+                            aria-label="Insert ${esc(tagLabel)} at the cursor">◂ Insert</button>
+                    <button type="button" class="cast-menu-btn" data-name="${esc(member.name)}"
+                            aria-label="Options for ${esc(member.name)}" aria-haspopup="menu" aria-expanded="false">Options</button>
+                    <span class="cast-sep" aria-hidden="true">|</span>
+                    <button type="button" class="cast-name" data-name="${esc(member.name)}"
+                            title="Edit the mix and speed"
+                            aria-label="Edit ${esc(member.name)}">${esc(member.name)}</button>
+                </span>
+            `;
+            })
+            .join('');
+    }
+
+    setupCastListeners() {
+        const cast = this.elements.voiceCast;
+        const create = this.elements.createTagBtn;
+
+        if (create) {
+            create.addEventListener('mousedown', (e) => e.preventDefault());
+            create.addEventListener('click', () => {
+                this.handlers.onCommit?.(this.elements.createTagRate?.value, this.elements.createTagName?.value);
+            });
+        }
+
+        this.elements.createTagRow?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && create && !create.disabled) {
+                e.preventDefault();
+                create.click();
+            }
+        });
+
+        this.elements.createTagRate?.addEventListener('input', () => this.updateCreateTagButton());
+        this.elements.createTagName?.addEventListener('input', (e) => {
+            e.target.setCustomValidity('');
+            this.nameEdited = e.target.value !== '';
+            this.updateCreateTagButton();
+        });
+
+        if (!cast) {
+            return;
+        }
+
+        // the caret is where the tag lands, so clicking in here must not steal focus
+        cast.addEventListener('mousedown', (e) => {
+            if (e.target.matches('input')) {
+                return;
+            }
+            e.preventDefault();
+        });
+
+        this.elements.voiceCastList.addEventListener('click', (e) => {
+            const menuButton = e.target.closest('.cast-menu-btn');
+            if (menuButton) {
+                // a click with no pointer behind it came from Enter or Space, so the menu takes focus
+                this.toggleCastMenu(menuButton.closest('.cast-member'), e.detail === 0);
+                return;
+            }
+
+            // only the triangle places a tag, a stray click on the row does nothing
+            const insertButton = e.target.closest('.cast-insert-btn');
+            if (insertButton) {
+                this.closeCastMenu();
+                this.insertMember(insertButton.dataset.name);
+                return;
+            }
+
+            const nameButton = e.target.closest('.cast-name');
+            if (nameButton) {
+                this.closeCastMenu();
+                this.handlers.onEdit?.(nameButton.dataset.name);
+            }
+        });
+
+        this.elements.castMenu.addEventListener('click', (e) => {
+            const item = e.target.closest('.cast-menu-item');
+            if (!item || item.getAttribute('aria-disabled') === 'true') {
+                return;
+            }
+
+            const name = this.menuFor;
+            this.closeCastMenu();
+            // a rename open on another chip lands before this action re-renders the list under it
+            this.settleRename();
+            if (item.dataset.action === 'pin') {
+                this.togglePin(name);
+                return;
+            }
+            if (item.dataset.action === 'rename') {
+                this.startRename(name);
+                return;
+            }
+            if (item.dataset.action === 'insert') {
+                this.insertMember(name);
+                return;
+            }
+            this.handlers.onMenuAction?.(item.dataset.action, name);
+        });
+
+        // the menu is the keyboard route to a chip, so it has to be escapable and walkable
+        cast.addEventListener('keydown', (e) => {
+            if (!this.menuFor) {
+                return;
+            }
+            if (e.key === 'Escape') {
+                this.closeCastMenu({ restoreFocus: true });
+                return;
+            }
+            if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') {
+                return;
+            }
+            e.preventDefault();
+            const items = [...this.elements.castMenu.querySelectorAll('.cast-menu-item')];
+            const from = Math.max(items.indexOf(document.activeElement), 0);
+            const step = e.key === 'ArrowDown' ? 1 : items.length - 1;
+            items[(from + step) % items.length]?.focus();
+        });
+
+        this.elements.castMenu.addEventListener('focusout', (e) => {
+            if (!this.elements.castMenu.contains(e.relatedTarget)) {
+                this.closeCastMenu();
+            }
+        });
+
+        this.elements.castFilter?.addEventListener('input', () => this.paintCast());
+
+        closeOnOutsidePress(cast, () => this.closeCastMenu());
+
+        window.addEventListener('scroll', () => this.closeCastMenu(), true);
+        window.addEventListener('resize', () => this.closeCastMenu());
+    }
+
+    toggleCastMenu(chip, focusFirstItem = false) {
+        const menu = this.elements.castMenu;
+        if (!chip || this.menuFor === chip.dataset.name) {
+            this.closeCastMenu();
+            return;
+        }
+
+        this.closeCastMenu();
+        const placed = this.handlers.isPlaced?.(chip.dataset.name) !== false;
+        const noReset = this.resetBlockedReason(chip.dataset.name, chip.dataset.mix);
+        this.menuFor = chip.dataset.name;
+        const button = chip.querySelector('.cast-menu-btn');
+        button?.setAttribute('aria-expanded', 'true');
+        // a member standing for its own mix has no alias to undo, one whose mix is already a member cannot take that name back, and one still spoken cannot leave
+        menu.querySelector('[data-action="pin"]').textContent = this.pins.has(chip.dataset.name) ? 'Unpin' : 'Pin';
+        this.setMenuItem('reset', !noReset, noReset);
+        this.setMenuItem('strip', placed, 'No tag in the text names this one');
+        this.setMenuItem('remove', !placed, 'Tags in the text still name this one, so remove those first');
+        menu.togglePopover(true);
+        this.placeCastMenu(button ?? chip);
+        if (focusFirstItem) {
+            menu.querySelector('.cast-menu-item')?.focus({ preventScroll: true });
+        }
+    }
+
+    placeCastMenu(anchor) {
+        const menu = this.elements.castMenu;
+        const rect = anchor.getBoundingClientRect();
+        const room = window.innerHeight - rect.bottom - menu.offsetHeight - 8;
+        const left = Math.min(rect.left, window.innerWidth - menu.offsetWidth - 4);
+        menu.style.left = `${Math.max(4, left)}px`;
+        menu.style.top = room > 0
+            ? `${rect.bottom + 4}px`
+            : `${Math.max(4, rect.top - menu.offsetHeight - 4)}px`;
+    }
+
+    togglePin(name) {
+        if (!this.pins.delete(name)) {
+            this.pins.add(name);
+        }
+        try {
+            localStorage.setItem(PINS_KEY, JSON.stringify([...this.pins]));
+        } catch {
+            //
+        }
+        this.paintCast();
+    }
+
+    renamePin(from, to) {
+        if (this.pins.has(from)) {
+            this.togglePin(from);
+            this.togglePin(to);
+        }
+    }
+
+    /** Why undoing this alias is unavailable, empty when it is, read off the chips already rendered. */
+    resetBlockedReason(name, mix) {
+        if (name === mix) {
+            return 'This name is its own mix, so there is no alias to undo';
+        }
+        return this.elements.voiceCastList?.querySelector(`.cast-member[data-name="${CSS.escape(mix)}"]`)
+            ? `"${mix}" is already in the cast, so this name cannot go back to it`
+            : '';
+    }
+
+    /** An option that cannot be taken yet greys out and says why, rather than leaving the menu. */
+    setMenuItem(action, enabled, reason) {
+        const item = this.elements.castMenu.querySelector(`[data-action="${action}"]`);
+        item.setAttribute('aria-disabled', String(!enabled));
+        item.title = enabled ? '' : reason;
+    }
+
+    closeCastMenu({ restoreFocus = false } = {}) {
+        const button = this.menuFor && this.elements.voiceCastList
+            ?.querySelector(`.cast-menu-btn[data-name="${CSS.escape(this.menuFor)}"]`);
+        button?.setAttribute('aria-expanded', 'false');
+        this.menuFor = null;
+        this.elements.castMenu?.togglePopover(false);
+        if (restoreFocus) {
+            button?.focus();
+        }
+    }
+
+    /** Renames in the chip itself, so the name is edited where it is read. */
+    startRename(name) {
+        // an open rename lands first, otherwise its blur wipes the input this one is about to make
+        this.settleRename();
+
+        const chip = this.elements.voiceCastList.querySelector(`.cast-member[data-name="${CSS.escape(name)}"]`);
+        const label = chip?.querySelector('.cast-name');
+        if (!label) {
+            return;
+        }
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'cast-rename-input';
+        input.value = name;
+        input.maxLength = 24;
+        input.size = Math.min(Math.max(name.length, 8), 24);
+        label.replaceWith(input);
+        input.focus();
+        input.select();
+
+        let settled = false;
+        const commit = (next) => {
+            if (settled) {
+                return;
+            }
+            settled = true;
+            this.settleRename = () => {};
+            this.handlers.onRename?.(name, next);
+        };
+        this.settleRename = () => commit(input.value);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                commit(input.value);
+            } else if (e.key === 'Escape') {
+                commit(name);
+            }
+        });
+        input.addEventListener('blur', () => commit(input.value));
+    }
+
+    insertMember(name) {
+        if (this.editing && !this.rateOutOfBounds()) {
+            this.handlers.onCommit?.(this.elements.createTagRate?.value);
+        }
+        this.handlers.onInsert?.(name);
+    }
+
+    /** Editing sends a member back to the mixer, so the same button saves it rather than adding another. */
+    setEditing(name) {
+        this.editing = name;
+        const box = this.elements.createTagName;
+        if (box) {
+            box.value = name ?? '';
+            box.setCustomValidity('');
+            this.nameEdited = false;
+        }
+        this.updateCreateTagButton();
+        this.elements.voiceCastList?.querySelectorAll('.cast-member').forEach((chip) => {
+            chip.classList.toggle('is-editing', chip.dataset.name === name);
+        });
+    }
+
+    rateOutOfBounds() {
+        const validity = this.elements.createTagRate?.validity;
+        return !!validity && (validity.badInput || validity.rangeUnderflow || validity.rangeOverflow);
+    }
+
+    updateCreateTagButton() {
+        this.syncSuggestedName();
+        const button = this.elements.createTagBtn;
+        if (!button) {
+            return;
+        }
+
+        const mix = this.voiceService.getSelectedVoiceString();
+        const badRate = this.rateOutOfBounds();
+        button.disabled = !mix || badRate;
+        button.textContent = this.editing ? 'Save mix' : 'Create tag';
+        if (badRate) {
+            button.title = 'Speed must be between 0.25 and 4';
+            return;
+        }
+        if (this.editing) {
+            button.title = mix ? `Retune ${this.editing}` : 'Mix one or more voices first';
+            return;
+        }
+        button.title = mix
+            ? `Add [voice:${this.elements.createTagName?.value || mix}] to the cast`
+            : 'Mix one or more voices first';
+    }
+
+    syncSuggestedName() {
+        const box = this.elements.createTagName;
+        if (!box || this.editing || this.nameEdited) {
+            return;
+        }
+        box.value = suggestCastName(this.voiceService.getSelectedVoiceString(), this.elements.createTagRate?.value);
+        box.setCustomValidity('');
+    }
+
+    showNameError(message) {
+        const box = this.elements.createTagName;
+        if (!box) {
+            return;
+        }
+        box.setCustomValidity(message);
+        box.reportValidity();
     }
 
     setupEventListeners() {
@@ -32,7 +465,7 @@ export class VoiceSelector {
             
             const voice = voiceOption.dataset.voice;
             if (!voice) return;
-            
+
             const isSelected = voiceOption.classList.contains('selected');
             
             if (!isSelected) {
@@ -61,6 +494,7 @@ export class VoiceSelector {
                 e.target.value = weight;
                 
                 this.voiceService.updateWeight(voice, weight);
+                this.updateCreateTagButton();
             }
         });
 
@@ -76,36 +510,21 @@ export class VoiceSelector {
             }
         });
 
-        // Handle clicks outside to close dropdown
-        document.addEventListener('mousedown', (e) => {
-            // Don't handle clicks in selected voices area
-            if (this.elements.selectedVoices.contains(e.target)) {
-                return;
+        closeOnOutsidePress(
+            [this.elements.selectedVoices, this.elements.voiceSearch, this.elements.voiceDropdown],
+            () => {
+                this.elements.voiceDropdown.classList.remove('show');
+                this.elements.voiceSearch.blur();
             }
-            
-            // Don't close if clicking in search or dropdown
-            if (this.elements.voiceSearch.contains(e.target) || 
-                this.elements.voiceDropdown.contains(e.target)) {
-                return;
-            }
-            
-            this.elements.voiceDropdown.classList.remove('show');
-            this.elements.voiceSearch.blur();
-        });
-
-        this.elements.voiceSearch.addEventListener('blur', () => {
-            if (!this.elements.voiceSearch.value) {
-                this.updateSearchPlaceholder();
-            }
-        });
+        );
     }
 
     renderVoiceOptions(voices) {
         this.elements.voiceOptions.innerHTML = voices
             .map(voice => `
-                <div class="voice-option ${this.voiceService.getSelectedVoices().includes(voice) ? 'selected' : ''}" 
-                     data-voice="${voice}">
-                    ${voice}
+                <div class="voice-option ${this.voiceService.getSelectedVoices().includes(voice) ? 'selected' : ''}"
+                     data-voice="${esc(voice)}">
+                    ${esc(voice)}
                 </div>
             `)
             .join('');
@@ -116,35 +535,29 @@ export class VoiceSelector {
         this.elements.selectedVoices.innerHTML = selectedVoices
             .map(({voice, weight}) => `
                 <span class="selected-voice-tag">
-                    <span class="voice-name">${voice}</span>
+                    <span class="voice-name">${esc(voice)}</span>
                     <span class="voice-weight">
-                        <input type="number" 
-                               value="${weight}" 
-                               min="0.1" 
-                               max="10" 
-                               step="0.1" 
-                               data-voice="${voice}"
+                        <input type="number"
+                               value="${weight}"
+                               min="0.1"
+                               max="10"
+                               step="0.1"
+                               data-voice="${esc(voice)}"
                                class="weight-input"
                                title="Voice weight (0.1 to 10)">
                     </span>
-                    <span class="remove-voice" data-voice="${voice}" title="Remove voice">×</span>
+                    <span class="remove-voice" data-voice="${esc(voice)}" title="Remove voice">×</span>
                 </span>
             `)
             .join('');
-        
-        this.updateSearchPlaceholder();
+
+        this.updateCreateTagButton();
     }
 
-    updateSearchPlaceholder() {
-        const hasSelected = this.voiceService.hasSelectedVoices();
-        this.elements.voiceSearch.placeholder = hasSelected ? 
-            'Search voices...' : 
-            'Search and select voices...';
-    }
 
     updateVoiceOptionState(voice, selected) {
         const voiceOption = this.elements.voiceOptions
-            .querySelector(`[data-voice="${voice}"]`);
+            .querySelector(`[data-voice="${CSS.escape(voice)}"]`);
         if (voiceOption) {
             voiceOption.classList.toggle('selected', selected);
         }

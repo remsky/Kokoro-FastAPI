@@ -2,7 +2,6 @@ $env:PHONEMIZER_ESPEAK_LIBRARY="C:\Program Files\eSpeak NG\libespeak-ng.dll"
 $env:PYTHONUTF8=1
 $Env:PROJECT_ROOT="$pwd"
 $Env:USE_GPU="true"
-$Env:USE_ONNX="false"
 $Env:PYTHONPATH="$Env:PROJECT_ROOT;$Env:PROJECT_ROOT/api"
 $Env:MODEL_DIR="src/models"
 if (-not $Env:MODEL_VERSION) { $Env:MODEL_VERSION = "v1_0" }

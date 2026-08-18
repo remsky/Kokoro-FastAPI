@@ -9,9 +9,73 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Opt-in `MODEL_VERSION=v1_1-zh` support for hexgrad's [Kokoro-82M-v1.1-zh](https://huggingface.co/hexgrad/Kokoro-82M-v1.1-zh): weights, config, and 103-voice pack download checksum-pinned at startup; voices dir and default voice follow the selection. Mixed zh/en text phonemizes embedded English via `en_callable` instead of dropping it (#237, thanks @chai51). Baked v1.0 images unchanged.
 
 ### Fixed
-- Web UI improvements; better use of space, responsive components, stream-to-file swap settles pending buffer operations more cleanly.
-- Web UI waveform lifecycle cleanup: waveform slowed and softened and made framerate-independent; respects `prefers-reduced-motion`.
-- Downloads save as `{voice}_{timestamp}.{format}` instead of the temp name (#338). `/v1/download/{filename}` takes an optional `?name=` (sanitized, stored extension kept) and sets it in `Content-Disposition`, which also covers right-click "Save audio as".
+- Native Windows installs (`start-cpu.ps1` etc) no longer need a C++ toolchain: `pyopenjtalk-plus` (a drop-in fork with prebuilt Windows wheels) replaces `pyopenjtalk` on win32 only (#508, proposed by @siliconfps). Needs a recent `uv`. Linux, macOS, and Docker are unchanged.
+
+## [v0.8.0] - 2026-08-14
+### Added
+- Multi-speaker input on `/v1/audio/speech` and `/dev/captioned_speech` (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
+  - Inline `[voice:name]` tags switch speaker mid-text.
+  - `voice_aliases` mapping for named weighted voice mixes, with optional per-alias `rate`.
+  - `/dev/captioned_speech` timestamps carry the resolved `voice` per word; the field is absent unless `allow_voice_tags` is on, so existing responses are unchanged.
+- `POST /dev/dialogue` for ordered multi-speaker turns.
+- SSML input (experimental). Disable server-wide with `ENABLE_SSML=false`.
+  - `ssml: true` on `/v1/audio/speech` and `/dev/captioned_speech` translates and speaks in one call. Requires `allow_voice_tags: true`, since the translation emits `[voice:]` and `[rate:]` spans.
+  - `POST /dev/ssml` returns the translated tokens as text instead, for inspecting them before synthesis.
+- `return_timing` on `/v1/audio/speech`: per-chunk `{text, start, end}` JSON sidecar next to the download (powers the web reader).
+- `MAX_PAUSE_DURATION_S` (default 60) caps a single `[pause:Ns]` tag or SSML `<break>`.
+- Web UI:
+  - Voice alias/tag cast builder with import/export, pinning, and per-alias rate, synced with the editor (re: parallel work by @radzrader, [#272](https://github.com/remsky/Kokoro-FastAPI/discussions/272)).
+  - Read-along mode: sentence highlighting synced to playback, bidirectional click to seek.
+  - Find/replace across pages, direct page-number entry, download menu (audio / timings / both).
+- Wiki pages moved into `docs/`, versioned alongside the code.
+
+### Changed
+- Docker images compile to bytecode at build, ~40% faster startup.
+- Containers launch uvicorn directly rather than through `uv run`, which resolves startup permission failures on Unraid and similar hosts.
+- `[rate:]` tags scale the speaking voice's alias rate instead of replacing it, so a voice calibrated to 0.8 stays proportionally slower under `[rate:1.1]`. Matches how SSML engines treat rate.
+- Speed bounds (0.25 to 4.0) shared across speed fields and SSML.
+- Unrecognized `.env` keys warn at startup instead of refusing to boot.
+- README config table now covers every setting.
+
+### Fixed
+- Long generations swap from the live stream to the finished file as soon as it lands, so the scrubber shows true duration and seeking works mid-run.
+- Volume control state reconnected to the player.
+
+### Removed
+- Unused `ffmpeg` from all images (~600MB); audio encoding already runs through PyAV's bundled copy.
+- Dead `pydub` dependency.
+- Unreachable list form of `voice` from the speech parser and unused `VoiceCombineRequest` schema.
+- Legacy Gradio UI (`ui/`) code cruft; superseded by the web player since ~v0.2.0
+- Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
+- `OUTPUT_DIR`, `OUTPUT_DIR_SIZE_LIMIT_MB`, `SAMPLE_RATE` settings, never read.
+
+## [v0.7.2] 2026-08-06
+### Security
+- `fastapi>=0.128.8`, `starlette>=1.3.1` to close CVE-2025-62727 (quadratic `Range` header parsing in `FileResponse`, reachable through the audio download path) (#500).
+
+### Changed
+- CORS `allow_credentials` now defaults off. Starlette 1.x echoes the caller's origin with `allow-credentials: true` where 0.47 returned `*`; nothing here uses cookies or auth, so this keeps the prior behavior.
+- Docker build cache moved from GHA to the GHCR registry so forks and local builds can pull it, plus uv cache mounts and reordered test-client layers (#501).
+- `response_format` docs (correctly) now list `aac` as supported.
+
+### Fixed
+- FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
+
+## [v0.7.1] - 2026-08-02
+### Added
+- `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.
+- Web UI keyboard navigation and ARIA labeling across header, player controls, and editor.
+
+### Changed
+- `Content-Disposition` is now built by `FileResponse` rather than by hand, so the filename comes back quoted (`filename="x.mp3"`) instead of bare. The name itself is unchanged when `?name=` is omitted.
+- Web UI restyle: better use of space, responsive down to slim widths, playbar pinned to the bottom on narrow viewports.
+- Waveform slowed and softened, made framerate-independent, respects `prefers-reduced-motion`.
+- README: AMD GPU (ROCm) troubleshooting, clarified docker-compose comments.
+
+### Fixed
+- Downloads save as `{voice}_{timestamp}.{format}`, not the temp name (#338). Covers right-click "Save audio as" too, since `Content-Disposition` outranks the link's `download` attribute.
+- Aborted streams no longer surface as playback failures; a user-initiated `MEDIA_ERR_ABORTED` is told apart from a real error.
+- Stream-to-file swap settles pending buffer operations instead of leaving the feeder awaiting forever.
 
 ## [v0.7.0] - 2026-07-31
 ### Added

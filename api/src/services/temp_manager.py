@@ -1,10 +1,12 @@
 """Temporary file writer for audio downloads"""
 
+import json
 import os
 import tempfile
 from typing import List, Optional
 
 import aiofiles
+import aiofiles.os
 from fastapi import HTTPException
 from loguru import logger
 
@@ -39,7 +41,15 @@ async def cleanup_temp_files() -> None:
         current_time = (await aiofiles.os.stat(settings.temp_file_dir)).st_mtime
         max_age = settings.max_temp_dir_age_hours * 3600
 
-        for path, mtime, size in files:
+        sizes = {path: size for path, _mtime, size in files}
+        sidecars = {f"{p}.json" for p, _, _ in files} & sizes.keys()
+        removed = set()
+        primary_count = sum(1 for p, _, _ in files if p not in sidecars)
+
+        for path, mtime, _ in files:
+            if path in removed or path in sidecars:
+                continue
+
             should_delete = False
 
             # Check age
@@ -47,8 +57,8 @@ async def cleanup_temp_files() -> None:
                 should_delete = True
                 logger.info(f"Deleting old temp file: {path}")
 
-            # Check count limit
-            elif len(files) > settings.max_temp_dir_count:
+            # Check count limit (sidecars don't count toward the cap)
+            elif primary_count > settings.max_temp_dir_count:
                 should_delete = True
                 logger.info(f"Deleting excess temp file: {path}")
 
@@ -58,12 +68,20 @@ async def cleanup_temp_files() -> None:
                 logger.info(f"Deleting to reduce directory size: {path}")
 
             if should_delete:
-                try:
-                    await aiofiles.os.remove(path)
-                    total_size -= size
-                    logger.info(f"Deleted temp file: {path}")
-                except Exception as e:
-                    logger.warning(f"Failed to delete temp file {path}: {e}")
+                targets = [path]
+                sidecar = f"{path}.json"
+                if sidecar in sidecars and sidecar not in removed:
+                    targets.append(sidecar)
+                for target in targets:
+                    try:
+                        await aiofiles.os.remove(target)
+                        removed.add(target)
+                        total_size -= sizes[target]
+                        if target not in sidecars:
+                            primary_count -= 1
+                        logger.info(f"Deleted temp file: {target}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete temp file {target}: {e}")
 
     except Exception as e:
         logger.warning(f"Error during temp file cleanup: {e}")
@@ -143,6 +161,17 @@ class TempFileWriter:
             # Handle permission issues or other errors gracefully
             logger.error(f"Failed to write to temp file: {e}")
             self._write_error = True
+
+    async def write_json_sidecar(self, data: dict) -> None:
+        """Write a JSON metadata file next to the temp audio file"""
+        if self._write_error:
+            return
+
+        try:
+            async with aiofiles.open(f"{self.temp_path}.json", mode="w") as sidecar:
+                await sidecar.write(json.dumps(data))
+        except Exception as e:
+            logger.error(f"Failed to write sidecar file: {e}")
 
     async def finalize(self) -> str:
         """Close temp file and return download path

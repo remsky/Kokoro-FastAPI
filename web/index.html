@@ -37,8 +37,11 @@
                 <a id="version-badge" class="version-badge" href="https://github.com/remsky/Kokoro-FastAPI/releases" target="_blank" rel="noopener" hidden></a>
             </div>
             <div class="header-links">
-                <a href="https://huggingface.co/hexgrad/Kokoro-82M" target="_blank" rel="noopener" class="badge">
-                    <img src="https://img.shields.io/badge/Powered--by--HexGrad%2FKokoro--82M-black?logo=huggingface&logoColor=white&labelColor=black&style=for-the-badge" alt="HexGrad/Kokoro-82M on Hugging Face">
+                <a href="https://huggingface.co/hexgrad/Kokoro-82M" target="_blank" rel="noopener" class="badge hf-badge" aria-label="HexGrad/Kokoro-82M on Hugging Face">
+                    <span class="hf-label">
+                        <img class="hf-logo" src="hf-logo.svg" alt="" width="14" height="14">
+                        <span class="hf-repo"><span class="hf-prefix">Powered by </span>HexGrad/Kokoro-82M</span>
+                    </span>
                 </a>
                 <a href="https://github.com/remsky/Kokoro-FastAPI" target="_blank" rel="noopener" class="badge gh-star-badge" aria-label="Star remsky/Kokoro-FastAPI on GitHub">
                     <span class="gh-star-label">
@@ -64,22 +67,68 @@
 
         <aside class="side-pane">
             <section class="voice-card">
-                <h2 class="card-title">Voices</h2>
-                <div class="voice-select-container">
-                    <div class="voice-search-wrapper">
-                        <input
-                            type="text"
-                            id="voice-search"
-                            class="voice-search"
-                            placeholder="Search voices..."
-                            autocomplete="off"
-                            aria-label="Search voices"
-                        >
-                        <div class="voice-dropdown" id="voice-dropdown">
-                            <div class="voice-options" id="voice-options"></div>
+                <div class="card-tabs" role="tablist" aria-label="Voice mode">
+                    <button type="button" id="voices-tab" class="card-tab is-active" role="tab" aria-selected="true" aria-controls="voice-panel">Voices</button>
+                    <button type="button" id="voice-tags-tab" class="card-tab" role="tab" aria-selected="false" aria-controls="voice-panel" tabindex="-1">Voice Tags</button>
+                </div>
+                <div id="voice-panel" class="voice-panel" role="tabpanel">
+                    <div class="voice-select-container">
+                        <div class="voice-search-wrapper">
+                            <input
+                                type="text"
+                                id="voice-search"
+                                class="voice-search"
+                                placeholder="Search voices..."
+                                autocomplete="off"
+                                aria-label="Search voices"
+                            >
+                            <div class="voice-dropdown" id="voice-dropdown">
+                                <div class="voice-options" id="voice-options"></div>
+                            </div>
+                        </div>
+                        <div class="selected-voices" id="selected-voices"></div>
+                        <span id="create-tag-row" class="create-tag-row" hidden>
+                            <input type="text" id="create-tag-name" class="create-tag-name" placeholder="alias"
+                                   title="Name for the new tag, offered from the mix and speed" aria-label="Alias for the new tag">
+                            <input type="number" id="create-tag-rate" class="cast-rate" min="0.25" max="4" step="0.05" value="1"
+                                   title="Speed for the new tag, 0.25 to 4, 1 for normal" aria-label="Speed for the new tag">
+                            <span class="create-tag-x" aria-hidden="true">x</span>
+                            <button type="button" id="create-tag-btn" class="create-tag-btn">Create tag</button>
+                        </span>
+                    </div>
+                    <div id="voice-cast" class="voice-cast" hidden>
+                        <div class="voice-cast-head">
+                            <span class="voice-cast-title">Cast</span>
+                            <details id="cast-file-menu" class="cast-file-menu">
+                                <summary class="cast-file-toggle" title="Save or load the cast" aria-label="Cast file options">▾</summary>
+                                <div class="cast-file-panel">
+                                    <button type="button" id="save-cast-btn" class="cast-menu-item">Save tags</button>
+                                    <button type="button" id="import-cast-btn" class="cast-menu-item">Import (merge)</button>
+                                    <button type="button" id="import-cast-replace-btn" class="cast-menu-item">Import (replace)</button>
+                                </div>
+                            </details>
+                            <input type="text" id="cast-filter" class="cast-filter" placeholder="Filter"
+                                   aria-label="Filter cast" autocomplete="off" hidden>
+                            <button type="button" id="undo-insert-btn" class="undo-insert-btn" hidden
+                                    title="Remove the last inserted tag from the text">Undo insert</button>
+                            <input type="file" id="import-cast-input" accept="application/json,.json" hidden>
+                        </div>
+                        <div id="voice-cast-list" class="voice-cast-list"></div>
+                        <div id="cast-menu" class="cast-menu" role="menu" popover="manual">
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="pin">Pin</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="insert">Insert at cursor</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="rename">Rename</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="reset">Reset alias</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="edit">Edit mix</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="duplicate">Duplicate</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="strip">Remove from text</button>
+                            <button type="button" role="menuitem" class="cast-menu-item" data-action="remove">Remove from cast</button>
                         </div>
                     </div>
-                    <div class="selected-voices" id="selected-voices"></div>
+                    <div id="voice-tag-notice" class="voice-tag-notice" role="status" hidden>
+                        <span id="voice-tag-notice-text"></span>
+                        <button type="button" id="remove-voice-tags-btn" class="link-btn">Remove</button>
+                    </div>
                 </div>
             </section>
 
@@ -130,20 +179,34 @@
     <footer class="player-dock">
         <div id="wave-container" class="wave-container"></div>
         <div class="player-controls">
-            <button id="play-pause-btn" class="player-btn">Play</button>
+            <button id="play-pause-btn" class="player-btn" aria-label="Play" title="Play">
+                <svg class="icon-play" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="currentColor" d="M8 5.14v13.72L19 12z"/>
+                </svg>
+                <svg class="icon-pause" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="currentColor" d="M6.5 5h3.5v14H6.5zM14 5h3.5v14H14z"/>
+                </svg>
+            </button>
             <label class="autoplay-toggle">
                 <input type="checkbox" id="autoplay-toggle" aria-label="Auto-play" checked>
                 <span class="autoplay-text">Auto</span>
             </label>
-            <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" value="0" aria-label="Playback position">
+            <input type="range" id="seek-slider" class="seek-slider" min="0" max="100" step="any" value="0" aria-label="Playback position">
             <span id="time-display" class="time-display">0:00</span>
-            <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download audio">
-                <div class="download-glow"></div>
-                <div class="download-icon">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                        <path d="M8 11L4 7h8l-4 4z" fill="currentColor"/>
-                        <path d="M8 3v8M4 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
+            <div class="download-wrap">
+                <div id="download-btn" class="download-button" role="button" tabindex="0" aria-label="Download" aria-haspopup="menu" aria-expanded="false">
+                    <div class="download-glow"></div>
+                    <div class="download-icon">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                            <path d="M8 11L4 7h8l-4 4z" fill="currentColor"/>
+                            <path d="M8 3v8M4 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                </div>
+                <div id="download-menu" class="download-menu" role="menu" hidden>
+                    <button type="button" role="menuitem" data-download="audio">Download Audio</button>
+                    <button type="button" role="menuitem" data-download="timings">Download Timings</button>
+                    <button type="button" role="menuitem" data-download="both">Download Both</button>
                 </div>
             </div>
             <div class="volume-control">

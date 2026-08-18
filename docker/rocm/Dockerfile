@@ -14,7 +14,6 @@ RUN apt-get update && apt upgrade -y && apt-get install -y --no-install-recommen
     git \
     libsndfile1 \
     curl \
-    ffmpeg \
     wget \
     nano \
     g++ \
@@ -40,16 +39,17 @@ USER appuser
 WORKDIR /app
 
 # Copy dependency files
-COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
+COPY --chown=appuser:appuser pyproject.toml uv.lock ./
 
 ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
-    ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
+    ESPEAK_DATA_PATH=/usr/share/espeak-ng-data \
+    UV_COMPILE_BYTECODE=1
 
 # Install dependencies with GPU extras (using cache mounts)
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.12 && \
-    uv sync --extra rocm
+    uv sync --frozen --extra rocm
 
 # Japanese support requires the UniDic dictionary (~526MB on disk) for fugashi/MeCab.
 # Enabled by default; set --build-arg INCLUDE_JAPANESE=false to skip and shave the image.

@@ -18,13 +18,14 @@ RUN apt-get update -y && \
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml ./pyproject.toml
+COPY pyproject.toml uv.lock ./
 
 # Install dependencies with GPU extras (--no-install-project since api/src doesn't exist yet)
 # UV_PYTHON_INSTALL_DIR keeps the uv-managed interpreter at a stage-shareable path so the
 # runtime stage can find the venv's python target via COPY --from=builder.
 ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
-    UV_PYTHON_INSTALL_DIR=/opt/uv-python
+    UV_PYTHON_INSTALL_DIR=/opt/uv-python \
+    UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # GPU_EXTRA selects the torch wheel set: "gpu" (cu126, keeps Maxwell/Pascal
 # working) or "gpu-cu128" (cu128, adds Blackwell / RTX 50-series). Overridden
@@ -32,18 +33,16 @@ ENV UV_HTTP_TIMEOUT=120 UV_HTTP_RETRIES=3 \
 ARG GPU_EXTRA=gpu
 
 # --managed-python: noble ships a system 3.12; without the flag uv would pick it and skip /opt/uv-python, breaking the runtime COPY
-RUN uv venv --python 3.12 --managed-python && \
-    uv sync --extra ${GPU_EXTRA} --no-cache --no-install-project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv --python 3.12 --managed-python && \
+    uv sync --frozen --extra ${GPU_EXTRA} --no-install-project
 
 # Stage 2: Runtime - `base` variant: cudart + NVIDIA_* env only; torch uses its pip CUDA/cuDNN copies, system ones were dead weight (#482)
 FROM --platform=$BUILDPLATFORM nvcr.io/nvidia/cuda:${CUDA_VERSION}-base-ubuntu24.04
 
-# Install runtime dependencies + uv (needed by entrypoint.sh)
+# Install runtime dependencies
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends espeak-ng espeak-ng-data libsndfile1 ffmpeg curl && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ && \
-    mv /root/.local/bin/uvx /usr/local/bin/ && \
+    apt-get install -y --no-install-recommends espeak-ng espeak-ng-data libsndfile1 curl && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /usr/share/espeak-ng-data && \
     ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
@@ -79,7 +78,6 @@ RUN if [ "$INCLUDE_JAPANESE" = "true" ]; then \
     fi
 
 # Copy project files
-COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
 # model already baked above
 COPY --exclude=src/models --chown=appuser:appuser api ./api
 COPY --chown=appuser:appuser web ./web
@@ -93,7 +91,6 @@ USER appuser
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
-    UV_LINK_MODE=copy \
     USE_GPU=true \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \

@@ -5,10 +5,11 @@ description: "Running the Kokoro-FastAPI benchmark + transcription-roundtrip sui
 
 # Benchmarks + README plots
 
-Two suites under `examples/assorted_checks/`:
+Three suites under `examples/assorted_checks/` feed the README:
 
 - `test_transcription/` - synth with a running server, transcribe with faster-whisper, report WER/CER. Short, multilingual, and long-form.
 - `benchmarks/` - RTF (processing time vs tokens) and first-token latency/timeline plots. These feed the README performance images.
+- `test_dialogue/` - multi-speaker functional checks plus the turn-length / text-length throughput sweeps. Run commands and flags live in `test_dialogue/README.md`; bench then plot with `plot_dialogue_bench.py`.
 
 ## Prereqs
 
@@ -84,5 +85,7 @@ Copy plot outputs to `assets/` under the README's names (No stamp):
 | `assets/gpu_realtime_factor.png` | `output_plots/gpu_realtime_factor_rtf.png` |
 | `assets/gpu_first_token_timeline_openai.png` | `output_plots/first_token_timeline_stream_openai.png` (GPU run; name drops "stream") |
 | `assets/cpu_first_token_timeline_stream_openai.png` | `output_plots/first_token_timeline_stream_openai.png` (CPU run) |
+| `assets/gpu_dialogue_turn_length.png` | `test_dialogue/output/dialogue_turn_length.png` (GPU run; `KOKORO_DEVICE` only labels the caption) |
+| `assets/gpu_dialogue_text_length.png` | `test_dialogue/output/dialogue_text_length.png` (same run as above) |
 
-The README displays these four in the perf blocks (`README.md` ~line 338 first-token, ~383 RTF). Other `gpu_first_token_*` assets exist but aren't shown there.
+The README shows all six across three blocks (grep the asset name to find each). Other `gpu_first_token_*` assets exist but aren't displayed.

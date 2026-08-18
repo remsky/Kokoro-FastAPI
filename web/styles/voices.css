@@ -2,12 +2,17 @@
     position: relative;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
     width: 100%;
     flex: 1;
     min-height: 0;
 }
 
+.voice-select-container:has(.create-tag-row:not([hidden])) {
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+}
 .voice-search-wrapper {
     position: relative;
     width: 100%;
@@ -15,12 +20,12 @@
 
 .voice-search {
     width: 100%;
-    padding: 0.5rem 0.75rem;
+    padding: 0.25rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     color: var(--text);
-    font-size: 0.9375rem;
+    font-size: 0.85rem;
     transition: all 0.2s ease;
 }
 
@@ -38,7 +43,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
-    padding: 0.5rem;
+    padding: 0.5rem 0.25rem;
     background: rgba(15, 23, 42, 0.3);
     border: 1px solid var(--border);
     border-radius: 0.25rem;
@@ -48,14 +53,6 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: rgba(99, 102, 241, 0.2) transparent;
-}
-
-.selected-voices:empty::before {
-    content: "No voices selected";
-    color: var(--text-light);
-    font-size: 0.8125rem;
-    opacity: 0.7;
-    padding: 0.1rem 0.25rem;
 }
 
 .voice-dropdown {
@@ -152,7 +149,7 @@
 .selected-voice-tag {
     display: flex;
     align-items: center;
-    padding: 0.25rem 0.45rem;
+    padding: 0.1rem 0.45rem;
     background: rgba(99, 102, 241, 0.2);
     border: 1px solid rgba(99, 102, 241, 0.3);
     border-radius: 0.2rem;
@@ -179,7 +176,7 @@
 
 .selected-voice-tag input {
     width: 3rem;
-    padding: 0.25rem;
+    padding: 0.1rem 0.25rem;
     background: transparent;
     border: none;
     color: inherit;
@@ -206,4 +203,396 @@
 
 .remove-voice:hover {
     opacity: 1;
+}
+
+.create-tag-row {
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-top: 1px solid var(--border);
+    padding-top: 0.3rem;
+}
+
+.create-tag-row .cast-rate {
+    width: 3.6rem;
+    padding-right: 0.85rem;
+}
+
+.create-tag-row .cast-rate:hover + .create-tag-x,
+.create-tag-row .cast-rate:focus + .create-tag-x {
+    opacity: 0;
+}
+
+.create-tag-x {
+    margin-left: -1.05rem;
+    font-size: 0.65rem;
+    color: var(--text-light);
+    opacity: 0.7;
+    user-select: none;
+    pointer-events: none;
+}
+
+.create-tag-row[hidden] {
+    display: none;
+}
+
+.create-tag-btn {
+    padding: 0.15rem 0.45rem;
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.create-tag-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.create-tag-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.voice-cast {
+    position: relative;
+    margin-top: 0.5rem;
+}
+
+.voice-cast[hidden] {
+    display: none;
+}
+
+.voice-cast-head {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.35rem;
+}
+
+.voice-cast-title {
+    padding: 0.1rem 0.3rem;
+    color: var(--text-light);
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.undo-insert-btn {
+    margin-left: auto;
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.undo-insert-btn[hidden] {
+    display: none;
+}
+
+.undo-insert-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.cast-file-menu {
+    position: relative;
+}
+
+.cast-file-toggle {
+    padding: 0.1rem 0.25rem;
+    border: 1px solid transparent;
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-size: 0.95rem;
+    line-height: 1;
+    list-style: none;
+    opacity: 0.6;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cast-file-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.cast-file-toggle:hover,
+.cast-file-menu[open] .cast-file-toggle {
+    background: rgba(148, 163, 184, 0.08);
+    border-color: rgba(148, 163, 184, 0.25);
+    opacity: 1;
+}
+
+.cast-file-panel {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: -0.3rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 7rem;
+    margin-top: 0.25rem;
+    padding: 0.2rem;
+    background: var(--surface, rgba(15, 23, 42, 0.98));
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+.voice-cast-list {
+    display: flex;
+    flex-direction: column;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+}
+
+.voice-cast-list:empty::before {
+    content: "Mix a voice, then create a tag";
+    color: var(--text-light);
+    font-size: 0.7rem;
+    opacity: 0.7;
+    padding: 0.15rem 0.4rem;
+}
+
+.cast-filter {
+    width: 5rem;
+    padding: 0.1rem 0.25rem;
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.2rem;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.65rem;
+}
+
+.cast-filter[hidden] {
+    display: none;
+}
+
+.cast-filter:focus {
+    outline: none;
+    border-color: var(--fg-color);
+}
+
+.cast-no-match {
+    padding: 0.15rem 0.4rem;
+    color: var(--text-light);
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.cast-member {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.7rem;
+}
+
+.cast-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+
+.cast-insert-btn,
+.cast-name,
+.cast-menu-btn {
+    padding: 0.1rem 0.35rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cast-insert-btn:hover,
+.cast-name:hover,
+.cast-menu-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.cast-insert-btn {
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.cast-member.is-pinned .cast-name::before {
+    content: "★ ";
+    color: var(--fg-color);
+}
+
+.cast-member.is-editing .cast-name {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.cast-sep {
+    color: var(--text-light);
+    opacity: 0.4;
+    user-select: none;
+}
+
+.cast-rate,
+.create-tag-name {
+    width: 2.3rem;
+    padding: 0.1rem 0.15rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.65rem;
+}
+
+.cast-rate:focus,
+.create-tag-name:focus {
+    outline: none;
+    border-color: var(--fg-color);
+    color: var(--text);
+}
+
+.cast-rate:user-invalid {
+    border-color: var(--error);
+    color: var(--error);
+}
+
+.create-tag-name {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    padding: 0.1rem 0.25rem;
+}
+
+.create-tag-name:disabled {
+    opacity: 0.5;
+}
+
+/* bigger targets on touch */
+@media (pointer: coarse) {
+    .cast-insert-btn,
+    .cast-name,
+    .undo-insert-btn,
+    .cast-menu-btn {
+        padding: 0.35rem 0.6rem;
+    }
+}
+
+.cast-rename-input {
+    padding: 0;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--fg-color);
+    color: var(--text);
+    font-family: inherit;
+    font-size: inherit;
+    outline: none;
+}
+
+.cast-menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    flex-direction: column;
+    min-width: 9.5rem;
+    padding: 0.2rem;
+    background: var(--surface, rgba(15, 23, 42, 0.98));
+    border: 1px solid var(--border);
+    border-radius: 0.3rem;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+}
+
+.cast-menu:popover-open {
+    display: flex;
+}
+
+.cast-menu-item {
+    padding: 0.3rem 0.45rem;
+    background: none;
+    border: none;
+    border-radius: 0.2rem;
+    color: var(--text-light);
+    font-family: inherit;
+    font-size: 0.7rem;
+    text-align: left;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.cast-menu-item:hover {
+    background: rgba(99, 102, 241, 0.2);
+    color: var(--text);
+}
+
+.cast-menu-item[aria-disabled="true"] {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.cast-menu-item[aria-disabled="true"]:hover {
+    background: none;
+    color: var(--text-light);
+}
+
+.voice-tag-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 0.4rem;
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--text-light);
+    font-size: 0.75rem;
+}
+
+.voice-tag-notice[hidden] {
+    display: none;
+}
+
+.link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--fg-color);
+    font: inherit;
+    font-weight: 500;
+    text-decoration: underline;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.link-btn:hover:not(:disabled) {
+    color: var(--text);
+}
+
+.link-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+    text-decoration: none;
 }

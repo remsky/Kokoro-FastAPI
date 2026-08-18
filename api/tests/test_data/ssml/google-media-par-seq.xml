@@ -1,0 +1,21 @@
+<speak>
+  <par>
+    <media xml:id="question" begin="0.5s">
+      <speak>Who invented the Internet?</speak>
+    </media>
+    <media xml:id="answer" begin="question.end+2.0s">
+      <speak>The Internet was invented by cats.</speak>
+    </media>
+    <media begin="answer.end-0.2s" soundLevel="-6dB">
+      <audio src="https://actions.google.com/sounds/cartoon_boing.ogg"/>
+    </media>
+  </par>
+  <seq>
+    <media repeatCount="3" soundLevel="+2.28dB" fadeInDur="2s" fadeOutDur="0.2s">
+      <audio src="https://actions.google.com/sounds/cat_purr_close.ogg">
+        <desc>a cat purring</desc>
+        PURR (sound didn't load)
+      </audio>
+    </media>
+  </seq>
+</speak>

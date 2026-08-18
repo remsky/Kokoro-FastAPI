@@ -149,8 +149,7 @@ jobs:
           export CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
           docker buildx bake $TARGET --push --progress=plain \
-            --set "*.cache-from=type=gha,scope=${TARGET}" \
-            --set "*.cache-to=type=gha,mode=max,scope=${TARGET}"
+            --set "*.cache-to=type=registry,mode=max,ignore-error=true,ref=${REGISTRY}/${OWNER}/${REPO}-cache:${TARGET}"
 
   create-manifests:
     needs: [prepare-release, build-images]
