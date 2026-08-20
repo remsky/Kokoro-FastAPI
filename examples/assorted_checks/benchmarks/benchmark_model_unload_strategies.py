@@ -21,7 +21,6 @@ other strategy:
         --name kokoro-benchmark \
         --gpus '"device=1"' \
         -p 8880:8880 \
-        --env-file .env \
         -e PYTHONPATH=/app:/app/api \
         -e USE_GPU=true \
         -e PYTHONUNBUFFERED=1 \
@@ -61,7 +60,7 @@ other strategy:
         --trials 10 --strategy destroy --output-prefix model_unload_destroy
 
     docker rm -f kokoro-benchmark
-    
+
 """
 import argparse
 import csv
@@ -130,7 +129,6 @@ def run_trial(strategy: str, trial: int, args: argparse.Namespace) -> dict:
     row = {
         "strategy": strategy,
         "trial": trial,
-        "initial_load_seconds": args.initial_load_seconds,
         "unload_seconds": unload_seconds,
         "reload_seconds": reload_seconds,
     }
@@ -154,18 +152,12 @@ def summarize(results: list[dict]) -> list[dict]:
     summary = []
     for strategy in sorted({row["strategy"] for row in results}):
         rows = [row for row in results if row["strategy"] == strategy]
-        initial = [
-            row["initial_load_seconds"]
-            for row in rows
-            if row["initial_load_seconds"] is not None
-        ]
         unload = [row["unload_seconds"] for row in rows]
         reload = [row["reload_seconds"] for row in rows]
         summary.append(
             {
                 "strategy": strategy,
                 "trials": len(rows),
-                "initial_load_seconds": stats_for(initial) if initial else None,
                 "unload_seconds": stats_for(unload),
                 "reload_seconds": stats_for(reload),
             }
@@ -193,29 +185,23 @@ def write_report(summary: list[dict], results: list[dict], output_file: str) -> 
         handle.write("# Model Unload Strategy Timing\n\n")
         handle.write(f"Generated: {datetime.now().isoformat()}\n\n")
         handle.write("Standard deviation is sample standard deviation across trials.\n\n")
-        handle.write(
-            "| strategy | initial load avg | initial load stddev | unload avg | "
-            "unload stddev | reload avg | reload stddev |\n"
-        )
-        handle.write("|---|---:|---:|---:|---:|---:|---:|\n")
+        handle.write("| strategy | unload avg | unload stddev | reload avg | reload stddev |\n")
+        handle.write("|---|---:|---:|---:|---:|\n")
         for row in summary:
-            initial = row["initial_load_seconds"] or {}
             unload = row["unload_seconds"]
             reload = row["reload_seconds"]
             handle.write(
-                f"| {row['strategy']} | {fmt(initial.get('average'))} | "
-                f"{fmt(initial.get('standard_deviation'))} | "
-                f"{fmt(unload['average'])} | {fmt(unload['standard_deviation'])} | "
+                f"| {row['strategy']} | {fmt(unload['average'])} | "
+                f"{fmt(unload['standard_deviation'])} | "
                 f"{fmt(reload['average'])} | {fmt(reload['standard_deviation'])} |\n"
             )
 
         handle.write("\n## Trial Data\n\n")
-        handle.write("| strategy | trial | initial load | unload | reload |\n")
-        handle.write("|---|---:|---:|---:|---:|\n")
+        handle.write("| strategy | trial | unload | reload |\n")
+        handle.write("|---|---:|---:|---:|\n")
         for row in results:
             handle.write(
                 f"| {row['strategy']} | {row['trial']} | "
-                f"{fmt(row['initial_load_seconds'])} | "
                 f"{fmt(row['unload_seconds'])} | {fmt(row['reload_seconds'])} |\n"
             )
 
@@ -224,10 +210,8 @@ def write_stats_file(summary: list[dict], output_file: str) -> None:
     stats = []
     for row in summary:
         values = {}
-        for label in ("initial_load_seconds", "unload_seconds", "reload_seconds"):
+        for label in ("unload_seconds", "reload_seconds"):
             section = row[label]
-            if section is None:
-                continue
             values[f"{label}_average"] = section["average"]
             values[f"{label}_standard_deviation"] = section["standard_deviation"]
         stats.append(
@@ -241,7 +225,6 @@ def main():
     ap.add_argument("--url", default=DEFAULT_URL)
     ap.add_argument("--trials", type=int, default=10)
     ap.add_argument("--strategy", help="expected strategy; defaults to /dev/model")
-    ap.add_argument("--initial-load-seconds", type=float)
     ap.add_argument("--settle", type=float, default=1.0)
     ap.add_argument("--endpoint-timeout", type=int, default=600)
     ap.add_argument("--output-json")
