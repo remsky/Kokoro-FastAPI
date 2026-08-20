@@ -712,6 +712,11 @@ Key Performance Metrics:
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
 
+`POST /dev/reload` reloads the model and `GET /dev/model` reports model load state and auto-unload settings. Set `ALLOW_DEV_UNLOAD=true` to expose these controls.
+
+To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
+Set `MODEL_UNLOAD_STRATEGY=move_to_cpu` to move model weights from GPU to system RAM on unload for faster reload while still clearing GPU memory. The default `destroy` strategy releases model objects completely and will load from disk.
+
 ### Transcription roundtrip (WER/CER)
 
 End-to-end roundtrip: synthesize with Kokoro, transcribe the result back with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper), compare to the source text. Scripts and data live under `examples/assorted_checks/test_transcription/`.
@@ -759,7 +764,9 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
+- `/dev/model` - Get model load state and auto-unload timing. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 - `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
+- `POST /dev/reload` - Load the model into VRAM. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
 </details>

@@ -89,6 +89,7 @@ class KokoroV1(BaseModelBackend):
         # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
+        self._model_cpu_cached = False
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
         self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
 
@@ -144,11 +145,52 @@ class KokoroV1(BaseModelBackend):
                 self._model = self._model.cuda()
             else:
                 self._model = self._model.cpu()
+            self._model_cpu_cached = False
 
         except FileNotFoundError:
             raise
         except Exception as e:
             raise RuntimeError(f"Failed to load Kokoro model: {e}")
+
+    def _move_model_to_device(self) -> None:
+        """Move a CPU-cached model back to the configured inference device."""
+        if self._model is None or not self._model_cpu_cached:
+            return
+
+        logger.info(f"Moving CPU-cached Kokoro model back to {self._device}")
+        if self._device == "mps":
+            self._model = self._model.to(torch.device("mps"))
+        elif self._device == "cuda":
+            self._model = self._model.cuda()
+            torch.cuda.synchronize()
+        else:
+            self._model = self._model.cpu()
+        self._model_cpu_cached = False
+        logger.info(f"CPU-cached Kokoro model restored to {self._device}")
+
+    def restore_to_device(self) -> None:
+        """Restore a CPU-cached model to the configured inference device."""
+        self._move_model_to_device()
+
+    def _clear_runtime_caches(self) -> None:
+        """Release cached objects that can hold device tensors."""
+        for pipeline in self._pipelines.values():
+            del pipeline
+        self._pipelines.clear()
+        self._voice_cache.clear()
+
+    def _offload_model_to_cpu(self) -> bool:
+        """Move the model out of VRAM while retaining weights in system RAM."""
+        if self._model is None or self._device not in {"cuda", "mps"}:
+            return False
+
+        logger.info("Moving Kokoro model to CPU cache")
+        self._model = self._model.cpu()
+        self._model_cpu_cached = True
+        self._clear_runtime_caches()
+        self._clear_memory()
+        logger.info("Kokoro model offloaded to CPU cache and device caches cleared")
+        return True
 
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create pipeline for language code.
@@ -197,6 +239,7 @@ class KokoroV1(BaseModelBackend):
             raise RuntimeError("Model not loaded")
 
         try:
+            self._move_model_to_device()
             # Memory management for GPU
             if self._device == "cuda":
                 if self._check_memory():
@@ -295,6 +338,7 @@ class KokoroV1(BaseModelBackend):
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
         try:
+            self._move_model_to_device()
             # Memory management for GPU
             if self._device == "cuda":
                 if self._check_memory():
@@ -455,18 +499,26 @@ class KokoroV1(BaseModelBackend):
             if hasattr(torch.mps, "empty_cache"):
                 torch.mps.empty_cache()
 
-    def unload(self) -> None:
+    def unload(self, strategy: str = "destroy") -> None:
         """Unload model and free resources."""
+        if strategy == "move_to_cpu" and self._offload_model_to_cpu():
+            return
+
+        logger.info("Destroying Kokoro model backend state")
         if self._model is not None:
             del self._model
             self._model = None
-        for pipeline in self._pipelines.values():
-            del pipeline
-        self._pipelines.clear()
-        self._voice_cache.clear()
+        self._model_cpu_cached = False
+        self._clear_runtime_caches()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+        logger.info("Kokoro model backend state destroyed")
+
+    @property
+    def is_cpu_cached(self) -> bool:
+        """Check if model weights are retained in CPU RAM after device unload."""
+        return self._model_cpu_cached
 
     @property
     def is_loaded(self) -> bool:
