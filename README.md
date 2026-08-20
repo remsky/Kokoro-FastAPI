@@ -698,7 +698,6 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-
 `POST /dev/unload` frees the model from VRAM and reloads lazily on the next request.
 Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
 
