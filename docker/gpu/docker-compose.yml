@@ -28,10 +28,9 @@ services:
       - PYTHONUNBUFFERED=1
       - API_LOG_LEVEL=DEBUG
       - DOWNLOAD_MODEL=true
-      - ALLOW_DEV_UNLOAD=true
-      - MODEL_AUTO_UNLOAD_ENABLED=true
-      - MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=300
-      - MODEL_UNLOAD_STRATEGY=cpu_cache
+      # - ALLOW_DEV_UNLOAD=true
+      # - MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=300
+      # - MODEL_UNLOAD_STRATEGY=cpu_cache
       # - ENABLE_DEBUG_ENDPOINTS=true
     deploy:
       resources:

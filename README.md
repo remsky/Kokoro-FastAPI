@@ -700,7 +700,7 @@ Key Performance Metrics:
 
 `POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Set `ALLOW_DEV_UNLOAD=true` to expose the lifecycle controls: `GET /dev/model`, `POST /dev/unload`, and `POST /dev/reload`.
 
-For shared-GPU hosts, set `MODEL_AUTO_UNLOAD_ENABLED=true` and tune `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to unload automatically after the model has been idle. In-flight generation keeps the model loaded; the next request reloads it automatically, or `POST /dev/reload` can pre-warm it. Set `MODEL_UNLOAD_STRATEGY=cpu_cache` to keep model weights in system RAM for faster reload while still clearing GPU memory; the default `destroy` strategy releases model objects completely.
+For shared-GPU hosts, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` above `0` to unload automatically after the model has been idle. In-flight generation keeps the model loaded; the next request reloads it automatically, or `POST /dev/reload` can pre-warm it. Set `MODEL_UNLOAD_STRATEGY=cpu_cache` to keep model weights in system RAM for faster reload while still clearing GPU memory; the default `destroy` strategy releases model objects completely.
 
 Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
 
@@ -715,6 +715,8 @@ Reclaim scales with load (the activation pool, not just weights) but plateaus: c
 | Long-form (7.5m) | 3.98 GB | 2.37 GB | 1,656 MiB | +5.1s |
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
+
+To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
 
 ### Transcription roundtrip (WER/CER)
 
@@ -764,7 +766,7 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
 - `/dev/model` - Get model load state and auto-unload timing
-- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 - `POST /dev/reload` - Load the model immediately after an unload or before traffic arrives
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.

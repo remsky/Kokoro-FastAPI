@@ -36,8 +36,7 @@ def override_tts_service(service):
 def _enable_dev_unload(monkeypatch):
     """Enable the /dev/unload gate for the endpoint tests in this module."""
     monkeypatch.setattr(settings, "allow_dev_unload", True)
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", False)
-    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 300.0)
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.0)
     monkeypatch.setattr(settings, "model_unload_strategy", "destroy")
 
 
@@ -68,6 +67,7 @@ async def test_unload_clears_backend():
 
 @pytest.mark.asyncio
 async def test_unload_cpu_cache_keeps_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
     monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
 
     manager = ModelManager()
@@ -119,6 +119,7 @@ async def test_unload_cpu_cache_destroys_backend_without_gpu(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_reload_restores_cpu_cached_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
     monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
 
     manager = ModelManager()
@@ -264,7 +265,6 @@ async def test_generate_skips_reinit_when_backend_set():
 @pytest.mark.asyncio
 async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
     """Finished generation schedules model unload after the configured idle period."""
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
 
     manager = ModelManager()
@@ -291,7 +291,6 @@ async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_idle_auto_unload_log_includes_configured_timeout(monkeypatch):
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
 
     manager = ModelManager()
@@ -314,7 +313,6 @@ async def test_idle_auto_unload_log_includes_configured_timeout(monkeypatch):
 @pytest.mark.asyncio
 async def test_load_model_schedules_idle_unload_when_enabled(monkeypatch):
     """Startup-style model loads also schedule unload without waiting for traffic."""
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
 
     manager = ModelManager()
@@ -337,7 +335,6 @@ async def test_load_model_does_not_schedule_idle_unload_during_active_request(
     monkeypatch,
 ):
     """Lazy loads during generation wait for request completion before scheduling."""
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
 
     manager = ModelManager()
@@ -358,7 +355,6 @@ async def test_load_model_does_not_schedule_idle_unload_during_active_request(
 @pytest.mark.asyncio
 async def test_active_request_blocks_idle_unload(monkeypatch):
     """The idle timer does not unload while generation is still active."""
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
 
     manager = ModelManager()
@@ -386,7 +382,6 @@ async def test_active_request_blocks_idle_unload(monkeypatch):
 
 
 def test_status_reports_model_lifecycle_state(monkeypatch):
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
     manager = ModelManager()
     manager._backend = MagicMock()
@@ -409,8 +404,8 @@ def test_status_reports_model_lifecycle_state(monkeypatch):
 
 
 def test_status_reports_cpu_cached_state(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
     monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
-    monkeypatch.setattr(settings, "model_auto_unload_enabled", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
 
     manager = ModelManager()

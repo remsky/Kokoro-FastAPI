@@ -2,6 +2,7 @@
 
 import asyncio
 import time
+from contextlib import asynccontextmanager
 from typing import Optional
 
 import torch
@@ -149,7 +150,7 @@ Model files not found! You need to download the Kokoro V1 model:
             self._schedule_idle_unload_timer_locked()
             logger.info(
                 f"Model loaded; unload_strategy={self._unload_strategy()} "
-                f"auto_unload_enabled={settings.model_auto_unload_enabled}"
+                f"auto_unload_enabled={self._auto_unload_enabled()}"
             )
         except FileNotFoundError as e:
             raise e
@@ -163,7 +164,7 @@ Model files not found! You need to download the Kokoro V1 model:
         return f"{seconds:g}s"
 
     def _auto_unload_enabled(self) -> bool:
-        return settings.model_auto_unload_enabled and self._auto_unload_timeout() > 0
+        return self._auto_unload_timeout() > 0
 
     def _backend_is_loaded(self) -> bool:
         if self._backend is None:
@@ -301,24 +302,30 @@ Model files not found! You need to download the Kokoro V1 model:
             )
             self._schedule_idle_unload_timer_locked()
 
+    @asynccontextmanager
+    async def hold(self):
+        await self._begin_request()
+        try:
+            yield
+        finally:
+            await self._end_request()
+
     async def generate(self, *args, **kwargs):
         """Generate audio using initialized backend.
 
         Raises:
             RuntimeError: If generation fails
         """
-        await self._begin_request()
         try:
-            await self.ensure_backend()
-            assert self._backend is not None, "ensure_backend left no backend"
-            async for chunk in self._backend.generate(*args, **kwargs):
-                if settings.default_volume_multiplier != 1.0:
-                    chunk.audio *= settings.default_volume_multiplier
-                yield chunk
+            async with self.hold():
+                await self.ensure_backend()
+                assert self._backend is not None, "ensure_backend left no backend"
+                async for chunk in self._backend.generate(*args, **kwargs):
+                    if settings.default_volume_multiplier != 1.0:
+                        chunk.audio *= settings.default_volume_multiplier
+                    yield chunk
         except Exception as e:
             raise RuntimeError(f"Generation failed: {e}")
-        finally:
-            await self._end_request()
 
     def unload_all(self) -> None:
         """Unload model and free resources."""
@@ -377,7 +384,7 @@ Model files not found! You need to download the Kokoro V1 model:
             "cpu_cached": self._backend_is_loaded() and self._backend_is_cpu_cached(),
             "active_requests": self._active_requests,
             "unload_strategy": self._unload_strategy(),
-            "auto_unload_enabled": settings.model_auto_unload_enabled,
+            "auto_unload_enabled": self._auto_unload_enabled(),
             "auto_unload_timeout_seconds": timeout,
             "idle_seconds": idle_for,
             "seconds_until_auto_unload": unload_in,

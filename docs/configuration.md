@@ -154,8 +154,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
 | `ALLOW_DEV_UNLOAD` | `false` | Expose `/dev/model`, `POST /dev/unload`, and `POST /dev/reload` |
-| `MODEL_AUTO_UNLOAD_ENABLED` | `false` | Unload the model after the idle timeout |
-| `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `300.0` | Idle seconds before auto-unload when enabled |
+| `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `0.0` | Idle seconds before auto-unload; `0` disables auto-unload |
 | `MODEL_UNLOAD_STRATEGY` | `destroy` | `destroy` releases model objects; `cpu_cache` keeps model weights in system RAM for faster reload |
 
 ## Logging
