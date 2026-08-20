@@ -698,10 +698,8 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Set `ALLOW_DEV_UNLOAD=true` to expose the lifecycle controls: `GET /dev/model`, `POST /dev/unload`, and `POST /dev/reload`.
 
-For shared-GPU hosts, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` above `0` to unload automatically after the model has been idle. In-flight generation keeps the model loaded; the next request reloads it automatically, or `POST /dev/reload` can pre-warm it. Set `MODEL_UNLOAD_STRATEGY=move_to_cpu` to move model weights from GPU to system RAM on unload for faster reload while still clearing GPU memory. The default `destroy` strategy releases model objects completely and will load from disk.
-
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request.
 Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
 
 <p align="center">
@@ -716,7 +714,10 @@ Reclaim scales with load (the activation pool, not just weights) but plateaus: c
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
 
+`POST /dev/reload` reloads the model and `GET /dev/model` reports model load state and auto-unload settings. Set `ALLOW_DEV_UNLOAD=true` to expose these controls.
+
 To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
+Set `MODEL_UNLOAD_STRATEGY=move_to_cpu` to move model weights from GPU to system RAM on unload for faster reload while still clearing GPU memory. The default `destroy` strategy releases model objects completely and will load from disk.
 
 ### Transcription roundtrip (WER/CER)
 
