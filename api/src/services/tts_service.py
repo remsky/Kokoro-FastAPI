@@ -563,44 +563,45 @@ class TTSService:
         """
         start_time = time.time()
         try:
-            await self.model_manager.ensure_backend()
-            backend = self.model_manager.get_backend()
-            voice_name, voice_path = await self._get_voices_path(voice)
+            async with self.model_manager.hold():
+                await self.model_manager.ensure_backend()
+                backend = self.model_manager.get_backend()
+                voice_name, voice_path = await self._get_voices_path(voice)
 
-            if isinstance(backend, KokoroV1):
-                # For Kokoro V1, use generate_from_tokens with raw phonemes
-                result = None
-                # Use provided lang_code or determine from voice name
-                pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-                logger.info(
-                    f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
-                )
+                if isinstance(backend, KokoroV1):
+                    # For Kokoro V1, use generate_from_tokens with raw phonemes
+                    result = None
+                    # Use provided lang_code or determine from voice name
+                    pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
+                    logger.info(
+                        f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
+                    )
 
-                try:
-                    # Use backend's pipeline management
-                    for r in backend._get_pipeline(
-                        pipeline_lang_code
-                    ).generate_from_tokens(
-                        tokens=phonemes,  # Pass raw phonemes string
-                        voice=voice_path,
-                        speed=speed,
-                    ):
-                        if r.audio is not None:
-                            result = r
-                            break
-                except Exception as e:
-                    logger.error(f"Failed to generate from phonemes: {e}")
-                    raise RuntimeError(f"Phoneme generation failed: {e}")
+                    try:
+                        # Use backend's pipeline management
+                        for r in backend._get_pipeline(
+                            pipeline_lang_code
+                        ).generate_from_tokens(
+                            tokens=phonemes,  # Pass raw phonemes string
+                            voice=voice_path,
+                            speed=speed,
+                        ):
+                            if r.audio is not None:
+                                result = r
+                                break
+                    except Exception as e:
+                        logger.error(f"Failed to generate from phonemes: {e}")
+                        raise RuntimeError(f"Phoneme generation failed: {e}")
 
-                if result is None or result.audio is None:
-                    raise ValueError("No audio generated")
+                    if result is None or result.audio is None:
+                        raise ValueError("No audio generated")
 
-                processing_time = time.time() - start_time
-                return result.audio.numpy(), processing_time
-            else:
-                raise ValueError(
-                    "Phoneme generation only supported with Kokoro V1 backend"
-                )
+                    processing_time = time.time() - start_time
+                    return result.audio.numpy(), processing_time
+                else:
+                    raise ValueError(
+                        "Phoneme generation only supported with Kokoro V1 backend"
+                    )
 
         except Exception as e:
             logger.error(f"Error in phoneme audio generation: {str(e)}")

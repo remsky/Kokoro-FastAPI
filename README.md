@@ -712,7 +712,7 @@ Key Performance Metrics:
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
 
-To automatically unload the model after an idle timeout, set MODEL_AUTO_UNLOAD_ENABLED=true and adjust MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS.
+To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
 
 ### Transcription roundtrip (WER/CER)
 
