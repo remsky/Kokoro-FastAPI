@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
-    allow_dev_unload: bool = False  # Whether to expose the POST /dev/unload endpoint
+    allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
     )
