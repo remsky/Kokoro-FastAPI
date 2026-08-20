@@ -30,7 +30,7 @@ services:
       - DOWNLOAD_MODEL=true
       # - ALLOW_DEV_UNLOAD=true
       # - MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=300
-      # - MODEL_UNLOAD_STRATEGY=cpu_cache
+      # - MODEL_UNLOAD_STRATEGY=move_to_cpu
       # - ENABLE_DEBUG_ENDPOINTS=true
     deploy:
       resources:

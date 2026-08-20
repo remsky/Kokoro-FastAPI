@@ -68,10 +68,10 @@ def test_unload_with_pipelines(kokoro_backend):
     assert kokoro_backend._voice_cache == {}  # Voice tensors should be released
 
 
-def test_cpu_cache_unload_moves_model_to_cpu_and_clears_runtime_caches(
+def test_move_to_cpu_unload_moves_model_to_cpu_and_clears_runtime_caches(
     kokoro_backend,
 ):
-    """CPU-cache unload keeps model weights but clears device-backed runtime state."""
+    """move_to_cpu unload keeps model weights but clears device-backed runtime state."""
     cuda_model = MagicMock()
     cpu_model = MagicMock()
     cuda_model.cpu.return_value = cpu_model
@@ -81,7 +81,7 @@ def test_cpu_cache_unload_moves_model_to_cpu_and_clears_runtime_caches(
     kokoro_backend._voice_cache = {"af_heart.pt:cuda": MagicMock()}
 
     with patch.object(kokoro_backend, "_clear_memory") as mock_clear:
-        kokoro_backend.unload(strategy="cpu_cache")
+        kokoro_backend.unload(strategy="move_to_cpu")
 
     cuda_model.cpu.assert_called_once()
     mock_clear.assert_called_once()

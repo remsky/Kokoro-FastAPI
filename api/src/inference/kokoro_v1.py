@@ -501,7 +501,7 @@ class KokoroV1(BaseModelBackend):
 
     def unload(self, strategy: str = "destroy") -> None:
         """Unload model and free resources."""
-        if strategy == "cpu_cache" and self._offload_model_to_cpu():
+        if strategy == "move_to_cpu" and self._offload_model_to_cpu():
             return
 
         logger.info("Destroying Kokoro model backend state")

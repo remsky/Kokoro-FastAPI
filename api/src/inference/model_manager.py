@@ -178,14 +178,14 @@ Model files not found! You need to download the Kokoro V1 model:
 
     def _unload_strategy(self) -> str:
         strategy = settings.model_unload_strategy.strip().lower()
-        if strategy not in {"destroy", "cpu_cache"}:
+        if strategy not in {"destroy", "move_to_cpu"}:
             logger.warning(
                 f"Unknown MODEL_UNLOAD_STRATEGY={settings.model_unload_strategy!r}; using destroy"
             )
             return "destroy"
-        if strategy == "cpu_cache" and not settings.use_gpu:
+        if strategy == "move_to_cpu" and not settings.use_gpu:
             logger.warning(
-                "MODEL_UNLOAD_STRATEGY=cpu_cache requires USE_GPU=true; using destroy"
+                "MODEL_UNLOAD_STRATEGY=move_to_cpu requires USE_GPU=true; using destroy"
             )
             return "destroy"
         return strategy
@@ -350,7 +350,7 @@ Model files not found! You need to download the Kokoro V1 model:
         async with self._lock:
             self._cancel_idle_unload_timer()
             if (
-                self._unload_strategy() == "cpu_cache"
+                self._unload_strategy() == "move_to_cpu"
                 and self._backend is not None
                 and self._backend_is_loaded()
             ):

@@ -66,9 +66,9 @@ async def test_unload_clears_backend():
 
 
 @pytest.mark.asyncio
-async def test_unload_cpu_cache_keeps_backend(monkeypatch):
+async def test_unload_move_to_cpu_keeps_backend(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", True)
-    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
     mock_backend = MagicMock()
@@ -80,13 +80,13 @@ async def test_unload_cpu_cache_keeps_backend(monkeypatch):
         mock_torch.cuda.is_available.return_value = False
         await manager.unload()
 
-    mock_backend.unload.assert_called_once_with(strategy="cpu_cache")
+    mock_backend.unload.assert_called_once_with(strategy="move_to_cpu")
     assert manager._backend is mock_backend
 
 
-def test_cpu_cache_strategy_warns_and_uses_destroy_without_gpu(monkeypatch):
+def test_move_to_cpu_strategy_warns_and_uses_destroy_without_gpu(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", False)
-    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
 
@@ -94,14 +94,14 @@ def test_cpu_cache_strategy_warns_and_uses_destroy_without_gpu(monkeypatch):
         assert manager._unload_strategy() == "destroy"
 
     mock_warning.assert_called_once_with(
-        "MODEL_UNLOAD_STRATEGY=cpu_cache requires USE_GPU=true; using destroy"
+        "MODEL_UNLOAD_STRATEGY=move_to_cpu requires USE_GPU=true; using destroy"
     )
 
 
 @pytest.mark.asyncio
-async def test_unload_cpu_cache_destroys_backend_without_gpu(monkeypatch):
+async def test_unload_move_to_cpu_destroys_backend_without_gpu(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", False)
-    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
     mock_backend = MagicMock()
@@ -120,7 +120,7 @@ async def test_unload_cpu_cache_destroys_backend_without_gpu(monkeypatch):
 @pytest.mark.asyncio
 async def test_reload_restores_cpu_cached_backend(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", True)
-    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
     mock_backend = MagicMock()
@@ -405,7 +405,7 @@ def test_status_reports_model_lifecycle_state(monkeypatch):
 
 def test_status_reports_cpu_cached_state(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", True)
-    monkeypatch.setattr(settings, "model_unload_strategy", "cpu_cache")
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
 
     manager = ModelManager()
@@ -420,7 +420,7 @@ def test_status_reports_cpu_cached_state(monkeypatch):
 
     assert status["loaded"] is False
     assert status["cpu_cached"] is True
-    assert status["unload_strategy"] == "cpu_cache"
+    assert status["unload_strategy"] == "move_to_cpu"
     assert status["seconds_until_auto_unload"] is None
 
 
