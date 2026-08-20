@@ -698,8 +698,7 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request.
-Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
 
 <p align="center">
   <img src="assets/gpu_model_unload_short.png" width="45%" alt="Short workload" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
