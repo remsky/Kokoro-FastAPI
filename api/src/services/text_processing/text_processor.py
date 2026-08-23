@@ -391,5 +391,5 @@ async def smart_split(
     # End of parts loop
     total_time = time.time() - start_time
     logger.debug(
-        f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
+        f"Synthesis completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )
