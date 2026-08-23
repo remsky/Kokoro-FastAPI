@@ -407,6 +407,50 @@ async def test_rate_tags_multiply_request_speed():
 
 
 @pytest.mark.asyncio
+async def test_generate_audio_joins_encoded_chunks():
+    """Non-streaming accumulates encoded bytes as they arrive, never raw PCM."""
+    service = await _stubbed_service()
+
+    async def fake_stream(*args, **kwargs):
+        assert kwargs["output_format"] == "mp3"
+        for part in (b"id3", b"frame1", b"", b"frame2"):
+            yield AudioChunk(
+                np.array([], dtype=np.int16),
+                word_timestamps=[
+                    WordTimestamp(word=part.decode(), start_time=0.0, end_time=0.05)
+                ]
+                if part
+                else [],
+                output=part,
+            )
+
+    service.generate_audio_stream = fake_stream
+
+    result = await service.generate_audio(
+        "hi", "af_heart", MagicMock(), output_format="mp3"
+    )
+
+    assert result.output == b"id3frame1frame2"
+    assert [t.word for t in result.word_timestamps] == ["id3", "frame1", "frame2"]
+
+
+@pytest.mark.asyncio
+async def test_pause_budget_survives_voice_tag_segmentation():
+    """Per-segment splitting must not reset the request's pause budget."""
+    service = await _stubbed_service()
+
+    with pytest.raises(ValueError, match="exceeds"):
+        async for _ in service.generate_audio_stream(
+            "[voice:af_bella] [pause:60s] [voice:bm_george] [pause:60s] " * 3,
+            "af_heart",
+            MagicMock(),
+            output_format=None,
+            allow_voice_tags=True,
+        ):
+            pass
+
+
+@pytest.mark.asyncio
 async def test_generate_audio_with_nothing_speakable_raises():
     """Tags-only input is a ValueError the routers map to a 400, not an IndexError"""
     service = await _stubbed_service()

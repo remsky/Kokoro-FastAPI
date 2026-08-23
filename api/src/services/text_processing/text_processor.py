@@ -1,5 +1,6 @@
 """Unified text processing for TTS with smart chunking."""
 
+import math
 import re
 import time
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
@@ -180,6 +181,19 @@ def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> s
     latest_id = f"</|custom_phonemes_{len(phenomes_list)}|/>"
     phenomes_list[latest_id] = s.group(0).strip()
     return latest_id
+
+
+def check_pause_budget(text: str) -> None:
+    """Cap aggregate silence across the whole request, before any segmentation."""
+    total_pause_s = math.fsum(
+        min(float(match.group(1)), settings.max_pause_duration_s)
+        for match in PAUSE_TAG_PATTERN.finditer(text)
+    )
+    if total_pause_s > settings.max_total_pause_s:
+        raise ValueError(
+            f"Total pause duration {total_pause_s:.1f}s exceeds the "
+            f"{settings.max_total_pause_s:.1f}s limit"
+        )
 
 
 async def smart_split(
@@ -377,5 +391,5 @@ async def smart_split(
     # End of parts loop
     total_time = time.time() - start_time
     logger.debug(
-        f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
+        f"Synthesis completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )

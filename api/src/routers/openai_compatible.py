@@ -9,7 +9,6 @@ import tempfile
 from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
 
 import aiofiles
-import numpy as np
 import torch
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
@@ -17,9 +16,11 @@ from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
-from ..services.audio import AudioService
 from ..services.streaming_audio_writer import StreamingAudioWriter
-from ..services.text_processing.text_processor import VOICE_TAG_PATTERN
+from ..services.text_processing.text_processor import (
+    VOICE_TAG_PATTERN,
+    check_pause_budget,
+)
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
 from ..structures.schemas import (
@@ -323,6 +324,8 @@ async def create_speech(
             request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
         apply_alias_rate(request)
+        # checked post-SSML and pre-stream, so an over-budget request 400s before headers
+        check_pause_budget(request.input)
 
         # Set content type based on format
         content_type = {
@@ -442,24 +445,9 @@ async def create_speech(
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
                 allow_voice_tags=request.allow_voice_tags,
+                output_format=request.response_format,
             )
-
-            audio_data = await AudioService.convert_audio(
-                audio_data,
-                request.response_format,
-                writer,
-                is_last_chunk=False,
-                trim_audio=False,
-            )
-
-            # Convert to requested format with proper finalization
-            final = await AudioService.convert_audio(
-                AudioChunk(np.array([], dtype=np.int16)),
-                request.response_format,
-                writer,
-                is_last_chunk=True,
-            )
-            output = audio_data.output + final.output
+            output = audio_data.output
 
             if request.return_download_link:
                 from ..services.temp_manager import TempFileWriter

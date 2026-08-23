@@ -243,7 +243,9 @@ def mock_tts_service(mock_audio_bytes):
     """Mock TTS service for testing."""
     with patch("api.src.routers.openai_compatible.get_tts_service") as mock_get:
         service = AsyncMock(spec=TTSService)
-        service.generate_audio.return_value = AudioChunk(np.zeros(1000, np.int16))
+        service.generate_audio.return_value = AudioChunk(
+            np.zeros(1000, np.int16), output=mock_audio_bytes
+        )
 
         async def mock_stream(*args, **kwargs) -> AsyncGenerator[AudioChunk, None]:
             yield AudioChunk(np.ndarray([], np.int16), output=mock_audio_bytes)
@@ -257,17 +259,8 @@ def mock_tts_service(mock_audio_bytes):
         yield service
 
 
-@patch("api.src.services.audio.AudioService.convert_audio")
-def test_openai_speech_endpoint(
-    mock_convert, mock_tts_service, test_voice, mock_audio_bytes
-):
+def test_openai_speech_endpoint(mock_tts_service, test_voice, mock_audio_bytes):
     """Test the OpenAI-compatible speech endpoint with basic MP3 generation"""
-    # Configure mocks
-    mock_tts_service.generate_audio.return_value = AudioChunk(np.zeros(1000, np.int16))
-    mock_convert.return_value = AudioChunk(
-        np.zeros(1000, np.int16), output=mock_audio_bytes
-    )
-
     response = client.post(
         "/v1/audio/speech",
         json={
@@ -280,11 +273,12 @@ def test_openai_speech_endpoint(
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "audio/mpeg"
-    assert len(response.content) > 0
-    assert response.content == mock_audio_bytes + mock_audio_bytes
+    assert response.content == mock_audio_bytes
 
     mock_tts_service.generate_audio.assert_called_once()
-    assert mock_convert.call_count == 2
+    assert (
+        mock_tts_service.generate_audio.call_args.kwargs["output_format"] == "mp3"
+    )
 
 
 def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes):
@@ -308,6 +302,59 @@ def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes)
     for chunk in response.iter_bytes():
         content += chunk
     assert content == mock_audio_bytes
+
+
+def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test_voice):
+    """Over-budget requests must 400 before the stream opens, not die mid-200."""
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "[pause:60s] " * 6,
+            "voice": test_voice,
+            "response_format": "mp3",
+            "stream": True,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_captioned_streaming_over_pause_budget_is_400(mock_tts_service):
+    """The captioned handler carries the same pre-stream budget check."""
+    with patch(
+        "api.src.routers.development.process_and_validate_voices",
+        AsyncMock(return_value="test_voice"),
+    ):
+        response = client.post(
+            "/dev/captioned_speech",
+            json={
+                "model": "kokoro",
+                "input": "[pause:60s] " * 6,
+                "voice": "test_voice",
+                "response_format": "mp3",
+                "stream": True,
+            },
+        )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_phonemize_empty_text_is_400():
+    """Bad input is the client's fault, not a server error."""
+    response = client.post("/dev/phonemize", json={"text": ""})
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_phonemize_returns_phonemes():
+    mock_pipeline = MagicMock(
+        return_value=iter([MagicMock(phonemes="hˈɛlO", tokens=[])])
+    )
+    with patch("api.src.routers.development.KPipeline", return_value=mock_pipeline):
+        response = client.post("/dev/phonemize", json={"text": "hello"})
+    assert response.status_code == 200
+    assert response.json()["phonemes"] == "hˈɛlO"
 
 
 def test_openai_speech_pcm_streaming(mock_tts_service, test_voice, mock_audio_bytes):
