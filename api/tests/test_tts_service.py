@@ -77,7 +77,7 @@ async def test_get_voice_path_single():
         mock_get_voice.return_value = voice_manager
 
         service = await TTSService.create()
-        name, path = await service._get_voices_path("voice1")
+        name, path = await service.get_voices_path("voice1")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
         voice_manager.get_voice_path.assert_called_once_with("voice1")
@@ -100,7 +100,7 @@ async def test_get_voice_path_single_with_weight_normalized():
         mock_settings.voice_weight_normalization = True
 
         service = await TTSService.create()
-        name, path = await service._get_voices_path("voice1(2)")
+        name, path = await service.get_voices_path("voice1(2)")
         assert name == "voice1"
         assert path == "/path/to/voice1.pt"
         voice_manager.get_voice_path.assert_called_once_with("voice1")
@@ -126,7 +126,7 @@ async def test_get_voice_path_combined():
         mock_load.return_value = torch.ones(10)
 
         service = await TTSService.create()
-        name, path = await service._get_voices_path("voice1+voice2")
+        name, path = await service.get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
         # Verify the path points to a temporary file with expected format
         assert Path(path).parent == Path("/tmp")
@@ -169,7 +169,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
         mock_get_voice.return_value = voice_manager
 
         service = await TTSService.create()
-        service._get_voices_path = AsyncMock(
+        service.get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
 
@@ -189,7 +189,7 @@ async def test_split_multi_voice_resolves_each_speaker_once():
             speakers.append(voice_name)
 
         assert speakers == ["af_bella", "bm_george", "af_bella"]
-        assert service._get_voices_path.await_count == 2
+        assert service.get_voices_path.await_count == 2
 
 
 @pytest.mark.asyncio
@@ -206,7 +206,7 @@ async def test_split_multi_voice_lang_code_per_speaker():
         mock_get_voice.return_value = voice_manager
 
         service = await TTSService.create()
-        service._get_voices_path = AsyncMock(
+        service.get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
 
@@ -237,7 +237,7 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         mock_get_voice.return_value = voice_manager
 
         service = await TTSService.create()
-        service._get_voices_path = AsyncMock(
+        service.get_voices_path = AsyncMock(
             side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
         )
 
@@ -267,7 +267,7 @@ async def _stubbed_service():
         mock_get_voice.return_value = AsyncMock()
         service = await TTSService.create()
 
-    service._get_voices_path = AsyncMock(
+    service.get_voices_path = AsyncMock(
         side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
     )
 

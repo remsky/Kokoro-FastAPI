@@ -252,7 +252,6 @@ def mock_tts_service(mock_audio_bytes):
 
         service.generate_audio_stream = mock_stream
         service.list_voices.return_value = ["test_voice", "voice1", "voice2"]
-        service.combine_voices.return_value = "voice1_voice2"
 
         mock_get.return_value = service
         mock_get.side_effect = None
@@ -461,15 +460,71 @@ def test_list_voices(mock_tts_service):
 
 
 @patch("api.src.routers.openai_compatible.settings")
-def test_combine_voices(mock_settings, mock_tts_service):
+def test_combine_voices(mock_settings, mock_tts_service, tmp_path):
     """Test combining voices endpoint"""
     # Enable local voice saving for this test
     mock_settings.allow_local_voice_saving = True
+    pt_path = tmp_path / "voice1+voice2.pt"
+    pt_path.write_bytes(b"mock tensor")
+    mock_tts_service.get_voices_path.return_value = ("voice1+voice2", str(pt_path))
 
     response = client.post("/v1/audio/voices/combine", json="voice1+voice2")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/octet-stream"
-    assert "voice1+voice2.pt" in response.headers["content-disposition"]
+    assert 'filename="voice1_voice2.pt"' in response.headers["content-disposition"]
+    mock_tts_service.get_voices_path.assert_awaited_once_with("voice1+voice2")
+
+
+@patch("api.src.routers.openai_compatible.settings")
+def test_combine_voices_weighted(mock_settings, mock_tts_service, tmp_path):
+    """Weighted combine syntax is accepted, same grammar as the speech endpoints (#285)"""
+    mock_settings.allow_local_voice_saving = True
+    pt_path = tmp_path / "combined.pt"
+    pt_path.write_bytes(b"mock tensor")
+    mock_tts_service.get_voices_path.return_value = (
+        "voice1(2.2)+voice2(2.8)",
+        str(pt_path),
+    )
+
+    response = client.post("/v1/audio/voices/combine", json="voice1(2.2)+voice2(2.8)")
+    assert response.status_code == 200
+    assert 'filename="voice1_2.2_voice2_2.8.pt"' in response.headers["content-disposition"]
+    mock_tts_service.get_voices_path.assert_awaited_once_with("voice1(2.2)+voice2(2.8)")
+
+
+@patch("api.src.routers.openai_compatible.settings")
+def test_combine_voices_list_input(mock_settings, mock_tts_service, tmp_path):
+    """List input joins into the same combine grammar"""
+    mock_settings.allow_local_voice_saving = True
+    pt_path = tmp_path / "voice1+voice2.pt"
+    pt_path.write_bytes(b"mock tensor")
+    mock_tts_service.get_voices_path.return_value = ("voice1+voice2", str(pt_path))
+
+    response = client.post("/v1/audio/voices/combine", json=["voice1", "voice2"])
+    assert response.status_code == 200
+    mock_tts_service.get_voices_path.assert_awaited_once_with("voice1+voice2")
+
+
+@patch("api.src.routers.openai_compatible.settings")
+def test_combine_voices_unknown_voice(mock_settings, mock_tts_service):
+    """Unknown voices in a combination 400 with the shared validation message"""
+    mock_settings.allow_local_voice_saving = True
+
+    response = client.post("/v1/audio/voices/combine", json="voice1+nonexistent")
+    assert response.status_code == 400
+    error_response = response.json()
+    assert error_response["detail"]["error"] == "validation_error"
+    assert "Voice 'nonexistent' not found" in error_response["detail"]["message"]
+
+
+@patch("api.src.routers.openai_compatible.settings")
+def test_combine_voices_disabled(mock_settings, mock_tts_service):
+    """Combine endpoint 403s when local voice saving is off"""
+    mock_settings.allow_local_voice_saving = False
+
+    response = client.post("/v1/audio/voices/combine", json="voice1+voice2")
+    assert response.status_code == 403
+    assert response.json()["detail"]["error"] == "permission_denied"
 
 
 def test_server_error(mock_tts_service, test_voice):

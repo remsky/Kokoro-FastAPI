@@ -183,7 +183,7 @@ class TTSService:
         logger.debug(f"Loading voice tensor from path: {path}")
         return torch.load(path, map_location="cpu", weights_only=True) * weight
 
-    async def _get_voices_path(self, voice: str) -> Tuple[str, str]:
+    async def get_voices_path(self, voice: str) -> Tuple[str, str]:
         """Get voice path, handling combined voices.
 
         Args:
@@ -288,7 +288,7 @@ class TTSService:
 
         for segment_voice, segment_rate, segment_text in segments:
             if segment_voice not in resolved:
-                resolved[segment_voice] = await self._get_voices_path(segment_voice)
+                resolved[segment_voice] = await self.get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
 
             # request lang_code wins, else each speaker gets the pipeline their prefix implies
@@ -538,15 +538,6 @@ class TTSService:
             logger.error(f"Error in audio generation: {str(e)}")
             raise
 
-    async def combine_voices(self, voices: List[str]) -> torch.Tensor:
-        """Combine multiple voices.
-
-        Returns:
-            Combined voice tensor
-        """
-
-        return await self._voice_manager.combine_voices(voices)
-
     async def list_voices(self) -> List[str]:
         """List available voices."""
         return await self._voice_manager.list_voices()
@@ -573,7 +564,7 @@ class TTSService:
         try:
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
-            voice_name, voice_path = await self._get_voices_path(voice)
+            voice_name, voice_path = await self.get_voices_path(voice)
 
             if isinstance(backend, KokoroV1):
                 # For Kokoro V1, use generate_from_tokens with raw phonemes
