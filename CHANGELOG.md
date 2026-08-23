@@ -10,6 +10,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - `MAX_INPUT_LENGTH` (default 1_000_000) caps characters of text per request.
   - `MAX_TOTAL_PAUSE_S` (default 300) caps total `[pause:Ns]` / SSML `<break>` silence per request.
 - Native Windows installs (`start-cpu.ps1` etc) no longer need a C++ toolchain: `pyopenjtalk-plus` (a drop-in fork with prebuilt Windows wheels) replaces `pyopenjtalk` on win32 only (#508, proposed by @siliconfps). Needs a recent `uv`. Linux, macOS, and Docker are unchanged.
+- `/v1/audio/voices/combine` now accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
 
 ## [v0.8.0] - 2026-08-14
 ### Added
