@@ -119,6 +119,8 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `ENABLE_SSML` | `true` | Kill switch for SSML translation, the `/dev/ssml` routes and `ssml: true` on the speech endpoints will 403 when off |
 | `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
+| `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
+| `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
 
 **Audio**
