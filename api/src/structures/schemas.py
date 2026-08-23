@@ -3,6 +3,7 @@ from enum import Enum
 from typing import Annotated, Dict, List, Literal, Mapping, Optional, Union
 
 from pydantic import (
+    AfterValidator,
     AliasChoices,
     BaseModel,
     ConfigDict,
@@ -23,6 +24,26 @@ class TTSStatus(str, Enum):
 # pace bounds shared by every speed field, the ssml translator and the final clamp
 RATE_MIN, RATE_MAX = 0.25, 4.0
 Rate = Annotated[float, Field(ge=RATE_MIN, le=RATE_MAX)]
+
+
+# gain bounds shared by every volume_multiplier field
+VOLUME_MIN, VOLUME_MAX = 0.0, 10.0
+Volume = Annotated[float, Field(ge=VOLUME_MIN, le=VOLUME_MAX)]
+
+
+def _known_lang_code(value: str) -> str:
+    """Fail at the request boundary, not on KPipeline's assert deep inside inference."""
+    # deferred import, keeps torch out of every schema import
+    from kokoro.pipeline import LANG_CODES
+
+    if value not in LANG_CODES:
+        raise ValueError(
+            f"unsupported lang_code {value!r}, expected one of {sorted(LANG_CODES)}"
+        )
+    return value
+
+
+LangCode = Annotated[str, AfterValidator(_known_lang_code)]
 
 
 def clamp_rate(value: float) -> float:
@@ -172,11 +193,11 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
         default=False,
         description="If true with return_download_link, writes per-chunk timing JSON next to the download file and returns its path in the X-Timing-Path header",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
@@ -264,11 +285,11 @@ class DialogueRequest(VoiceAliasesMixin):
         default=False,
         description="If true, returns a download link in X-Download-Path header after streaming completes",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code override. If not provided, each turn uses the language implied by its own voice.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
@@ -319,11 +340,11 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default=False,
         description="If true, returns a download link in X-Download-Path header after streaming completes",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
