@@ -1,9 +1,14 @@
-"""Bounds on the two request fields that used to accept anything."""
+"""Bounds on the request fields that used to accept anything."""
 
 import pytest
 from pydantic import ValidationError
 
-from api.src.structures.schemas import VOLUME_MAX, OpenAISpeechRequest
+from api.src.core.config import settings
+from api.src.structures.schemas import (
+    VOLUME_MAX,
+    DialogueRequest,
+    OpenAISpeechRequest,
+)
 
 
 def _req(**kwargs):
@@ -34,3 +39,27 @@ def test_lang_code_rejects_unknown(value):
 
 def test_lang_code_default_still_none():
     assert _req().lang_code is None
+
+
+def test_input_at_limit_accepted():
+    text = "x" * settings.max_input_length
+    assert OpenAISpeechRequest(input=text, voice="af_heart").input == text
+
+
+def test_input_over_limit_rejected():
+    with pytest.raises(ValidationError, match="limit"):
+        OpenAISpeechRequest(
+            input="x" * (settings.max_input_length + 1), voice="af_heart"
+        )
+
+
+def test_dialogue_turns_over_limit_in_aggregate_rejected():
+    """Turns individually under the limit must not combine past it."""
+    half = "x" * (settings.max_input_length // 2 + 100)
+    with pytest.raises(ValidationError, match="limit"):
+        DialogueRequest(
+            turns=[
+                {"voice": "af_heart", "text": half},
+                {"voice": "af_heart", "text": half},
+            ]
+        )

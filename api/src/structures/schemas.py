@@ -10,6 +10,7 @@ from pydantic import (
     Field,
     field_validator,
     model_serializer,
+    model_validator,
 )
 
 
@@ -44,6 +45,20 @@ def _known_lang_code(value: str) -> str:
 
 
 LangCode = Annotated[str, AfterValidator(_known_lang_code)]
+
+
+def _within_input_limit(value: str) -> str:
+    # deferred import, keeps torch out of every schema import
+    from ..core.config import settings
+
+    if len(value) > settings.max_input_length:
+        raise ValueError(
+            f"input is {len(value)} characters, the limit is {settings.max_input_length}"
+        )
+    return value
+
+
+InputText = Annotated[str, AfterValidator(_within_input_limit)]
 
 
 def clamp_rate(value: float) -> float:
@@ -165,7 +180,7 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
         default="kokoro",
         description="The model to use for generation. Supported models: tts-1, tts-1-hd, kokoro",
     )
-    input: str = Field(..., description="The text to generate audio for")
+    input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
@@ -224,7 +239,7 @@ class DialogueTurn(BaseModel):
         validation_alias=AliasChoices("voice", "voice_id"),
         description="The voice for this turn. Can be a base voice or a combined voice name. Accepts voice_id as an alias.",
     )
-    text: str = Field(..., min_length=1, description="The text this speaker says")
+    text: InputText = Field(..., min_length=1, description="The text this speaker says")
 
     @field_validator("voice")
     @classmethod
@@ -310,6 +325,12 @@ class DialogueRequest(VoiceAliasesMixin):
             f"[voice:{turn.voice}] {turn.text.strip()}" for turn in self.turns
         )
 
+    @model_validator(mode="after")
+    def _rendered_within_limit(self) -> "DialogueRequest":
+        # the rendered string is what the speech endpoint actually receives
+        _within_input_limit(self.to_tagged_input())
+        return self
+
 
 class CaptionedSpeechRequest(VoiceAliasesMixin):
     """Request schema for captioned speech endpoint"""
@@ -318,7 +339,7 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default="kokoro",
         description="The model to use for generation. Supported models: tts-1, tts-1-hd, kokoro",
     )
-    input: str = Field(..., description="The text to generate audio for")
+    input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
