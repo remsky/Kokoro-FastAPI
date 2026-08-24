@@ -14,7 +14,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - Documented `WEB_CONCURRENCY` (uvicorn worker count) in `docs/configuration.md` for parallel model loads/concurrency (#115, #358).
-- Improved time-to-first-audio; sentence phonemization emits to avoid a first full-request pass. Some latency growth with input size, but far less than before. 
+- Improved time-to-first-audio; sentence phonemization emits to avoid a first full-request pass. Some gradual latency growth at larger input sizes due to normalization pass.
 
 <div align="center">
 
@@ -29,8 +29,6 @@ Per-PR attribution and contributor credits are published automatically on the co
 | 1M chars   |         5.21 s |        0.85 s | -84% |
 
 </div>
-
-  Not fully flat: normalization still runs over the whole input before the first sentence. At the 1M char `MAX_INPUT_LENGTH` ceiling that adds about 0.6 s (0.85 s total).
 
 ## [v0.8.0] - 2026-08-14
 ### Added
