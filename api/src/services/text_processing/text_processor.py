@@ -3,7 +3,7 @@
 import math
 import re
 import time
-from typing import AsyncGenerator, Dict, List, Optional, Tuple
+from typing import AsyncGenerator, Dict, Iterator, List, Optional, Tuple
 
 from loguru import logger
 
@@ -99,8 +99,8 @@ def process_text(text: str, language: str = "a") -> List[int]:
 
 def get_sentence_info(
     text: str, lang_code: str = "a"
-) -> List[Tuple[str, List[int], int]]:
-    """Process all sentences and return info"""
+) -> Iterator[Tuple[str, List[int], int]]:
+    """Yield (sentence, tokens, token_count) per sentence, phonemizing lazily."""
     # Detect Chinese text
     is_chinese = lang_code.startswith("z") or re.search(r"[\u4e00-\u9fff]", text)
     if is_chinese:
@@ -109,7 +109,6 @@ def get_sentence_info(
     else:
         sentences = re.split(r"([.!?;:])(?=\s|$)", text)
 
-    results = []
     for i in range(0, len(sentences), 2):
         sentence = sentences[i].strip()
         punct = sentences[i + 1] if i + 1 < len(sentences) else ""
@@ -121,8 +120,7 @@ def get_sentence_info(
         if not full:  # Skip if empty after stripping
             continue
         tokens = process_text_chunk(full)
-        results.append((full, tokens, len(tokens)))
-    return results
+        yield full, tokens, len(tokens)
 
 
 def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
