@@ -1228,7 +1228,7 @@ wheels = [
 
 [[package]]
 name = "kokoro-fastapi"
-version = "0.8.1rc1"
+version = "0.8.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiofiles" },

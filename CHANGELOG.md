@@ -4,10 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [v0.8.1] - 2026-08-24
 ### Fixed
 - `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
-- Oversized or pause-heavy requests now return 400 to avoid exhausting memory. Two new configurable limits:
+- Oversized or pause-heavy requests now return 400 to avoid exhausting memory (reported by @sshpie, GHSA-f64g-9jmv-pm22). Two new configurable limits:
   - `MAX_INPUT_LENGTH` (default 1_000_000) caps characters of text per request.
   - `MAX_TOTAL_PAUSE_S` (default 300) caps total `[pause:Ns]` / SSML `<break>` silence per request.
 - Native Windows installs (`start-cpu.ps1` etc) no longer need a C++ toolchain: `pyopenjtalk-plus` (a drop-in fork with prebuilt Windows wheels) replaces `pyopenjtalk` on win32 only (#508, proposed by @siliconfps). Needs a recent `uv`. Linux, macOS, and Docker are unchanged.
