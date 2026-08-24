@@ -52,7 +52,6 @@ async def mock_voice_manager(mock_voice_tensor):
     manager.get_voice_path = MagicMock(return_value="/mock/path/voice.pt")
     manager.load_voice = AsyncMock(return_value=mock_voice_tensor)
     manager.list_voices = AsyncMock(return_value=["voice1", "voice2"])
-    manager.combine_voices = AsyncMock(return_value="voice1_voice2")
     return manager
 
 

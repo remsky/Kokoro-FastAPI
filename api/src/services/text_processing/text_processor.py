@@ -1,8 +1,9 @@
 """Unified text processing for TTS with smart chunking."""
 
+import math
 import re
 import time
-from typing import AsyncGenerator, Dict, List, Optional, Tuple
+from typing import AsyncGenerator, Dict, Iterator, List, Optional, Tuple
 
 from loguru import logger
 
@@ -98,8 +99,8 @@ def process_text(text: str, language: str = "a") -> List[int]:
 
 def get_sentence_info(
     text: str, lang_code: str = "a"
-) -> List[Tuple[str, List[int], int]]:
-    """Process all sentences and return info"""
+) -> Iterator[Tuple[str, List[int], int]]:
+    """Yield (sentence, tokens, token_count) per sentence, phonemizing lazily."""
     # Detect Chinese text
     is_chinese = lang_code.startswith("z") or re.search(r"[\u4e00-\u9fff]", text)
     if is_chinese:
@@ -108,7 +109,6 @@ def get_sentence_info(
     else:
         sentences = re.split(r"([.!?;:])(?=\s|$)", text)
 
-    results = []
     for i in range(0, len(sentences), 2):
         sentence = sentences[i].strip()
         punct = sentences[i + 1] if i + 1 < len(sentences) else ""
@@ -120,8 +120,7 @@ def get_sentence_info(
         if not full:  # Skip if empty after stripping
             continue
         tokens = process_text_chunk(full)
-        results.append((full, tokens, len(tokens)))
-    return results
+        yield full, tokens, len(tokens)
 
 
 def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
@@ -180,6 +179,19 @@ def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> s
     latest_id = f"</|custom_phonemes_{len(phenomes_list)}|/>"
     phenomes_list[latest_id] = s.group(0).strip()
     return latest_id
+
+
+def check_pause_budget(text: str) -> None:
+    """Cap aggregate silence across the whole request, before any segmentation."""
+    total_pause_s = math.fsum(
+        min(float(match.group(1)), settings.max_pause_duration_s)
+        for match in PAUSE_TAG_PATTERN.finditer(text)
+    )
+    if total_pause_s > settings.max_total_pause_s:
+        raise ValueError(
+            f"Total pause duration {total_pause_s:.1f}s exceeds the "
+            f"{settings.max_total_pause_s:.1f}s limit"
+        )
 
 
 async def smart_split(
@@ -377,5 +389,5 @@ async def smart_split(
     # End of parts loop
     total_time = time.time() - start_time
     logger.debug(
-        f"Split completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
+        f"Synthesis completed in {total_time * 1000:.2f}ms, produced {chunk_count} chunks (including pauses)"
     )

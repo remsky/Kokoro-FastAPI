@@ -73,7 +73,7 @@ env_file:
 
 `environment:` beats `env_file`. `PYTHONPATH`, `DOWNLOAD_MODEL`, `API_LOG_LEVEL`, and `USE_GPU` (GPU/ROCm) are pinned there, so setting those in `.env` does nothing. Edit the compose file instead.
 
-Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Two rows below are process-only: read outside the settings object, so they work as env vars but not from `.env`.
+Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Three rows below are process-only: read outside the settings object, so they work as env vars but not from `.env`.
 
 ## Reference
 
@@ -87,6 +87,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
 | `API_VERSION` | from `VERSION` | OpenAPI version string |
 | `API_LOG_LEVEL` | `DEBUG` | loguru level, see Logging below (process-only) |
+| `WEB_CONCURRENCY` | `1` | uvicorn worker processes. Inference is synchronous, so one process serves requests one at a time; each extra worker loads its own model copy (process-only) |
 
 **Model & device**
 
@@ -119,6 +120,8 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `ENABLE_SSML` | `true` | Kill switch for SSML translation, the `/dev/ssml` routes and `ssml: true` on the speech endpoints will 403 when off |
 | `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
+| `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
+| `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
 
 **Audio**
