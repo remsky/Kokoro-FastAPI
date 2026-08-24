@@ -183,6 +183,11 @@ def main():
     )
     # Run OpenAI benchmark
     print("\n=== Running OpenAI Library Benchmark ===")
+    with OPENAI_CLIENT.audio.speech.with_streaming_response.create(
+        model="kokoro", voice="af_heart", response_format="pcm", input="Warmup."
+    ) as warmup:
+        for _ in warmup.iter_bytes(chunk_size=1024):
+            pass
     run_benchmark(
         measure_first_token_openai,
         output_dir=os.path.join(script_dir, "output_audio_stream_openai"),
