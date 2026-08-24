@@ -12,6 +12,9 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Native Windows installs (`start-cpu.ps1` etc) no longer need a C++ toolchain: `pyopenjtalk-plus` (a drop-in fork with prebuilt Windows wheels) replaces `pyopenjtalk` on win32 only (#508, proposed by @siliconfps). Needs a recent `uv`. Linux, macOS, and Docker are unchanged.
 - `/v1/audio/voices/combine` now accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
 
+### Changed
+- Documented `WEB_CONCURRENCY` (uvicorn worker count) in `docs/configuration.md` for parallel model loads/concurrency (#115, #358).
+
 ## [v0.8.0] - 2026-08-14
 ### Added
 - Multi-speaker input on `/v1/audio/speech` and `/dev/captioned_speech` (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
