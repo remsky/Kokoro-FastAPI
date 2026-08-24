@@ -3,12 +3,14 @@ from enum import Enum
 from typing import Annotated, Dict, List, Literal, Mapping, Optional, Union
 
 from pydantic import (
+    AfterValidator,
     AliasChoices,
     BaseModel,
     ConfigDict,
     Field,
     field_validator,
     model_serializer,
+    model_validator,
 )
 
 
@@ -23,6 +25,40 @@ class TTSStatus(str, Enum):
 # pace bounds shared by every speed field, the ssml translator and the final clamp
 RATE_MIN, RATE_MAX = 0.25, 4.0
 Rate = Annotated[float, Field(ge=RATE_MIN, le=RATE_MAX)]
+
+
+# gain bounds shared by every volume_multiplier field
+VOLUME_MIN, VOLUME_MAX = 0.0, 10.0
+Volume = Annotated[float, Field(ge=VOLUME_MIN, le=VOLUME_MAX)]
+
+
+def _known_lang_code(value: str) -> str:
+    """Fail at the request boundary, not on KPipeline's assert deep inside inference."""
+    # deferred import, keeps torch out of every schema import
+    from kokoro.pipeline import LANG_CODES
+
+    if value not in LANG_CODES:
+        raise ValueError(
+            f"unsupported lang_code {value!r}, expected one of {sorted(LANG_CODES)}"
+        )
+    return value
+
+
+LangCode = Annotated[str, AfterValidator(_known_lang_code)]
+
+
+def _within_input_limit(value: str) -> str:
+    # deferred import, keeps torch out of every schema import
+    from ..core.config import settings
+
+    if len(value) > settings.max_input_length:
+        raise ValueError(
+            f"input is {len(value)} characters, the limit is {settings.max_input_length}"
+        )
+    return value
+
+
+InputText = Annotated[str, AfterValidator(_within_input_limit)]
 
 
 def clamp_rate(value: float) -> float:
@@ -144,7 +180,7 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
         default="kokoro",
         description="The model to use for generation. Supported models: tts-1, tts-1-hd, kokoro",
     )
-    input: str = Field(..., description="The text to generate audio for")
+    input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
@@ -172,11 +208,11 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
         default=False,
         description="If true with return_download_link, writes per-chunk timing JSON next to the download file and returns its path in the X-Timing-Path header",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
@@ -203,7 +239,7 @@ class DialogueTurn(BaseModel):
         validation_alias=AliasChoices("voice", "voice_id"),
         description="The voice for this turn. Can be a base voice or a combined voice name. Accepts voice_id as an alias.",
     )
-    text: str = Field(..., min_length=1, description="The text this speaker says")
+    text: InputText = Field(..., min_length=1, description="The text this speaker says")
 
     @field_validator("voice")
     @classmethod
@@ -264,11 +300,11 @@ class DialogueRequest(VoiceAliasesMixin):
         default=False,
         description="If true, returns a download link in X-Download-Path header after streaming completes",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code override. If not provided, each turn uses the language implied by its own voice.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(
@@ -289,6 +325,12 @@ class DialogueRequest(VoiceAliasesMixin):
             f"[voice:{turn.voice}] {turn.text.strip()}" for turn in self.turns
         )
 
+    @model_validator(mode="after")
+    def _rendered_within_limit(self) -> "DialogueRequest":
+        # the rendered string is what the speech endpoint actually receives
+        _within_input_limit(self.to_tagged_input())
+        return self
+
 
 class CaptionedSpeechRequest(VoiceAliasesMixin):
     """Request schema for captioned speech endpoint"""
@@ -297,7 +339,7 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default="kokoro",
         description="The model to use for generation. Supported models: tts-1, tts-1-hd, kokoro",
     )
-    input: str = Field(..., description="The text to generate audio for")
+    input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
         default="af_heart",
         description="The voice to use for generation. Can be a base voice or a combined voice name.",
@@ -319,11 +361,11 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
         default=False,
         description="If true, returns a download link in X-Download-Path header after streaming completes",
     )
-    lang_code: Optional[str] = Field(
+    lang_code: Optional[LangCode] = Field(
         default=None,
         description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
     )
-    volume_multiplier: Optional[float] = Field(
+    volume_multiplier: Optional[Volume] = Field(
         default=1.0, description="A volume multiplier to multiply the output audio by."
     )
     normalization_options: Optional[NormalizationOptions] = Field(

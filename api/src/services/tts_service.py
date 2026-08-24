@@ -25,6 +25,7 @@ from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing import tokenize
 from .text_processing.text_processor import (
+    check_pause_budget,
     process_text_chunk,
     smart_split,
     split_by_voice,
@@ -182,7 +183,7 @@ class TTSService:
         logger.debug(f"Loading voice tensor from path: {path}")
         return torch.load(path, map_location="cpu", weights_only=True) * weight
 
-    async def _get_voices_path(self, voice: str) -> Tuple[str, str]:
+    async def get_voices_path(self, voice: str) -> Tuple[str, str]:
         """Get voice path, handling combined voices.
 
         Args:
@@ -287,7 +288,7 @@ class TTSService:
 
         for segment_voice, segment_rate, segment_text in segments:
             if segment_voice not in resolved:
-                resolved[segment_voice] = await self._get_voices_path(segment_voice)
+                resolved[segment_voice] = await self.get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
 
             # request lang_code wins, else each speaker gets the pipeline their prefix implies
@@ -330,6 +331,8 @@ class TTSService:
         chunk_index = 0
         current_offset = 0.0
         try:
+            # backstop for direct callers; routers check pre-stream for a clean 400
+            check_pause_budget(text)
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
@@ -501,9 +504,11 @@ class TTSService:
         normalization_options: Optional[NormalizationOptions] = NormalizationOptions(),
         lang_code: Optional[str] = None,
         allow_voice_tags: bool = False,
+        output_format: str = "wav",
     ) -> AudioChunk:
-        """Generate complete audio for text using streaming internally."""
-        audio_data_chunks = []
+        """Generate complete audio for text, encoding chunks as they arrive."""
+        output_parts = []
+        word_timestamps = []
 
         try:
             async for audio_stream_data in self.generate_audio_stream(
@@ -515,29 +520,23 @@ class TTSService:
                 normalization_options=normalization_options,
                 return_timestamps=return_timestamps,
                 lang_code=lang_code,
-                output_format=None,
+                output_format=output_format,
                 allow_voice_tags=allow_voice_tags,
             ):
-                if len(audio_stream_data.audio) > 0:
-                    audio_data_chunks.append(audio_stream_data)
+                if audio_stream_data.output:
+                    output_parts.append(audio_stream_data.output)
+                if audio_stream_data.word_timestamps:
+                    word_timestamps += audio_stream_data.word_timestamps
 
-            if not audio_data_chunks:
+            if not output_parts:
                 raise ValueError("Input contains no speakable text")
 
-            combined_audio_data = AudioChunk.combine(audio_data_chunks)
-            return combined_audio_data
+            return AudioChunk(
+                np.array([], dtype=np.int16), word_timestamps, b"".join(output_parts)
+            )
         except Exception as e:
             logger.error(f"Error in audio generation: {str(e)}")
             raise
-
-    async def combine_voices(self, voices: List[str]) -> torch.Tensor:
-        """Combine multiple voices.
-
-        Returns:
-            Combined voice tensor
-        """
-
-        return await self._voice_manager.combine_voices(voices)
 
     async def list_voices(self) -> List[str]:
         """List available voices."""
@@ -566,7 +565,7 @@ class TTSService:
             async with self.model_manager.hold():
                 await self.model_manager.ensure_backend()
                 backend = self.model_manager.get_backend()
-                voice_name, voice_path = await self._get_voices_path(voice)
+                voice_name, voice_path = await self.get_voices_path(voice)
 
                 if isinstance(backend, KokoroV1):
                     # For Kokoro V1, use generate_from_tokens with raw phonemes

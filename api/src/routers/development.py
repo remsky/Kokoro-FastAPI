@@ -4,7 +4,6 @@ import re
 from pathlib import Path
 from typing import AsyncGenerator, List, Tuple, Union
 
-import numpy as np
 import torch
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
@@ -12,11 +11,11 @@ from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
-from ..inference.base import AudioChunk
-from ..services.audio import AudioNormalizer, AudioService
+from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
 from ..services.text_processing import smart_split
+from ..services.text_processing.text_processor import check_pause_budget
 from ..services.tts_service import TTSService
 from ..structures import (
     CaptionedSpeechRequest,
@@ -79,9 +78,14 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
 
         raise ValueError("Failed to generate phonemes")
     except ValueError as e:
-        logger.error(f"Error in phoneme generation: {str(e)}")
+        logger.warning(f"Invalid phoneme request: {str(e)}")
         raise HTTPException(
-            status_code=500, detail={"error": "Server error", "message": str(e)}
+            status_code=400,
+            detail={
+                "error": "validation_error",
+                "message": str(e),
+                "type": "invalid_request_error",
+            },
         )
     except Exception as e:
         logger.error(f"Error in phoneme generation: {str(e)}")
@@ -235,6 +239,8 @@ async def create_captioned_speech(
             request.input, tts_service, request.allow_voice_tags, request.voice_aliases
         )
         apply_alias_rate(request)
+        # checked post-SSML and pre-stream, so an over-budget request 400s before headers
+        check_pause_budget(request.input)
 
         # Set content type based on format
         content_type = {
@@ -388,24 +394,9 @@ async def create_captioned_speech(
                 normalization_options=request.normalization_options,
                 lang_code=request.lang_code,
                 allow_voice_tags=request.allow_voice_tags,
+                output_format=request.response_format,
             )
-
-            audio_data = await AudioService.convert_audio(
-                audio_data,
-                request.response_format,
-                writer,
-                is_last_chunk=False,
-                trim_audio=False,
-            )
-
-            # Convert to requested format with proper finalization
-            final = await AudioService.convert_audio(
-                AudioChunk(np.array([], dtype=np.int16)),
-                request.response_format,
-                writer,
-                is_last_chunk=True,
-            )
-            output = audio_data.output + final.output
+            output = audio_data.output
 
             base64_output = base64.b64encode(output).decode("utf-8")
 

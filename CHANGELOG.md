@@ -9,8 +9,31 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
 - `MODEL_UNLOAD_STRATEGY=move_to_cpu` moves model weights from GPU to system RAM on unload, so reloads are faster than the default `destroy` strategy, which reloads from disk.
 
+## [v0.8.1] - 2026-08-24
 ### Fixed
+- `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
+- Oversized or pause-heavy requests now return 400 to avoid exhausting memory (reported by @sshpie, GHSA-f64g-9jmv-pm22). Two new configurable limits:
+  - `MAX_INPUT_LENGTH` (default 1_000_000) caps characters of text per request.
+  - `MAX_TOTAL_PAUSE_S` (default 300) caps total `[pause:Ns]` / SSML `<break>` silence per request.
 - Native Windows installs (`start-cpu.ps1` etc) no longer need a C++ toolchain: `pyopenjtalk-plus` (a drop-in fork with prebuilt Windows wheels) replaces `pyopenjtalk` on win32 only (#508, proposed by @siliconfps). Needs a recent `uv`. Linux, macOS, and Docker are unchanged.
+
+### Changed
+- Documented `WEB_CONCURRENCY` (uvicorn worker count) in `docs/configuration.md` for parallel model loads/concurrency (#115, #358).
+- Improved time-to-first-audio; sentence phonemization emits to avoid a first full-request pass. Some gradual latency growth at larger input sizes due to normalization pass.
+
+<div align="center">
+
+|   Input    | v0.8.0 (eager) | v0.8.1 (lazy) |     |
+|:-----------|---------------:|--------------:|----:|
+| 5k chars   |         0.31 s |        0.26 s | -16% |
+| 10k chars  |         0.30 s |        0.27 s | -10% |
+| 50k chars  |         0.45 s |        0.29 s | -36% |
+| 100k chars |         0.73 s |        0.31 s | -58% |
+| 250k chars |         1.41 s |        0.45 s | -68% |
+| 500k chars |         2.78 s |        0.56 s | -80% |
+| 1M chars   |         5.21 s |        0.85 s | -84% |
+
+</div>
 
 ## [v0.8.0] - 2026-08-14
 ### Added
