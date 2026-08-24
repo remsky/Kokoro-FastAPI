@@ -1,5 +1,6 @@
 import pytest
 
+from api.src.services.text_processing import text_processor
 from api.src.services.text_processing.text_processor import (
     get_sentence_info,
     process_text_chunk,
@@ -35,7 +36,7 @@ def test_process_text_chunk_phonemes():
 def test_get_sentence_info():
     """Test sentence splitting and info extraction."""
     text = "This is sentence one. This is sentence two! What about three?"
-    results = get_sentence_info(text)
+    results = list(get_sentence_info(text))
 
     assert len(results) == 3
     for sentence, tokens, count in results:
@@ -44,6 +45,51 @@ def test_get_sentence_info():
         assert isinstance(count, int)
         assert count == len(tokens)
         assert count > 0
+
+
+def test_get_sentence_info_is_lazy(monkeypatch):
+    """Sentences are phonemized as they are pulled, not all up front."""
+    calls = []
+
+    def counting_process_text_chunk(text, *args, **kwargs):
+        calls.append(text)
+        return [1, 2, 3]
+
+    monkeypatch.setattr(
+        text_processor, "process_text_chunk", counting_process_text_chunk
+    )
+
+    sentences = text_processor.get_sentence_info("One. Two. Three.")
+    assert calls == []
+
+    assert next(sentences)[0] == "One."
+    assert calls == ["One."]
+
+    next(sentences)
+    assert calls == ["One.", "Two."]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_first_chunk_skips_rest_of_text(monkeypatch):
+    """Time to first chunk stays flat: it must not phonemize the whole input."""
+    calls = []
+
+    def counting_process_text_chunk(text, *args, **kwargs):
+        calls.append(text)
+        return [1] * 200
+
+    monkeypatch.setattr(
+        text_processor, "process_text_chunk", counting_process_text_chunk
+    )
+
+    text = " ".join(f"This is sentence {i}." for i in range(200))
+    chunks = text_processor.smart_split(text)
+    try:
+        await anext(chunks)
+    finally:
+        await chunks.aclose()
+
+    assert len(calls) < 10
 
 
 @pytest.mark.asyncio
@@ -134,7 +180,7 @@ def test_process_text_chunk_chinese_phonemes():
 def test_get_sentence_info_chinese():
     """Test Chinese sentence splitting and info extraction."""
     text = "这是一个句子。这是第二个句子！第三个问题？"
-    results = get_sentence_info(text, lang_code="z")
+    results = list(get_sentence_info(text, lang_code="z"))
 
     assert len(results) == 3
     for sentence, tokens, count in results:

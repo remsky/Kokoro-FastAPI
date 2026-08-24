@@ -73,7 +73,7 @@ env_file:
 
 `environment:` beats `env_file`. `PYTHONPATH`, `DOWNLOAD_MODEL`, `API_LOG_LEVEL`, and `USE_GPU` (GPU/ROCm) are pinned there, so setting those in `.env` does nothing. Edit the compose file instead.
 
-Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Two rows below are process-only: read outside the settings object, so they work as env vars but not from `.env`.
+Names are the field names from `api/src/core/config.py`, uppercased. Unrecognized keys in `.env` are ignored. Three rows below are process-only: read outside the settings object, so they work as env vars but not from `.env`.
 
 ## Reference
 
@@ -87,6 +87,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
 | `API_VERSION` | from `VERSION` | OpenAPI version string |
 | `API_LOG_LEVEL` | `DEBUG` | loguru level, see Logging below (process-only) |
+| `WEB_CONCURRENCY` | `1` | uvicorn worker processes. Inference is synchronous, so one process serves requests one at a time; each extra worker loads its own model copy (process-only) |
 
 **Model & device**
 
