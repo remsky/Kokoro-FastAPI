@@ -420,6 +420,16 @@ def handle_time(t: re.Match[str]) -> str:
 def normalize_text(text: str, normalization_options: NormalizationOptions) -> str:
     """Normalize text for TTS processing"""
 
+    if normalization_options.markdown_normalization:
+        from .markdown import normalize_markdown
+
+        text = normalize_markdown(text)
+
+    if normalization_options.latex_normalization:
+        from .latex import normalize_latex
+
+        text = normalize_latex(text)
+
     # Expand the "'re" contractions that espeak mis-phonemizes with a spurious
     # /ɹeɪ/ ("-ray") ending, e.g. "how're" -> /haʊɹeɪ/ which sounds like "harry".
     # Only the wh-words and there/these/those break this way; "you're", "we're"

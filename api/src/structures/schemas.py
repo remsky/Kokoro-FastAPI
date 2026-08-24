@@ -127,6 +127,14 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Replaces the remaining symbols after normalization with their words",
     )
+    markdown_normalization: bool = Field(
+        default=False,
+        description="Strips markdown formatting (headers, bold, links, etc.) so the text reads cleanly",
+    )
+    latex_normalization: bool = Field(
+        default=False,
+        description="Speaks delimited LaTeX math ($..$, $$..$$, \\(..\\), \\[..\\]) as words",
+    )
 
 
 # shared with text_processor's VOICE_TAG_PATTERN so a rendered [voice:...] round-trips as one tag

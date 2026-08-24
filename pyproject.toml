@@ -42,6 +42,7 @@ dependencies = [
     "phonemizer-fork>=3.3.2",
     "av>=14.2.0",
     "text2num>=2.5.1",
+    "pylatexenc>=2.10,<3",
 ]
 
 [project.optional-dependencies]
