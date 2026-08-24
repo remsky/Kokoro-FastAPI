@@ -2,7 +2,6 @@
 
 from typing import Dict, List, Optional
 
-import aiofiles
 import torch
 from loguru import logger
 
@@ -59,33 +58,6 @@ class VoiceManager:
             return voice
         except Exception as e:
             raise RuntimeError(f"Failed to load voice {voice_name}: {e}")
-
-    async def combine_voices(
-        self, voices: List[str], device: Optional[str] = None
-    ) -> torch.Tensor:
-        """Combine multiple voices.
-
-        Args:
-            voices: List of voice names to combine
-            device: Optional override for target device
-
-        Returns:
-            Combined voice tensor
-
-        Raises:
-            RuntimeError: If any voice not found
-        """
-        if len(voices) < 2:
-            raise ValueError("Need at least 2 voices to combine")
-
-        target_device = device or self._device
-        voice_tensors = []
-        for name in voices:
-            voice = await self.load_voice(name, target_device)
-            voice_tensors.append(voice)
-
-        combined = torch.mean(torch.stack(voice_tensors), dim=0)
-        return combined
 
     async def list_voices(self) -> List[str]:
         """List available voice names.

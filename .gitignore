@@ -50,6 +50,7 @@ api/src/models/**/*.download
 !.claude/skills/api-contrib/
 !.claude/skills/web-contrib/
 !.claude/skills/readme-benchmarks/
+!.claude/skills/integration-tests/
 .agents/*
 Kokoro-82M/
 EXTERNAL_UV_DOCUMENTATION*
