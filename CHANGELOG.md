@@ -5,6 +5,9 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [v0.8.2-rc1] - unreleased
+### Added
+- `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded.
+
 ### Fixed
 - `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
 

@@ -459,6 +459,22 @@ def test_list_voices(mock_tts_service):
     assert legacy.json()["voices"] == ["voice1", "voice2"]
 
 
+def test_list_voices_grades(mock_tts_service):
+    """Graded voices carry their model-card grades, ungraded ones stay bare"""
+    mock_tts_service.list_voices.return_value = ["af_bella", "ef_dora"]
+
+    data = client.get("/v1/audio/voices").json()
+    bella, dora = data["voices"]
+    assert bella == {
+        "id": "af_bella",
+        "name": "af_bella",
+        "target_quality": "A",
+        "training_duration": "HH hours",
+        "overall_grade": "A-",
+    }
+    assert dora == {"id": "ef_dora", "name": "ef_dora"}
+
+
 @patch("api.src.routers.openai_compatible.settings")
 def test_combine_voices(mock_settings, mock_tts_service, tmp_path):
     """Test combining voices endpoint"""
