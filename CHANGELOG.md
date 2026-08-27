@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [v0.8.2-rc1] - unreleased
+### Fixed
+- `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
+
 ## [v0.8.1] - 2026-08-24
 ### Fixed
 - `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
