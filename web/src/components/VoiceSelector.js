@@ -11,6 +11,12 @@ function readPins() {
     }
 }
 
+function gradeTip({ overall_grade, target_quality, training_duration }) {
+    const detail = [`target quality ${target_quality}`, training_duration && `${training_duration} of training data`]
+        .filter(Boolean).join(', ');
+    return `Kokoro-82M model card grade ${overall_grade} (${detail})`;
+}
+
 function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
         .replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -521,12 +527,18 @@ export class VoiceSelector {
 
     renderVoiceOptions(voices) {
         this.elements.voiceOptions.innerHTML = voices
-            .map(voice => `
+            .map(voice => {
+                const grade = this.voiceService.getGrade(voice);
+                const badge = grade
+                    ? ` data-grade="${esc(grade.overall_grade)}" title="${esc(gradeTip(grade))}"`
+                    : '';
+                return `
                 <div class="voice-option ${this.voiceService.getSelectedVoices().includes(voice) ? 'selected' : ''}"
-                     data-voice="${esc(voice)}">
+                     data-voice="${esc(voice)}"${badge}>
                     ${esc(voice)}
                 </div>
-            `)
+            `;
+            })
             .join('');
     }
 
