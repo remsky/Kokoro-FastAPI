@@ -7,6 +7,7 @@ import pytest
 import torch
 
 from api.src.inference.base import AudioChunk
+from api.src.inference.kokoro_v1 import KokoroV1
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -324,6 +325,33 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         ]
 
         assert langs == ["e", "e"]
+
+
+@pytest.mark.asyncio
+async def test_generate_from_phonemes_uses_default_voice_code():
+    """The phoneme endpoint honours default_voice_code, like the speech path."""
+    model_manager = AsyncMock()
+    backend = MagicMock(spec=KokoroV1)
+    backend._get_pipeline.return_value.generate_from_tokens.return_value = [
+        MagicMock(audio=torch.zeros(4))
+    ]
+    model_manager.get_backend = MagicMock(return_value=backend)
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+        patch("api.src.services.tts_service.settings") as mock_settings,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = AsyncMock()
+        mock_settings.default_voice_code = "a"
+
+        service = await TTSService.create()
+        service.get_voices_path = AsyncMock(return_value=("ursa", "/path/to/ursa.pt"))
+
+        await service.generate_from_phonemes("h@lˈO", "ursa")
+
+        backend._get_pipeline.assert_called_once_with("a")
 
 
 async def _stubbed_service():
