@@ -291,8 +291,12 @@ class TTSService:
                 resolved[segment_voice] = await self.get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
 
-            # request lang_code wins, else each speaker gets the pipeline their prefix implies
-            segment_lang = lang_code if lang_code else segment_voice[:1].lower()
+            # request lang_code wins, then default_voice_code setting, else each speaker gets the pipeline their prefix implies
+            segment_lang = (
+                lang_code
+                or settings.default_voice_code
+                or segment_voice[:1].lower()
+            )
             logger.debug(
                 f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"
             )
