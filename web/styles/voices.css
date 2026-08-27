@@ -139,6 +139,18 @@
     border-color: var(--fg-color);
 }
 
+.voice-option[data-grade]::after {
+    content: attr(data-grade);
+    flex: none;
+    margin-left: auto;
+    padding-left: 0.75rem;
+    width: 2ch;
+    font-family: ui-monospace, monospace;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    opacity: 0.5;
+}
+
 .voice-option.selected::before {
     content: "✓";
     margin-right: 0.5rem;

@@ -6,7 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [v0.8.2-rc1] - unreleased
 ### Added
-- `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded.
+- `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
 
 ### Fixed
 - `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
