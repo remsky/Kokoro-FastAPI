@@ -97,6 +97,38 @@ class CaptionedSpeechResponse(BaseModel):
     )
 
 
+class VoiceTuneRequest(BaseModel):
+    """Request schema for POST /dev/voices/tune"""
+
+    name: str = Field(
+        ...,
+        pattern=r"^[abefhijpz][fm]_[A-Za-z0-9_]{1,61}$",
+        description="Voice name to save as, in the stock <language><gender>_name form (af_..., bm_...); the language letter picks the pipeline",
+    )
+    audio: str = Field(
+        ..., description="Reference clip (wav, flac, ogg or mp3) encoded in base 64"
+    )
+    strength: float = Field(
+        1.0,
+        ge=0.0,
+        le=2.0,
+        description="How far the enrolled voice sits from the adapter's mean voice: 0 is the mean voice, 1 (default) the prediction as is, above 1 exaggerates it at a quality cost",
+    )
+
+
+class VoiceTuneResponse(BaseModel):
+    """Response schema for POST /dev/voices/tune"""
+
+    voice: str = Field(..., description="Saved voice name, usable in every speech route")
+    adapter: str = Field(..., description="Tune adapter that enrolled the voice")
+    speed: float = Field(
+        ..., description="Enrolled pace relative to Kokoro's default for this voice"
+    )
+    f0_mean_st: float = Field(
+        ..., description="Reference pitch mean in semitones re 100 Hz"
+    )
+
+
 class NormalizationOptions(BaseModel):
     """Options for the normalization system"""
 

@@ -1,6 +1,7 @@
 """Clean Kokoro implementation with controlled resource management."""
 
 import os
+import tempfile
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -12,6 +13,7 @@ from ..core import paths
 from ..core.config import settings
 from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
+from . import voice_tune
 from .base import AudioChunk, BaseModelBackend
 
 _ESPEAK_TS_SCALE = (
@@ -91,6 +93,33 @@ class KokoroV1(BaseModelBackend):
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
         self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
+        self._tune_heads: Optional[object] = None  # Enrollment heads of the tune adapter
+
+    def enroll_voice(
+        self, wav: torch.Tensor, sr: int, strength: float = 1.0
+    ) -> torch.Tensor:
+        """Reference clip -> voice pack tensor."""
+        if self._tune_heads is None:
+            raise RuntimeError("Tune adapter not loaded")
+        return voice_tune.enroll(
+            wav, sr, self._get_pipeline("a"), self._tune_heads, strength
+        )
+
+    def _temp_voice_path(self, voice_path: str) -> str:
+        """Pipeline copy of a voice file, which the pipeline needs as a path."""
+        return os.path.join(
+            tempfile.gettempdir(), f"temp_voice_{os.path.basename(voice_path)}"
+        )
+
+    def evict_voice(self, voice_path: str) -> None:
+        """Drop a voice from the caches, so a re-enrolled voice is picked up."""
+        self._voice_cache.pop(f"{voice_path}:{self._device}", None)
+        temp_path = self._temp_voice_path(voice_path)
+        for pipeline in self._pipelines.values():
+            pipeline.voices.pop(temp_path, None)
+            pipeline.voices.pop(voice_path, None)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
     async def _get_voice_tensor(self, voice_path: str) -> torch.Tensor:
         """Load voice tensor with in-memory caching to avoid repeated file I/O.
@@ -145,10 +174,31 @@ class KokoroV1(BaseModelBackend):
             else:
                 self._model = self._model.cpu()
 
+            spec = (settings.tune_adapter or "").strip()
+            if spec:
+                adapter_path = await self._adapter_path(spec)
+                alias, adapter_id = voice_tune.adapter_ids(adapter_path)
+                self._tune_heads = voice_tune.install(self._model, adapter_path)
+                tune_dir = paths.register_tune_adapter(adapter_id, alias)
+                logger.info(
+                    f"Tune adapter '{alias}' installed: {adapter_path}, voices in {tune_dir}"
+                )
+
         except FileNotFoundError:
             raise
         except Exception as e:
             raise RuntimeError(f"Failed to load Kokoro model: {e}")
+
+    async def _adapter_path(self, spec: str) -> str:
+        """A file under model_dir, else an HF repo id holding model.safetensors."""
+        try:
+            return await paths.get_model_path(spec)
+        except FileNotFoundError:
+            if spec.endswith(".safetensors"):
+                raise
+            from huggingface_hub import hf_hub_download
+
+            return hf_hub_download(spec, "model.safetensors")
 
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create pipeline for language code.
@@ -224,12 +274,7 @@ class KokoroV1(BaseModelBackend):
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
             # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
+            temp_path = self._temp_voice_path(voice_path)
             if not os.path.exists(temp_path):
                 await paths.save_voice_tensor(voice_tensor, temp_path)
             voice_path = temp_path
@@ -322,12 +367,7 @@ class KokoroV1(BaseModelBackend):
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
             # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
+            temp_path = self._temp_voice_path(voice_path)
             if not os.path.exists(temp_path):
                 await paths.save_voice_tensor(voice_tensor, temp_path)
             voice_path = temp_path
@@ -464,6 +504,9 @@ class KokoroV1(BaseModelBackend):
             del pipeline
         self._pipelines.clear()
         self._voice_cache.clear()
+        self._tune_heads = None
+        paths.clear_tune_adapter()
+        voice_tune.release_encoder()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()

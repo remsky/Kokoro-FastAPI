@@ -4,13 +4,16 @@ import re
 from pathlib import Path
 from typing import AsyncGenerator, List, Tuple, Union
 
+import soundfile as sf
 import torch
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from kokoro import KPipeline
 from loguru import logger
 
+from ..core import paths
 from ..core.config import settings
+from ..inference import voice_tune
 from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
@@ -22,6 +25,8 @@ from ..structures import (
     CaptionedSpeechResponse,
     DialogueRequest,
     OpenAISpeechRequest,
+    VoiceTuneRequest,
+    VoiceTuneResponse,
     WordTimestamp,
 )
 from ..structures.custom_responses import JSONStreamingResponse
@@ -495,4 +500,59 @@ async def unload_model(
         raise
     except Exception as e:
         logger.error(f"Error unloading model: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@router.post("/dev/voices/tune", response_model=VoiceTuneResponse)
+async def tune_voice(
+    request: VoiceTuneRequest,
+    tts_service: TTSService = Depends(get_tts_service),
+) -> VoiceTuneResponse:
+    """Enroll a reference clip as a voice pack.
+
+    Saves `<name>.pt` into the tune voices dir, so the voice then works by name in
+    every speech route. Needs TUNE_ADAPTER; re-enrolling a name replaces it, stock
+    names are refused.
+    """
+    if not settings.tune_adapter:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "Voice tuning is disabled, set TUNE_ADAPTER"},
+        )
+    try:
+        if tts_service.model_manager is None:
+            raise HTTPException(
+                status_code=503, detail={"error": "Model manager not initialized"}
+            )
+        if os.path.exists(os.path.join(paths.get_voices_dir(), f"{request.name}.pt")):
+            raise HTTPException(
+                status_code=409,
+                detail={"error": f"{request.name} is a stock voice, pick another name"},
+            )
+        wav, sr = voice_tune.decode_audio(base64.b64decode(request.audio))
+        await tts_service.model_manager.ensure_backend()
+        backend = tts_service.model_manager.get_backend()
+        pack = backend.enroll_voice(wav, sr, request.strength)
+        voice_path = os.path.join(paths.get_tune_voices_dir(), f"{request.name}.pt")
+        await paths.save_voice_tensor(pack, voice_path)
+        backend.evict_voice(voice_path)
+        return VoiceTuneResponse(
+            voice=request.name,
+            adapter=paths.tune_alias(),
+            speed=round(pack[0, 0, -1].item(), 3),
+            f0_mean_st=round(pack[0, 0, -2].item(), 2),
+        )
+    except HTTPException:
+        raise
+    except (ValueError, sf.LibsndfileError) as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "validation_error",
+                "message": str(e),
+                "type": "invalid_request_error",
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error tuning voice: {e}")
         raise HTTPException(status_code=500, detail={"error": str(e)})

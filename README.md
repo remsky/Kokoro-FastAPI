@@ -15,7 +15,8 @@
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
-
+> [!IMPORTANT]
+> Development Branch: Experimental Voice Tuning via Adapter Model
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
@@ -358,6 +359,26 @@ response = requests.post(
 <p align="center">
   <img src="assets/voice_analysis.png" width="80%" alt="Voice Analysis Comparison" style="border: 2px solid #333; padding: 10px;">
 </p>
+</details>
+
+<details>
+<summary>Voice Tuning (experimental)</summary>
+
+One reference clip (5 to 30 s, one speaker) in, a voice pack out, usable by name in every speech route and the web player. On by default via `TUNE_ADAPTER` (set it empty to disable); stock voices render as they always have.
+
+```bash
+curl -X POST http://localhost:8880/dev/voices/tune \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"af_me\", \"audio\": \"$(base64 -w0 me.wav)\", \"strength\": 1.0}"
+# {"voice": "af_me", "adapter": "inno_tilt02b", "speed": 0.91, "f0_mean_st": 0.8}
+```
+
+- `name` takes the stock `<language><gender>_name` form (`af_me`, `bm_dad`, etc); the language letter picks the pipeline. Re-enrolling replaces, stock names are refused
+- `strength` (0 to 2, default 1.0) scales the voice away from the adapter's mean; above 1 exaggerates it at a quality cost
+- English trained: Kokoro's rhythm at the speaker's pitch and pace, other `lang_code`s get the timbre with English prosody
+- tuned packs can't be mixed with stock ones (tuned with tuned works)
+
+`examples/voice_tune_example.py` does the round trip. Adapter, training and numbers: [Remsky/kokoro-tune-adapter](https://huggingface.co/Remsky/kokoro-tune-adapter).
 </details>
 
 <details>

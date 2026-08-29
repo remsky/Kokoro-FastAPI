@@ -5,6 +5,8 @@ from .schemas import (
     DialogueTurn,
     OpenAISpeechRequest,
     TTSStatus,
+    VoiceTuneRequest,
+    VoiceTuneResponse,
     WordTimestamp,
 )
 
@@ -14,6 +16,8 @@ __all__ = [
     "CaptionedSpeechResponse",
     "DialogueRequest",
     "DialogueTurn",
+    "VoiceTuneRequest",
+    "VoiceTuneResponse",
     "WordTimestamp",
     "TTSStatus",
 ]

@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [v0.8.2-rc1] - unreleased
 ### Added
 - `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
+- Voice tuning (experimental): `POST /dev/voices/tune` takes a reference clip and a name, saves a voice pack usable in every speech route and the web player. Enabled by `TUNE_ADAPTER` (default adapter ships in the image; empty disables). Stock voices are unchanged. Tuned voices can't be mixed with stock ones.
 
 ### Fixed
 - `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).

@@ -97,6 +97,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `DEVICE_TYPE` | auto | Force `cuda`, `mps`, or `cpu` |
 | `MODEL_DIR` | `/app/api/src/models` | Where model weights live, container path |
 | `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where voice packs live, container path |
+| `TUNE_VOICES_DIR` | `/app/api/src/voices/adapters` | Where `POST /dev/voices/tune` saves packs, in a subdir named for the adapter |
 | `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Fallback download source when `MODEL_DIR` is empty |
 | `DOWNLOAD_MODEL` | `true` | Fetch weights at image build and container start (process-only) |
 
@@ -157,6 +158,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
 | `ALLOW_DEV_UNLOAD` | `false` | Expose `POST /dev/unload` |
+| `TUNE_ADAPTER` | `v1_0/tune_inno_tilt_17a2ecb1.safetensors` | Tune adapter to install: a `.safetensors` under `MODEL_DIR` (the default ships in the image) or an HF repo id holding `model.safetensors`. Empty disables `POST /dev/voices/tune` |
 
 ## Logging
 

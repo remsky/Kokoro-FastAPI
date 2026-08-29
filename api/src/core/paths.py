@@ -128,11 +128,57 @@ async def get_model_path(model_name: str) -> str:
     return await _find_file(model_name, search_paths)
 
 
+def get_voices_dir() -> str:
+    """Stock voices directory (settings.voices_dir, relative paths resolved against api/), created if missing."""
+    return _voice_dir(settings.voices_dir)
+
+
+_tune: dict = {}
+
+
+def register_tune_adapter(adapter_id: str, alias: str) -> str:
+    """Called at adapter install: enrolled packs live in <tune_voices_dir>/<adapter_id>/."""
+    _tune.update(
+        alias=alias,
+        dir=_voice_dir(os.path.join(settings.tune_voices_dir, adapter_id)),
+    )
+    return _tune["dir"]
+
+
+def clear_tune_adapter() -> None:
+    """Forget the installed adapter, so an unloaded model does not leave voices resolvable."""
+    _tune.clear()
+
+
+def tune_alias() -> str:
+    """Name the installed adapter gives itself, empty when none is installed."""
+    return _tune.get("alias", "")
+
+
+def get_tune_voices_dir() -> str:
+    """Where POST /dev/voices/tune saves packs."""
+    if not _tune:
+        raise RuntimeError("No tune adapter installed")
+    return _tune["dir"]
+
+
+def _voice_search_paths() -> List[str]:
+    return [get_voices_dir()] + ([_tune["dir"]] if _tune else [])
+
+
+def _voice_dir(path: str) -> str:
+    api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    voice_dir = os.path.join(api_dir, path)
+    os.makedirs(voice_dir, exist_ok=True)
+    return voice_dir
+
+
 async def get_voice_path(voice_name: str) -> str:
     """Get path to voice file.
 
     Args:
-        voice_name: Name of voice file (without .pt extension)
+        voice_name: Name of voice file (without .pt extension). Stock voices are searched first,
+            then the enrolled packs of the installed tune adapter.
 
     Returns:
         Absolute path to voice file
@@ -140,48 +186,24 @@ async def get_voice_path(voice_name: str) -> str:
     Raises:
         FileNotFoundError: If voice not found
     """
-    # Get api directory path
-    api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    search_paths = _voice_search_paths()
+    logger.debug(f"Searching for voice in paths: {search_paths}")
 
-    # Construct voice directory path relative to api directory
-    voice_dir = os.path.join(api_dir, settings.voices_dir)
-
-    # Ensure voice directory exists
-    os.makedirs(voice_dir, exist_ok=True)
-
-    voice_file = f"{voice_name}.pt"
-
-    # Search in voice directory/o
-    search_paths = [voice_dir]
-    logger.debug(f"Searching for voice in path: {voice_dir}")
-
-    return await _find_file(voice_file, search_paths)
+    return await _find_file(f"{voice_name}.pt", search_paths)
 
 
 async def list_voices() -> List[str]:
-    """List available voice files.
+    """List available voice files, stock and enrolled.
 
     Returns:
         List of voice names (without .pt extension)
     """
-    # Get api directory path
-    api_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-
-    # Construct voice directory path relative to api directory
-    voice_dir = os.path.join(api_dir, settings.voices_dir)
-
-    # Ensure voice directory exists
-    os.makedirs(voice_dir, exist_ok=True)
-
-    # Search in voice directory
-    search_paths = [voice_dir]
-    logger.debug(f"Scanning for voices in path: {voice_dir}")
 
     def filter_voice_files(name: str) -> bool:
         return name.endswith(".pt")
 
-    voices = await _scan_directories(search_paths, filter_voice_files)
-    return sorted([name.removesuffix(".pt") for name in voices])
+    voices = await _scan_directories(_voice_search_paths(), filter_voice_files)
+    return sorted({name.removesuffix(".pt") for name in voices})
 
 
 async def load_voice_tensor(

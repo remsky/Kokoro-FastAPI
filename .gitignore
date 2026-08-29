@@ -105,3 +105,7 @@ test-results/
 ROCM_TRIM.md
 Kokoro-FastAPI.code-workspace
 experiments/*
+
+# voices enrolled through POST /dev/voices/tune, one dir per adapter id
+api/src/voices/adapters/
+api/src/models/v1_0/tune_*.safetensors

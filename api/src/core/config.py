@@ -45,10 +45,14 @@ class Settings(BaseSettings):
     )
     enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
     enable_ssml: bool = True  # Kill switch for SSML translation, the /dev/ssml routes and ssml=true on the speech endpoints 403 when off
+    tune_adapter: str | None = (
+        "v1_0/tune_inno_tilt_17a2ecb1.safetensors"  # Tune adapter: a .safetensors under model_dir or an HF repo id; exposes POST /dev/voices/tune, empty disables
+    )
 
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
     voices_dir: str = "/app/api/src/voices/v1_0"  # Absolute path in container
+    tune_voices_dir: str = "/app/api/src/voices/adapters"  # Enrolled packs live in <tune_voices_dir>/<adapter id>/, so a retrained adapter gets a fresh dir
     model_repo_id: str = "hexgrad/Kokoro-82M"  # default if model not present in model_dir; silences warnings
 
     # Audio Settings
