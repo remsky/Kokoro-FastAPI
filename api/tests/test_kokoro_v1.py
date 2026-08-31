@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from api.src.core.config import settings
-from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.inference.kokoro_v1 import KokoroV1, _configure_rocm_backend
 
 
 @pytest.fixture
@@ -225,3 +225,38 @@ def test_espeak_word_timestamps_degenerate_inputs():
     assert _espeak_word_timestamps("", "abc", torch.tensor([0, 4, 4, 4, 0])) is None
     # pred_dur too short for the phoneme string.
     assert _espeak_word_timestamps("hola", "abcdef", torch.tensor([0, 4])) is None
+
+
+@pytest.fixture
+def restore_cudnn():
+    """Restore the global flag that _configure_rocm_backend mutates."""
+    previous = torch.backends.cudnn.enabled
+    yield
+    torch.backends.cudnn.enabled = previous
+
+
+def test_configure_rocm_backend_noop_on_cuda(restore_cudnn, monkeypatch):
+    """A CUDA build must keep cuDNN enabled."""
+    monkeypatch.setattr(torch.version, "hip", None)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is True
+
+
+def test_configure_rocm_backend_disables_miopen_on_rocm(restore_cudnn, monkeypatch):
+    """A ROCm build disables MIOpen to avoid per-shape kernel compilation."""
+    monkeypatch.setattr(torch.version, "hip", "7.2.0")
+    monkeypatch.delenv("KOKORO_ENABLE_MIOPEN", raising=False)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is False
+
+
+@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes"])
+def test_configure_rocm_backend_opt_out(restore_cudnn, monkeypatch, value):
+    """KOKORO_ENABLE_MIOPEN keeps MIOpen in play."""
+    monkeypatch.setattr(torch.version, "hip", "7.2.0")
+    monkeypatch.setenv("KOKORO_ENABLE_MIOPEN", value)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is True

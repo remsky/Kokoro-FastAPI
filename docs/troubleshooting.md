@@ -112,18 +112,25 @@ hipBLASLt does not cover every architecture. Falling back to hipBLAS is slower o
 
 ### First request is slow
 
-MIOpen searches for a kernel per unique tensor shape, which costs 5-60s a shape. The image ships `MIOPEN_FIND_MODE=2` and prebaked kernel databases, but only for the architectures listed in `docker/rocm/kdb_install.sh` (CDNA plus gfx1030). RDNA 3 has no prebaked database, so the search runs on first use.
+MIOpen compiles a kernel per unique tensor shape, which costs 5-60s a shape. Kokoro's decoder length is derived from predicted durations, so it changes with the input text and most requests hit a shape that has never been seen.
+
+Because of that, MIOpen is **disabled by default on ROCm**; PyTorch's shape-independent kernels are used instead. Measured on gfx1100 / ROCm 7.2, six novel texts: 2433ms per generation with MIOpen, 268ms without. If first requests are still slow, check the startup log for `MIOpen disabled`.
+
+To go back to MIOpen, set `KOKORO_ENABLE_MIOPEN=1`. The image ships `MIOPEN_FIND_MODE=2` and prebaked kernel databases, but only for the architectures listed in `docker/rocm/kdb_install.sh` (CDNA plus gfx1030). RDNA 3 has no prebaked database, so the search runs on first use.
 
 To pre-populate the on-disk cache, which `docker/rocm/docker-compose.yml` persists in named volumes:
 
 ```bash
 cd docker/rocm
 docker compose run --rm \
+  -e KOKORO_ENABLE_MIOPEN=1 \
   -e MIOPEN_FIND_MODE=3 -e MIOPEN_FIND_ENFORCE=3 \
   kokoro-tts python docker/rocm/warmup_miopen.py
 ```
 
-This sweeps every phoneme length up to 340 and takes hours (~2 on Strix Halo). Run it once per ROCm or PyTorch upgrade. Then start normally: the default `MIOPEN_FIND_MODE=2` reuses the cache. `docker compose down -v` clears it.
+This sweeps every phoneme length up to 340 and takes hours (~2 on Strix Halo). Run it once per ROCm or PyTorch upgrade. Then start with `KOKORO_ENABLE_MIOPEN=1` and the default `MIOPEN_FIND_MODE=2`, which reuses the cache. `docker compose down -v` clears it.
+
+Note the sweep covers phoneme counts, and shape is not a function of phoneme count: on gfx1100, 20 random texts of the same word count produced 20 distinct output lengths. It therefore cannot cover every shape.
 
 Generating audio for a few paragraphs of varied length under the same overrides is the cheaper, partial version.
 

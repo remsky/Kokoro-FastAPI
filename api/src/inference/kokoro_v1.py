@@ -80,6 +80,26 @@ def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
         return None
 
 
+def _configure_rocm_backend() -> None:
+    """Disable MIOpen on ROCm.
+
+    MIOpen compiles a kernel per unseen tensor shape, and Kokoro's decoder
+    length varies with the input text, so nearly every request pays that
+    compile: 2433ms per generation against 268ms without, on gfx1100.
+    warmup_miopen.py does not help, as shape is not a function of phoneme
+    count.
+
+    KOKORO_ENABLE_MIOPEN=1 keeps MIOpen. CUDA is unaffected.
+    """
+    if not torch.version.hip:
+        return
+    if os.getenv("KOKORO_ENABLE_MIOPEN", "").lower() in ("1", "true", "yes"):
+        logger.info("MIOpen left enabled via KOKORO_ENABLE_MIOPEN")
+        return
+    torch.backends.cudnn.enabled = False
+    logger.info("ROCm detected: MIOpen disabled to avoid per-shape kernel compilation")
+
+
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
 
@@ -141,6 +161,8 @@ class KokoroV1(BaseModelBackend):
                 )
                 self._model = self._model.to(torch.device("mps"))
             elif self._device == "cuda":
+                # ROCm reports device "cuda", so this is the ROCm path too.
+                _configure_rocm_backend()
                 self._model = self._model.cuda()
             else:
                 self._model = self._model.cpu()
