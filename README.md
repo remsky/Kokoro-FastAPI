@@ -15,7 +15,8 @@
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
-
+> [!NOTE]
+> Looking for voice cloning options? Try the new [Inno Voice Clone-Tuner](https://huggingface.co/spaces/Remsky/kokoro-clone-tune-generator)
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
