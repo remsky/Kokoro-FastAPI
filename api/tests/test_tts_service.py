@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -330,7 +331,13 @@ async def test_split_multi_voice_explicit_lang_code_wins():
 @pytest.mark.asyncio
 async def test_generate_from_phonemes_uses_default_voice_code():
     """The phoneme endpoint honours default_voice_code, like the speech path."""
+
+    @asynccontextmanager
+    async def noop_hold():
+        yield
+
     model_manager = AsyncMock()
+    model_manager.hold = MagicMock(return_value=noop_hold())
     backend = MagicMock(spec=KokoroV1)
     backend._get_pipeline.return_value.generate_from_tokens.return_value = [
         MagicMock(audio=torch.zeros(4))
