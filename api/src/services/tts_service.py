@@ -291,8 +291,12 @@ class TTSService:
                 resolved[segment_voice] = await self.get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
 
-            # request lang_code wins, else each speaker gets the pipeline their prefix implies
-            segment_lang = lang_code if lang_code else segment_voice[:1].lower()
+            # request lang_code wins, then default_voice_code setting, else each speaker gets the pipeline their prefix implies
+            segment_lang = (
+                lang_code
+                or settings.default_voice_code
+                or segment_voice[:1].lower()
+            )
             logger.debug(
                 f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"
             )
@@ -570,8 +574,9 @@ class TTSService:
                 if isinstance(backend, KokoroV1):
                     # For Kokoro V1, use generate_from_tokens with raw phonemes
                     result = None
-                    # Use provided lang_code or determine from voice name
-                    pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
+                    pipeline_lang_code = (
+                        lang_code or settings.default_voice_code or voice[:1].lower()
+                    )
                     logger.info(
                         f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
                     )

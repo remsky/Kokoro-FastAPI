@@ -105,7 +105,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | Variable | Default | |
 |---|---|---|
 | `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
-| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter |
+| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter. Applies to every speaker, so a `[voice:]` dialogue mixing languages is forced onto this one |
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
 | `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
