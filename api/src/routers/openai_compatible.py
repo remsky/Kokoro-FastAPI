@@ -28,20 +28,29 @@ from ..structures.schemas import (
 from .ssml import apply_ssml
 
 
-# Load OpenAI mappings
-def load_openai_mappings() -> Dict:
-    """Load OpenAI voice and model mappings from JSON"""
+def _load_core_json(filename: str, default: Dict) -> Dict:
     api_dir = os.path.dirname(os.path.dirname(__file__))
-    mapping_path = os.path.join(api_dir, "core", "openai_mappings.json")
+    path = os.path.join(api_dir, "core", filename)
     try:
-        with open(mapping_path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        logger.error(f"Failed to load OpenAI mappings: {e}")
-        return {"models": {}, "voices": {}}
+        logger.error(f"Failed to load {filename}: {e}")
+        return default
+
+
+def load_openai_mappings() -> Dict:
+    """Load OpenAI voice and model mappings from JSON"""
+    return _load_core_json("openai_mappings.json", {"models": {}, "voices": {}})
+
+
+def load_voice_grades() -> Dict:
+    """Load per-voice grades from https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md"""
+    return _load_core_json("voice_grades.json", {})
 
 
 _openai_mappings = load_openai_mappings()
+_voice_grades = load_voice_grades()
 
 # a combine item is a bare voice name or name(weight), parens never nest
 _VOICE_WEIGHT_PATTERN = re.compile(r"(?P<name>[^()]+)(?:\((?P<weight>[^()]*)\))?")
@@ -713,14 +722,21 @@ async def list_voices(legacy: bool = False):
     Returns `[{"id": ..., "name": ...}, ...]` by default so OpenAI-compatible
     clients (Open WebUI in particular, which does `voice['id']` directly and
     silently falls back to a hardcoded 6-voice list otherwise) can render the
-    full voice list. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    full voice list. Entries also carry `target_quality`, `training_duration`
+    and `overall_grade` for the voices graded in the upstream model card;
+    ungraded voices (Spanish, Brazilian Portuguese, custom `.pt` files) omit
+    those keys. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
     """
     try:
         tts_service = await get_tts_service()
         voices = await tts_service.list_voices()
         if legacy:
             return {"voices": voices}
-        return {"voices": [{"id": v, "name": v} for v in voices]}
+        return {
+            "voices": [
+                {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
+            ]
+        }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")
         raise HTTPException(

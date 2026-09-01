@@ -3,6 +3,7 @@ import { config } from '../config.js';
 export class VoiceService {
     constructor() {
         this.availableVoices = [];
+        this.voiceGrades = new Map();
         this.selectedVoices = new Map(); // Changed to Map to store voice:weight pairs
     }
 
@@ -21,6 +22,9 @@ export class VoiceService {
             }
 
             this.availableVoices = data.voices.map(v => typeof v === 'string' ? v : v.id);
+            this.voiceGrades = new Map(data.voices
+                .filter(v => v?.overall_grade)
+                .map(v => [v.id, v]));
             
             // Select first voice if none selected
             if (this.selectedVoices.size === 0) {
@@ -35,6 +39,10 @@ export class VoiceService {
             console.error('Failed to load voices:', error);
             throw error;
         }
+    }
+
+    getGrade(voice) {
+        return this.voiceGrades.get(voice);
     }
 
     getAvailableVoices() {
