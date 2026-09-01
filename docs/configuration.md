@@ -155,7 +155,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `KOKORO_ENABLE_MIOPEN` | unset | Keep MIOpen enabled on ROCm. Off by default because MIOpen compiles a kernel per tensor shape, which Kokoro hits on nearly every request |
+| `ENABLE_MIOPEN` | `false` | Keep MIOpen enabled on ROCm. Off by default because MIOpen compiles a kernel per tensor shape, which negatively impacts performance as Kokoro hits it every request |
 
 **Operational routes**
 

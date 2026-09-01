@@ -246,17 +246,16 @@ def test_configure_rocm_backend_noop_on_cuda(restore_cudnn, monkeypatch):
 def test_configure_rocm_backend_disables_miopen_on_rocm(restore_cudnn, monkeypatch):
     """A ROCm build disables MIOpen to avoid per-shape kernel compilation."""
     monkeypatch.setattr(torch.version, "hip", "7.2.0")
-    monkeypatch.delenv("KOKORO_ENABLE_MIOPEN", raising=False)
+    monkeypatch.setattr(settings, "enable_miopen", False)
     torch.backends.cudnn.enabled = True
     _configure_rocm_backend()
     assert torch.backends.cudnn.enabled is False
 
 
-@pytest.mark.parametrize("value", ["1", "true", "TRUE", "yes"])
-def test_configure_rocm_backend_opt_out(restore_cudnn, monkeypatch, value):
-    """KOKORO_ENABLE_MIOPEN keeps MIOpen in play."""
+def test_configure_rocm_backend_opt_out(restore_cudnn, monkeypatch):
+    """ENABLE_MIOPEN keeps MIOpen active."""
     monkeypatch.setattr(torch.version, "hip", "7.2.0")
-    monkeypatch.setenv("KOKORO_ENABLE_MIOPEN", value)
+    monkeypatch.setattr(settings, "enable_miopen", True)
     torch.backends.cudnn.enabled = True
     _configure_rocm_backend()
     assert torch.backends.cudnn.enabled is True

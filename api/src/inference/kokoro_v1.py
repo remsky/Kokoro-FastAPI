@@ -89,12 +89,12 @@ def _configure_rocm_backend() -> None:
     warmup_miopen.py does not help, as shape is not a function of phoneme
     count.
 
-    KOKORO_ENABLE_MIOPEN=1 keeps MIOpen. CUDA is unaffected.
+    ENABLE_MIOPEN=true keeps MIOpen. CUDA is unaffected.
     """
     if not torch.version.hip:
         return
-    if os.getenv("KOKORO_ENABLE_MIOPEN", "").lower() in ("1", "true", "yes"):
-        logger.info("MIOpen left enabled via KOKORO_ENABLE_MIOPEN")
+    if settings.enable_miopen:
+        logger.info("MIOpen left enabled via ENABLE_MIOPEN")
         return
     torch.backends.cudnn.enabled = False
     logger.info("ROCm detected: MIOpen disabled to avoid per-shape kernel compilation")

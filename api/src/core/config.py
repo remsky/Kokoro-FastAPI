@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     device_type: str | None = (
         None  # Will be auto-detected if None, can be "cuda", "mps", or "cpu"
     )
+    enable_miopen: bool = False  # ROCm only: MIOpen compiles a kernel per unseen tensor shape, which negatively impacts performance as Kokoro hits it every request
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
