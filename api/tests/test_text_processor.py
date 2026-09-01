@@ -47,6 +47,29 @@ def test_get_sentence_info():
         assert count > 0
 
 
+def test_get_sentence_info_abbreviations():
+    """Abbreviations, decimals, and ellipses do not force bogus sentence breaks."""
+    text = (
+        "This, that, the other thing, etc. Another sentence... A, b, c, etc., and "
+        "more. D, e, f, etc. and more. One, i. e. two. Three, i. e., four. Five, "
+        "i.e. six. You have 4.2 messages. Property access: `a.b.c`."
+    )
+
+    sentences = [s for s, _, _ in get_sentence_info(text)]
+
+    assert sentences == [
+        "This, that, the other thing, etc.",
+        "Another sentence...",
+        "A, b, c, etc., and more.",
+        "D, e, f, etc. and more.",
+        "One, i. e. two.",
+        "Three, i. e., four.",
+        "Five, i.e. six.",
+        "You have 4.2 messages.",
+        "Property access: `a.b.c`.",
+    ]
+
+
 def test_get_sentence_info_is_lazy(monkeypatch):
     """Sentences are phonemized as they are pulled, not all up front."""
     calls = []
