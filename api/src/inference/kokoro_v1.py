@@ -186,8 +186,6 @@ class KokoroV1(BaseModelBackend):
 
     def _clear_runtime_caches(self) -> None:
         """Release cached objects that can hold device tensors."""
-        for pipeline in self._pipelines.values():
-            del pipeline
         self._pipelines.clear()
         self._voice_cache.clear()
 

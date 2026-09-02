@@ -713,10 +713,10 @@ Key Performance Metrics:
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
 
-`POST /dev/reload` reloads the model and `GET /dev/model` reports model load state and auto-unload settings. Set `ALLOW_DEV_UNLOAD=true` to expose these controls.
+`POST /dev/reload` destroys the current backend state and loads the model again. Normal inference restores a CPU-offloaded model automatically without using `/dev/reload`. `GET /dev/model` reports model load state and auto-unload settings. Set `ALLOW_DEV_UNLOAD=true` to expose these controls.
 
 To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
-Set `MODEL_UNLOAD_STRATEGY=move_to_cpu` to move model weights from GPU to system RAM on unload for faster reload while still clearing GPU memory. The default `destroy` strategy releases model objects completely and will load from disk.
+Set `MODEL_UNLOAD_STRATEGY=move_to_cpu` to move model weights from GPU to system RAM on unload for faster restore while still clearing GPU memory. The default `destroy` strategy releases model objects completely and will load from disk.
 
 ### Transcription roundtrip (WER/CER)
 

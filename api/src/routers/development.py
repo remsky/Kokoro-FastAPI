@@ -502,11 +502,7 @@ async def unload_model(
 async def reload_model(
     tts_service: TTSService = Depends(get_tts_service),
 ):
-    """Reload the model immediately.
-
-    Normal inference also reloads lazily after an unload; this endpoint is useful
-    when you want to pre-warm the model before the next request.
-    """
+    """Destroy the current backend state and load the model again."""
     if not settings.allow_dev_unload:
         raise HTTPException(
             status_code=403,
