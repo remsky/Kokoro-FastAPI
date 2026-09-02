@@ -289,6 +289,32 @@ def test_number():
         == "The book has three hundred and forty-two pages."
     )
 
+
+def test_comma_grouped_number_is_not_a_year():
+    """Thousands separators rule out the year reading (#259)."""
+    assert (
+        normalize_text(
+            "3,497 head of cattle", normalization_options=NormalizationOptions()
+        )
+        == "three thousand, four hundred and ninety-seven head of cattle"
+    )
+    assert (
+        normalize_text("in 3497", normalization_options=NormalizationOptions())
+        == "in thirty-four ninety-seven"
+    )
+    assert (
+        normalize_text("$3,497.50", normalization_options=NormalizationOptions())
+        == "three thousand, four hundred and ninety-seven dollars and fifty cents"
+    )
+    assert (
+        normalize_text("the 3,497th item", normalization_options=NormalizationOptions())
+        == "the 3,497th item"
+    )
+    assert (
+        normalize_text("12,34", normalization_options=NormalizationOptions())
+        == "one thousand, two hundred and thirty-four"
+    )
+
     assert (
         normalize_text(
             "He made -50 sales today.", normalization_options=NormalizationOptions()

@@ -184,12 +184,12 @@ TIME_PATTERN = re.compile(
 MONEY_PATTERN = re.compile(
     r"(-?)(["
     + "".join(MONEY_UNITS.keys())
-    + r"])(\d+(?:\.\d+)?)((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b|t)*)\b",
+    + r"])(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?(?!,\d))((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b|t)*)\b",
     re.IGNORECASE,
 )
 
 NUMBER_PATTERN = re.compile(
-    r"(-?)(\d+(?:\.\d+)?)((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b)*)\b",
+    r"(-?)(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?(?!,\d))((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b)*)\b",
     re.IGNORECASE,
 )
 
@@ -242,11 +242,13 @@ def split_four_digit(number: float):
 
 
 def handle_numbers(n: re.Match[str]) -> str:
-    number = n.group(2)
+    raw = n.group(2)
 
     try:
-        number = float(number)
+        number = float(raw.replace(",", ""))
     except:
+        return n.group()
+    if not math.isfinite(number):
         return n.group()
 
     if n.group(1) == "-":
@@ -259,7 +261,8 @@ def handle_numbers(n: re.Match[str]) -> str:
         multiplier = f" {multiplier}"
     else:
         if (
-            number % 1 == 0
+            "," not in raw
+            and number % 1 == 0
             and len(str(number)) == 4
             and number > 1500
             and number % 1000 > 9
@@ -274,11 +277,11 @@ def handle_money(m: re.Match[str]) -> str:
 
     bill, coin = MONEY_UNITS[m.group(2)]
 
-    number = m.group(3)
-
     try:
-        number = float(number)
+        number = float(m.group(3).replace(",", ""))
     except:
+        return m.group()
+    if not math.isfinite(number):
         return m.group()
 
     if m.group(1) == "-":
@@ -500,11 +503,19 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"(?i)\b(y)eah?\b", r"\1e'a", text)
 
     # Handle numbers and money BEFORE replacing special characters
-    text = re.sub(r"(?<=\d),(?=\d)", "", text)
+    text = re.sub(
+        r"(?<!\d)\d+(?:,\d+)+",
+        lambda m: (
+            m.group()
+            if re.fullmatch(r"\d{1,3}(?:,\d{3})+", m.group())
+            else m.group().replace(",", "")
+        ),
+        text,
+    )
     text = re.sub(r"(?<=\d)-(?=\d)", " to ", text)
 
     # version-like sequences (2.0.1, 10.3.2) before NUMBER_PATTERN eats the first decimal
-    text = re.sub(r"\d+(?:\.\d+){2,}", handle_version, text)
+    text = re.sub(r"(?<!\d)\d+(?:\.\d+){2,}", handle_version, text)
 
     text = MONEY_PATTERN.sub(
         handle_money,

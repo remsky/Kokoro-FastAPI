@@ -12,6 +12,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Fixed
 - `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
 - Blank lines now end a chunk, so headings, bylines, etc no longer run into the following paragraph. Single newlines still join. With `normalize: false` the text reaches the model verbatim, newlines included (#519).
+- Comma-grouped numbers like `3,497` are read as thousands, not as a year (#259). Long digit runs no longer stall or 500 the request.
 
 ## [v0.8.1] - 2026-08-24
 ### Fixed

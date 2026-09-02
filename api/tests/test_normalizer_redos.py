@@ -63,6 +63,21 @@ def test_paragraph_split_is_fast():
         assert time.monotonic() - start < BUDGET_S
 
 
+def test_number_floods_scale_linearly():
+    """Comma runs and bare digit runs: the version regex went quadratic on the latter."""
+    for unit in ("1", "1,", "123,", "123,4", "$1,"):
+        small = _elapsed(unit * 5_000)
+        large = _elapsed(unit * 20_000)
+        assert large / max(small, 0.05) < 9.0, unit
+
+
+def test_huge_digit_run_does_not_raise():
+    """float() overflows to inf on 310+ digits, which used to crash the request."""
+    assert normalize_text("9" * 400, OPTS) == "9" * 400
+    assert normalize_text("$" + "9" * 400, OPTS).startswith(" dollar ")
+    assert normalize_text("123," * 400, OPTS)
+
+
 def test_decimal_normalization_preserved():
     """the lookbehind must not break normal decimal rendering."""
     out = normalize_text("costs 3.14 dollars", OPTS)
