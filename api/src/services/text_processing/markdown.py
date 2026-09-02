@@ -7,21 +7,29 @@ Runs before the main normalizer to prevent # -> "number", * -> silence, etc.
 import re
 
 _FENCED_BLOCK = re.compile(r"^```[^\n]*\n.*?^```", re.MULTILINE | re.DOTALL)
-_HEADING = re.compile(r"^#{1,6}\s+", re.MULTILINE)
-_HORIZONTAL_RULE = re.compile(r"^[\s]*[-*_]{3,}\s*$", re.MULTILINE)
-_IMAGE = re.compile(r"!\[([^\]]*)\]\([^)]*\)")
-_LINK = re.compile(r"\[([^\]]+)\]\([^)]*\)")
-_BOLD_ITALIC = re.compile(r"\*{1,3}(.+?)\*{1,3}")
-_UNDERSCORE_EMPHASIS = re.compile(r"_{1,3}(.+?)_{1,3}")
-_STRIKETHROUGH = re.compile(r"~~(.+?)~~")
-_INLINE_CODE = re.compile(r"`([^`]+)`")
+_HORIZONTAL_RULE = re.compile(r"^[ \t]*[-*_]{3,}[ \t]*$", re.MULTILINE)
+_IMAGE = re.compile(r"!\[([^\[\]\n]*)\]\([^()\n]*\)")
+_LINK = re.compile(r"\[([^\[\]\n]+)\]\([^()\n]*\)")
+_STAR_MARK = re.compile(r"(?<![\w*])\*{1,3}(?=\S)|(?<=\S)\*{1,3}(?![\w*])")
+_UNDERSCORE_MARK = re.compile(r"(?<!\w)_{1,3}(?=\w)|(?<=\w)_{1,3}(?![\w{])")
+_STRIKETHROUGH = re.compile(r"~~")
+_INLINE_CODE = re.compile(r"`+")
 _BLOCKQUOTE = re.compile(r"^>\s?", re.MULTILINE)
-_UNORDERED_LIST = re.compile(r"^[\s]*[-*+]\s+", re.MULTILINE)
-_ORDERED_LIST = re.compile(r"^[\s]*\d+\.\s+", re.MULTILINE)
-_HTML_TAG = re.compile(r"</?[a-zA-Z][^>]*>")
-_REFERENCE_LINK = re.compile(r"^\[[^\]]+\]:\s+.*$", re.MULTILINE)
-_TABLE_SEPARATOR = re.compile(r"^\|?[\s:]*-{3,}[\s:|-]*$", re.MULTILINE)
+_STRUCTURAL_LINE = re.compile(r"^(?:#{1,6}|[ \t]*[-*+]|[ \t]*\d+\.)[ \t]+(.*)$", re.MULTILINE)
+_HTML_TAG = re.compile(r"</?[a-zA-Z][^<>\n]*>")
+_REFERENCE_LINK = re.compile(r"^\[[^\[\]\n]+\]:[ \t]+.*$", re.MULTILINE)
+_TABLE_SEPARATOR = re.compile(r"^\|?[ \t:]*-{3,}[ \t:|-]*$", re.MULTILINE)
+_TABLE_ROW = re.compile(r"^\|(.+)\|[ \t]*$", re.MULTILINE)
 _TABLE_PIPE = re.compile(r"\|")
+
+
+def _own_sentence(m: re.Match[str]) -> str:
+    body = m.group(1).rstrip()
+    return body if not body or body[-1] in ".,;:!?" else body + "."
+
+
+def _table_row(m: re.Match[str]) -> str:
+    return ", ".join(c.strip() for c in m.group(1).split("|")) + "."
 
 
 def normalize_markdown(text: str) -> str:
@@ -32,15 +40,14 @@ def normalize_markdown(text: str) -> str:
     text = _LINK.sub(r"\1", text)
     text = _HORIZONTAL_RULE.sub("", text)
     text = _TABLE_SEPARATOR.sub("", text)
+    text = _TABLE_ROW.sub(_table_row, text)
     text = _TABLE_PIPE.sub(" ", text)
-    text = _HEADING.sub("", text)
     text = _BLOCKQUOTE.sub("", text)
-    text = _UNORDERED_LIST.sub("", text)
-    text = _ORDERED_LIST.sub("", text)
-    text = _BOLD_ITALIC.sub(r"\1", text)
-    text = _UNDERSCORE_EMPHASIS.sub(r"\1", text)
-    text = _STRIKETHROUGH.sub(r"\1", text)
-    text = _INLINE_CODE.sub(r"\1", text)
-    text = _HTML_TAG.sub("", text)
+    text = _STRUCTURAL_LINE.sub(_own_sentence, text)
+    text = _STAR_MARK.sub("", text)
+    text = _UNDERSCORE_MARK.sub("", text)
+    text = _STRIKETHROUGH.sub("", text)
+    text = _INLINE_CODE.sub("", text)
+    text = _HTML_TAG.sub(" ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text

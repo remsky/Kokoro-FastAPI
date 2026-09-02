@@ -1,6 +1,6 @@
 """Tests for markdown normalization."""
 
-import importlib.util
+import time
 
 import pytest
 
@@ -12,9 +12,9 @@ from api.src.structures.schemas import NormalizationOptions
 @pytest.mark.parametrize(
     "md,expected",
     [
-        ("# Hello World", "Hello World"),
-        ("## Sub heading", "Sub heading"),
-        ("### Deep heading", "Deep heading"),
+        ("# Hello World", "Hello World."),
+        ("## Sub heading", "Sub heading."),
+        ("### Deep heading?", "Deep heading?"),
         ("**bold text**", "bold text"),
         ("*italic text*", "italic text"),
         ("***bold italic***", "bold italic"),
@@ -24,9 +24,14 @@ from api.src.structures.schemas import NormalizationOptions
         ("[click here](https://example.com)", "click here"),
         ("![alt text](image.png)", "alt text"),
         ("> a quote", "a quote"),
-        ("- list item", "list item"),
-        ("* list item", "list item"),
-        ("1. ordered item", "ordered item"),
+        ("- list item", "list item."),
+        ("* list item", "list item."),
+        ("1. ordered item", "ordered item."),
+        ("my_var and other_var", "my_var and other_var"),
+        ("5 * 3 * 2", "5 * 3 * 2"),
+        ("**Note:** this", "Note: this"),
+        ("(**x**) and *y*.", "(x) and y."),
+        ("$x_1 + x_2$", "$x_1 + x_2$"),
     ],
 )
 def test_strip_formatting(md, expected):
@@ -52,13 +57,11 @@ def test_horizontal_rule_removed():
 def test_table_pipes_become_spaces():
     text = "| Name | Age |\n|---|---|\n| Alice | 30 |"
     result = normalize_markdown(text)
-    assert "|" not in result
-    assert "Alice" in result
-    assert "30" in result
+    assert result.split("\n") == ["Name, Age.", "", "Alice, 30."]
 
 
 def test_html_tags_stripped():
-    assert normalize_markdown("a <br> b").strip() == "a  b"
+    assert normalize_markdown("line one<br/>line two") == "line one line two"
 
 
 def test_reference_links_removed():
@@ -85,13 +88,20 @@ def test_enabled_prevents_hash_to_number():
     assert "Title" in result
 
 
-_has_pylatexenc = bool(importlib.util.find_spec("pylatexenc"))
-
-
-@pytest.mark.skipif(not _has_pylatexenc, reason="pylatexenc not installed")
 def test_markdown_before_latex():
-    text = "# Math\n\nThe formula is $E = mc^2$."
+    text = "# Math\n\nThe formula is $x_1^2 = mc^2$."
     opts = NormalizationOptions(markdown_normalization=True, latex_normalization=True)
     result = normalize_text(text, opts)
     assert "number" not in result.lower()
-    assert "squared" in result
+    assert "x sub one squared" in result
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [" _a", " *a", "[", "[\n", "<a", "\n", "|", "```x\n"],
+)
+def test_adversarial_input_is_fast(payload):
+    """Every pass must stay linear; unclosed markers used to rescan to end of input."""
+    start = time.monotonic()
+    normalize_markdown(payload * 40_000)
+    assert time.monotonic() - start < 2.0

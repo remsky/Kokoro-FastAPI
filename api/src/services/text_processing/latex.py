@@ -23,16 +23,17 @@ MATH_SPAN = re.compile(
     r"\$\$.{1," + str(MAX_SPAN) + r"}?\$\$"
     r"|\\\[.{1," + str(MAX_SPAN) + r"}?\\\]"
     r"|\\\(.{1," + str(MAX_SPAN) + r"}?\\\)"
-    r"|\$(?=[^$\n]*[\\^_{])[^$\n]{1,200}?\$",
+    r"|\$(?=[^$\n]*[\\^_{])[^$\n]{1,200}?\$(?!\d)",
     re.DOTALL,
 )
 
 BIG_OPS = "∫∑∏⋃⋂∮"
 
 BIG_OP_LIMITS = re.compile(r"(?<=[" + BIG_OPS + r"])_([^\s^_]+)(?:\^([^\s^_]+))?")
-SUPERSCRIPT = re.compile(r"\^([^\s^_]+)")
-SUBSCRIPT = re.compile(r"_([^\s^_]+)")
-COMBINING = re.compile(r"[\u0300-\u036f]")
+SUPERSCRIPT = re.compile(r"\^(-?\w+|\S)")
+SUBSCRIPT = re.compile(r"_(-?\w+|\S)")
+COMBINING = re.compile(r"[\u0300-\u036f\u20d0-\u20ff]")
+SPACE_BEFORE_PUNCT = re.compile(r" (?=[.,;:!?])")
 
 MATH_SYMBOLS = {
     "≤": " less than or equal to ",
@@ -41,6 +42,8 @@ MATH_SYMBOLS = {
     "≫": " much greater than ",
     "≠": " not equal to ",
     "≈": " approximately ",
+    "<": " less than ",
+    ">": " greater than ",
     "≡": " identical to ",
     "∼": " similar to ",
     "∝": " proportional to ",
@@ -75,6 +78,7 @@ MATH_SYMBOLS = {
     "⇒": " implies ",
     "⇔": " if and only if ",
     "°": " degrees ",
+    "∘": " degrees ",
     "′": " prime ",
     "″": " double prime ",
     "…": " and so on ",
@@ -104,10 +108,16 @@ def _as_int(value: str) -> Optional[int]:
 
 
 SPOKEN_MACROS = [
-    MacroTextSpec("frac", simplify_repl="%s over %s"),
-    MacroTextSpec("dfrac", simplify_repl="%s over %s"),
-    MacroTextSpec("tfrac", simplify_repl="%s over %s"),
-    MacroTextSpec("binom", simplify_repl="%s choose %s"),
+    MacroTextSpec("frac", simplify_repl=" %s over %s "),
+    MacroTextSpec("dfrac", simplify_repl=" %s over %s "),
+    MacroTextSpec("tfrac", simplify_repl=" %s over %s "),
+    MacroTextSpec("binom", simplify_repl=" %s choose %s "),
+    MacroTextSpec("sin", simplify_repl=" sine "),
+    MacroTextSpec("cos", simplify_repl=" cosine "),
+    MacroTextSpec("tan", simplify_repl=" tangent "),
+    MacroTextSpec("ln", simplify_repl=" natural log "),
+    MacroTextSpec("log", simplify_repl=" log "),
+    MacroTextSpec("lim", simplify_repl=" the limit as "),
     MacroTextSpec("sqrt", simplify_repl=_sqrt),
 ]
 
@@ -136,8 +146,8 @@ def _speak_char(char: str) -> str:
 def _handle_big_op_limits(m: re.Match[str]) -> str:
     lower, upper = m.group(1), m.group(2)
     if upper is None:
-        return f" over {lower} "
-    return f" from {lower} to {upper} "
+        return f" over {lower} of "
+    return f" from {lower} to {upper} of "
 
 
 def _handle_superscript(m: re.Match[str]) -> str:
@@ -146,6 +156,8 @@ def _handle_superscript(m: re.Match[str]) -> str:
         return " squared "
     if exponent == "3":
         return " cubed "
+    if exponent == "∘":
+        return " degrees "
     return f" to the power of {exponent} "
 
 
@@ -153,9 +165,9 @@ def _speak_math(latex: str) -> str:
     text = _CONVERTER.latex_to_text(latex, latex_context=_WALKER_CONTEXT)
     text = BIG_OP_LIMITS.sub(_handle_big_op_limits, text)
     text = SUPERSCRIPT.sub(_handle_superscript, text)
-    text = SUBSCRIPT.sub(lambda m: f" sub {m.group(1)} ", text)
-    text = COMBINING.sub("", unicodedata.normalize("NFKD", text))
-    return "".join(_speak_char(c) for c in text)
+    text = SUBSCRIPT.sub(lambda m: f" sub {m.group(1)} ", text.replace("the limit as _", "the limit as "))
+    text = "".join(_speak_char(c) for c in text.replace(",", ", "))
+    return COMBINING.sub("", unicodedata.normalize("NFKD", text))
 
 
 def normalize_latex(text: str) -> str:
@@ -172,4 +184,4 @@ def normalize_latex(text: str) -> str:
         spoken = re.sub(r"\s+", " ", spoken).strip()
         return f" {spoken} " if spoken else " "
 
-    return re.sub(r"  +", " ", MATH_SPAN.sub(replace, text))
+    return SPACE_BEFORE_PUNCT.sub("", re.sub(r"  +", " ", MATH_SPAN.sub(replace, text)))
