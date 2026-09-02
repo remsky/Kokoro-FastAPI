@@ -128,11 +128,11 @@ class NormalizationOptions(BaseModel):
         description="Replaces the remaining symbols after normalization with their words",
     )
     markdown_normalization: bool = Field(
-        default=False,
+        default=True,
         description="Strips markdown formatting (headers, bold, links, etc.) so the text reads cleanly",
     )
     latex_normalization: bool = Field(
-        default=False,
+        default=True,
         description="Speaks delimited LaTeX math ($..$, $$..$$, \\(..\\), \\[..\\]) as words",
     )
 

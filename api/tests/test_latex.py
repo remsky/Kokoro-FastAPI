@@ -77,9 +77,10 @@ def test_span_longer_than_cap_is_skipped():
     assert normalize_latex(text) == text
 
 
-def test_disabled_by_default():
+def test_can_be_disabled():
     text = "The value is $\\frac{a}{b}$."
-    assert "over" not in normalize_text(text, NormalizationOptions())
+    opts = NormalizationOptions(latex_normalization=False)
+    assert "over" not in normalize_text(text, opts)
 
 
 def test_enabled_runs_before_symbol_replacement():

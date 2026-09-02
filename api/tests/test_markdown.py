@@ -75,9 +75,9 @@ def test_plain_text_unchanged():
     assert normalize_markdown(text) == text
 
 
-def test_disabled_by_default():
+def test_can_be_disabled():
     text = "# Title"
-    result = normalize_text(text, NormalizationOptions())
+    result = normalize_text(text, NormalizationOptions(markdown_normalization=False))
     assert "number" in result.lower()
 
 

@@ -531,6 +531,20 @@ The model takes up to 510 phonemized tokens per chunk, but running it that long 
 </details>
 
 <details>
+<summary>Markdown & LaTeX Input</summary>
+
+On by default (under `normalize`), so LLM output can be passed straight through. Toggle per request:
+
+```json
+"normalization_options": {"markdown_normalization": true, "latex_normalization": true}
+```
+
+- Markdown: headings, lists, tables, emphasis, links (text kept, URL dropped), inline code, quotes, HTML tags. Fenced code blocks dropped. Headings, list items, table rows become their own sentences.
+- LaTeX: `$..$`, `$$..$$`, `\(..\)`, `\[..\]`. Fractions, roots, sums, integrals, limits, sub/superscripts, Greek, relations. Unparseable spans left as-is. `$..$` only counts as math with a `\`, `^`, `_` or `{` inside, so `$5 and $10` is untouched.
+
+</details>
+
+<details>
 <summary>Phoneme & Token Routes</summary>
 
 Convert text to phonemes and/or generate audio directly from phonemes:
