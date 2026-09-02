@@ -206,6 +206,39 @@ async def test_ensure_backend_serializes_concurrent_reloads():
 
 
 @pytest.mark.asyncio
+async def test_generate_serializes_concurrent_cpu_cache_restore():
+    """Concurrent callers after CPU offload should restore the backend exactly once."""
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    audio_chunk = AudioChunk(np.zeros(10, dtype=np.float32))
+
+    async def fake_generate(*args, **kwargs):
+        await asyncio.sleep(0)
+        yield audio_chunk
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.generate = fake_generate
+    mock_backend.restore_to_device.side_effect = fake_restore
+    manager._backend = mock_backend
+
+    async def collect_chunks():
+        chunks = []
+        async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+            chunks.append(chunk)
+        return chunks
+
+    results = await asyncio.gather(collect_chunks(), collect_chunks())
+
+    mock_backend.restore_to_device.assert_called_once()
+    assert [len(chunks) for chunks in results] == [1, 1]
+    assert manager._active_requests == 0
+
+
+@pytest.mark.asyncio
 async def test_generate_lazy_reinit_when_backend_none():
     """generate() initializes backend lazily when _backend is None."""
     manager = ModelManager()

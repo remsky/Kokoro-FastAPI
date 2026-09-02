@@ -108,13 +108,15 @@ Model files not found! You need to download the Kokoro V1 model:
 
     async def ensure_backend(self) -> None:
         """Reload the backend if it was unloaded."""
-        if self._backend:
-            return
         async with self._lock:
             if not self._backend:
                 self._cancel_idle_unload_timer()
                 await self.initialize()
                 await self.load_model(self._config.pytorch_kokoro_v1_file)
+            elif self._backend_is_cpu_cached():
+                logger.info("Restoring CPU-cached model before inference")
+                self._backend.restore_to_device()
+                self._last_used_at = time.monotonic()
 
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.

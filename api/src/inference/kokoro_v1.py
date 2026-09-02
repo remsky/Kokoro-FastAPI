@@ -239,7 +239,6 @@ class KokoroV1(BaseModelBackend):
             raise RuntimeError("Model not loaded")
 
         try:
-            self._move_model_to_device()
             # Memory management for GPU
             if self._device == "cuda":
                 if self._check_memory():
@@ -338,7 +337,6 @@ class KokoroV1(BaseModelBackend):
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
         try:
-            self._move_model_to_device()
             # Memory management for GPU
             if self._device == "cuda":
                 if self._check_memory():
