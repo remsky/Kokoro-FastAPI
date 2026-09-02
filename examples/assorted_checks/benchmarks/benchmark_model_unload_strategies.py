@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure unload and reload timings against a running Kokoro service.
+"""Measure unload and warm timings against a running Kokoro service.
 
 The service must already be running with ALLOW_DEV_UNLOAD=true. This script
 does not start or stop containers; it follows the convention of the other
@@ -190,12 +190,12 @@ def run_trial(strategy: str, trial: int, args: argparse.Namespace) -> dict:
     time.sleep(args.settle)
     after_unload = memory_snapshot(args)
 
-    print("  reload")
-    _, reload_seconds = request(
-        "POST", args.url, "/dev/reload", timeout=args.endpoint_timeout
+    print("  warm")
+    _, warm_seconds = request(
+        "POST", args.url, "/dev/warm", timeout=args.endpoint_timeout
     )
     time.sleep(args.settle)
-    after_reload = memory_snapshot(args)
+    after_warm = memory_snapshot(args)
 
     print("  first generation")
     first_generation_seconds = first_generation(args)
@@ -205,22 +205,22 @@ def run_trial(strategy: str, trial: int, args: argparse.Namespace) -> dict:
         "strategy": strategy,
         "trial": trial,
         "unload_seconds": unload_seconds,
-        "reload_seconds": reload_seconds,
+        "warm_seconds": warm_seconds,
         "first_generation_seconds": first_generation_seconds,
         "vram_before_unload_mb": before_unload["gpu_memory_used_mb"],
         "vram_after_unload_mb": after_unload["gpu_memory_used_mb"],
-        "vram_after_reload_mb": after_reload["gpu_memory_used_mb"],
+        "vram_after_warm_mb": after_warm["gpu_memory_used_mb"],
         "system_ram_before_unload_mb": before_unload["system_ram_used_mb"],
         "system_ram_after_unload_mb": after_unload["system_ram_used_mb"],
-        "system_ram_after_reload_mb": after_reload["system_ram_used_mb"],
+        "system_ram_after_warm_mb": after_warm["system_ram_used_mb"],
         "service_rss_before_unload_mb": before_unload["service_rss_mb"],
         "service_rss_after_unload_mb": after_unload["service_rss_mb"],
-        "service_rss_after_reload_mb": after_reload["service_rss_mb"],
+        "service_rss_after_warm_mb": after_warm["service_rss_mb"],
     }
     print(
-        "  -> unload={unload:.3f}s reload={reload:.3f}s first_generation={first:.3f}s".format(
+        "  -> unload={unload:.3f}s warm={warm:.3f}s first_generation={first:.3f}s".format(
             unload=unload_seconds,
-            reload=reload_seconds,
+            warm=warm_seconds,
             first=first_generation_seconds,
         )
     )
@@ -239,14 +239,14 @@ def summarize(results: list[dict]) -> list[dict]:
     for strategy in sorted({row["strategy"] for row in results}):
         rows = [row for row in results if row["strategy"] == strategy]
         unload = [row["unload_seconds"] for row in rows]
-        reload = [row["reload_seconds"] for row in rows]
+        warm = [row["warm_seconds"] for row in rows]
         first_generation = [row["first_generation_seconds"] for row in rows]
         summary.append(
             {
                 "strategy": strategy,
                 "trials": len(rows),
                 "unload_seconds": stats_for(unload),
-                "reload_seconds": stats_for(reload),
+                "warm_seconds": stats_for(warm),
                 "first_generation_seconds": stats_for(first_generation),
             }
         )
@@ -280,39 +280,39 @@ def write_report(summary: list[dict], results: list[dict], output_file: str) -> 
         handle.write(f"Generated: {datetime.now().isoformat()}\n\n")
         handle.write("Standard deviation is sample standard deviation across trials.\n\n")
         handle.write(
-            "| strategy | unload avg | unload stddev | reload avg | reload stddev | "
+            "| strategy | unload avg | unload stddev | warm avg | warm stddev | "
             "first generation avg | first generation stddev |\n"
         )
         handle.write("|---|---:|---:|---:|---:|---:|---:|\n")
         for row in summary:
             unload = row["unload_seconds"]
-            reload = row["reload_seconds"]
+            warm = row["warm_seconds"]
             first_generation = row["first_generation_seconds"]
             handle.write(
                 f"| {row['strategy']} | {fmt(unload['average'])} | "
                 f"{fmt(unload['standard_deviation'])} | "
-                f"{fmt(reload['average'])} | {fmt(reload['standard_deviation'])} | "
+                f"{fmt(warm['average'])} | {fmt(warm['standard_deviation'])} | "
                 f"{fmt(first_generation['average'])} | "
                 f"{fmt(first_generation['standard_deviation'])} |\n"
             )
 
         handle.write("\n## Trial Data\n\n")
-        handle.write("| strategy | trial | unload | reload | first generation |\n")
+        handle.write("| strategy | trial | unload | warm | first generation |\n")
         handle.write("|---|---:|---:|---:|---:|\n")
         for row in results:
             handle.write(
                 f"| {row['strategy']} | {row['trial']} | "
-                f"{fmt(row['unload_seconds'])} | {fmt(row['reload_seconds'])} | "
+                f"{fmt(row['unload_seconds'])} | {fmt(row['warm_seconds'])} | "
                 f"{fmt(row['first_generation_seconds'])} |\n"
             )
 
         handle.write("\n## Memory Data\n\n")
         handle.write(
             "| strategy | trial | VRAM before unload MB | VRAM after unload MB | "
-            "VRAM after reload MB | system RAM before unload MB | "
-            "system RAM after unload MB | system RAM after reload MB | "
+            "VRAM after warm MB | system RAM before unload MB | "
+            "system RAM after unload MB | system RAM after warm MB | "
             "service RSS before unload MB | service RSS after unload MB | "
-            "service RSS after reload MB |\n"
+            "service RSS after warm MB |\n"
         )
         handle.write("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
         for row in results:
@@ -320,13 +320,13 @@ def write_report(summary: list[dict], results: list[dict], output_file: str) -> 
                 f"| {row['strategy']} | {row['trial']} | "
                 f"{fmt_mb(row['vram_before_unload_mb'])} | "
                 f"{fmt_mb(row['vram_after_unload_mb'])} | "
-                f"{fmt_mb(row['vram_after_reload_mb'])} | "
+                f"{fmt_mb(row['vram_after_warm_mb'])} | "
                 f"{fmt_mb(row['system_ram_before_unload_mb'])} | "
                 f"{fmt_mb(row['system_ram_after_unload_mb'])} | "
-                f"{fmt_mb(row['system_ram_after_reload_mb'])} | "
+                f"{fmt_mb(row['system_ram_after_warm_mb'])} | "
                 f"{fmt_mb(row['service_rss_before_unload_mb'])} | "
                 f"{fmt_mb(row['service_rss_after_unload_mb'])} | "
-                f"{fmt_mb(row['service_rss_after_reload_mb'])} |\n"
+                f"{fmt_mb(row['service_rss_after_warm_mb'])} |\n"
             )
 
 
@@ -334,7 +334,7 @@ def write_stats_file(summary: list[dict], output_file: str) -> None:
     stats = []
     for row in summary:
         values = {}
-        for label in ("unload_seconds", "reload_seconds", "first_generation_seconds"):
+        for label in ("unload_seconds", "warm_seconds", "first_generation_seconds"):
             section = row[label]
             values[f"{label}_average"] = section["average"]
             values[f"{label}_standard_deviation"] = section["standard_deviation"]
