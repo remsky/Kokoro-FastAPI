@@ -212,14 +212,12 @@ Model files not found! You need to download the Kokoro V1 model:
             return False
         strategy = self._unload_strategy()
         logger.info(f"Unloading model with strategy={strategy}")
-        self._backend.unload(strategy=strategy)
-        if strategy == "destroy" or not self._backend_is_loaded():
-            self._backend = None
-            logger.info("Model unloaded and backend destroyed")
-        elif self._backend_is_cpu_cached():
+        if strategy == "move_to_cpu" and self._backend.offload_to_cpu():
             logger.info("Model offloaded from GPU and retained in CPU cache")
         else:
-            logger.info("Model unload completed with backend still available")
+            self._backend.unload()
+            self._backend = None
+            logger.info("Model unloaded and backend destroyed")
         self._last_used_at = time.monotonic()
         return True
 
@@ -228,7 +226,7 @@ Model files not found! You need to download the Kokoro V1 model:
             logger.info("Model destroy requested, but no backend is loaded")
             return False
         logger.info("Destroying model backend")
-        self._backend.unload(strategy="destroy")
+        self._backend.unload()
         self._backend = None
         self._last_used_at = time.monotonic()
         logger.info("Model backend destroyed")

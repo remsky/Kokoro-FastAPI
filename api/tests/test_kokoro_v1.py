@@ -81,10 +81,11 @@ def test_move_to_cpu_unload_moves_model_to_cpu_and_clears_runtime_caches(
     kokoro_backend._voice_cache = {"af_heart.pt:cuda": MagicMock()}
 
     with patch.object(kokoro_backend, "_clear_memory") as mock_clear:
-        kokoro_backend.unload(strategy="move_to_cpu")
+        offloaded = kokoro_backend.offload_to_cpu()
 
     cuda_model.cpu.assert_called_once()
     mock_clear.assert_called_once()
+    assert offloaded is True
     assert kokoro_backend._model is cpu_model
     assert kokoro_backend.is_loaded
     assert kokoro_backend.is_cpu_cached

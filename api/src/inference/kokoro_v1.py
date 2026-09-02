@@ -179,7 +179,7 @@ class KokoroV1(BaseModelBackend):
         self._pipelines.clear()
         self._voice_cache.clear()
 
-    def _offload_model_to_cpu(self) -> bool:
+    def offload_to_cpu(self) -> bool:
         """Move the model out of VRAM while retaining weights in system RAM."""
         if self._model is None or self._device not in {"cuda", "mps"}:
             return False
@@ -497,11 +497,8 @@ class KokoroV1(BaseModelBackend):
             if hasattr(torch.mps, "empty_cache"):
                 torch.mps.empty_cache()
 
-    def unload(self, strategy: str = "destroy") -> None:
+    def unload(self) -> None:
         """Unload model and free resources."""
-        if strategy == "move_to_cpu" and self._offload_model_to_cpu():
-            return
-
         logger.info("Destroying Kokoro model backend state")
         if self._model is not None:
             del self._model
@@ -517,6 +514,11 @@ class KokoroV1(BaseModelBackend):
     def is_cpu_cached(self) -> bool:
         """Check if model weights are retained in CPU RAM after device unload."""
         return self._model_cpu_cached
+
+    @property
+    def supports_cpu_offload(self) -> bool:
+        """Check whether this backend can move model weights to CPU memory."""
+        return self._device in {"cuda", "mps"}
 
     @property
     def is_loaded(self) -> bool:

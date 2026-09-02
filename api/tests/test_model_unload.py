@@ -74,13 +74,15 @@ async def test_unload_move_to_cpu_keeps_backend(monkeypatch):
     mock_backend = MagicMock()
     mock_backend.is_loaded = True
     mock_backend.is_cpu_cached = True
+    mock_backend.offload_to_cpu.return_value = True
     manager._backend = mock_backend
 
     with patch("api.src.inference.model_manager.torch") as mock_torch:
         mock_torch.cuda.is_available.return_value = False
         await manager.unload()
 
-    mock_backend.unload.assert_called_once_with(strategy="move_to_cpu")
+    mock_backend.offload_to_cpu.assert_called_once()
+    mock_backend.unload.assert_not_called()
     assert manager._backend is mock_backend
 
 
@@ -113,7 +115,8 @@ async def test_unload_move_to_cpu_destroys_backend_without_gpu(monkeypatch):
         mock_torch.cuda.is_available.return_value = False
         await manager.unload()
 
-    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    mock_backend.offload_to_cpu.assert_not_called()
+    mock_backend.unload.assert_called_once_with()
     assert manager._backend is None
 
 
@@ -134,7 +137,7 @@ async def test_reload_reloads_cpu_cached_backend(monkeypatch):
     ):
         await manager.reload()
 
-    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    mock_backend.unload.assert_called_once_with()
     mock_backend.restore_to_device.assert_not_called()
     mock_init.assert_called_once()
     mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
@@ -158,7 +161,7 @@ async def test_reload_reloads_device_resident_backend(monkeypatch):
     ):
         await manager.reload()
 
-    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    mock_backend.unload.assert_called_once_with()
     mock_backend.restore_to_device.assert_not_called()
     mock_init.assert_called_once()
     mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
