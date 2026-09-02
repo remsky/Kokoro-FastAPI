@@ -176,6 +176,55 @@ async def test_reload_reloads_device_resident_backend(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_warm_restores_cpu_cached_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
+    manager._backend = mock_backend
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.restore_to_device.side_effect = fake_restore
+
+    with (
+        patch.object(manager, "initialize", new_callable=AsyncMock) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.warm()
+
+    mock_backend.restore_to_device.assert_called_once()
+    mock_backend.unload.assert_not_called()
+    mock_init.assert_not_called()
+    mock_load.assert_not_called()
+    assert manager._idle_unload_task is None
+
+
+@pytest.mark.asyncio
+async def test_warm_loads_backend_from_disk_when_unloaded():
+    manager = ModelManager()
+    assert manager._backend is None
+
+    async def fake_initialize():
+        manager._backend = MagicMock()
+
+    with (
+        patch.object(manager, "initialize", side_effect=fake_initialize) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.warm()
+
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is not None
+
+
+@pytest.mark.asyncio
 async def test_unload_when_already_none_is_noop():
     manager = ModelManager()
     assert manager._backend is None
@@ -672,6 +721,43 @@ def test_reload_endpoint_returns_status():
     assert response.status_code == 200
     assert response.json() == {"status": "loaded", "model": {"loaded": True}}
     mock_manager.reload.assert_called_once()
+
+
+def test_warm_endpoint_returns_status():
+    mock_manager = MagicMock()
+    mock_manager.warm = AsyncMock()
+    mock_manager.status.return_value = {"loaded": True}
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "loaded", "model": {"loaded": True}}
+    mock_manager.warm.assert_called_once()
+
+
+def test_warm_endpoint_403_when_disabled(monkeypatch):
+    monkeypatch.setattr(settings, "allow_dev_unload", False)
+    mock_manager = MagicMock()
+    mock_manager.warm = AsyncMock()
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 403
+    mock_manager.warm.assert_not_called()
+
+
+def test_warm_endpoint_503_when_manager_none():
+    service = _mock_service(manager=None)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["error"] == "Model manager not initialized"
 
 
 def test_model_status_endpoint_returns_status():

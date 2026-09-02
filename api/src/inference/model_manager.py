@@ -345,6 +345,13 @@ Model files not found! You need to download the Kokoro V1 model:
         except Exception as e:
             raise RuntimeError(f"Generation failed: {e}")
 
+    async def warm(self) -> None:
+        """Ensure the model is loaded and resident on the configured device."""
+        await self.ensure_backend()
+        async with self._lock:
+            self._last_used_at = time.monotonic()
+            self._schedule_idle_unload_timer_locked()
+
     def unload_all(self) -> None:
         """Unload model and free resources."""
         self._cancel_idle_unload_timer()
