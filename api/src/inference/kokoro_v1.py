@@ -1,6 +1,7 @@
 """Clean Kokoro implementation with controlled resource management."""
 
 import os
+from enum import Enum
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -17,6 +18,14 @@ from .base import AudioChunk, BaseModelBackend
 _ESPEAK_TS_SCALE = (
     2.0 / 80.0
 )  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+
+
+class ModelResidency(str, Enum):
+    """Where the Kokoro model weights currently live."""
+
+    UNLOADED = "unloaded"
+    CPU = "cpu"
+    DEVICE = "device"
 
 
 def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
@@ -89,7 +98,7 @@ class KokoroV1(BaseModelBackend):
         # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
-        self._model_cpu_cached = False
+        self._residency = ModelResidency.UNLOADED
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
         self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
 
@@ -145,7 +154,7 @@ class KokoroV1(BaseModelBackend):
                 self._model = self._model.cuda()
             else:
                 self._model = self._model.cpu()
-            self._model_cpu_cached = False
+            self._residency = ModelResidency.DEVICE
 
         except FileNotFoundError:
             raise
@@ -154,7 +163,10 @@ class KokoroV1(BaseModelBackend):
 
     def _move_model_to_device(self) -> None:
         """Move a CPU-cached model back to the configured inference device."""
-        if self._model is None or not self._model_cpu_cached:
+        if self._model is None:
+            self._residency = ModelResidency.UNLOADED
+            return
+        if self._residency != ModelResidency.CPU:
             return
 
         logger.info(f"Moving CPU-cached Kokoro model back to {self._device}")
@@ -165,7 +177,7 @@ class KokoroV1(BaseModelBackend):
             torch.cuda.synchronize()
         else:
             self._model = self._model.cpu()
-        self._model_cpu_cached = False
+        self._residency = ModelResidency.DEVICE
         logger.info(f"CPU-cached Kokoro model restored to {self._device}")
 
     def restore_to_device(self) -> None:
@@ -181,12 +193,15 @@ class KokoroV1(BaseModelBackend):
 
     def offload_to_cpu(self) -> bool:
         """Move the model out of VRAM while retaining weights in system RAM."""
-        if self._model is None or self._device not in {"cuda", "mps"}:
+        if self._model is None:
+            self._residency = ModelResidency.UNLOADED
+            return False
+        if self._device not in {"cuda", "mps"}:
             return False
 
         logger.info("Moving Kokoro model to CPU cache")
         self._model = self._model.cpu()
-        self._model_cpu_cached = True
+        self._residency = ModelResidency.CPU
         self._clear_runtime_caches()
         self._clear_memory()
         logger.info("Kokoro model offloaded to CPU cache and device caches cleared")
@@ -503,7 +518,7 @@ class KokoroV1(BaseModelBackend):
         if self._model is not None:
             del self._model
             self._model = None
-        self._model_cpu_cached = False
+        self._residency = ModelResidency.UNLOADED
         self._clear_runtime_caches()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
@@ -513,7 +528,12 @@ class KokoroV1(BaseModelBackend):
     @property
     def is_cpu_cached(self) -> bool:
         """Check if model weights are retained in CPU RAM after device unload."""
-        return self._model_cpu_cached
+        return self._residency == ModelResidency.CPU
+
+    @property
+    def residency(self) -> ModelResidency:
+        """Get current model residency state."""
+        return self._residency
 
     @property
     def supports_cpu_offload(self) -> bool:

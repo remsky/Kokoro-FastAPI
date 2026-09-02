@@ -359,6 +359,72 @@ async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_generate_restores_after_move_to_cpu_auto_unload(monkeypatch):
+    """The first request after CPU auto-unload restores before generation."""
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    mock_backend.supports_cpu_offload = True
+    audio_chunk = AudioChunk(np.zeros(10, dtype=np.float32))
+
+    async def fake_generate(*args, **kwargs):
+        yield audio_chunk
+
+    def fake_offload():
+        mock_backend.is_cpu_cached = True
+        return True
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.generate = fake_generate
+    mock_backend.offload_to_cpu.side_effect = fake_offload
+    mock_backend.restore_to_device.side_effect = fake_restore
+    manager._backend = mock_backend
+
+    chunks = []
+    async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+        chunks.append(chunk)
+    await asyncio.sleep(0.03)
+
+    assert len(chunks) == 1
+    mock_backend.offload_to_cpu.assert_called_once()
+    assert manager._backend is mock_backend
+    assert mock_backend.is_cpu_cached is True
+
+    restored_chunks = []
+    async for chunk in manager.generate("again", ("voice", "/path/voice.pt")):
+        restored_chunks.append(chunk)
+
+    mock_backend.restore_to_device.assert_called_once()
+    assert len(restored_chunks) == 1
+    assert mock_backend.is_cpu_cached is False
+    manager._cancel_idle_unload_timer()
+
+
+@pytest.mark.asyncio
+async def test_generate_failed_cpu_cache_restore_cleans_up_active_request():
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.restore_to_device.side_effect = RuntimeError("restore failed")
+    manager._backend = mock_backend
+
+    with pytest.raises(RuntimeError, match="Generation failed: restore failed"):
+        async for _ in manager.generate("hello", ("voice", "/path/voice.pt")):
+            pass
+
+    mock_backend.generate.assert_not_called()
+    assert manager._active_requests == 0
+
+
+@pytest.mark.asyncio
 async def test_idle_auto_unload_log_includes_configured_timeout(monkeypatch):
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
 

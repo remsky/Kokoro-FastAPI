@@ -7,7 +7,7 @@ import pytest
 import torch
 
 from api.src.core.config import settings
-from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.inference.kokoro_v1 import KokoroV1, ModelResidency
 
 
 @pytest.fixture
@@ -20,6 +20,7 @@ def test_initial_state(kokoro_backend):
     """Test initial state of KokoroV1."""
     assert not kokoro_backend.is_loaded
     assert kokoro_backend._model is None
+    assert kokoro_backend.residency == ModelResidency.UNLOADED
     assert kokoro_backend._pipelines == {}  # Now using dict of pipelines
     # Device should be set based on settings
     assert kokoro_backend.device in ["cuda", "cpu", "mps"]
@@ -64,6 +65,7 @@ def test_unload_with_pipelines(kokoro_backend):
     kokoro_backend.unload()
     assert not kokoro_backend.is_loaded
     assert kokoro_backend._model is None
+    assert kokoro_backend.residency == ModelResidency.UNLOADED
     assert kokoro_backend._pipelines == {}  # All pipelines should be cleared
     assert kokoro_backend._voice_cache == {}  # Voice tensors should be released
 
@@ -89,6 +91,7 @@ def test_move_to_cpu_unload_moves_model_to_cpu_and_clears_runtime_caches(
     assert kokoro_backend._model is cpu_model
     assert kokoro_backend.is_loaded
     assert kokoro_backend.is_cpu_cached
+    assert kokoro_backend.residency == ModelResidency.CPU
     assert kokoro_backend._pipelines == {}
     assert kokoro_backend._voice_cache == {}
 
@@ -99,7 +102,7 @@ def test_restore_to_device_moves_cpu_cached_model_to_cuda(kokoro_backend):
     cpu_model.cuda.return_value = cuda_model
     kokoro_backend._model = cpu_model
     kokoro_backend._device = "cuda"
-    kokoro_backend._model_cpu_cached = True
+    kokoro_backend._residency = ModelResidency.CPU
 
     with patch("api.src.inference.kokoro_v1.torch") as mock_torch:
         kokoro_backend.restore_to_device()
@@ -107,6 +110,33 @@ def test_restore_to_device_moves_cpu_cached_model_to_cuda(kokoro_backend):
     cpu_model.cuda.assert_called_once()
     mock_torch.cuda.synchronize.assert_called_once()
     assert kokoro_backend._model is cuda_model
+    assert not kokoro_backend.is_cpu_cached
+    assert kokoro_backend.residency == ModelResidency.DEVICE
+
+
+def test_restore_to_device_moves_cpu_cached_model_to_mps(kokoro_backend):
+    cpu_model = MagicMock()
+    mps_model = MagicMock()
+    cpu_model.to.return_value = mps_model
+    kokoro_backend._model = cpu_model
+    kokoro_backend._device = "mps"
+    kokoro_backend._residency = ModelResidency.CPU
+
+    kokoro_backend.restore_to_device()
+
+    cpu_model.to.assert_called_once_with(torch.device("mps"))
+    assert kokoro_backend._model is mps_model
+    assert not kokoro_backend.is_cpu_cached
+    assert kokoro_backend.residency == ModelResidency.DEVICE
+
+
+def test_restore_without_model_marks_residency_unloaded(kokoro_backend):
+    kokoro_backend._model = None
+    kokoro_backend._residency = ModelResidency.CPU
+
+    kokoro_backend.restore_to_device()
+
+    assert kokoro_backend.residency == ModelResidency.UNLOADED
     assert not kokoro_backend.is_cpu_cached
 
 
