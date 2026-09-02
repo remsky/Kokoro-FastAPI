@@ -7,6 +7,7 @@ from api.src.services.text_processing.text_processor import (
     smart_split,
     split_by_voice,
 )
+from api.src.structures.schemas import NormalizationOptions
 
 
 def test_process_text_chunk_basic():
@@ -55,7 +56,7 @@ def test_get_sentence_info_abbreviations():
         "i.e. six. You have 4.2 messages. Property access: `a.b.c`."
     )
 
-    sentences = [s for s, _, _ in get_sentence_info(text)]
+    sentences = [s.strip() for s, _, _ in get_sentence_info(text)]
 
     assert sentences == [
         "This, that, the other thing, etc.",
@@ -85,7 +86,7 @@ def test_get_sentence_info_is_lazy(monkeypatch):
     sentences = text_processor.get_sentence_info("One. Two. Three.")
     assert calls == []
 
-    assert next(sentences)[0] == "One."
+    assert next(sentences)[0].strip() == "One."
     assert calls == ["One."]
 
     next(sentences)
@@ -345,7 +346,15 @@ def test_split_by_voice_merges_repeated_voice():
     text = "[voice:af_bella] One. [voice:af_bella] Two."
     segments = split_by_voice(text, "af_heart")
 
-    assert segments == [("af_bella", 1.0, "One. Two.")]
+    assert segments == [("af_bella", 1.0, "One.  Two.")]
+
+
+def test_split_by_voice_merge_keeps_paragraph_break():
+    """Merging same-voice runs keeps the blank line for paragraph chunking."""
+    text = "[voice:af_bella]Heading\n\n[voice:af_bella]Body."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [("af_bella", 1.0, "Heading\n\nBody.")]
 
 
 def test_split_by_voice_accepts_combined_voices():
@@ -387,7 +396,9 @@ def test_split_by_rate_segments():
 
 def test_split_by_rate_clamps_to_speed_bounds():
     assert split_by_voice("[rate:99] Whoa.", "af_heart") == [("af_heart", 4.0, "Whoa.")]
-    assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [("af_heart", 0.25, "Crawl.")]
+    assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [
+        ("af_heart", 0.25, "Crawl.")
+    ]
 
 
 def test_split_voice_tag_resets_rate():
@@ -413,3 +424,35 @@ def test_split_baserate_product_clamps_to_speed_bounds():
     assert split_by_voice("[baserate:2.5] [rate:2.0] Whoa.", "af_heart") == [
         ("af_heart", 4.0, "Whoa.")
     ]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_paragraph_break_flushes_chunk():
+    """Blank lines end a chunk so headings never run into body text."""
+    text = "Steven Erikson\n\nFive riders drew rein in the pass."
+    chunks = [c async for c, _, _ in smart_split(text)]
+
+    assert chunks == ["Steven Erikson", "Five riders drew rein in the pass."]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_single_newline_stays_joined():
+    """Hard-wrapped lines inside a paragraph are one chunk."""
+    text = "Five riders drew\nrein in the pass."
+    chunks = [c async for c, _, _ in smart_split(text)]
+
+    assert chunks == ["Five riders drew rein in the pass."]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_normalize_off_keeps_text_verbatim():
+    """With normalization off the chunk is the input substring, newlines included."""
+    text = "Five riders drew\nrein in the pass.  Then 3 more."
+    chunks = [
+        c
+        async for c, _, _ in smart_split(
+            text, normalization_options=NormalizationOptions(normalize=False)
+        )
+    ]
+
+    assert chunks == [text]

@@ -20,6 +20,7 @@ from .vocabulary import tokenize
 CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
+PARAGRAPH_PATTERN = re.compile(r"(?:\r?\n[ \t]*){2,}")
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
 # Pattern to find voice, rate, and alias base-rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
@@ -103,10 +104,10 @@ def get_sentence_info(
 ) -> Iterator[Tuple[str, List[int], int]]:
     """Yield (sentence, tokens, token_count) per sentence, phonemizing lazily."""
     for sentence in unicode_sentences(text):
-        sentence = sentence.strip()
-        if not sentence:
+        stripped = sentence.strip()
+        if not stripped:
             continue
-        tokens = process_text_chunk(sentence)
+        tokens = process_text_chunk(stripped)
         yield sentence, tokens, len(tokens)
 
 
@@ -149,17 +150,16 @@ def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]
             if part is not None:
                 base_rate = float(part)
             continue
-        part = part.strip()
-        if not part:
+        if not part.strip():
             continue
         current_rate = clamp_rate(base_rate * tag_rate)
         if segments and segments[-1][:2] == (current_voice, current_rate):
-            segments[-1] = (current_voice, current_rate, f"{segments[-1][2]} {part}")
+            segments[-1] = (current_voice, current_rate, segments[-1][2] + part)
         else:
             segments.append((current_voice, current_rate, part))
 
     # tags were present, so an empty result means there was nothing to say
-    return segments
+    return [(voice, rate, text.strip()) for voice, rate, text in segments]
 
 
 def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> str:
@@ -212,145 +212,150 @@ async def smart_split(
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
-            # Strip leading and trailing spaces to prevent pause tag splitting artifacts
-            text_part_raw = text_part_raw.strip()
+            for paragraph in PARAGRAPH_PATTERN.split(text_part_raw):
+                paragraph = paragraph.strip()
+                if not paragraph:
+                    continue
 
-            # Normalize text (original logic)
-            processed_text = text_part_raw
-            if settings.advanced_text_normalization and normalization_options.normalize:
-                if lang_code in ["a", "b", "en-us", "en-gb"]:
-                    processed_text = CUSTOM_PHONEMES.split(processed_text)
-                    for index in range(0, len(processed_text), 2):
-                        processed_text[index] = normalize_text(
-                            processed_text[index], normalization_options
-                        )
-
-                    processed_text = "".join(processed_text).strip()
-                else:
-                    logger.info(
-                        "Skipping text normalization as it is only supported for english"
-                    )
-
-            # Process all sentences
-            sentences = get_sentence_info(processed_text, lang_code=lang_code)
-
-            current_chunk = []
-            current_tokens = []
-            current_count = 0
-
-            for sentence, tokens, count in sentences:
-                # Handle sentences that exceed max tokens
-                if count > max_tokens:
-                    # Yield current chunk if any
-                    if current_chunk:
-                        chunk_text = " ".join(current_chunk).strip()
-                        chunk_count += 1
-                        logger.debug(
-                            f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
-                        )
-                        yield chunk_text, current_tokens, None
-                        current_chunk = []
-                        current_tokens = []
-                        current_count = 0
-
-                    # Split long sentence on commas
-                    clauses = re.split(r"([,;:，、；：])", sentence)
-                    clause_chunk = []
-                    clause_tokens = []
-                    clause_count = 0
-
-                    for j in range(0, len(clauses), 2):
-                        clause = clauses[j].strip()
-                        comma = clauses[j + 1] if j + 1 < len(clauses) else ""
-
-                        if not clause:
-                            continue
-
-                        full_clause = clause + comma
-
-                        tokens = process_text_chunk(full_clause)
-                        count = len(tokens)
-
-                        # If adding clause keeps us under max and not optimal yet
-                        if (
-                            clause_count + count <= max_tokens
-                            and clause_count + count <= settings.target_max_tokens
-                        ):
-                            clause_chunk.append(full_clause)
-                            clause_tokens.extend(tokens)
-                            clause_count += count
-                        else:
-                            # Yield clause chunk if we have one
-                            if clause_chunk:
-                                chunk_text = " ".join(clause_chunk).strip()
-                                chunk_count += 1
-                                logger.debug(
-                                    f"Yielding clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({clause_count} tokens)"
-                                )
-                                yield chunk_text, clause_tokens, None
-                            clause_chunk = [full_clause]
-                            clause_tokens = tokens
-                            clause_count = count
-
-                    # Don't forget last clause chunk
-                    if clause_chunk:
-                        chunk_text = " ".join(clause_chunk).strip()
-                        chunk_count += 1
-                        logger.debug(
-                            f"Yielding final clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({clause_count} tokens)"
-                        )
-                        yield chunk_text, clause_tokens, None
-
-                # Regular sentence handling (original logic)
-                elif (
-                    current_count >= settings.target_min_tokens
-                    and current_count + count > settings.target_max_tokens
+                # Normalize text (original logic)
+                processed_text = paragraph
+                if (
+                    settings.advanced_text_normalization
+                    and normalization_options.normalize
                 ):
-                    # If we have a good sized chunk and adding next sentence exceeds target,
-                    # yield current chunk and start new one
-                    chunk_text = " ".join(current_chunk).strip()
-                    chunk_count += 1
-                    logger.info(
-                        f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
-                    )
-                    yield chunk_text, current_tokens, None
-                    current_chunk = [sentence]
-                    current_tokens = tokens
-                    current_count = count
-                elif current_count + count <= settings.target_max_tokens:
-                    # Keep building chunk while under target max
-                    current_chunk.append(sentence)
-                    current_tokens.extend(tokens)
-                    current_count += count
-                elif (
-                    current_count + count <= max_tokens
-                    and current_count < settings.target_min_tokens
-                ):
-                    # Only exceed target max if we haven't reached minimum size yet
-                    current_chunk.append(sentence)
-                    current_tokens.extend(tokens)
-                    current_count += count
-                else:
-                    # Yield current chunk and start new one
-                    if current_chunk:
-                        chunk_text = " ".join(current_chunk).strip()
+                    if lang_code in ["a", "b", "en-us", "en-gb"]:
+                        processed_text = CUSTOM_PHONEMES.split(processed_text)
+                        for index in range(0, len(processed_text), 2):
+                            processed_text[index] = normalize_text(
+                                processed_text[index], normalization_options
+                            )
+
+                        processed_text = "".join(processed_text).strip()
+                    else:
+                        logger.info(
+                            "Skipping text normalization as it is only supported for english"
+                        )
+
+                # Process all sentences
+                sentences = get_sentence_info(processed_text, lang_code=lang_code)
+
+                current_chunk = []
+                current_tokens = []
+                current_count = 0
+
+                for sentence, tokens, count in sentences:
+                    # Handle sentences that exceed max tokens
+                    if count > max_tokens:
+                        # Yield current chunk if any
+                        if current_chunk:
+                            chunk_text = "".join(current_chunk).strip()
+                            chunk_count += 1
+                            logger.debug(
+                                f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
+                            )
+                            yield chunk_text, current_tokens, None
+                            current_chunk = []
+                            current_tokens = []
+                            current_count = 0
+
+                        # Split long sentence on commas
+                        clauses = re.split(r"([,;:，、；：])", sentence)
+                        clause_chunk = []
+                        clause_tokens = []
+                        clause_count = 0
+
+                        for j in range(0, len(clauses), 2):
+                            clause = clauses[j].strip()
+                            comma = clauses[j + 1] if j + 1 < len(clauses) else ""
+
+                            if not clause:
+                                continue
+
+                            full_clause = clause + comma
+
+                            tokens = process_text_chunk(full_clause)
+                            count = len(tokens)
+
+                            # If adding clause keeps us under max and not optimal yet
+                            if (
+                                clause_count + count <= max_tokens
+                                and clause_count + count <= settings.target_max_tokens
+                            ):
+                                clause_chunk.append(full_clause)
+                                clause_tokens.extend(tokens)
+                                clause_count += count
+                            else:
+                                # Yield clause chunk if we have one
+                                if clause_chunk:
+                                    chunk_text = " ".join(clause_chunk).strip()
+                                    chunk_count += 1
+                                    logger.debug(
+                                        f"Yielding clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({clause_count} tokens)"
+                                    )
+                                    yield chunk_text, clause_tokens, None
+                                clause_chunk = [full_clause]
+                                clause_tokens = tokens
+                                clause_count = count
+
+                        # Don't forget last clause chunk
+                        if clause_chunk:
+                            chunk_text = " ".join(clause_chunk).strip()
+                            chunk_count += 1
+                            logger.debug(
+                                f"Yielding final clause chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({clause_count} tokens)"
+                            )
+                            yield chunk_text, clause_tokens, None
+
+                    # Regular sentence handling (original logic)
+                    elif (
+                        current_count >= settings.target_min_tokens
+                        and current_count + count > settings.target_max_tokens
+                    ):
+                        # If we have a good sized chunk and adding next sentence exceeds target,
+                        # yield current chunk and start new one
+                        chunk_text = "".join(current_chunk).strip()
                         chunk_count += 1
                         logger.info(
                             f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
                         )
                         yield chunk_text, current_tokens, None
-                    current_chunk = [sentence]
-                    current_tokens = tokens
-                    current_count = count
+                        current_chunk = [sentence]
+                        current_tokens = tokens
+                        current_count = count
+                    elif current_count + count <= settings.target_max_tokens:
+                        # Keep building chunk while under target max
+                        current_chunk.append(sentence)
+                        current_tokens.extend(tokens)
+                        current_count += count
+                    elif (
+                        current_count + count <= max_tokens
+                        and current_count < settings.target_min_tokens
+                    ):
+                        # Only exceed target max if we haven't reached minimum size yet
+                        current_chunk.append(sentence)
+                        current_tokens.extend(tokens)
+                        current_count += count
+                    else:
+                        # Yield current chunk and start new one
+                        if current_chunk:
+                            chunk_text = "".join(current_chunk).strip()
+                            chunk_count += 1
+                            logger.info(
+                                f"Yielding chunk {chunk_count}: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
+                            )
+                            yield chunk_text, current_tokens, None
+                        current_chunk = [sentence]
+                        current_tokens = tokens
+                        current_count = count
 
-            # Don't forget the last chunk for this text part
-            if current_chunk:
-                chunk_text = " ".join(current_chunk).strip()
-                chunk_count += 1
-                logger.info(
-                    f"Yielding final chunk {chunk_count} for part: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
-                )
-                yield chunk_text, current_tokens, None
+                # Don't forget the last chunk for this text part
+                if current_chunk:
+                    chunk_text = "".join(current_chunk).strip()
+                    chunk_count += 1
+                    logger.info(
+                        f"Yielding final chunk {chunk_count} for part: '{chunk_text[:50]}{'...' if len(processed_text) > 50 else ''}' ({current_count} tokens)"
+                    )
+                    yield chunk_text, current_tokens, None
 
         # Handle Pause
         # Check if the next part is a pause duration string
@@ -360,9 +365,7 @@ async def smart_split(
             if re.fullmatch(r"\d+(?:\.\d+)?", duration_str):
                 part_idx += 1  # Consume the duration string as it's been processed
                 try:
-                    duration = min(
-                        float(duration_str), settings.max_pause_duration_s
-                    )
+                    duration = min(float(duration_str), settings.max_pause_duration_s)
                     if duration > 0:
                         chunk_count += 1
                         logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")

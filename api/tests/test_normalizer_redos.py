@@ -53,6 +53,16 @@ def test_digit_flood_is_fast():
     assert time.monotonic() - start < BUDGET_S
 
 
+def test_paragraph_split_is_fast():
+    """PARAGRAPH_PATTERN must stay linear on newline/space floods."""
+    from api.src.services.text_processing.text_processor import PARAGRAPH_PATTERN
+
+    for text in ("\n" + " " * 80_000, "\n " * 40_000, " \n" * 40_000):
+        start = time.monotonic()
+        PARAGRAPH_PATTERN.split(text)
+        assert time.monotonic() - start < BUDGET_S
+
+
 def test_decimal_normalization_preserved():
     """the lookbehind must not break normal decimal rendering."""
     out = normalize_text("costs 3.14 dollars", OPTS)
