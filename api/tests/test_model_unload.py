@@ -74,6 +74,7 @@ async def test_unload_move_to_cpu_keeps_backend(monkeypatch):
     mock_backend = MagicMock()
     mock_backend.is_loaded = True
     mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
     mock_backend.offload_to_cpu.return_value = True
     manager._backend = mock_backend
 
@@ -86,29 +87,34 @@ async def test_unload_move_to_cpu_keeps_backend(monkeypatch):
     assert manager._backend is mock_backend
 
 
-def test_move_to_cpu_strategy_warns_and_uses_destroy_without_gpu(monkeypatch):
-    monkeypatch.setattr(settings, "use_gpu", False)
+def test_move_to_cpu_strategy_warns_and_uses_destroy_without_backend_support(
+    monkeypatch,
+):
     monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
+    manager._backend = MagicMock()
+    manager._backend.supports_cpu_offload = False
 
     with patch("api.src.inference.model_manager.logger.warning") as mock_warning:
         assert manager._unload_strategy() == "destroy"
 
     mock_warning.assert_called_once_with(
-        "MODEL_UNLOAD_STRATEGY=move_to_cpu requires USE_GPU=true; using destroy"
+        "MODEL_UNLOAD_STRATEGY=move_to_cpu is not supported by the "
+        "current backend/device; using destroy"
     )
 
 
 @pytest.mark.asyncio
-async def test_unload_move_to_cpu_destroys_backend_without_gpu(monkeypatch):
-    monkeypatch.setattr(settings, "use_gpu", False)
+async def test_unload_move_to_cpu_destroys_backend_without_backend_support(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
     monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
     manager = ModelManager()
     mock_backend = MagicMock()
     mock_backend.is_loaded = True
     mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = False
     manager._backend = mock_backend
 
     with patch("api.src.inference.model_manager.torch") as mock_torch:
@@ -129,6 +135,7 @@ async def test_reload_reloads_cpu_cached_backend(monkeypatch):
     mock_backend = MagicMock()
     mock_backend.is_loaded = True
     mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
     manager._backend = mock_backend
 
     with (
@@ -458,6 +465,8 @@ def test_status_reports_model_lifecycle_state(monkeypatch):
     assert status["loaded"] is True
     assert status["active_requests"] == 0
     assert status["unload_strategy"] == "destroy"
+    assert status["configured_unload_strategy"] == "destroy"
+    assert status["effective_unload_strategy"] == "destroy"
     assert status["cpu_cached"] is False
     assert status["auto_unload_enabled"] is True
     assert status["auto_unload_timeout_seconds"] == 30.0
@@ -474,6 +483,7 @@ def test_status_reports_cpu_cached_state(monkeypatch):
     mock_backend = MagicMock()
     mock_backend.is_loaded = True
     mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
     manager._backend = mock_backend
     manager._last_used_at = 10.0
 
@@ -483,7 +493,27 @@ def test_status_reports_cpu_cached_state(monkeypatch):
     assert status["loaded"] is False
     assert status["cpu_cached"] is True
     assert status["unload_strategy"] == "move_to_cpu"
+    assert status["configured_unload_strategy"] == "move_to_cpu"
+    assert status["effective_unload_strategy"] == "move_to_cpu"
     assert status["seconds_until_auto_unload"] is None
+
+
+def test_status_reports_destroy_when_move_to_cpu_is_not_supported(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    mock_backend.supports_cpu_offload = False
+    manager._backend = mock_backend
+
+    status = manager.status()
+
+    assert status["configured_unload_strategy"] == "move_to_cpu"
+    assert status["effective_unload_strategy"] == "destroy"
+    assert status["unload_strategy"] == "destroy"
 
 
 # ---------------------------------------------------------------------------

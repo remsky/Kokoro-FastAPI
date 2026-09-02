@@ -3,6 +3,7 @@ from importlib.metadata import (
     version as _pkg_version,
 )
 from pathlib import Path
+from typing import Literal
 
 import torch
 from dotenv import dotenv_values
@@ -43,7 +44,7 @@ class Settings(BaseSettings):
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
     )
-    model_unload_strategy: str = "destroy"  # "destroy" or "move_to_cpu"
+    model_unload_strategy: Literal["destroy", "move_to_cpu"] = "destroy"
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )

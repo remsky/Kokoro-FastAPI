@@ -178,19 +178,26 @@ Model files not found! You need to download the Kokoro V1 model:
             return False
         return getattr(self._backend, "is_cpu_cached", False) is True
 
-    def _unload_strategy(self) -> str:
-        strategy = settings.model_unload_strategy.strip().lower()
-        if strategy not in {"destroy", "move_to_cpu"}:
+    def _backend_supports_cpu_offload(self) -> bool:
+        if self._backend is None:
+            return self._device in {"cuda", "mps"}
+        return getattr(self._backend, "supports_cpu_offload", False) is True
+
+    def _configured_unload_strategy(self) -> str:
+        return settings.model_unload_strategy
+
+    def _effective_unload_strategy(self) -> str:
+        strategy = self._configured_unload_strategy()
+        if strategy == "move_to_cpu" and not self._backend_supports_cpu_offload():
             logger.warning(
-                f"Unknown MODEL_UNLOAD_STRATEGY={settings.model_unload_strategy!r}; using destroy"
-            )
-            return "destroy"
-        if strategy == "move_to_cpu" and not settings.use_gpu:
-            logger.warning(
-                "MODEL_UNLOAD_STRATEGY=move_to_cpu requires USE_GPU=true; using destroy"
+                "MODEL_UNLOAD_STRATEGY=move_to_cpu is not supported by the "
+                "current backend/device; using destroy"
             )
             return "destroy"
         return strategy
+
+    def _unload_strategy(self) -> str:
+        return self._effective_unload_strategy()
 
     def _cancel_idle_unload_timer(self) -> None:
         try:
@@ -369,6 +376,8 @@ Model files not found! You need to download the Kokoro V1 model:
     def status(self) -> dict:
         """Return model lifecycle state for API responses."""
         timeout = self._auto_unload_timeout()
+        configured_strategy = self._configured_unload_strategy()
+        effective_strategy = self._effective_unload_strategy()
         idle_for = None
         unload_in = None
         if self._last_used_at is not None:
@@ -385,7 +394,9 @@ Model files not found! You need to download the Kokoro V1 model:
             "loaded": self._backend_is_loaded() and not self._backend_is_cpu_cached(),
             "cpu_cached": self._backend_is_loaded() and self._backend_is_cpu_cached(),
             "active_requests": self._active_requests,
-            "unload_strategy": self._unload_strategy(),
+            "unload_strategy": effective_strategy,
+            "configured_unload_strategy": configured_strategy,
+            "effective_unload_strategy": effective_strategy,
             "auto_unload_enabled": self._auto_unload_enabled(),
             "auto_unload_timeout_seconds": timeout,
             "idle_seconds": idle_for,
