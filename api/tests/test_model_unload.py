@@ -118,7 +118,7 @@ async def test_unload_move_to_cpu_destroys_backend_without_gpu(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_reload_restores_cpu_cached_backend(monkeypatch):
+async def test_reload_reloads_cpu_cached_backend(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", True)
     monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
 
@@ -134,9 +134,35 @@ async def test_reload_restores_cpu_cached_backend(monkeypatch):
     ):
         await manager.reload()
 
-    mock_backend.restore_to_device.assert_called_once()
-    mock_init.assert_not_called()
-    mock_load.assert_not_called()
+    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    mock_backend.restore_to_device.assert_not_called()
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_reload_reloads_device_resident_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    manager._backend = mock_backend
+
+    with (
+        patch.object(manager, "initialize", new_callable=AsyncMock) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.reload()
+
+    mock_backend.unload.assert_called_once_with(strategy="destroy")
+    mock_backend.restore_to_device.assert_not_called()
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is None
 
 
 @pytest.mark.asyncio

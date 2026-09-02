@@ -223,6 +223,17 @@ Model files not found! You need to download the Kokoro V1 model:
         self._last_used_at = time.monotonic()
         return True
 
+    def _destroy_backend_locked(self) -> bool:
+        if self._backend is None:
+            logger.info("Model destroy requested, but no backend is loaded")
+            return False
+        logger.info("Destroying model backend")
+        self._backend.unload(strategy="destroy")
+        self._backend = None
+        self._last_used_at = time.monotonic()
+        logger.info("Model backend destroyed")
+        return True
+
     def _schedule_idle_unload_timer_locked(self) -> None:
         self._cancel_idle_unload_timer()
         if not self._auto_unload_enabled():
@@ -351,18 +362,9 @@ Model files not found! You need to download the Kokoro V1 model:
         logger.info("Manual model reload requested")
         async with self._lock:
             self._cancel_idle_unload_timer()
-            if (
-                self._unload_strategy() == "move_to_cpu"
-                and self._backend is not None
-                and self._backend_is_loaded()
-            ):
-                logger.info("Restoring model from CPU cache")
-                self._backend.restore_to_device()
-                self._last_used_at = time.monotonic()
-            else:
-                self._unload_backend_locked()
-                await self.initialize()
-                await self.load_model(self._config.pytorch_kokoro_v1_file)
+            self._destroy_backend_locked()
+            await self.initialize()
+            await self.load_model(self._config.pytorch_kokoro_v1_file)
             self._schedule_idle_unload_timer_locked()
         logger.info("Manual model reload completed")
 
