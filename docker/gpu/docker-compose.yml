@@ -1,7 +1,7 @@
 name: kokoro-fastapi-gpu
 services:
   kokoro-tts:
-    # image: ghcr.io/remsky/kokoro-fastapi-gpu:${VERSION:-latest}
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:${VERSION:-latest}
     build:
       context: ../..
       dockerfile: docker/gpu/Dockerfile.optimized
@@ -14,20 +14,14 @@ services:
       #   GPU_EXTRA: gpu-cu128
       #   CUDA_VERSION: 12.8.1
     volumes:
-      - ../../api:/app/api
-      - ../../web:/app/web  # hot reload the web player, files are read per request
-    user: "1001:1001"  # Ensure container runs as UID 1001 (appuser)
+      - ../../web:/app/web  # hot reload changes to web player code
     ports:
       - "8880:8880"
     env_file:
       - path: ../../.env
         required: false
-    environment:
-      - PYTHONPATH=/app:/app/api
-      - USE_GPU=true
-      - PYTHONUNBUFFERED=1
+    environment:  # full list in docs/configuration.md
       - API_LOG_LEVEL=DEBUG
-      - DOWNLOAD_MODEL=true
       # - ALLOW_DEV_UNLOAD=true
       # - ENABLE_DEBUG_ENDPOINTS=true
     deploy:
@@ -37,4 +31,3 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-
