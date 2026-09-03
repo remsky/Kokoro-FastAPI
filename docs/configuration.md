@@ -81,7 +81,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `HOST` | `0.0.0.0` | Bind address |
+| `HOST` | `0.0.0.0` | Bind address, `::` for IPv6-only or dual-stack |
 | `PORT` | `8880` | Bind port |
 | `API_TITLE` | `Kokoro TTS API` | OpenAPI title |
 | `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
