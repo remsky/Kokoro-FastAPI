@@ -63,6 +63,32 @@
     color: var(--text);
 }
 
+.settings-options {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.1rem;
+}
+
+.setting-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    color: var(--text-light);
+    cursor: pointer;
+    user-select: none;
+}
+
+.setting-checkbox-label:hover {
+    color: var(--text);
+}
+
+.setting-checkbox {
+    accent-color: var(--fg-color);
+    cursor: pointer;
+}
+
 /* ── generate */
 .generate-card {
     display: flex;
