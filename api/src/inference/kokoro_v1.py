@@ -1,5 +1,6 @@
 """Clean Kokoro implementation with controlled resource management."""
 
+import gc
 import os
 from enum import Enum
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
@@ -198,9 +199,11 @@ class KokoroV1(BaseModelBackend):
             return False
 
         logger.info("Moving Kokoro model to CPU cache")
+        self._clear_runtime_caches()
         self._model = self._model.cpu()
         self._residency = ModelResidency.CPU
         self._clear_runtime_caches()
+        gc.collect()
         self._clear_memory()
         logger.info("Kokoro model offloaded to CPU cache and device caches cleared")
         return True
@@ -504,6 +507,8 @@ class KokoroV1(BaseModelBackend):
         """Clear device memory."""
         if self._device == "cuda":
             torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.ipc_collect()
             torch.cuda.synchronize()
         elif self._device == "mps":
             # Empty cache if available (future-proofing)

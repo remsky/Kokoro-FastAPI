@@ -1,0 +1,514 @@
+{
+  "timestamp": "2026-09-03T02:36:28.396011",
+  "url": "http://127.0.0.1:8880",
+  "strategies": [
+    {
+      "strategy": "destroy",
+      "timestamp": "2026-09-03T02:36:28.396011",
+      "url": "http://127.0.0.1:8880",
+      "model": {
+        "backend": "kokoro_v1",
+        "device": "cuda",
+        "loaded": true,
+        "cpu_cached": false,
+        "active_requests": 0,
+        "unload_strategy": "destroy",
+        "configured_unload_strategy": "destroy",
+        "effective_unload_strategy": "destroy",
+        "auto_unload_enabled": false,
+        "auto_unload_timeout_seconds": 0.0,
+        "idle_seconds": 0.8292131290072575,
+        "seconds_until_auto_unload": null
+      },
+      "results": [
+        {
+          "strategy": "destroy",
+          "trial": 1,
+          "unload_seconds": 0.029105124005582184,
+          "warm_seconds": 1.1693925319996197,
+          "first_generation_seconds": 0.7428035030025057,
+          "vram_before_unload_mb": 902.0,
+          "vram_after_unload_mb": 290.0,
+          "vram_after_warm_mb": 610.0,
+          "system_ram_before_unload_mb": 16209.08984375,
+          "system_ram_after_unload_mb": 16230.62109375,
+          "system_ram_after_warm_mb": 16538.69921875,
+          "service_rss_before_unload_mb": 1767.84375,
+          "service_rss_after_unload_mb": 1738.3359375,
+          "service_rss_after_warm_mb": 2235.87109375
+        },
+        {
+          "strategy": "destroy",
+          "trial": 2,
+          "unload_seconds": 0.0031527570099569857,
+          "warm_seconds": 0.9466731360007543,
+          "first_generation_seconds": 0.7460433459928026,
+          "vram_before_unload_mb": 902.0,
+          "vram_after_unload_mb": 858.0,
+          "vram_after_warm_mb": 1162.0,
+          "system_ram_before_unload_mb": 16569.13671875,
+          "system_ram_after_unload_mb": 16600.99609375,
+          "system_ram_after_warm_mb": 16966.89453125,
+          "service_rss_before_unload_mb": 2286.7656249999995,
+          "service_rss_after_unload_mb": 2286.76953125,
+          "service_rss_after_warm_mb": 2336.46875
+        },
+        {
+          "strategy": "destroy",
+          "trial": 3,
+          "unload_seconds": 0.045379480012343265,
+          "warm_seconds": 0.8270014649897348,
+          "first_generation_seconds": 0.7251418219966581,
+          "vram_before_unload_mb": 1454.0,
+          "vram_after_unload_mb": 858.0,
+          "vram_after_warm_mb": 1162.0,
+          "system_ram_before_unload_mb": 16986.71484375,
+          "system_ram_after_unload_mb": 16967.91015625,
+          "system_ram_after_warm_mb": 17124.46484375,
+          "service_rss_before_unload_mb": 2388.8359375,
+          "service_rss_after_unload_mb": 2358.3242187500005,
+          "service_rss_after_warm_mb": 2372.79296875
+        },
+        {
+          "strategy": "destroy",
+          "trial": 4,
+          "unload_seconds": 0.028624708007555455,
+          "warm_seconds": 1.1771630870061927,
+          "first_generation_seconds": 0.7149769349925919,
+          "vram_before_unload_mb": 1454.0,
+          "vram_after_unload_mb": 858.0,
+          "vram_after_warm_mb": 858.0,
+          "system_ram_before_unload_mb": 17052.66015625,
+          "system_ram_after_unload_mb": 16965.5703125,
+          "system_ram_after_warm_mb": 17172.296875,
+          "service_rss_before_unload_mb": 2419.03515625,
+          "service_rss_after_unload_mb": 2388.5234375,
+          "service_rss_after_warm_mb": 2340.30859375
+        },
+        {
+          "strategy": "destroy",
+          "trial": 5,
+          "unload_seconds": 0.029153516006772406,
+          "warm_seconds": 0.7722776500013424,
+          "first_generation_seconds": 0.6958867920038756,
+          "vram_before_unload_mb": 902.0,
+          "vram_after_unload_mb": 290.0,
+          "vram_after_warm_mb": 610.0,
+          "system_ram_before_unload_mb": 17127.33203125,
+          "system_ram_after_unload_mb": 17065.02734375,
+          "system_ram_after_warm_mb": 17053.1484375,
+          "service_rss_before_unload_mb": 2357.6796875,
+          "service_rss_after_unload_mb": 2344.890625,
+          "service_rss_after_warm_mb": 2332.83984375
+        }
+      ],
+      "summary": {
+        "strategy": "destroy",
+        "trials": 5,
+        "unload_seconds": {
+          "average": 0.02708311700844206,
+          "standard_deviation": 0.01515066496845054
+        },
+        "warm_seconds": {
+          "average": 0.9785015739995288,
+          "standard_deviation": 0.18867922111411764
+        },
+        "first_generation_seconds": {
+          "average": 0.7249704795976868,
+          "standard_deviation": 0.02066303219465465
+        },
+        "vram_before_unload_mb": {
+          "average": 1122.8,
+          "standard_deviation": 302.3428517428517
+        },
+        "vram_after_unload_mb": {
+          "average": 630.8,
+          "standard_deviation": 311.10641266293436
+        },
+        "vram_delta_after_unload_mb": {
+          "average": -492.0,
+          "standard_deviation": 250.5673562138532
+        },
+        "vram_after_warm_mb": {
+          "average": 880.4,
+          "standard_deviation": 276.28391194566507
+        },
+        "vram_delta_after_warm_mb": {
+          "average": 249.6,
+          "standard_deviation": 139.75979393230372
+        },
+        "service_rss_before_unload_mb": {
+          "average": 2244.03203125,
+          "standard_deviation": 270.6896257851239
+        },
+        "service_rss_after_unload_mb": {
+          "average": 2223.36875,
+          "standard_deviation": 273.64808775005224
+        },
+        "service_rss_delta_after_unload_mb": {
+          "average": -20.66328124999982,
+          "standard_deviation": 13.796241657586105
+        },
+        "service_rss_after_warm_mb": {
+          "average": 2323.65625,
+          "standard_deviation": 51.590817715308404
+        },
+        "service_rss_delta_after_warm_mb": {
+          "average": 100.28749999999991,
+          "standard_deviation": 224.9458645879921
+        },
+        "system_ram_before_unload_mb": {
+          "average": 16788.98671875,
+          "standard_deviation": 389.7794413782525
+        },
+        "system_ram_after_unload_mb": {
+          "average": 16766.025,
+          "standard_deviation": 347.8039075214052
+        },
+        "system_ram_delta_after_unload_mb": {
+          "average": -22.96171875,
+          "standard_deviation": 51.62979542625398
+        },
+        "system_ram_after_warm_mb": {
+          "average": 16971.10078125,
+          "standard_deviation": 253.8311572159655
+        },
+        "system_ram_delta_after_warm_mb": {
+          "average": 205.07578125,
+          "standard_deviation": 146.54331068574328
+        }
+      }
+    },
+    {
+      "strategy": "move_to_cpu",
+      "timestamp": "2026-09-03T02:35:08.087175",
+      "url": "http://127.0.0.1:8880",
+      "model": {
+        "backend": "kokoro_v1",
+        "device": "cuda",
+        "loaded": true,
+        "cpu_cached": false,
+        "active_requests": 0,
+        "unload_strategy": "move_to_cpu",
+        "configured_unload_strategy": "move_to_cpu",
+        "effective_unload_strategy": "move_to_cpu",
+        "auto_unload_enabled": false,
+        "auto_unload_timeout_seconds": 0.0,
+        "idle_seconds": 0.6740214430028573,
+        "seconds_until_auto_unload": null
+      },
+      "results": [
+        {
+          "strategy": "move_to_cpu",
+          "trial": 1,
+          "unload_seconds": 0.3183875730028376,
+          "warm_seconds": 0.0704301799996756,
+          "first_generation_seconds": 0.7576106359920232,
+          "vram_before_unload_mb": 902.0,
+          "vram_after_unload_mb": 612.0,
+          "vram_after_warm_mb": 844.0,
+          "system_ram_before_unload_mb": 16724.69140625,
+          "system_ram_after_unload_mb": 16939.85546875,
+          "system_ram_after_warm_mb": 16928.52734375,
+          "service_rss_before_unload_mb": 1793.6132812499998,
+          "service_rss_after_unload_mb": 2033.203125,
+          "service_rss_after_warm_mb": 1755.8554687499998
+        },
+        {
+          "strategy": "move_to_cpu",
+          "trial": 2,
+          "unload_seconds": 0.28522710299876053,
+          "warm_seconds": 0.08365464600501582,
+          "first_generation_seconds": 0.7022343059943523,
+          "vram_before_unload_mb": 928.0,
+          "vram_after_unload_mb": 666.0,
+          "vram_after_warm_mb": 848.0,
+          "system_ram_before_unload_mb": 16937.859375,
+          "system_ram_after_unload_mb": 17041.359375,
+          "system_ram_after_warm_mb": 16935.546875,
+          "service_rss_before_unload_mb": 1828.1718750000002,
+          "service_rss_after_unload_mb": 2054.05078125,
+          "service_rss_after_warm_mb": 1769.5781249999998
+        },
+        {
+          "strategy": "move_to_cpu",
+          "trial": 3,
+          "unload_seconds": 0.26959294600237627,
+          "warm_seconds": 0.07040734800102655,
+          "first_generation_seconds": 0.8800974790065084,
+          "vram_before_unload_mb": 910.0,
+          "vram_after_unload_mb": 730.0,
+          "vram_after_warm_mb": 840.0,
+          "system_ram_before_unload_mb": 16225.94140625,
+          "system_ram_after_unload_mb": 16356.80078125,
+          "system_ram_after_warm_mb": 16219.171875,
+          "service_rss_before_unload_mb": 1826.98046875,
+          "service_rss_after_unload_mb": 2061.27734375,
+          "service_rss_after_warm_mb": 1774.1171875
+        },
+        {
+          "strategy": "move_to_cpu",
+          "trial": 4,
+          "unload_seconds": 0.32081633000052534,
+          "warm_seconds": 0.08154450700385496,
+          "first_generation_seconds": 0.7857367840042571,
+          "vram_before_unload_mb": 922.0,
+          "vram_after_unload_mb": 792.0,
+          "vram_after_warm_mb": 852.0,
+          "system_ram_before_unload_mb": 16211.77734375,
+          "system_ram_after_unload_mb": 16400.24609375,
+          "system_ram_after_warm_mb": 16086.87890625,
+          "service_rss_before_unload_mb": 1835.265625,
+          "service_rss_after_unload_mb": 2074.05078125,
+          "service_rss_after_warm_mb": 1784.203125
+        },
+        {
+          "strategy": "move_to_cpu",
+          "trial": 5,
+          "unload_seconds": 0.30232682400674094,
+          "warm_seconds": 0.08585891700931825,
+          "first_generation_seconds": 0.762015006999718,
+          "vram_before_unload_mb": 916.0,
+          "vram_after_unload_mb": 778.0,
+          "vram_after_warm_mb": 846.0,
+          "system_ram_before_unload_mb": 16069.07421875,
+          "system_ram_after_unload_mb": 16331.5390625,
+          "system_ram_after_warm_mb": 16025.29296875,
+          "service_rss_before_unload_mb": 1841.3476562499998,
+          "service_rss_after_unload_mb": 2083.35546875,
+          "service_rss_after_warm_mb": 1790.6953125
+        }
+      ],
+      "summary": {
+        "strategy": "move_to_cpu",
+        "trials": 5,
+        "unload_seconds": {
+          "average": 0.29927015520224814,
+          "standard_deviation": 0.021891782688165256
+        },
+        "warm_seconds": {
+          "average": 0.07837911960377823,
+          "standard_deviation": 0.0074251769128208635
+        },
+        "first_generation_seconds": {
+          "average": 0.7775388423993718,
+          "standard_deviation": 0.0649891842320246
+        },
+        "vram_before_unload_mb": {
+          "average": 915.6,
+          "standard_deviation": 10.13903348450926
+        },
+        "vram_after_unload_mb": {
+          "average": 715.6,
+          "standard_deviation": 76.04472368284337
+        },
+        "vram_delta_after_unload_mb": {
+          "average": -200.0,
+          "standard_deviation": 72.60853944268538
+        },
+        "vram_after_warm_mb": {
+          "average": 846.0,
+          "standard_deviation": 4.47213595499958
+        },
+        "vram_delta_after_warm_mb": {
+          "average": 130.4,
+          "standard_deviation": 74.58418062833432
+        },
+        "service_rss_before_unload_mb": {
+          "average": 1825.0757812499999,
+          "standard_deviation": 18.518297497991632
+        },
+        "service_rss_after_unload_mb": {
+          "average": 2061.1875,
+          "standard_deviation": 19.306403818255607
+        },
+        "service_rss_delta_after_unload_mb": {
+          "average": 236.11171875000005,
+          "standard_deviation": 6.3642095461239245
+        },
+        "service_rss_after_warm_mb": {
+          "average": 1774.88984375,
+          "standard_deviation": 13.487668770484671
+        },
+        "service_rss_delta_after_warm_mb": {
+          "average": -286.2976562500001,
+          "standard_deviation": 5.857920652842506
+        },
+        "system_ram_before_unload_mb": {
+          "average": 16433.86875,
+          "standard_deviation": 375.5721603484265
+        },
+        "system_ram_after_unload_mb": {
+          "average": 16613.96015625,
+          "standard_deviation": 346.570398964328
+        },
+        "system_ram_delta_after_unload_mb": {
+          "average": 180.09140625,
+          "standard_deviation": 63.98376888449181
+        },
+        "system_ram_after_warm_mb": {
+          "average": 16439.08359375,
+          "standard_deviation": 455.4291825635522
+        },
+        "system_ram_delta_after_warm_mb": {
+          "average": -174.8765625,
+          "standard_deviation": 131.6652298326601
+        }
+      }
+    }
+  ],
+  "summary": [
+    {
+      "strategy": "destroy",
+      "trials": 5,
+      "unload_seconds": {
+        "average": 0.02708311700844206,
+        "standard_deviation": 0.01515066496845054
+      },
+      "warm_seconds": {
+        "average": 0.9785015739995288,
+        "standard_deviation": 0.18867922111411764
+      },
+      "first_generation_seconds": {
+        "average": 0.7249704795976868,
+        "standard_deviation": 0.02066303219465465
+      },
+      "vram_before_unload_mb": {
+        "average": 1122.8,
+        "standard_deviation": 302.3428517428517
+      },
+      "vram_after_unload_mb": {
+        "average": 630.8,
+        "standard_deviation": 311.10641266293436
+      },
+      "vram_delta_after_unload_mb": {
+        "average": -492.0,
+        "standard_deviation": 250.5673562138532
+      },
+      "vram_after_warm_mb": {
+        "average": 880.4,
+        "standard_deviation": 276.28391194566507
+      },
+      "vram_delta_after_warm_mb": {
+        "average": 249.6,
+        "standard_deviation": 139.75979393230372
+      },
+      "service_rss_before_unload_mb": {
+        "average": 2244.03203125,
+        "standard_deviation": 270.6896257851239
+      },
+      "service_rss_after_unload_mb": {
+        "average": 2223.36875,
+        "standard_deviation": 273.64808775005224
+      },
+      "service_rss_delta_after_unload_mb": {
+        "average": -20.66328124999982,
+        "standard_deviation": 13.796241657586105
+      },
+      "service_rss_after_warm_mb": {
+        "average": 2323.65625,
+        "standard_deviation": 51.590817715308404
+      },
+      "service_rss_delta_after_warm_mb": {
+        "average": 100.28749999999991,
+        "standard_deviation": 224.9458645879921
+      },
+      "system_ram_before_unload_mb": {
+        "average": 16788.98671875,
+        "standard_deviation": 389.7794413782525
+      },
+      "system_ram_after_unload_mb": {
+        "average": 16766.025,
+        "standard_deviation": 347.8039075214052
+      },
+      "system_ram_delta_after_unload_mb": {
+        "average": -22.96171875,
+        "standard_deviation": 51.62979542625398
+      },
+      "system_ram_after_warm_mb": {
+        "average": 16971.10078125,
+        "standard_deviation": 253.8311572159655
+      },
+      "system_ram_delta_after_warm_mb": {
+        "average": 205.07578125,
+        "standard_deviation": 146.54331068574328
+      }
+    },
+    {
+      "strategy": "move_to_cpu",
+      "trials": 5,
+      "unload_seconds": {
+        "average": 0.29927015520224814,
+        "standard_deviation": 0.021891782688165256
+      },
+      "warm_seconds": {
+        "average": 0.07837911960377823,
+        "standard_deviation": 0.0074251769128208635
+      },
+      "first_generation_seconds": {
+        "average": 0.7775388423993718,
+        "standard_deviation": 0.0649891842320246
+      },
+      "vram_before_unload_mb": {
+        "average": 915.6,
+        "standard_deviation": 10.13903348450926
+      },
+      "vram_after_unload_mb": {
+        "average": 715.6,
+        "standard_deviation": 76.04472368284337
+      },
+      "vram_delta_after_unload_mb": {
+        "average": -200.0,
+        "standard_deviation": 72.60853944268538
+      },
+      "vram_after_warm_mb": {
+        "average": 846.0,
+        "standard_deviation": 4.47213595499958
+      },
+      "vram_delta_after_warm_mb": {
+        "average": 130.4,
+        "standard_deviation": 74.58418062833432
+      },
+      "service_rss_before_unload_mb": {
+        "average": 1825.0757812499999,
+        "standard_deviation": 18.518297497991632
+      },
+      "service_rss_after_unload_mb": {
+        "average": 2061.1875,
+        "standard_deviation": 19.306403818255607
+      },
+      "service_rss_delta_after_unload_mb": {
+        "average": 236.11171875000005,
+        "standard_deviation": 6.3642095461239245
+      },
+      "service_rss_after_warm_mb": {
+        "average": 1774.88984375,
+        "standard_deviation": 13.487668770484671
+      },
+      "service_rss_delta_after_warm_mb": {
+        "average": -286.2976562500001,
+        "standard_deviation": 5.857920652842506
+      },
+      "system_ram_before_unload_mb": {
+        "average": 16433.86875,
+        "standard_deviation": 375.5721603484265
+      },
+      "system_ram_after_unload_mb": {
+        "average": 16613.96015625,
+        "standard_deviation": 346.570398964328
+      },
+      "system_ram_delta_after_unload_mb": {
+        "average": 180.09140625,
+        "standard_deviation": 63.98376888449181
+      },
+      "system_ram_after_warm_mb": {
+        "average": 16439.08359375,
+        "standard_deviation": 455.4291825635522
+      },
+      "system_ram_delta_after_warm_mb": {
+        "average": -174.8765625,
+        "standard_deviation": 131.6652298326601
+      }
+    }
+  ]
+}

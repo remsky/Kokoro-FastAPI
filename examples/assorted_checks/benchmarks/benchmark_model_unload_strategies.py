@@ -15,11 +15,14 @@ run the service with one strategy, run this benchmark, then repeat with the
 other strategy:
 
     docker build -f docker/gpu/Dockerfile.optimized -t kokoro-benchmark-gpu .
+    rm -f \
+        examples/assorted_checks/benchmarks/output_data/model_unload_strategies_results.json \
+        examples/assorted_checks/benchmarks/output_data/model_unload_strategies_stats.txt
 
     docker rm -f kokoro-benchmark 2>/dev/null || true
     docker run -d \
         --name kokoro-benchmark \
-        --gpus '"device=1"' \
+        --gpus '"device=0"' \
         -p 8880:8880 \
         -e PYTHONPATH=/app:/app/api \
         -e USE_GPU=true \
@@ -29,20 +32,18 @@ other strategy:
         -e ALLOW_DEV_UNLOAD=true \
         -e MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=0 \
         -e MODEL_UNLOAD_STRATEGY=move_to_cpu \
-        -v "$PWD/api:/app/api" \
-        -v "$PWD/web:/app/web" \
+        -e ENABLE_DEBUG_ENDPOINTS=true \
         --user 1001:1001 \
         kokoro-benchmark-gpu
     uv run --extra benchmarks \
         examples/assorted_checks/benchmarks/benchmark_model_unload_strategies.py \
-        --trials 10 --strategy move_to_cpu --output-prefix model_unload_move_to_cpu
+        --trials 5 --strategy move_to_cpu
 
     docker rm -f kokoro-benchmark
     docker run -d \
         --name kokoro-benchmark \
-        --gpus '"device=1"' \
+        --gpus '"device=0"' \
         -p 8880:8880 \
-        --env-file .env \
         -e PYTHONPATH=/app:/app/api \
         -e USE_GPU=true \
         -e PYTHONUNBUFFERED=1 \
@@ -51,19 +52,17 @@ other strategy:
         -e ALLOW_DEV_UNLOAD=true \
         -e MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=0 \
         -e MODEL_UNLOAD_STRATEGY=destroy \
-        -v "$PWD/api:/app/api" \
-        -v "$PWD/web:/app/web" \
+        -e ENABLE_DEBUG_ENDPOINTS=true \
         --user 1001:1001 \
         kokoro-benchmark-gpu
     uv run --extra benchmarks \
         examples/assorted_checks/benchmarks/benchmark_model_unload_strategies.py \
-        --trials 10 --strategy destroy --output-prefix model_unload_destroy
+        --trials 5 --strategy destroy
 
     docker rm -f kokoro-benchmark
 
 """
 import argparse
-import csv
 import json
 import os
 import statistics
@@ -78,6 +77,13 @@ import requests
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_URL = "http://127.0.0.1:8880"
+OUTPUT_DATA_DIR = os.path.join(SCRIPT_DIR, "output_data")
+DEFAULT_RESULTS_FILE = os.path.join(
+    OUTPUT_DATA_DIR, "model_unload_strategies_results.json"
+)
+DEFAULT_STATS_FILE = os.path.join(
+    OUTPUT_DATA_DIR, "model_unload_strategies_stats.txt"
+)
 
 
 def save_json_results(results: dict[str, Any], output_file: str) -> None:
@@ -86,17 +92,10 @@ def save_json_results(results: dict[str, Any], output_file: str) -> None:
         json.dump(results, handle, indent=2)
 
 
-def write_benchmark_stats(stats: list[dict[str, Any]], output_file: str) -> None:
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, "w", encoding="utf-8") as handle:
-        for section in stats:
-            handle.write(f"=== {section['title']} ===\n\n")
-            for label, value in section["stats"].items():
-                if isinstance(value, float):
-                    handle.write(f"{label}: {value:.2f}\n")
-                else:
-                    handle.write(f"{label}: {value}\n")
-            handle.write("\n")
+def format_stat_value(value: Any) -> str:
+    if isinstance(value, float):
+        return f"{value:.3f}"
+    return str(value)
 
 
 def request(
@@ -111,6 +110,27 @@ def request(
 def model_status(base_url: str) -> dict:
     body, _ = request("GET", base_url, "/dev/model", timeout=60)
     return json.loads(body.decode("utf-8"))
+
+
+def wait_for_model_status(base_url: str, timeout: float, interval: float) -> dict:
+    deadline = time.monotonic() + timeout
+    last_error: Exception | None = None
+    while True:
+        try:
+            return model_status(base_url)
+        except requests.RequestException as exc:
+            last_error = exc
+        except json.JSONDecodeError as exc:
+            last_error = exc
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise RuntimeError(
+                f"service did not become ready at {base_url}/dev/model "
+                f"within {timeout:g}s"
+            ) from last_error
+
+        time.sleep(min(interval, remaining))
 
 
 def optional_json_request(base_url: str, path: str, timeout: int = 60) -> dict | None:
@@ -234,6 +254,30 @@ def stats_for(values: list[float]) -> dict:
     }
 
 
+def is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def optional_stats_for(values: list[float]) -> dict:
+    if not values:
+        return {"average": None, "standard_deviation": None}
+    return stats_for(values)
+
+
+def values_for(rows: list[dict], key: str) -> list[float]:
+    return [row[key] for row in rows if is_number(row.get(key))]
+
+
+def deltas_for(rows: list[dict], before_key: str, after_key: str) -> list[float]:
+    values = []
+    for row in rows:
+        before = row.get(before_key)
+        after = row.get(after_key)
+        if is_number(before) and is_number(after):
+            values.append(after - before)
+    return values
+
+
 def summarize(results: list[dict]) -> list[dict]:
     summary = []
     for strategy in sorted({row["strategy"] for row in results}):
@@ -248,100 +292,187 @@ def summarize(results: list[dict]) -> list[dict]:
                 "unload_seconds": stats_for(unload),
                 "warm_seconds": stats_for(warm),
                 "first_generation_seconds": stats_for(first_generation),
+                "vram_before_unload_mb": optional_stats_for(
+                    values_for(rows, "vram_before_unload_mb")
+                ),
+                "vram_after_unload_mb": optional_stats_for(
+                    values_for(rows, "vram_after_unload_mb")
+                ),
+                "vram_delta_after_unload_mb": optional_stats_for(
+                    deltas_for(rows, "vram_before_unload_mb", "vram_after_unload_mb")
+                ),
+                "vram_after_warm_mb": optional_stats_for(
+                    values_for(rows, "vram_after_warm_mb")
+                ),
+                "vram_delta_after_warm_mb": optional_stats_for(
+                    deltas_for(rows, "vram_after_unload_mb", "vram_after_warm_mb")
+                ),
+                "service_rss_before_unload_mb": optional_stats_for(
+                    values_for(rows, "service_rss_before_unload_mb")
+                ),
+                "service_rss_after_unload_mb": optional_stats_for(
+                    values_for(rows, "service_rss_after_unload_mb")
+                ),
+                "service_rss_delta_after_unload_mb": optional_stats_for(
+                    deltas_for(
+                        rows,
+                        "service_rss_before_unload_mb",
+                        "service_rss_after_unload_mb",
+                    )
+                ),
+                "service_rss_after_warm_mb": optional_stats_for(
+                    values_for(rows, "service_rss_after_warm_mb")
+                ),
+                "service_rss_delta_after_warm_mb": optional_stats_for(
+                    deltas_for(
+                        rows,
+                        "service_rss_after_unload_mb",
+                        "service_rss_after_warm_mb",
+                    )
+                ),
+                "system_ram_before_unload_mb": optional_stats_for(
+                    values_for(rows, "system_ram_before_unload_mb")
+                ),
+                "system_ram_after_unload_mb": optional_stats_for(
+                    values_for(rows, "system_ram_after_unload_mb")
+                ),
+                "system_ram_delta_after_unload_mb": optional_stats_for(
+                    deltas_for(
+                        rows,
+                        "system_ram_before_unload_mb",
+                        "system_ram_after_unload_mb",
+                    )
+                ),
+                "system_ram_after_warm_mb": optional_stats_for(
+                    values_for(rows, "system_ram_after_warm_mb")
+                ),
+                "system_ram_delta_after_warm_mb": optional_stats_for(
+                    deltas_for(
+                        rows,
+                        "system_ram_after_unload_mb",
+                        "system_ram_after_warm_mb",
+                    )
+                ),
             }
         )
     return summary
 
 
-def write_trials_csv(results: list[dict], output_file: str) -> None:
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, "w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=list(results[0].keys()))
-        writer.writeheader()
-        writer.writerows(results)
+def load_existing_payload(output_file: str) -> dict[str, Any]:
+    if not os.path.exists(output_file):
+        return {"strategies": []}
+    with open(output_file, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if "strategies" in payload:
+        return payload
+
+    strategy = None
+    if payload.get("summary"):
+        strategy = payload["summary"][0].get("strategy")
+    elif payload.get("results"):
+        strategy = payload["results"][0].get("strategy")
+    if strategy:
+        return {
+            "timestamp": payload.get("timestamp"),
+            "url": payload.get("url"),
+            "strategies": [
+                {
+                    "strategy": strategy,
+                    "timestamp": payload.get("timestamp"),
+                    "url": payload.get("url"),
+                    "model": payload.get("model"),
+                    "results": payload.get("results", []),
+                    "summary": payload.get("summary", [{}])[0],
+                }
+            ],
+            "summary": payload.get("summary", []),
+        }
+    raise RuntimeError(f"cannot merge unrecognized results file: {output_file}")
 
 
-def fmt(value: float | None) -> str:
-    if value is None:
-        return "n/a"
-    return f"{value:.3f}s"
+def merge_strategy_payload(
+    output_file: str,
+    strategy_payload: dict[str, Any],
+    generated_at: str,
+) -> dict[str, Any]:
+    payload = load_existing_payload(output_file)
+    strategies = [
+        row
+        for row in payload.get("strategies", [])
+        if row.get("strategy") != strategy_payload["strategy"]
+    ]
+    strategies.append(strategy_payload)
+    strategies.sort(key=lambda row: row["strategy"])
+    for row in strategies:
+        row_results = row.get("results", [])
+        if row_results:
+            row["summary"] = summarize(row_results)[0]
 
-
-def fmt_mb(value: float | None) -> str:
-    if value is None:
-        return "n/a"
-    return f"{value:.0f}"
-
-
-def write_report(summary: list[dict], results: list[dict], output_file: str) -> None:
-    os.makedirs(os.path.dirname(output_file), exist_ok=True)
-    with open(output_file, "w", encoding="utf-8") as handle:
-        handle.write("# Model Unload Strategy Timing\n\n")
-        handle.write(f"Generated: {datetime.now().isoformat()}\n\n")
-        handle.write("Standard deviation is sample standard deviation across trials.\n\n")
-        handle.write(
-            "| strategy | unload avg | unload stddev | warm avg | warm stddev | "
-            "first generation avg | first generation stddev |\n"
-        )
-        handle.write("|---|---:|---:|---:|---:|---:|---:|\n")
-        for row in summary:
-            unload = row["unload_seconds"]
-            warm = row["warm_seconds"]
-            first_generation = row["first_generation_seconds"]
-            handle.write(
-                f"| {row['strategy']} | {fmt(unload['average'])} | "
-                f"{fmt(unload['standard_deviation'])} | "
-                f"{fmt(warm['average'])} | {fmt(warm['standard_deviation'])} | "
-                f"{fmt(first_generation['average'])} | "
-                f"{fmt(first_generation['standard_deviation'])} |\n"
-            )
-
-        handle.write("\n## Trial Data\n\n")
-        handle.write("| strategy | trial | unload | warm | first generation |\n")
-        handle.write("|---|---:|---:|---:|---:|\n")
-        for row in results:
-            handle.write(
-                f"| {row['strategy']} | {row['trial']} | "
-                f"{fmt(row['unload_seconds'])} | {fmt(row['warm_seconds'])} | "
-                f"{fmt(row['first_generation_seconds'])} |\n"
-            )
-
-        handle.write("\n## Memory Data\n\n")
-        handle.write(
-            "| strategy | trial | VRAM before unload MB | VRAM after unload MB | "
-            "VRAM after warm MB | system RAM before unload MB | "
-            "system RAM after unload MB | system RAM after warm MB | "
-            "service RSS before unload MB | service RSS after unload MB | "
-            "service RSS after warm MB |\n"
-        )
-        handle.write("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n")
-        for row in results:
-            handle.write(
-                f"| {row['strategy']} | {row['trial']} | "
-                f"{fmt_mb(row['vram_before_unload_mb'])} | "
-                f"{fmt_mb(row['vram_after_unload_mb'])} | "
-                f"{fmt_mb(row['vram_after_warm_mb'])} | "
-                f"{fmt_mb(row['system_ram_before_unload_mb'])} | "
-                f"{fmt_mb(row['system_ram_after_unload_mb'])} | "
-                f"{fmt_mb(row['system_ram_after_warm_mb'])} | "
-                f"{fmt_mb(row['service_rss_before_unload_mb'])} | "
-                f"{fmt_mb(row['service_rss_after_unload_mb'])} | "
-                f"{fmt_mb(row['service_rss_after_warm_mb'])} |\n"
-            )
+    all_results = [
+        result
+        for strategy_row in strategies
+        for result in strategy_row.get("results", [])
+    ]
+    return {
+        "timestamp": generated_at,
+        "url": strategy_payload["url"],
+        "strategies": strategies,
+        "summary": summarize(all_results),
+    }
 
 
 def write_stats_file(summary: list[dict], output_file: str) -> None:
-    stats = []
-    for row in summary:
-        values = {}
-        for label in ("unload_seconds", "warm_seconds", "first_generation_seconds"):
-            section = row[label]
-            values[f"{label}_average"] = section["average"]
-            values[f"{label}_standard_deviation"] = section["standard_deviation"]
-        stats.append(
-            {"title": f"Model Unload Strategy - {row['strategy']}", "stats": values}
+    def write_metric(handle, row: dict, label: str) -> None:
+        section = row[label]
+        handle.write(
+            f"{label}_average: {format_stat_value(section['average'])}\n"
+            f"{label}_standard_deviation: "
+            f"{format_stat_value(section['standard_deviation'])}\n\n"
         )
-    write_benchmark_stats(stats, output_file)
+
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    with open(output_file, "w", encoding="utf-8") as handle:
+        for row in summary:
+            handle.write(f"=== Model Unload Strategy - {row['strategy']} ===\n\n")
+
+            handle.write("# timing\n\n")
+            for label in (
+                "unload_seconds",
+                "warm_seconds",
+                "first_generation_seconds",
+            ):
+                write_metric(handle, row, label)
+
+            handle.write("# memory usage\n\n")
+            handle.write("## vram\n\n")
+            for label in (
+                "vram_before_unload_mb",
+                "vram_after_unload_mb",
+                "vram_delta_after_unload_mb",
+                "vram_after_warm_mb",
+                "vram_delta_after_warm_mb",
+            ):
+                write_metric(handle, row, label)
+
+            handle.write("## service rss\n\n")
+            for label in (
+                "service_rss_before_unload_mb",
+                "service_rss_after_unload_mb",
+                "service_rss_delta_after_unload_mb",
+                "service_rss_after_warm_mb",
+                "service_rss_delta_after_warm_mb",
+            ):
+                write_metric(handle, row, label)
+
+            handle.write("## system ram\n\n")
+            for label in (
+                "system_ram_before_unload_mb",
+                "system_ram_after_unload_mb",
+                "system_ram_delta_after_unload_mb",
+                "system_ram_after_warm_mb",
+                "system_ram_delta_after_warm_mb",
+            ):
+                write_metric(handle, row, label)
 
 
 def main():
@@ -351,17 +482,18 @@ def main():
     ap.add_argument("--strategy", help="expected strategy; defaults to /dev/model")
     ap.add_argument("--settle", type=float, default=1.0)
     ap.add_argument("--endpoint-timeout", type=int, default=600)
+    ap.add_argument("--ready-timeout", type=float, default=60.0)
+    ap.add_argument("--ready-interval", type=float, default=1.0)
     ap.add_argument("--gpu-index", help="GPU id to pass to nvidia-smi --id")
     ap.add_argument("--speech-model", default="kokoro")
     ap.add_argument("--speech-voice", default="af_heart")
     ap.add_argument("--speech-format", default="mp3")
     ap.add_argument("--speech-text", default="Warm model restore benchmark.")
-    ap.add_argument("--output-json")
-    ap.add_argument("--output-prefix", default="model_unload_strategy")
-    ap.add_argument("--no-report", action="store_true")
+    ap.add_argument("--output-json", default=DEFAULT_RESULTS_FILE)
+    ap.add_argument("--output-stats", default=DEFAULT_STATS_FILE)
     args = ap.parse_args()
 
-    status = model_status(args.url)
+    status = wait_for_model_status(args.url, args.ready_timeout, args.ready_interval)
     strategy = args.strategy or status.get("unload_strategy")
     if not strategy:
         raise RuntimeError("could not determine strategy from /dev/model")
@@ -372,41 +504,23 @@ def main():
 
     results = [run_trial(strategy, trial, args) for trial in range(1, args.trials + 1)]
     summary = summarize(results)
-    payload = {
-        "timestamp": datetime.now().isoformat(),
+    generated_at = datetime.now().isoformat()
+    strategy_payload = {
+        "strategy": strategy,
+        "timestamp": generated_at,
         "url": args.url,
         "model": status,
         "results": results,
-        "summary": summary,
+        "summary": summary[0],
     }
 
-    output_data_dir = os.path.join(SCRIPT_DIR, "output_data")
-    json_path = args.output_json or os.path.join(
-        output_data_dir, f"{args.output_prefix}_results.json"
-    )
-    save_json_results(payload, json_path)
-
-    if not args.no_report:
-        write_trials_csv(
-            results,
-            os.path.join(output_data_dir, f"{args.output_prefix}_trials.csv"),
-        )
-        write_report(
-            summary,
-            results,
-            os.path.join(output_data_dir, f"{args.output_prefix}_report.md"),
-        )
-        write_stats_file(
-            summary,
-            os.path.join(output_data_dir, f"{args.output_prefix}_stats.txt"),
-        )
+    payload = merge_strategy_payload(args.output_json, strategy_payload, generated_at)
+    save_json_results(payload, args.output_json)
+    write_stats_file(payload["summary"], args.output_stats)
 
     print("\ndone.")
-    print(f"- {json_path}")
-    if not args.no_report:
-        print(f"- {os.path.join(output_data_dir, f'{args.output_prefix}_trials.csv')}")
-        print(f"- {os.path.join(output_data_dir, f'{args.output_prefix}_report.md')}")
-        print(f"- {os.path.join(output_data_dir, f'{args.output_prefix}_stats.txt')}")
+    print(f"- {args.output_json}")
+    print(f"- {args.output_stats}")
 
 
 if __name__ == "__main__":
