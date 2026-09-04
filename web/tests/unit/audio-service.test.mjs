@@ -89,6 +89,14 @@ test('buildRequestBody sets normalization_options.normalize to false when toggle
     }
 });
 
+test('buildRequestBody uses passed responseFormat without reading format-select DOM', () => {
+    const service = new AudioService();
+    const body = service.buildRequestBody('Hello world', 'af_bella', 1.0, {}, 'wav');
+
+    assert.equal(body.response_format, 'wav');
+    assert.equal(body.download_format, 'wav');
+});
+
 // Stand-in for teardown only: a real element fires an error when its src is blanked.
 class TeardownAudio {
     constructor() {

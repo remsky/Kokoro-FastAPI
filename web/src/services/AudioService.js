@@ -101,7 +101,7 @@ export class AudioService {
             this.downloadName = this.buildDownloadName(voice, responseFormat);
 
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
-            const requestBody = this.buildRequestBody(text, voice, speed, options);
+            const requestBody = this.buildRequestBody(text, voice, speed, options, responseFormat);
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -594,10 +594,10 @@ export class AudioService {
         return `${safeVoice || 'speech'}_${stamp}.${format}`;
     }
 
-    buildRequestBody(text, voice, speed, options = {}) {
-        const responseFormat = typeof document !== 'undefined'
+    buildRequestBody(text, voice, speed, options = {}, responseFormat = null) {
+        const format = responseFormat || options.responseFormat || (typeof document !== 'undefined'
             ? document.getElementById('format-select')?.value || 'mp3'
-            : 'mp3';
+            : 'mp3');
         const langCode = typeof document !== 'undefined'
             ? document.getElementById('lang-select')?.value || undefined
             : undefined;
@@ -608,8 +608,8 @@ export class AudioService {
         const body = {
             input: text,
             voice: voice,
-            response_format: responseFormat,
-            download_format: responseFormat,
+            response_format: format,
+            download_format: format,
             stream: true,
             speed: speed,
             return_download_link: true,
