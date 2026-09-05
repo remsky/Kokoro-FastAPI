@@ -108,13 +108,15 @@ Model files not found! You need to download the Kokoro V1 model:
 
     async def ensure_backend(self) -> None:
         """Reload the backend if it was unloaded."""
-        if self._backend:
-            return
         async with self._lock:
             if not self._backend:
                 self._cancel_idle_unload_timer()
                 await self.initialize()
                 await self.load_model(self._config.pytorch_kokoro_v1_file)
+            elif self._backend_is_cpu_cached():
+                logger.info("Restoring CPU-cached model before inference")
+                self._backend.restore_to_device()
+                self._last_used_at = time.monotonic()
 
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.
@@ -142,9 +144,16 @@ Model files not found! You need to download the Kokoro V1 model:
             raise RuntimeError("Backend not initialized")
 
         try:
+            logger.info(
+                f"Loading model onto {self._device or 'configured device'} from {path}"
+            )
             await self._backend.load_model(path)
             self._last_used_at = time.monotonic()
             self._schedule_idle_unload_timer_locked()
+            logger.info(
+                f"Model loaded; unload_strategy={self._unload_strategy()} "
+                f"auto_unload_enabled={self._auto_unload_enabled()}"
+            )
         except FileNotFoundError as e:
             raise e
         except Exception as e:
@@ -159,6 +168,37 @@ Model files not found! You need to download the Kokoro V1 model:
     def _auto_unload_enabled(self) -> bool:
         return self._auto_unload_timeout() > 0
 
+    def _backend_is_loaded(self) -> bool:
+        if self._backend is None:
+            return False
+        return getattr(self._backend, "is_loaded", True) is not False
+
+    def _backend_is_cpu_cached(self) -> bool:
+        if self._backend is None:
+            return False
+        return getattr(self._backend, "is_cpu_cached", False) is True
+
+    def _backend_supports_cpu_offload(self) -> bool:
+        if self._backend is None:
+            return self._device in {"cuda", "mps"}
+        return getattr(self._backend, "supports_cpu_offload", False) is True
+
+    def _configured_unload_strategy(self) -> str:
+        return settings.model_unload_strategy
+
+    def _effective_unload_strategy(self) -> str:
+        strategy = self._configured_unload_strategy()
+        if strategy == "move_to_cpu" and not self._backend_supports_cpu_offload():
+            logger.warning(
+                "MODEL_UNLOAD_STRATEGY=move_to_cpu is not supported by the "
+                "current backend/device; using destroy"
+            )
+            return "destroy"
+        return strategy
+
+    def _unload_strategy(self) -> str:
+        return self._effective_unload_strategy()
+
     def _cancel_idle_unload_timer(self) -> None:
         try:
             current_task = asyncio.current_task()
@@ -169,27 +209,58 @@ Model files not found! You need to download the Kokoro V1 model:
             and not self._idle_unload_task.done()
             and self._idle_unload_task is not current_task
         ):
+            logger.debug("Cancelling pending model auto-unload timer")
             self._idle_unload_task.cancel()
         self._idle_unload_task = None
 
     def _unload_backend_locked(self) -> bool:
         if self._backend is None:
+            logger.info("Model unload requested, but no backend is loaded")
             return False
+        strategy = self._unload_strategy()
+        logger.info(f"Unloading model with strategy={strategy}")
+        if strategy == "move_to_cpu" and self._backend.offload_to_cpu():
+            logger.info("Model offloaded from GPU and retained in CPU cache")
+        else:
+            self._backend.unload()
+            self._backend = None
+            logger.info("Model unloaded and backend destroyed")
+        self._last_used_at = time.monotonic()
+        return True
+
+    def _destroy_backend_locked(self) -> bool:
+        if self._backend is None:
+            logger.info("Model destroy requested, but no backend is loaded")
+            return False
+        logger.info("Destroying model backend")
         self._backend.unload()
         self._backend = None
         self._last_used_at = time.monotonic()
+        logger.info("Model backend destroyed")
         return True
 
     def _schedule_idle_unload_timer_locked(self) -> None:
         self._cancel_idle_unload_timer()
-        if (
-            not self._auto_unload_enabled()
-            or self._backend is None
-            or self._active_requests > 0
-        ):
+        if not self._auto_unload_enabled():
+            logger.debug("Model auto-unload timer not scheduled: disabled")
+            return
+        if self._backend is None:
+            logger.debug("Model auto-unload timer not scheduled: no backend loaded")
+            return
+        if self._backend_is_cpu_cached():
+            logger.debug("Model auto-unload timer not scheduled: model is CPU cached")
+            return
+        if self._active_requests > 0:
+            logger.debug(
+                f"Model auto-unload timer not scheduled: {self._active_requests} active request(s)"
+            )
             return
 
         timeout = self._auto_unload_timeout()
+        logger.info(
+            f"Scheduling model auto-unload in {timeout:.1f}s "
+            f"with strategy={self._unload_strategy()}"
+        )
         self._idle_unload_task = asyncio.create_task(self._idle_unload_after(timeout))
 
     async def _idle_unload_after(self, timeout: float) -> None:
@@ -202,13 +273,24 @@ Model files not found! You need to download the Kokoro V1 model:
                     or self._active_requests > 0
                     or self._last_used_at is None
                 ):
+                    logger.debug(
+                        "Model auto-unload skipped when timer fired: "
+                        f"enabled={self._auto_unload_enabled()} "
+                        f"backend_loaded={self._backend is not None} "
+                        f"active_requests={self._active_requests} "
+                        f"last_used_at_set={self._last_used_at is not None}"
+                    )
                     return
 
                 idle_for = time.monotonic() - self._last_used_at
                 if idle_for < self._auto_unload_timeout():
+                    logger.debug(
+                        f"Model auto-unload timer fired early after {idle_for:.1f}s idle; rescheduling"
+                    )
                     self._schedule_idle_unload_timer_locked()
                     return
 
+                logger.info(f"Model idle for {idle_for:.1f}s; auto-unloading now")
                 unloaded = self._unload_backend_locked()
 
             if unloaded:
@@ -219,17 +301,23 @@ Model files not found! You need to download the Kokoro V1 model:
                     f"{self._format_seconds(self._auto_unload_timeout())}"
                 )
         except asyncio.CancelledError:
-            pass
+            logger.debug("Model auto-unload timer cancelled")
 
     async def _begin_request(self) -> None:
         async with self._lock:
             self._active_requests += 1
             self._cancel_idle_unload_timer()
+            logger.debug(
+                f"Model request started; active_requests={self._active_requests}"
+            )
 
     async def _end_request(self) -> None:
         async with self._lock:
             self._active_requests = max(0, self._active_requests - 1)
             self._last_used_at = time.monotonic()
+            logger.debug(
+                f"Model request finished; active_requests={self._active_requests}"
+            )
             self._schedule_idle_unload_timer_locked()
 
     @asynccontextmanager
@@ -257,6 +345,13 @@ Model files not found! You need to download the Kokoro V1 model:
         except Exception as e:
             raise RuntimeError(f"Generation failed: {e}")
 
+    async def warm(self) -> None:
+        """Ensure the model is loaded and resident on the configured device."""
+        await self.ensure_backend()
+        async with self._lock:
+            self._last_used_at = time.monotonic()
+            self._schedule_idle_unload_timer_locked()
+
     def unload_all(self) -> None:
         """Unload model and free resources."""
         self._cancel_idle_unload_timer()
@@ -266,37 +361,49 @@ Model files not found! You need to download the Kokoro V1 model:
 
     async def unload(self) -> None:
         """Release model from GPU memory. Reloads automatically on next request."""
+        logger.info("Manual model unload requested")
         async with self._lock:
             self._cancel_idle_unload_timer()
             self._unload_backend_locked()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        logger.info("Model unloaded from GPU memory")
+        logger.info("Manual model unload completed")
 
     async def reload(self) -> None:
         """Reload the model immediately."""
+        logger.info("Manual model reload requested")
         async with self._lock:
             self._cancel_idle_unload_timer()
-            self._unload_backend_locked()
+            self._destroy_backend_locked()
             await self.initialize()
             await self.load_model(self._config.pytorch_kokoro_v1_file)
             self._schedule_idle_unload_timer_locked()
-        logger.info("Model reloaded")
+        logger.info("Manual model reload completed")
 
     def status(self) -> dict:
         """Return model lifecycle state for API responses."""
         timeout = self._auto_unload_timeout()
+        configured_strategy = self._configured_unload_strategy()
+        effective_strategy = self._effective_unload_strategy()
         idle_for = None
         unload_in = None
         if self._last_used_at is not None:
             idle_for = max(0.0, time.monotonic() - self._last_used_at)
-            if self._auto_unload_enabled() and self._backend is not None:
+            if (
+                self._auto_unload_enabled()
+                and self._backend_is_loaded()
+                and not self._backend_is_cpu_cached()
+            ):
                 unload_in = max(0.0, timeout - idle_for)
         return {
             "backend": self.current_backend,
             "device": self._device,
-            "loaded": self._backend is not None,
+            "loaded": self._backend_is_loaded() and not self._backend_is_cpu_cached(),
+            "cpu_cached": self._backend_is_loaded() and self._backend_is_cpu_cached(),
             "active_requests": self._active_requests,
+            "unload_strategy": effective_strategy,
+            "configured_unload_strategy": configured_strategy,
+            "effective_unload_strategy": effective_strategy,
             "auto_unload_enabled": self._auto_unload_enabled(),
             "auto_unload_timeout_seconds": timeout,
             "idle_seconds": idle_for,

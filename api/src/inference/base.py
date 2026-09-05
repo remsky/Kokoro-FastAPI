@@ -63,6 +63,28 @@ class ModelBackend(ABC):
         """Unload model and free resources."""
         pass
 
+    def offload_to_cpu(self) -> bool:
+        """Move model weights to CPU memory, if supported.
+
+        Returns:
+            True if the model was retained in CPU memory, False if unsupported.
+        """
+        return False
+
+    def restore_to_device(self) -> None:
+        """Restore a CPU-cached model to the configured inference device."""
+        pass
+
+    @property
+    def is_cpu_cached(self) -> bool:
+        """Check whether model weights are retained in CPU memory."""
+        return False
+
+    @property
+    def supports_cpu_offload(self) -> bool:
+        """Check whether this backend can move model weights to CPU memory."""
+        return False
+
     @property
     @abstractmethod
     def is_loaded(self) -> bool:
@@ -110,3 +132,21 @@ class BaseModelBackend(ModelBackend):
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
                 torch.cuda.synchronize()
+
+    def offload_to_cpu(self) -> bool:
+        """Move model weights to CPU memory, if supported."""
+        return False
+
+    def restore_to_device(self) -> None:
+        """Restore a CPU-cached model to the configured inference device."""
+        return None
+
+    @property
+    def is_cpu_cached(self) -> bool:
+        """Check whether model weights are retained in CPU memory."""
+        return False
+
+    @property
+    def supports_cpu_offload(self) -> bool:
+        """Check whether this backend can move model weights to CPU memory."""
+        return False

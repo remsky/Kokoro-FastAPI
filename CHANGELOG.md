@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [v0.8.2-rc1] - unreleased
 ### Added
 - Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
+- `MODEL_UNLOAD_STRATEGY=move_to_cpu` moves model weights from GPU to system RAM on unload, so reloads are faster than the default `destroy` strategy, which reloads from disk.
 - `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
 
 ### Fixed

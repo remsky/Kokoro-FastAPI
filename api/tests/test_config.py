@@ -1,6 +1,8 @@
 """Tests for settings loading."""
 
-import api.src.core.config as config_module
+import pytest
+from pydantic import ValidationError
+
 from api.src.core.config import Settings, unrecognized_env_file_keys
 
 # keys removed from Settings, plus ones that were never fields, that a real .env may still carry
@@ -39,3 +41,11 @@ def test_unrecognized_keys_are_reported(tmp_path, monkeypatch):
 def test_no_env_file_reports_nothing(tmp_path, monkeypatch):
     monkeypatch.setitem(Settings.model_config, "env_file", str(tmp_path / "absent"))
     assert unrecognized_env_file_keys() == []
+
+
+def test_invalid_model_unload_strategy_fails_at_settings_load(tmp_path):
+    env_file = tmp_path / "dotenv"
+    env_file.write_text("MODEL_UNLOAD_STRATEGY=keep_it_spicy\n", encoding="utf-8")
+
+    with pytest.raises(ValidationError):
+        Settings(_env_file=str(env_file))

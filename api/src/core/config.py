@@ -3,6 +3,7 @@ from importlib.metadata import (
     version as _pkg_version,
 )
 from pathlib import Path
+from typing import Literal
 
 import torch
 from dotenv import dotenv_values
@@ -39,10 +40,11 @@ class Settings(BaseSettings):
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
-    allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
+    allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, POST /dev/warm, and POST /dev/reload
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
     )
+    model_unload_strategy: Literal["destroy", "move_to_cpu"] = "destroy"
     enable_debug_endpoints: bool = (
         False  # Whether to expose /debug/* host and process introspection routes
     )

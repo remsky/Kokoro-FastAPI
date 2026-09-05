@@ -37,6 +37,7 @@ def _enable_dev_unload(monkeypatch):
     """Enable the /dev/unload gate for the endpoint tests in this module."""
     monkeypatch.setattr(settings, "allow_dev_unload", True)
     monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.0)
+    monkeypatch.setattr(settings, "model_unload_strategy", "destroy")
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +63,165 @@ async def test_unload_clears_backend():
 
     mock_backend.unload.assert_called_once()
     assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_unload_move_to_cpu_keeps_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
+    mock_backend.offload_to_cpu.return_value = True
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        await manager.unload()
+
+    mock_backend.offload_to_cpu.assert_called_once()
+    mock_backend.unload.assert_not_called()
+    assert manager._backend is mock_backend
+
+
+def test_move_to_cpu_strategy_warns_and_uses_destroy_without_backend_support(
+    monkeypatch,
+):
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    manager._backend = MagicMock()
+    manager._backend.supports_cpu_offload = False
+
+    with patch("api.src.inference.model_manager.logger.warning") as mock_warning:
+        assert manager._unload_strategy() == "destroy"
+
+    mock_warning.assert_called_once_with(
+        "MODEL_UNLOAD_STRATEGY=move_to_cpu is not supported by the "
+        "current backend/device; using destroy"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unload_move_to_cpu_destroys_backend_without_backend_support(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = False
+    manager._backend = mock_backend
+
+    with patch("api.src.inference.model_manager.torch") as mock_torch:
+        mock_torch.cuda.is_available.return_value = False
+        await manager.unload()
+
+    mock_backend.offload_to_cpu.assert_not_called()
+    mock_backend.unload.assert_called_once_with()
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_reload_reloads_cpu_cached_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
+    manager._backend = mock_backend
+
+    with (
+        patch.object(manager, "initialize", new_callable=AsyncMock) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.reload()
+
+    mock_backend.unload.assert_called_once_with()
+    mock_backend.restore_to_device.assert_not_called()
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_reload_reloads_device_resident_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    manager._backend = mock_backend
+
+    with (
+        patch.object(manager, "initialize", new_callable=AsyncMock) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.reload()
+
+    mock_backend.unload.assert_called_once_with()
+    mock_backend.restore_to_device.assert_not_called()
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_warm_restores_cpu_cached_backend(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
+    manager._backend = mock_backend
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.restore_to_device.side_effect = fake_restore
+
+    with (
+        patch.object(manager, "initialize", new_callable=AsyncMock) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.warm()
+
+    mock_backend.restore_to_device.assert_called_once()
+    mock_backend.unload.assert_not_called()
+    mock_init.assert_not_called()
+    mock_load.assert_not_called()
+    assert manager._idle_unload_task is None
+
+
+@pytest.mark.asyncio
+async def test_warm_loads_backend_from_disk_when_unloaded():
+    manager = ModelManager()
+    assert manager._backend is None
+
+    async def fake_initialize():
+        manager._backend = MagicMock()
+
+    with (
+        patch.object(manager, "initialize", side_effect=fake_initialize) as mock_init,
+        patch.object(manager, "load_model", new_callable=AsyncMock) as mock_load,
+    ):
+        await manager.warm()
+
+    mock_init.assert_called_once()
+    mock_load.assert_called_once_with(manager._config.pytorch_kokoro_v1_file)
+    assert manager._backend is not None
 
 
 @pytest.mark.asyncio
@@ -128,6 +288,39 @@ async def test_ensure_backend_serializes_concurrent_reloads():
 
     assert init_count == 1
     assert load_count == 1
+
+
+@pytest.mark.asyncio
+async def test_generate_serializes_concurrent_cpu_cache_restore():
+    """Concurrent callers after CPU offload should restore the backend exactly once."""
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    audio_chunk = AudioChunk(np.zeros(10, dtype=np.float32))
+
+    async def fake_generate(*args, **kwargs):
+        await asyncio.sleep(0)
+        yield audio_chunk
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.generate = fake_generate
+    mock_backend.restore_to_device.side_effect = fake_restore
+    manager._backend = mock_backend
+
+    async def collect_chunks():
+        chunks = []
+        async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+            chunks.append(chunk)
+        return chunks
+
+    results = await asyncio.gather(collect_chunks(), collect_chunks())
+
+    mock_backend.restore_to_device.assert_called_once()
+    assert [len(chunks) for chunks in results] == [1, 1]
+    assert manager._active_requests == 0
 
 
 @pytest.mark.asyncio
@@ -212,6 +405,72 @@ async def test_generate_schedules_idle_unload_when_enabled(monkeypatch):
     assert len(chunks) == 1
     mock_backend.unload.assert_called_once()
     assert manager._backend is None
+
+
+@pytest.mark.asyncio
+async def test_generate_restores_after_move_to_cpu_auto_unload(monkeypatch):
+    """The first request after CPU auto-unload restores before generation."""
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 0.01)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    mock_backend.supports_cpu_offload = True
+    audio_chunk = AudioChunk(np.zeros(10, dtype=np.float32))
+
+    async def fake_generate(*args, **kwargs):
+        yield audio_chunk
+
+    def fake_offload():
+        mock_backend.is_cpu_cached = True
+        return True
+
+    def fake_restore():
+        mock_backend.is_cpu_cached = False
+
+    mock_backend.generate = fake_generate
+    mock_backend.offload_to_cpu.side_effect = fake_offload
+    mock_backend.restore_to_device.side_effect = fake_restore
+    manager._backend = mock_backend
+
+    chunks = []
+    async for chunk in manager.generate("hello", ("voice", "/path/voice.pt")):
+        chunks.append(chunk)
+    await asyncio.sleep(0.03)
+
+    assert len(chunks) == 1
+    mock_backend.offload_to_cpu.assert_called_once()
+    assert manager._backend is mock_backend
+    assert mock_backend.is_cpu_cached is True
+
+    restored_chunks = []
+    async for chunk in manager.generate("again", ("voice", "/path/voice.pt")):
+        restored_chunks.append(chunk)
+
+    mock_backend.restore_to_device.assert_called_once()
+    assert len(restored_chunks) == 1
+    assert mock_backend.is_cpu_cached is False
+    manager._cancel_idle_unload_timer()
+
+
+@pytest.mark.asyncio
+async def test_generate_failed_cpu_cache_restore_cleans_up_active_request():
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.restore_to_device.side_effect = RuntimeError("restore failed")
+    manager._backend = mock_backend
+
+    with pytest.raises(RuntimeError, match="Generation failed: restore failed"):
+        async for _ in manager.generate("hello", ("voice", "/path/voice.pt")):
+            pass
+
+    mock_backend.generate.assert_not_called()
+    assert manager._active_requests == 0
 
 
 @pytest.mark.asyncio
@@ -320,10 +579,56 @@ def test_status_reports_model_lifecycle_state(monkeypatch):
     assert status["device"] == "cuda"
     assert status["loaded"] is True
     assert status["active_requests"] == 0
+    assert status["unload_strategy"] == "destroy"
+    assert status["configured_unload_strategy"] == "destroy"
+    assert status["effective_unload_strategy"] == "destroy"
+    assert status["cpu_cached"] is False
     assert status["auto_unload_enabled"] is True
     assert status["auto_unload_timeout_seconds"] == 30.0
     assert status["idle_seconds"] == 5.0
     assert status["seconds_until_auto_unload"] == 25.0
+
+
+def test_status_reports_cpu_cached_state(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+    monkeypatch.setattr(settings, "model_auto_unload_timeout_seconds", 30.0)
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = True
+    mock_backend.supports_cpu_offload = True
+    manager._backend = mock_backend
+    manager._last_used_at = 10.0
+
+    with patch("api.src.inference.model_manager.time.monotonic", return_value=15.0):
+        status = manager.status()
+
+    assert status["loaded"] is False
+    assert status["cpu_cached"] is True
+    assert status["unload_strategy"] == "move_to_cpu"
+    assert status["configured_unload_strategy"] == "move_to_cpu"
+    assert status["effective_unload_strategy"] == "move_to_cpu"
+    assert status["seconds_until_auto_unload"] is None
+
+
+def test_status_reports_destroy_when_move_to_cpu_is_not_supported(monkeypatch):
+    monkeypatch.setattr(settings, "use_gpu", True)
+    monkeypatch.setattr(settings, "model_unload_strategy", "move_to_cpu")
+
+    manager = ModelManager()
+    mock_backend = MagicMock()
+    mock_backend.is_loaded = True
+    mock_backend.is_cpu_cached = False
+    mock_backend.supports_cpu_offload = False
+    manager._backend = mock_backend
+
+    status = manager.status()
+
+    assert status["configured_unload_strategy"] == "move_to_cpu"
+    assert status["effective_unload_strategy"] == "destroy"
+    assert status["unload_strategy"] == "destroy"
 
 
 # ---------------------------------------------------------------------------
@@ -416,6 +721,43 @@ def test_reload_endpoint_returns_status():
     assert response.status_code == 200
     assert response.json() == {"status": "loaded", "model": {"loaded": True}}
     mock_manager.reload.assert_called_once()
+
+
+def test_warm_endpoint_returns_status():
+    mock_manager = MagicMock()
+    mock_manager.warm = AsyncMock()
+    mock_manager.status.return_value = {"loaded": True}
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "loaded", "model": {"loaded": True}}
+    mock_manager.warm.assert_called_once()
+
+
+def test_warm_endpoint_403_when_disabled(monkeypatch):
+    monkeypatch.setattr(settings, "allow_dev_unload", False)
+    mock_manager = MagicMock()
+    mock_manager.warm = AsyncMock()
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 403
+    mock_manager.warm.assert_not_called()
+
+
+def test_warm_endpoint_503_when_manager_none():
+    service = _mock_service(manager=None)
+
+    with override_tts_service(service):
+        response = client.post("/dev/warm")
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["error"] == "Model manager not initialized"
 
 
 def test_model_status_endpoint_returns_status():

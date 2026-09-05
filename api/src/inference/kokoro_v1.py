@@ -1,6 +1,8 @@
 """Clean Kokoro implementation with controlled resource management."""
 
+import gc
 import os
+from enum import Enum
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -17,6 +19,14 @@ from .base import AudioChunk, BaseModelBackend
 _ESPEAK_TS_SCALE = (
     2.0 / 80.0
 )  # pred_dur unit -> seconds (matches KPipeline.join_timestamps)
+
+
+class ModelResidency(str, Enum):
+    """Where the Kokoro model weights currently live."""
+
+    UNLOADED = "unloaded"
+    CPU = "cpu"
+    DEVICE = "device"
 
 
 def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
@@ -89,6 +99,7 @@ class KokoroV1(BaseModelBackend):
         # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
+        self._residency = ModelResidency.UNLOADED
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
         self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
 
@@ -144,11 +155,58 @@ class KokoroV1(BaseModelBackend):
                 self._model = self._model.cuda()
             else:
                 self._model = self._model.cpu()
+            self._residency = ModelResidency.DEVICE
 
         except FileNotFoundError:
             raise
         except Exception as e:
             raise RuntimeError(f"Failed to load Kokoro model: {e}")
+
+    def _move_model_to_device(self) -> None:
+        """Move a CPU-cached model back to the configured inference device."""
+        if self._model is None:
+            self._residency = ModelResidency.UNLOADED
+            return
+        if self._residency != ModelResidency.CPU:
+            return
+
+        logger.info(f"Moving CPU-cached Kokoro model back to {self._device}")
+        if self._device == "mps":
+            self._model = self._model.to(torch.device("mps"))
+        elif self._device == "cuda":
+            self._model = self._model.cuda()
+            torch.cuda.synchronize()
+        else:
+            self._model = self._model.cpu()
+        self._residency = ModelResidency.DEVICE
+        logger.info(f"CPU-cached Kokoro model restored to {self._device}")
+
+    def restore_to_device(self) -> None:
+        """Restore a CPU-cached model to the configured inference device."""
+        self._move_model_to_device()
+
+    def _clear_runtime_caches(self) -> None:
+        """Release cached objects that can hold device tensors."""
+        self._pipelines.clear()
+        self._voice_cache.clear()
+
+    def offload_to_cpu(self) -> bool:
+        """Move the model out of VRAM while retaining weights in system RAM."""
+        if self._model is None:
+            self._residency = ModelResidency.UNLOADED
+            return False
+        if self._device not in {"cuda", "mps"}:
+            return False
+
+        logger.info("Moving Kokoro model to CPU cache")
+        self._clear_runtime_caches()
+        self._model = self._model.cpu()
+        self._residency = ModelResidency.CPU
+        self._clear_runtime_caches()
+        gc.collect()
+        self._clear_memory()
+        logger.info("Kokoro model offloaded to CPU cache and device caches cleared")
+        return True
 
     def _get_pipeline(self, lang_code: str) -> KPipeline:
         """Get or create pipeline for language code.
@@ -449,6 +507,8 @@ class KokoroV1(BaseModelBackend):
         """Clear device memory."""
         if self._device == "cuda":
             torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                torch.cuda.ipc_collect()
             torch.cuda.synchronize()
         elif self._device == "mps":
             # Empty cache if available (future-proofing)
@@ -457,16 +517,31 @@ class KokoroV1(BaseModelBackend):
 
     def unload(self) -> None:
         """Unload model and free resources."""
+        logger.info("Destroying Kokoro model backend state")
         if self._model is not None:
             del self._model
             self._model = None
-        for pipeline in self._pipelines.values():
-            del pipeline
-        self._pipelines.clear()
-        self._voice_cache.clear()
+        self._residency = ModelResidency.UNLOADED
+        self._clear_runtime_caches()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+        logger.info("Kokoro model backend state destroyed")
+
+    @property
+    def is_cpu_cached(self) -> bool:
+        """Check if model weights are retained in CPU RAM after device unload."""
+        return self._residency == ModelResidency.CPU
+
+    @property
+    def residency(self) -> ModelResidency:
+        """Get current model residency state."""
+        return self._residency
+
+    @property
+    def supports_cpu_offload(self) -> bool:
+        """Check whether this backend can move model weights to CPU memory."""
+        return self._device in {"cuda", "mps"}
 
     @property
     def is_loaded(self) -> bool:

@@ -23,6 +23,8 @@ services:
     environment:  # full list in docs/configuration.md
       - API_LOG_LEVEL=DEBUG
       # - ALLOW_DEV_UNLOAD=true
+      # - MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS=300
+      # - MODEL_UNLOAD_STRATEGY=move_to_cpu
       # - ENABLE_DEBUG_ENDPOINTS=true
     deploy:
       resources:

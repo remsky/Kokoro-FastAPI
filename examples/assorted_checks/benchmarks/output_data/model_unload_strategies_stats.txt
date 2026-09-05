@@ -1,0 +1,132 @@
+=== Model Unload Strategy - destroy ===
+
+# timing
+
+unload_seconds_average: 0.027
+unload_seconds_standard_deviation: 0.015
+
+warm_seconds_average: 0.979
+warm_seconds_standard_deviation: 0.189
+
+first_generation_seconds_average: 0.725
+first_generation_seconds_standard_deviation: 0.021
+
+# memory usage
+
+## vram
+
+vram_before_unload_mb_average: 1122.800
+vram_before_unload_mb_standard_deviation: 302.343
+
+vram_after_unload_mb_average: 630.800
+vram_after_unload_mb_standard_deviation: 311.106
+
+vram_delta_after_unload_mb_average: -492.000
+vram_delta_after_unload_mb_standard_deviation: 250.567
+
+vram_after_warm_mb_average: 880.400
+vram_after_warm_mb_standard_deviation: 276.284
+
+vram_delta_after_warm_mb_average: 249.600
+vram_delta_after_warm_mb_standard_deviation: 139.760
+
+## service rss
+
+service_rss_before_unload_mb_average: 2244.032
+service_rss_before_unload_mb_standard_deviation: 270.690
+
+service_rss_after_unload_mb_average: 2223.369
+service_rss_after_unload_mb_standard_deviation: 273.648
+
+service_rss_delta_after_unload_mb_average: -20.663
+service_rss_delta_after_unload_mb_standard_deviation: 13.796
+
+service_rss_after_warm_mb_average: 2323.656
+service_rss_after_warm_mb_standard_deviation: 51.591
+
+service_rss_delta_after_warm_mb_average: 100.287
+service_rss_delta_after_warm_mb_standard_deviation: 224.946
+
+## system ram
+
+system_ram_before_unload_mb_average: 16788.987
+system_ram_before_unload_mb_standard_deviation: 389.779
+
+system_ram_after_unload_mb_average: 16766.025
+system_ram_after_unload_mb_standard_deviation: 347.804
+
+system_ram_delta_after_unload_mb_average: -22.962
+system_ram_delta_after_unload_mb_standard_deviation: 51.630
+
+system_ram_after_warm_mb_average: 16971.101
+system_ram_after_warm_mb_standard_deviation: 253.831
+
+system_ram_delta_after_warm_mb_average: 205.076
+system_ram_delta_after_warm_mb_standard_deviation: 146.543
+
+=== Model Unload Strategy - move_to_cpu ===
+
+# timing
+
+unload_seconds_average: 0.299
+unload_seconds_standard_deviation: 0.022
+
+warm_seconds_average: 0.078
+warm_seconds_standard_deviation: 0.007
+
+first_generation_seconds_average: 0.778
+first_generation_seconds_standard_deviation: 0.065
+
+# memory usage
+
+## vram
+
+vram_before_unload_mb_average: 915.600
+vram_before_unload_mb_standard_deviation: 10.139
+
+vram_after_unload_mb_average: 715.600
+vram_after_unload_mb_standard_deviation: 76.045
+
+vram_delta_after_unload_mb_average: -200.000
+vram_delta_after_unload_mb_standard_deviation: 72.609
+
+vram_after_warm_mb_average: 846.000
+vram_after_warm_mb_standard_deviation: 4.472
+
+vram_delta_after_warm_mb_average: 130.400
+vram_delta_after_warm_mb_standard_deviation: 74.584
+
+## service rss
+
+service_rss_before_unload_mb_average: 1825.076
+service_rss_before_unload_mb_standard_deviation: 18.518
+
+service_rss_after_unload_mb_average: 2061.188
+service_rss_after_unload_mb_standard_deviation: 19.306
+
+service_rss_delta_after_unload_mb_average: 236.112
+service_rss_delta_after_unload_mb_standard_deviation: 6.364
+
+service_rss_after_warm_mb_average: 1774.890
+service_rss_after_warm_mb_standard_deviation: 13.488
+
+service_rss_delta_after_warm_mb_average: -286.298
+service_rss_delta_after_warm_mb_standard_deviation: 5.858
+
+## system ram
+
+system_ram_before_unload_mb_average: 16433.869
+system_ram_before_unload_mb_standard_deviation: 375.572
+
+system_ram_after_unload_mb_average: 16613.960
+system_ram_after_unload_mb_standard_deviation: 346.570
+
+system_ram_delta_after_unload_mb_average: 180.091
+system_ram_delta_after_unload_mb_standard_deviation: 63.984
+
+system_ram_after_warm_mb_average: 16439.084
+system_ram_after_warm_mb_standard_deviation: 455.429
+
+system_ram_delta_after_warm_mb_average: -174.877
+system_ram_delta_after_warm_mb_standard_deviation: 131.665
+
