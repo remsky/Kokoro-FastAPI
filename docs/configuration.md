@@ -151,6 +151,12 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_TEMP_DIR_AGE_HOURS` | `1` | Prune temp files older than this |
 | `MAX_TEMP_DIR_COUNT` | `3` | Keep at most this many temp files |
 
+**Hardware**
+
+| Variable | Default | |
+|---|---|---|
+| `ENABLE_MIOPEN` | `false` | Keep MIOpen enabled on ROCm. Off by default because MIOpen compiles a kernel per tensor shape, which negatively impacts performance as Kokoro hits it every request |
+
 **Operational routes**
 
 | Variable | Default | |
