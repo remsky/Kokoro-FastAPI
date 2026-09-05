@@ -101,25 +101,11 @@ export class AudioService {
             this.downloadName = this.buildDownloadName(voice, responseFormat);
 
             const apiUrl = await config.getApiUrl('/v1/audio/speech');
+            const requestBody = this.buildRequestBody(text, voice, speed, options, responseFormat);
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    input: text,
-                    voice: voice,
-                    response_format: responseFormat,
-                    download_format: responseFormat,
-                    stream: true,
-                    speed: speed,
-                    return_download_link: true,
-                    return_timing: true,
-                    lang_code: document.getElementById('lang-select').value || undefined,
-                    allow_voice_tags: options.allowVoiceTags || undefined,
-                    // short names only mean something alongside the map that defines them
-                    voice_aliases: Object.keys(options.voiceAliases || {}).length
-                        ? options.voiceAliases
-                        : undefined
-                }),
+                body: JSON.stringify(requestBody),
                 signal: this.controller.signal
             }).catch(error => {
                 // Handle abort errors gracefully
@@ -606,6 +592,40 @@ export class AudioService {
             .replace(/[^A-Za-z0-9._-]+/g, '_')
             .replace(/^[._-]+|[._-]+$/g, '');
         return `${safeVoice || 'speech'}_${stamp}.${format}`;
+    }
+
+    buildRequestBody(text, voice, speed, options = {}, responseFormat = null) {
+        const format = responseFormat || options.responseFormat || (typeof document !== 'undefined'
+            ? document.getElementById('format-select')?.value || 'mp3'
+            : 'mp3');
+        const langCode = typeof document !== 'undefined'
+            ? document.getElementById('lang-select')?.value || undefined
+            : undefined;
+        const normalizeToggle = typeof document !== 'undefined'
+            ? document.getElementById('normalize-toggle')
+            : null;
+
+        const body = {
+            input: text,
+            voice: voice,
+            response_format: format,
+            download_format: format,
+            stream: true,
+            speed: speed,
+            return_download_link: true,
+            return_timing: true,
+            lang_code: langCode,
+            allow_voice_tags: options.allowVoiceTags || undefined,
+            voice_aliases: Object.keys(options.voiceAliases || {}).length
+                ? options.voiceAliases
+                : undefined
+        };
+
+        if (normalizeToggle && normalizeToggle.checked === false) {
+            body.normalization_options = { normalize: false };
+        }
+
+        return body;
     }
 
     async getTimingUrl() {
