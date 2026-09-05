@@ -34,7 +34,7 @@ The general instructions must also still be followed, same as any contributor, a
 
 - Commit and PR titles use conventional style with a scope: `fix(audio): ...`, `feat(api): ...`, `chore(docker): ...`.
 - Every behavior change ships with a test (`api/tests/test_*.py` or `web/tests/`).
-- Add a `CHANGELOG.md` entry for user-visible changes. Don't bump `VERSION`; that happens at release time.
+- Add a `CHANGELOG.md` entry for user-visible changes, written as what the user notices, not how it was built. Don't bump `VERSION`; that happens at release time.
 - Endpoints that surface host, process, or model internals go behind an opt-in setting in `api/src/core/config.py` (see `enable_debug_endpoints`, `allow_dev_unload`) to avoid unintentional exposure on shared deployments. Features that interpret user-supplied text get a default-on kill switch instead (see `enable_voice_tags`).
 - Keep changes small and modular; match the surrounding style.
 
@@ -44,4 +44,5 @@ The general instructions must also still be followed, same as any contributor, a
 - Trust me on the above point. The dependencies are touchy for this stack. 
 - Local (non-Docker) runs need espeak-ng installed and on PATH; the Docker images handle this separately.
 - Japanese support (`misaki[ja]`) requires the full UniDic dictionary (~526MB), not `unidic-lite`. CI caches it.
+- Workflow actions are pinned to commit SHAs with a `# vX.Y.Z` comment. Dependabot bumps them monthly; don't hand-edit refs back to tags.
 - The release/publish workflow triggers itself on push to the `release` branch. It should never never be triggered manually. Tag @remsky to do so. 

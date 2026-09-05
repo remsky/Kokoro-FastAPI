@@ -45,7 +45,7 @@ Before submitting changes, please ensure all tests pass as this is a automated r
 # Make sure your virtual environment is activated
 uv run pytest
 ```
-*Note: The CI workflow runs tests using `uv run pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing`. Running `uv run pytest` locally should cover the essential checks.*
+*Note: The CI workflow runs tests using `uv run pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml`. Running `uv run pytest` locally should cover the essential checks.*
 
 ## Testing with Docker Compose
 
