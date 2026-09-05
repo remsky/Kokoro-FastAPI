@@ -63,6 +63,22 @@
     color: var(--text);
 }
 
+.settings-options {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-top: 0.1rem;
+}
+
+.setting-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--text-light);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
 /* ── generate */
 .generate-card {
     display: flex;

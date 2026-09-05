@@ -18,6 +18,8 @@ description: "Contributing to the Kokoro-FastAPI web player: vanilla JS constrai
 - File downloads go through `App.triggerDownload(url, name)`, don't hand-roll anchor clicks.
 - Outside-click dismissal uses `closeOnOutsidePress` from `dismiss.js`.
 - Fire-and-forget promises still need a `.catch` that surfaces via `showStatus`.
+- Settings checkboxes copy `.autoplay-toggle` (player.css): one rule, no `:hover` split, no per-control `accent-color`, `:root` sets it.
+- Services take request values as arguments (`buildRequestBody(..., responseFormat)`). Read a control once in the caller, don't re-query it inside the service.
 
 ## Testing
 

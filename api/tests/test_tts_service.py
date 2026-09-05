@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -7,6 +8,7 @@ import pytest
 import torch
 
 from api.src.inference.base import AudioChunk
+from api.src.inference.kokoro_v1 import KokoroV1
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -224,6 +226,78 @@ async def test_split_multi_voice_lang_code_per_speaker():
 
 
 @pytest.mark.asyncio
+async def test_split_multi_voice_default_voice_code_used_when_no_lang_code():
+    """settings.default_voice_code is used when no explicit lang_code is given.
+
+    Regression test for issue #514: voices whose filename does not begin with a
+    recognised language code were silently matched against the wrong pipeline
+    (or produced empty audio) because default_voice_code was never consulted.
+    """
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+        patch("api.src.services.tts_service.settings") as mock_settings,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+        mock_settings.default_voice_code = "a"
+        mock_settings.voice_weight_normalization = True
+
+        service = await TTSService.create()
+        # "ursa" does not start with a valid lang prefix; without the fix it
+        # resolves to "u", which is not a Kokoro pipeline and yields empty audio.
+        service.get_voices_path = AsyncMock(
+            side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+        )
+
+        langs = [
+            lang
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
+                service._split_multi_voice("Hello.", "ursa", None, None)
+            )
+        ]
+
+        assert langs == ["a"], (
+            "default_voice_code should be used when lang_code is absent and the "
+            "voice name has no recognised language prefix"
+        )
+
+
+@pytest.mark.asyncio
+async def test_split_multi_voice_explicit_lang_code_beats_default():
+    """An explicit request lang_code takes priority over settings.default_voice_code."""
+    model_manager = AsyncMock()
+    voice_manager = AsyncMock()
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+        patch("api.src.services.tts_service.settings") as mock_settings,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = voice_manager
+        mock_settings.default_voice_code = "a"
+        mock_settings.voice_weight_normalization = True
+
+        service = await TTSService.create()
+        service.get_voices_path = AsyncMock(
+            side_effect=lambda voice: (voice, f"/path/to/{voice}.pt")
+        )
+
+        langs = [
+            lang
+            async for _name, _path, lang, _rate, _text, _tokens, _pause in (
+                service._split_multi_voice("Hello.", "ursa", "b", None)
+            )
+        ]
+
+        assert langs == ["b"], "explicit lang_code must win over default_voice_code"
+
+
+@pytest.mark.asyncio
 async def test_split_multi_voice_explicit_lang_code_wins():
     """An explicit request lang_code overrides every speaker's prefix."""
     model_manager = AsyncMock()
@@ -252,6 +326,39 @@ async def test_split_multi_voice_explicit_lang_code_wins():
         ]
 
         assert langs == ["e", "e"]
+
+
+@pytest.mark.asyncio
+async def test_generate_from_phonemes_uses_default_voice_code():
+    """The phoneme endpoint honours default_voice_code, like the speech path."""
+
+    @asynccontextmanager
+    async def noop_hold():
+        yield
+
+    model_manager = AsyncMock()
+    model_manager.hold = MagicMock(return_value=noop_hold())
+    backend = MagicMock(spec=KokoroV1)
+    backend._get_pipeline.return_value.generate_from_tokens.return_value = [
+        MagicMock(audio=torch.zeros(4))
+    ]
+    model_manager.get_backend = MagicMock(return_value=backend)
+
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+        patch("api.src.services.tts_service.settings") as mock_settings,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = AsyncMock()
+        mock_settings.default_voice_code = "a"
+
+        service = await TTSService.create()
+        service.get_voices_path = AsyncMock(return_value=("ursa", "/path/to/ursa.pt"))
+
+        await service.generate_from_phonemes("h@lˈO", "ursa")
+
+        backend._get_pipeline.assert_called_once_with("a")
 
 
 async def _stubbed_service():

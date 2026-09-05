@@ -4,6 +4,21 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [v0.8.2] - 2026-09-05
+### Added
+- Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
+- `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
+- Web player: `Normalize text` toggle in settings, off sends input as written (#391, #523 by @webdevsamran).
+
+### Changed
+- Sentence splitting via UAX #29 segmentation instead of regex; e.g: `etc.`, `Dr.`, and CJK punctuation split more accurately (#308, adapts #415 by @lionel-rowe).
+- ROCm: MIOpen off by default for better performance re: tensor shape recompilation (2.4s vs 0.27s on gfx1100). `ENABLE_MIOPEN=true` restores it (#518 by @s-kerdel).
+- Compose files no longer mount `api/` or set defaults already baked into the image (`DOWNLOAD_MODEL`, `PYTHONPATH`, etc).
+
+### Fixed
+- `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
+- Entrypoint and `start-*.sh` honour `HOST` / `PORT`, so `HOST=::` binds IPv6-only (#408, reported by @felixls).
+
 ## [v0.8.1] - 2026-08-24
 ### Fixed
 - `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).

@@ -81,7 +81,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `HOST` | `0.0.0.0` | Bind address |
+| `HOST` | `0.0.0.0` | Bind address, `::` for IPv6-only or dual-stack |
 | `PORT` | `8880` | Bind port |
 | `API_TITLE` | `Kokoro TTS API` | OpenAPI title |
 | `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
@@ -105,7 +105,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | Variable | Default | |
 |---|---|---|
 | `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
-| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter |
+| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter. Applies to every speaker, so a `[voice:]` dialogue mixing languages is forced onto this one |
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
 | `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
@@ -151,12 +151,19 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_TEMP_DIR_AGE_HOURS` | `1` | Prune temp files older than this |
 | `MAX_TEMP_DIR_COUNT` | `3` | Keep at most this many temp files |
 
+**Hardware**
+
+| Variable | Default | |
+|---|---|---|
+| `ENABLE_MIOPEN` | `false` | Keep MIOpen enabled on ROCm. Off by default because MIOpen compiles a kernel per tensor shape, which negatively impacts performance as Kokoro hits it every request |
+
 **Operational routes**
 
 | Variable | Default | |
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
-| `ALLOW_DEV_UNLOAD` | `false` | Expose `POST /dev/unload` |
+| `ALLOW_DEV_UNLOAD` | `false` | Expose `/dev/model`, `POST /dev/unload`, and `POST /dev/reload` |
+| `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `0.0` | Idle seconds before auto-unload; `0` disables auto-unload |
 
 ## Logging
 

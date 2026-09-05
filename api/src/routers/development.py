@@ -496,3 +496,50 @@ async def unload_model(
     except Exception as e:
         logger.error(f"Error unloading model: {e}")
         raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@router.post("/dev/reload")
+async def reload_model(
+    tts_service: TTSService = Depends(get_tts_service),
+):
+    """Reload the model immediately.
+
+    Normal inference also reloads lazily after an unload; this endpoint is useful
+    when you want to pre-warm the model before the next request.
+    """
+    if not settings.allow_dev_unload:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "The /dev/reload endpoint is disabled"},
+        )
+    try:
+        if tts_service.model_manager is None:
+            raise HTTPException(
+                status_code=503, detail={"error": "Model manager not initialized"}
+            )
+        await tts_service.model_manager.reload()
+        return JSONResponse(
+            {"status": "loaded", "model": tts_service.model_manager.status()}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error reloading model: {e}")
+        raise HTTPException(status_code=500, detail={"error": str(e)})
+
+
+@router.get("/dev/model")
+async def model_status(
+    tts_service: TTSService = Depends(get_tts_service),
+):
+    """Return model load state and auto-unload settings."""
+    if not settings.allow_dev_unload:
+        raise HTTPException(
+            status_code=403,
+            detail={"error": "The /dev/model endpoint is disabled"},
+        )
+    if tts_service.model_manager is None:
+        raise HTTPException(
+            status_code=503, detail={"error": "Model manager not initialized"}
+        )
+    return JSONResponse(tts_service.model_manager.status())

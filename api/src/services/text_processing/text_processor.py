@@ -6,6 +6,7 @@ import time
 from typing import AsyncGenerator, Dict, Iterator, List, Optional, Tuple
 
 from loguru import logger
+from unicode_segmentation_rs import unicode_sentences
 
 from ...core.config import settings
 from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
@@ -101,26 +102,12 @@ def get_sentence_info(
     text: str, lang_code: str = "a"
 ) -> Iterator[Tuple[str, List[int], int]]:
     """Yield (sentence, tokens, token_count) per sentence, phonemizing lazily."""
-    # Detect Chinese text
-    is_chinese = lang_code.startswith("z") or re.search(r"[\u4e00-\u9fff]", text)
-    if is_chinese:
-        # Split using Chinese punctuation
-        sentences = re.split(r"([，。！？；])+", text)
-    else:
-        sentences = re.split(r"([.!?;:])(?=\s|$)", text)
-
-    for i in range(0, len(sentences), 2):
-        sentence = sentences[i].strip()
-        punct = sentences[i + 1] if i + 1 < len(sentences) else ""
+    for sentence in unicode_sentences(text):
+        sentence = sentence.strip()
         if not sentence:
             continue
-        full = sentence + punct
-        # Strip the full sentence to remove any leading/trailing spaces before processing
-        full = full.strip()
-        if not full:  # Skip if empty after stripping
-            continue
-        tokens = process_text_chunk(full)
-        yield full, tokens, len(tokens)
+        tokens = process_text_chunk(sentence)
+        yield sentence, tokens, len(tokens)
 
 
 def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]]:
@@ -267,7 +254,7 @@ async def smart_split(
                         current_count = 0
 
                     # Split long sentence on commas
-                    clauses = re.split(r"([,])", sentence)
+                    clauses = re.split(r"([,;:，、；：])", sentence)
                     clause_chunk = []
                     clause_tokens = []
                     clause_count = 0

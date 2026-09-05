@@ -1,7 +1,7 @@
 name: kokoro-fastapi-rocm
 services:
   kokoro-tts:
-      # image: ghcr.io/remsky/kokoro-fastapi-rocm:${VERSION:-latest}
+      image: ghcr.io/remsky/kokoro-fastapi-rocm:${VERSION:-latest}
       build:
         context: ../..
         dockerfile: docker/rocm/Dockerfile

@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
     
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
     
     # Match Dockerfile dependencies
     - name: Install Dependencies
@@ -32,10 +32,14 @@ jobs:
           cmake
     
     - name: Install uv
-      uses: astral-sh/setup-uv@v5
+      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
       with:
         python-version: ${{ matrix.python-version }}
         enable-cache: true
     - name: Run Tests
       run: |
-        uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing
+        uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml
+    - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: coverage.xml

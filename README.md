@@ -3,19 +3,20 @@
 
 <a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-303-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-71%25-tan)]()
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md)
+[![Coverage](https://codecov.io/gh/remsky/Kokoro-FastAPI/graph/badge.svg)](https://codecov.io/gh/remsky/Kokoro-FastAPI) [![CI](https://github.com/remsky/Kokoro-FastAPI/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/remsky/Kokoro-FastAPI/actions/workflows/ci.yml)
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::41e5892-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/41e5892b9d8b43e56fc560f892312a328a410973) 
 
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-2.2M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-2.5M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
 
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
-
+> [!NOTE]
+> Looking for custom voices? Try the [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
@@ -712,6 +713,8 @@ Key Performance Metrics:
 
 Floor is host + CUDA context. Reproduce with `uv run --extra benchmarks assorted_checks/benchmarks/benchmark_model_unload.py` from `examples/`.
 
+To automatically unload the model after an idle timeout, set `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` to a positive number of seconds. The default `0` disables auto-unload.
+
 ### Transcription roundtrip (WER/CER)
 
 End-to-end roundtrip: synthesize with Kokoro, transcribe the result back with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper), compare to the source text. Scripts and data live under `examples/assorted_checks/test_transcription/`.
@@ -759,7 +762,9 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/threads` - Get thread information and stack traces
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
+- `/dev/model` - Get model load state and auto-unload timing. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 - `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
+- `POST /dev/reload` - Load the model into VRAM. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
 </details>
