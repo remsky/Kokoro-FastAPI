@@ -3,8 +3,8 @@
 
 <a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
 
-[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md) [![Tests](https://img.shields.io/badge/tests-303-darkgreen)]()
-[![Coverage](https://img.shields.io/badge/coverage-71%25-tan)]()
+[![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md)
+[![Coverage](https://codecov.io/gh/remsky/Kokoro-FastAPI/graph/badge.svg)](https://codecov.io/gh/remsky/Kokoro-FastAPI) [![CI](https://github.com/remsky/Kokoro-FastAPI/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/remsky/Kokoro-FastAPI/actions/workflows/ci.yml)
 
 [![Kokoro](https://img.shields.io/badge/kokoro-0.9.4-BB5420)](https://github.com/hexgrad/kokoro)
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
@@ -16,7 +16,7 @@
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
 > [!NOTE]
-> Looking for custom voices? Try the new [Inno Voice Clone-Tuner](https://huggingface.co/spaces/Remsky/kokoro-clone-tune-generator)
+> Looking for custom voices? Try the [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese

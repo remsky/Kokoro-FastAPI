@@ -11,6 +11,7 @@ __pycache__/
 .Python
 .pytest_cache
 .coverage
+coverage.xml
 .coveragerc
 
 # Python package build artifacts
