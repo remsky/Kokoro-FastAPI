@@ -485,7 +485,13 @@ def normalize_text(text: str, normalization_options: NormalizationOptions) -> st
     text = re.sub(r"(?<=\n) +(?=\n)", "", text)
 
     # Handle special characters that might cause audio artifacts first
-    # Replace newlines with spaces (or pauses if needed)
+    # Paragraph breaks (\n\n) are converted to a period so the TTS engine
+    # treats them as sentence boundaries and produces a natural pause.
+    # Only insert a period when the preceding non-whitespace character is not
+    # already sentence-ending punctuation, avoiding double punctuation.
+    text = re.sub(r"([^\.\!\?])\n\n+", r"\1. ", text)
+    text = re.sub(r"([\.\!\?])\n\n+", r"\1 ", text)
+    # Single newlines become spaces.
     text = text.replace("\n", " ")
     text = text.replace("\r", " ")
 

@@ -394,3 +394,59 @@ def test_re_contraction_expansion_without_apostrophe():
         )
         == "Therefore the genre was hardcore before more."
     )
+
+
+def test_paragraph_breaks_preserved_as_sentence_boundary():
+    """Paragraph breaks (\\n\\n) must become a sentence-ending period so the
+    TTS engine inserts a natural pause between sections.  Without this fix the
+    normalizer merged heading and body text into one continuous phrase."""
+    # Bare heading followed by body text
+    assert (
+        normalize_text(
+            "Steven Erikson\n\nFive riders drew rein in the pass.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Steven Erikson. Five riders drew rein in the pass."
+    )
+
+
+def test_paragraph_break_no_double_punctuation():
+    """When the paragraph already ends with sentence punctuation, no extra
+    period should be inserted."""
+    assert (
+        normalize_text(
+            "End of chapter.\n\nNew chapter begins.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "End of chapter. New chapter begins."
+    )
+    assert (
+        normalize_text(
+            "Really?\n\nYes.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Really? Yes."
+    )
+
+
+def test_single_newline_becomes_space():
+    """A single newline (soft line break) is still collapsed to a space."""
+    assert (
+        normalize_text(
+            "Line one\nLine two",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Line one Line two"
+    )
+
+
+def test_multiple_blank_lines_treated_as_paragraph_break():
+    """Three or more consecutive newlines should be treated like a single
+    paragraph break, not produce extra periods."""
+    assert (
+        normalize_text(
+            "Heading\n\n\nBody text.",
+            normalization_options=NormalizationOptions(),
+        )
+        == "Heading. Body text."
+    )
