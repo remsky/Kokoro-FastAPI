@@ -1,0 +1,68 @@
+name: Sydes
+
+# Sydes runs as an independent PR check alongside the repository's existing CI.
+# It analyzes what the change can affect and what still lacks verification
+# evidence; it does not run this repository's test suite (CI owns that).
+
+on:
+  pull_request:
+    branches: [ "master" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sydes-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify-change:
+    name: Sydes verify-change
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      # Full history: Sydes resolves the change with `git merge-base <base> HEAD`,
+      # so both the PR head and the PR base commit must be present locally.
+      - name: Check out PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Sydes
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "git+https://github.com/sydes-ai/sydes.git"
+
+      - name: Run Sydes verify-change
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # The impact guide requires the Codebase Memory backend; the default
+          # backend is `native`, which would silently skip semantic inference.
+          SYDES_CODE_INTELLIGENCE: cbm
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          sydes verify-change \
+            --base "$BASE_SHA" \
+            --repo app=. \
+            --llm-policy auto \
+            --impact-guide auto \
+            --code-review \
+            --model openai:gpt-4.1-mini \
+            --no-run-tests \
+            --verbose \
+            --json sydes-result.json
+
+      - name: Upload Sydes result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sydes-result
+          path: sydes-result.json
+          if-no-files-found: warn
