@@ -3,14 +3,14 @@
 import math
 import re
 import time
-from typing import AsyncGenerator, Dict, Iterator, List, Optional, Tuple
+from typing import AsyncGenerator, Iterator, List, Optional, Tuple
 
 from loguru import logger
 from unicode_segmentation_rs import unicode_sentences
 
 from ...core.config import settings
 from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
-from .normalizer import normalize_text
+from .normalization import get_normalizer
 from .phonemizer import phonemize
 from .vocabulary import tokenize
 
@@ -20,6 +20,8 @@ from .vocabulary import tokenize
 CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
+PARAGRAPH_PATTERN = re.compile(r"(?:\r?\n[^\S\r\n]*){2,}")
+LINE_PATTERN = re.compile(r"\r?\n[^\S\r\n]*")
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
 # Pattern to find voice, rate, and alias base-rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
@@ -66,36 +68,6 @@ def process_text_chunk(
     )
 
     return tokens
-
-
-async def yield_chunk(
-    text: str, tokens: List[int], chunk_count: int
-) -> Tuple[str, List[int]]:
-    """Yield a chunk with consistent logging."""
-    logger.debug(
-        f"Yielding chunk {chunk_count}: '{text[:50]}{'...' if len(text) > 50 else ''}' ({len(tokens)} tokens)"
-    )
-    return text, tokens
-
-
-def process_text(text: str, language: str = "a") -> List[int]:
-    """Process text into token IDs.
-
-    Args:
-        text: Text to process
-        language: Language code for phonemization
-
-    Returns:
-        List of token IDs
-    """
-    if not isinstance(text, str):
-        text = str(text) if text is not None else ""
-
-    text = text.strip()
-    if not text:
-        return []
-
-    return process_text_chunk(text, language)
 
 
 def get_sentence_info(
@@ -149,23 +121,19 @@ def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]
             if part is not None:
                 base_rate = float(part)
             continue
-        part = part.strip()
-        if not part:
+        if not part.strip():
             continue
         current_rate = clamp_rate(base_rate * tag_rate)
         if segments and segments[-1][:2] == (current_voice, current_rate):
-            segments[-1] = (current_voice, current_rate, f"{segments[-1][2]} {part}")
+            previous = segments[-1][2]
+            if not previous[-1].isspace() and not part[0].isspace():
+                part = " " + part
+            segments[-1] = (current_voice, current_rate, previous + part)
         else:
             segments.append((current_voice, current_rate, part))
 
     # tags were present, so an empty result means there was nothing to say
-    return segments
-
-
-def handle_custom_phonemes(s: re.Match[str], phenomes_list: Dict[str, str]) -> str:
-    latest_id = f"</|custom_phonemes_{len(phenomes_list)}|/>"
-    phenomes_list[latest_id] = s.group(0).strip()
-    return latest_id
+    return [(voice, rate, text.strip()) for voice, rate, text in segments]
 
 
 def check_pause_budget(text: str) -> None:
@@ -179,6 +147,39 @@ def check_pause_budget(text: str) -> None:
             f"Total pause duration {total_pause_s:.1f}s exceeds the "
             f"{settings.max_total_pause_s:.1f}s limit"
         )
+
+
+def join_lines(text: str) -> str:
+    """Blank lines end a sentence, single newlines are hard wraps."""
+    paragraphs = []
+    for paragraph in PARAGRAPH_PATTERN.split(text):
+        paragraph = LINE_PATTERN.sub(" ", paragraph).strip()
+        if paragraph:
+            paragraphs.append(paragraph)
+    for index in range(len(paragraphs) - 1):
+        if paragraphs[index].rstrip("\"')]”’")[-1:] not in ".!?:…":
+            paragraphs[index] += "."
+    return " ".join(paragraphs)
+
+
+def split_words(text: str, max_tokens: int) -> List[Tuple[str, List[int]]]:
+    """Cut a run of words into pieces that each fit in max_tokens."""
+    words = []
+    for index, segment in enumerate(CUSTOM_PHONEMES.split(text)):
+        words.extend([segment] if index % 2 else segment.split())
+    pieces = []
+    while words:
+        low, high = 1, len(words)
+        while low < high:
+            mid = (low + high + 1) // 2
+            if len(process_text_chunk(" ".join(words[:mid]))) <= max_tokens:
+                low = mid
+            else:
+                high = mid - 1
+        piece = " ".join(words[:low])
+        pieces.append((piece, process_text_chunk(piece)))
+        words = words[low:]
+    return pieces
 
 
 async def smart_split(
@@ -212,24 +213,23 @@ async def smart_split(
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
-            # Strip leading and trailing spaces to prevent pause tag splitting artifacts
-            text_part_raw = text_part_raw.strip()
+            processed_text = join_lines(text_part_raw)
 
             # Normalize text (original logic)
-            processed_text = text_part_raw
             if settings.advanced_text_normalization and normalization_options.normalize:
-                if lang_code in ["a", "b", "en-us", "en-gb"]:
+                normalizer = get_normalizer(lang_code)
+                if normalizer is None:
+                    logger.info(
+                        f"Skipping text normalization, none registered for lang_code '{lang_code}'"
+                    )
+                else:
                     processed_text = CUSTOM_PHONEMES.split(processed_text)
                     for index in range(0, len(processed_text), 2):
-                        processed_text[index] = normalize_text(
+                        processed_text[index] = normalizer.normalize(
                             processed_text[index], normalization_options
                         )
 
                     processed_text = "".join(processed_text).strip()
-                else:
-                    logger.info(
-                        "Skipping text normalization as it is only supported for english"
-                    )
 
             # Process all sentences
             sentences = get_sentence_info(processed_text, lang_code=lang_code)
@@ -255,9 +255,7 @@ async def smart_split(
 
                     # Split long sentence on commas
                     clauses = re.split(r"([,;:，、；：])", sentence)
-                    clause_chunk = []
-                    clause_tokens = []
-                    clause_count = 0
+                    pieces = []
 
                     for j in range(0, len(clauses), 2):
                         clause = clauses[j].strip()
@@ -267,8 +265,17 @@ async def smart_split(
                             continue
 
                         full_clause = clause + comma
-
                         tokens = process_text_chunk(full_clause)
+                        if len(tokens) <= max_tokens:
+                            pieces.append((full_clause, tokens))
+                        else:
+                            pieces.extend(split_words(full_clause, max_tokens))
+
+                    clause_chunk = []
+                    clause_tokens = []
+                    clause_count = 0
+
+                    for full_clause, tokens in pieces:
                         count = len(tokens)
 
                         # If adding clause keeps us under max and not optimal yet
@@ -359,19 +366,11 @@ async def smart_split(
             # Check if it looks like a valid number string captured by the regex group
             if re.fullmatch(r"\d+(?:\.\d+)?", duration_str):
                 part_idx += 1  # Consume the duration string as it's been processed
-                try:
-                    duration = min(
-                        float(duration_str), settings.max_pause_duration_s
-                    )
-                    if duration > 0:
-                        chunk_count += 1
-                        logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")
-                        yield "", [], duration  # Yield pause chunk
-                except (ValueError, TypeError):
-                    # This case should be rare if re.fullmatch passed, but handle anyway
-                    logger.warning(
-                        f"Could not parse valid-looking pause duration: {duration_str}"
-                    )
+                duration = min(float(duration_str), settings.max_pause_duration_s)
+                if duration > 0:
+                    chunk_count += 1
+                    logger.info(f"Yielding pause chunk {chunk_count}: {duration}s")
+                    yield "", [], duration  # Yield pause chunk
 
     # End of parts loop
     total_time = time.time() - start_time

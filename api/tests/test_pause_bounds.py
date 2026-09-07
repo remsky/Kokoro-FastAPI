@@ -1,4 +1,4 @@
-"""Bounds on the pause-tag path."""
+"""Bounds on the pause-tag path (pr #511)."""
 
 import pytest
 

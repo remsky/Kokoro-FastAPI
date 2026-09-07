@@ -1,12 +1,71 @@
 import pytest
 
 from api.src.services.text_processing import text_processor
+from api.src.services.text_processing.normalization import Normalizer
 from api.src.services.text_processing.text_processor import (
     get_sentence_info,
+    join_lines,
     process_text_chunk,
     smart_split,
     split_by_voice,
 )
+from api.src.structures.schemas import NormalizationOptions
+
+
+class ShoutingNormalizer(Normalizer):
+    lang_codes = ("xx",)
+
+    def numbers(self, text: str) -> str:
+        return text.upper()
+
+
+@pytest.fixture
+def shouting_language(monkeypatch):
+    registry = {"xx": ShoutingNormalizer()}
+    monkeypatch.setattr(text_processor, "get_normalizer", registry.get)
+    monkeypatch.setattr(text_processor.settings, "advanced_text_normalization", True)
+
+
+async def first_chunk_text(**kwargs) -> str:
+    async for chunk_text, _, _ in smart_split("hello world", **kwargs):
+        return chunk_text
+
+
+@pytest.mark.asyncio
+async def test_smart_split_normalizes_with_the_registered_language(shouting_language):
+    assert await first_chunk_text(lang_code="xx") == "HELLO WORLD"
+
+
+@pytest.mark.asyncio
+async def test_smart_split_skips_unregistered_language(shouting_language):
+    assert await first_chunk_text(lang_code="yy") == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_smart_split_honors_request_normalize_switch(shouting_language):
+    options = NormalizationOptions(normalize=False)
+    assert (
+        await first_chunk_text(lang_code="xx", normalization_options=options)
+        == "hello world"
+    )
+
+
+@pytest.mark.asyncio
+async def test_smart_split_honors_global_normalization_switch(
+    shouting_language, monkeypatch
+):
+    monkeypatch.setattr(text_processor.settings, "advanced_text_normalization", False)
+    assert await first_chunk_text(lang_code="xx") == "hello world"
+
+
+@pytest.mark.asyncio
+async def test_smart_split_keeps_custom_phonemes_out_of_the_normalizer(
+    shouting_language,
+):
+    text = "hello [Kokoro](/kˈOkəɹO/) world"
+    async for chunk_text, _, _ in smart_split(text, lang_code="xx"):
+        assert chunk_text == "HELLO [Kokoro](/kˈOkəɹO/) WORLD"
+        break
 
 
 def test_process_text_chunk_basic():
@@ -48,11 +107,13 @@ def test_get_sentence_info():
 
 
 def test_get_sentence_info_abbreviations():
-    """Abbreviations, decimals, and ellipses do not force bogus sentence breaks."""
+    """Abbreviations, decimals, and ellipses do not force bogus sentence breaks (issue #308, pr #520)."""
     text = (
         "This, that, the other thing, etc. Another sentence... A, b, c, etc., and "
         "more. D, e, f, etc. and more. One, i. e. two. Three, i. e., four. Five, "
-        "i.e. six. You have 4.2 messages. Property access: `a.b.c`."
+        "i.e. six. You have 4.2 messages. Property access: `a.b.c`. Bring pencils, "
+        "paper, erasers, etc. Then we can start the exam. Some fruits, e.g. apples, "
+        "keep well. Data (Eastern Harbor vs. outer harbor) may vary. Keep that in mind."
     )
 
     sentences = [s for s, _, _ in get_sentence_info(text)]
@@ -67,11 +128,24 @@ def test_get_sentence_info_abbreviations():
         "Five, i.e. six.",
         "You have 4.2 messages.",
         "Property access: `a.b.c`.",
+        "Bring pencils, paper, erasers, etc.",
+        "Then we can start the exam.",
+        "Some fruits, e.g. apples, keep well.",
+        "Data (Eastern Harbor vs. outer harbor) may vary.",
+        "Keep that in mind.",
     ]
 
 
+@pytest.mark.xfail(
+    reason="unicode_sentences drops sentences with no alphanumeric character",
+    strict=True,
+)
+def test_get_sentence_info_keeps_punctuation_only_sentences():
+    assert [s for s, _, _ in get_sentence_info("!!! Ok.")] == ["!!!", "Ok."]
+
+
 def test_get_sentence_info_is_lazy(monkeypatch):
-    """Sentences are phonemized as they are pulled, not all up front."""
+    """Sentences are phonemized as they are pulled, not all up front (pr #513)."""
     calls = []
 
     def counting_process_text_chunk(text, *args, **kwargs):
@@ -94,7 +168,7 @@ def test_get_sentence_info_is_lazy(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_smart_split_first_chunk_skips_rest_of_text(monkeypatch):
-    """Time to first chunk stays flat: it must not phonemize the whole input."""
+    """Time to first chunk stays flat: it must not phonemize the whole input (pr #513)."""
     calls = []
 
     def counting_process_text_chunk(text, *args, **kwargs):
@@ -130,7 +204,7 @@ async def test_smart_split_short_text():
 
 @pytest.mark.asyncio
 async def test_smart_custom_phenomes():
-    """Test smart splitting with text under max tokens."""
+    """Custom phoneme tags survive splitting (issue #348, pr #350)."""
     text = "This is a short test sentence. [Kokoro](/kˈOkəɹO/) has a feature called custom phenomes. This is made possible by [Misaki](/misˈɑki/), the custom phenomizer that [Kokoro](/kˈOkəɹO/) version 1.0 uses"
     chunks = []
     async for chunk_text, chunk_tokens, pause_duration in smart_split(text):
@@ -150,7 +224,7 @@ async def test_smart_custom_phenomes():
 
 @pytest.mark.asyncio
 async def test_smart_split_only_phenomes():
-    """Test input that is entirely made of phenome annotations."""
+    """Test input that is entirely made of phenome annotations (pr #350)."""
     text = "[Kokoro](/kˈOkəɹO/) [Misaki 1.2](/misˈɑki/) [Test](/tɛst/)"
     chunks = []
     async for chunk_text, chunk_tokens, pause_duration in smart_split(
@@ -158,8 +232,11 @@ async def test_smart_split_only_phenomes():
     ):
         chunks.append((chunk_text, chunk_tokens, pause_duration))
 
-    assert len(chunks) == 1
-    assert "[Kokoro](/kˈOkəɹO/) [Misaki 1.2](/misˈɑki/) [Test](/tɛst/)" in chunks[0][0]
+    assert [c for c, _, _ in chunks] == [
+        "[Kokoro](/kˈOkəɹO/)",
+        "[Misaki 1.2](/misˈɑki/)",
+        "[Test](/tɛst/)",
+    ]
 
 
 @pytest.mark.asyncio
@@ -201,7 +278,7 @@ def test_process_text_chunk_chinese_phonemes():
 
 
 def test_get_sentence_info_chinese():
-    """Test Chinese sentence splitting and info extraction."""
+    """Test Chinese sentence splitting and info extraction (pr #321)."""
     text = "这是一个句子。这是第二个句子！第三个问题？"
     results = list(get_sentence_info(text, lang_code="z"))
 
@@ -216,7 +293,7 @@ def test_get_sentence_info_chinese():
 
 @pytest.mark.asyncio
 async def test_smart_split_chinese_short():
-    """Test Chinese smart splitting with short text."""
+    """Test Chinese smart splitting with short text (pr #321)."""
     text = "这是一句话。"
     chunks = []
     async for chunk_text, chunk_tokens, _ in smart_split(text, lang_code="z"):
@@ -229,7 +306,7 @@ async def test_smart_split_chinese_short():
 
 @pytest.mark.asyncio
 async def test_smart_split_chinese_long():
-    """Test Chinese smart splitting with longer text."""
+    """Test Chinese smart splitting with longer text (pr #321)."""
     text = "。".join([f"测试句子 {i}" for i in range(20)])
 
     chunks = []
@@ -245,7 +322,7 @@ async def test_smart_split_chinese_long():
 
 @pytest.mark.asyncio
 async def test_smart_split_chinese_punctuation():
-    """Test Chinese smart splitting with punctuation preservation."""
+    """Test Chinese smart splitting with punctuation preservation (pr #321)."""
     text = "第一句！第二问？第三句；第四句：第五句。"
 
     chunks = []
@@ -258,7 +335,7 @@ async def test_smart_split_chinese_punctuation():
 
 @pytest.mark.asyncio
 async def test_smart_split_with_pause():
-    """Test smart splitting with pause tags."""
+    """Test smart splitting with pause tags (pr #322)."""
     text = "Hello world [pause:2.5s] How are you?"
 
     chunks = []
@@ -345,7 +422,22 @@ def test_split_by_voice_merges_repeated_voice():
     text = "[voice:af_bella] One. [voice:af_bella] Two."
     segments = split_by_voice(text, "af_heart")
 
-    assert segments == [("af_bella", 1.0, "One. Two.")]
+    assert segments == [("af_bella", 1.0, "One.  Two.")]
+
+
+def test_split_by_voice_merge_keeps_paragraph_break():
+    """Merging same-voice runs keeps the blank line for join_lines."""
+    text = "[voice:af_bella]Heading\n\n[voice:af_bella]Body."
+    segments = split_by_voice(text, "af_heart")
+
+    assert segments == [("af_bella", 1.0, "Heading\n\nBody.")]
+
+
+def test_split_by_voice_merge_keeps_words_apart():
+    """A no-op tag with no whitespace around it must not glue the words."""
+    assert split_by_voice("Hello[voice:af_bella]world", "af_bella") == [
+        ("af_bella", 1.0, "Hello world")
+    ]
 
 
 def test_split_by_voice_accepts_combined_voices():
@@ -387,7 +479,9 @@ def test_split_by_rate_segments():
 
 def test_split_by_rate_clamps_to_speed_bounds():
     assert split_by_voice("[rate:99] Whoa.", "af_heart") == [("af_heart", 4.0, "Whoa.")]
-    assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [("af_heart", 0.25, "Crawl.")]
+    assert split_by_voice("[rate:0.01] Crawl.", "af_heart") == [
+        ("af_heart", 0.25, "Crawl.")
+    ]
 
 
 def test_split_voice_tag_resets_rate():
@@ -413,3 +507,90 @@ def test_split_baserate_product_clamps_to_speed_bounds():
     assert split_by_voice("[baserate:2.5] [rate:2.0] Whoa.", "af_heart") == [
         ("af_heart", 4.0, "Whoa.")
     ]
+
+
+# issue #519, pr #525
+JOIN_LINES_CASES = [
+    (
+        "Steven Erikson\n\nFive riders drew rein in the pass.",
+        "Steven Erikson. Five riders drew rein in the pass.",
+    ),
+    ("End of chapter.\n\nNew chapter begins.", "End of chapter. New chapter begins."),
+    ("Really?\n\nYes!\n\nOk", "Really? Yes! Ok"),
+    ('"Really?"\n\nYes.', '"Really?" Yes.'),
+    ("“Really?”\n\nYes.", "“Really?” Yes."),
+    ("It read as follows:\n\nText.", "It read as follows: Text."),
+    ("He paused…\n\nThen spoke.", "He paused… Then spoke."),
+    ("Heading  \r\n\r\n  Body.", "Heading. Body."),
+    ("Heading\n \n\t\nBody.", "Heading. Body."),
+    ("Heading\n\xa0\nBody.", "Heading. Body."),
+    ("Heading\n\f\nBody.", "Heading. Body."),
+    ("Five riders drew\nrein in the pass.", "Five riders drew rein in the pass."),
+    ("No trailing period", "No trailing period"),
+    ("  padded  ", "padded"),
+]
+
+
+@pytest.mark.parametrize("text, expected", JOIN_LINES_CASES)
+def test_join_lines(text, expected):
+    assert join_lines(text) == expected
+
+
+def test_split_words_fits_each_piece(monkeypatch):
+    monkeypatch.setattr(
+        text_processor, "process_text_chunk", lambda text, *a, **k: [0] * len(text)
+    )
+
+    assert text_processor.split_words("a b c d e", 3) == [
+        ("a b", [0, 0, 0]),
+        ("c d", [0, 0, 0]),
+        ("e", [0]),
+    ]
+    assert text_processor.split_words("abcdef gh", 3) == [
+        ("abcdef", [0] * 6),
+        ("gh", [0, 0]),
+    ]
+    assert text_processor.split_words("a [b c](/d/) e", 3) == [
+        ("a", [0]),
+        ("[b c](/d/)", [0] * 10),
+        ("e", [0]),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_caps_unpunctuated_runs():
+    """A long run with no punctuation is cut by words, never truncated by the model (issue #71, #95)."""
+    text = "hello\n" * 100
+    chunks = [
+        (c, t)
+        async for c, t, _ in smart_split(
+            text, normalization_options=NormalizationOptions(normalize=False)
+        )
+    ]
+
+    assert " ".join(c for c, _ in chunks).split() == ["hello"] * 100
+    assert all(len(t) <= text_processor.settings.absolute_max_tokens for _, t in chunks)
+    assert len(chunks) == 2
+
+
+@pytest.mark.asyncio
+async def test_smart_split_paragraph_break_is_a_sentence_boundary():
+    """A blank line reads as a sentence break and still packs into one chunk (issue #519)."""
+    text = "Steven Erikson\n\nFive riders drew rein in the pass."
+    chunks = [c async for c, _, _ in smart_split(text)]
+
+    assert chunks == ["Steven Erikson. Five riders drew rein in the pass."]
+
+
+@pytest.mark.asyncio
+async def test_smart_split_normalize_off_still_joins_lines():
+    """Line handling is chunking, not normalization, so it applies either way."""
+    text = "Steven Erikson\n\nFive riders drew\nrein in the pass. Then 3 more."
+    chunks = [
+        c
+        async for c, _, _ in smart_split(
+            text, normalization_options=NormalizationOptions(normalize=False)
+        )
+    ]
+
+    assert chunks == ["Steven Erikson. Five riders drew rein in the pass. Then 3 more."]

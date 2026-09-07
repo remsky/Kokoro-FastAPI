@@ -457,6 +457,27 @@ async def test_timings_collect_chunks_and_pauses():
 
 
 @pytest.mark.asyncio
+async def test_leading_pause_tag_streams_a_gap():
+    """A pause tag before any text is a gap, not a crash (issue #355)."""
+    service = await _stubbed_service()
+
+    timings = []
+    async for _ in service.generate_audio_stream(
+        "[pause:1s] Hello.",
+        "af_heart",
+        MagicMock(),
+        output_format=None,
+        timings=timings,
+    ):
+        pass
+
+    assert [(t["text"].strip(), t["start"], t["end"]) for t in timings] == [
+        ("", 0.0, 1.0),
+        ("Hello.", 1.0, 1.1),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_timings_carry_speaker_when_tags_allowed():
     """Chunk entries name their voice with the opt in, and never without it."""
     service = await _stubbed_service()
