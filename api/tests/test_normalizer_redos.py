@@ -42,6 +42,12 @@ def test_scaling_is_linear():
     assert large / max(small, 1e-3) < 9.0
 
 
+def test_dash_flood_is_fast():
+    """Double-dash rule in the symbols pass (issue #249)."""
+    assert _elapsed("-" * 100_000) < BUDGET_S
+    assert _elapsed(" --" * 30_000) < BUDGET_S
+
+
 def test_digit_flood_is_fast():
     """Bare digit runs must not backtrack quadratically in the number passes (pr #492)."""
     assert _elapsed("9" * 80_000) < BUDGET_S

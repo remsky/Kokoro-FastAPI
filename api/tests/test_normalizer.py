@@ -189,6 +189,9 @@ CASES = [
     ("He said “hi” and ‘bye’", "He said \"hi\" and 'bye'"),
     ("Tab\there and   spaces", "Tab here and spaces"),
     ("Line one\n\nLine two", "Line one Line two"),
+    # issue #249
+    ("What key--the key", "What key — the key"),
+    ("The Marbles. --- In", "The Marbles. — In"),
     # em dash passes through (issue #224)
     (
         "a small group)\u2014and at the same time",

@@ -17,6 +17,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - `.5` reads as zero point five, `1980S` as nineteen eighty S.
   - Long digit runs no longer stall or 500 the request.
 - Times with seconds keep their am/pm (`12:30:15 pm`).
+- `--` and `---` read as a dash. Previously the words on either side fused and word timestamps stopped for the rest of the chunk (#249).
 
 ## [v0.8.2] - 2026-09-05
 ### Added

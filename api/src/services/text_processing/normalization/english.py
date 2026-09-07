@@ -345,6 +345,7 @@ class EnglishNormalizer(Normalizer):
         return self.NUMBER_PATTERN.sub(handle, text)
 
     def symbols(self, text: str) -> str:
+        text = re.sub(r" ?-{2,} ?", " — ", text)
         for symbol, replacement in SYMBOL_REPLACEMENTS.items():
             text = text.replace(symbol, replacement)
         return text

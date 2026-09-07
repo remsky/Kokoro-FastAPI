@@ -1,5 +1,6 @@
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
 import numpy as np
@@ -162,6 +163,35 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
             voice_arg = Path(mock_pipeline.call_args[1]["voice"])
             assert voice_arg.name == "temp_voice_ef_voice"
             assert voice_arg.parent == Path(tempfile.gettempdir())
+
+
+@pytest.mark.asyncio
+async def test_generate_skips_untimed_tokens(kokoro_backend):
+    """A token misaki gave no phonemes has no start_ts; later words keep their timestamps (issue #249)."""
+    kokoro_backend._model = MagicMock()
+    tokens = [
+        SimpleNamespace(text="What", start_ts=0.0, end_ts=0.2),
+        SimpleNamespace(text="--", start_ts=None, end_ts=None),
+        SimpleNamespace(text="key", start_ts=0.3, end_ts=0.5),
+    ]
+    result = SimpleNamespace(
+        audio=torch.zeros(24000), tokens=tokens, pred_dur=torch.ones(8), phonemes=""
+    )
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+    ):
+        mock_pipeline = MagicMock(return_value=iter([result]))
+        with patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline):
+            chunks = [
+                c
+                async for c in kokoro_backend.generate(
+                    "What--key", "af_voice", lang_code="a", return_timestamps=True
+                )
+            ]
+
+    assert [t.word for t in chunks[0].word_timestamps] == ["What", "key"]
 
 
 def test_espeak_word_timestamps_basic():
