@@ -118,7 +118,6 @@ VALID_UNITS = {
     "Ω": "ohm",
     "kΩ": "kiloohm",
     "mΩ": "megaohm",  # Resistance (Ohm)
-    "f": "farad",
     "µf": "microfarad",
     "nf": "nanofarad",
     "pf": "picofarad",  # Capacitance
