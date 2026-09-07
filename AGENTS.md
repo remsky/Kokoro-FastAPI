@@ -13,6 +13,8 @@ Agent-assisted contributions are welcome, with caveats:
 
 The general instructions must also still be followed, same as any contributor, and live in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Task guides for agents live in `.claude/skills/`, listed in [CONTRIBUTING.md](CONTRIBUTING.md#skills).
+
 ## Layout
 
 - `api/src/routers/` - HTTP endpoints. `openai_compatible.py` is the main API surface.

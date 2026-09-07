@@ -3,6 +3,8 @@ name: api-contrib
 description: "Contributing to the Kokoro-FastAPI Python API: module layout, endpoint gating pattern, test expectations. Use when adding or changing endpoints, services, or inference code."
 ---
 
+Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) first, house rules live there.
+
 # API contributions
 
 ## Where things live

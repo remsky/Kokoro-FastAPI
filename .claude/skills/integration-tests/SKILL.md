@@ -3,6 +3,8 @@ name: integration-tests
 description: "Running the full e2e integration test suite (including Whisper roundtrip) against a live Kokoro server."
 ---
 
+Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) first, house rules live there.
+
 # Integration tests
 
 ## Prerequisites

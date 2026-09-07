@@ -76,6 +76,16 @@ We use `ruff` to maintain code quality and consistency. Please format and lint y
     ```
     Review any changes made by `--fix` and address any remaining linting errors manually.
 
+## Skills
+
+Task guides in `.claude/skills/`, written for coding agents, readable as plain markdown:
+
+- [api-contrib](.claude/skills/api-contrib/SKILL.md): API module layout, endpoint gating, test expectations.
+- [web-contrib](.claude/skills/web-contrib/SKILL.md): web player constraints, MSE gotchas, unit and e2e tests.
+- [adding-normalizer](.claude/skills/adding-normalizer/SKILL.md): adding a language normalizer.
+- [integration-tests](.claude/skills/integration-tests/SKILL.md): the e2e suite against a live server.
+- [readme-benchmarks](.claude/skills/readme-benchmarks/SKILL.md): benchmark runs and README plots.
+
 ## Submitting Changes
 
 0.  Clone the repo

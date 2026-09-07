@@ -3,6 +3,8 @@ name: readme-benchmarks
 description: "Running the Kokoro-FastAPI benchmark + transcription-roundtrip suites and regenerating the README plots. Use when asked to run/refresh benchmarks, RTF/first-token plots, transcription sanity checks, or the long-form baseline."
 ---
 
+Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) first, house rules live there.
+
 # Benchmarks + README plots
 
 Three suites under `examples/assorted_checks/` feed the README:
