@@ -46,6 +46,7 @@ class Case:
 CASES: list[Case] = [
     Case("af_heart", "en", "The quick brown fox jumps over the lazy dog."),
     Case("bf_emma", "en", "The rain in Spain falls mainly on the plain."),
+    Case("am_michael", "en", "GANDALF AND FRODO LEAVE MORDOR."),
     Case("ef_dora", "es", "El sol brilla en el cielo azul."),
     Case("ff_siwis", "fr", "Le soleil brille dans le ciel bleu."),
     Case("if_sara", "it", "Il gatto dorme sul tappeto rosso."),

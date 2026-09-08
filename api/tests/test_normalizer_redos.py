@@ -89,6 +89,14 @@ def test_pattern_floods_scale_linearly():
         assert large / max(small, 0.05) < 9.0, unit
 
 
+def test_caps_floods_scale_linearly():
+    """Caps runs, long caps words and roman-numeral floods through the caps pass."""
+    for unit in ("AB ", "ABCD ", "ABCDEF\n", "I", "A.B "):
+        small = _elapsed(unit * 5_000)
+        large = _elapsed(unit * 20_000)
+        assert large / max(small, 0.05) < 9.0, unit
+
+
 def test_huge_digit_run_does_not_raise():
     """float() overflows to inf on 310+ digits, which used to crash the request."""
     assert normalize_text("9" * 400, OPTS) == "9" * 400

@@ -127,6 +127,10 @@
     opacity: 0.5;
 }
 
+.normalize-emoji {
+    margin-top: 0.35rem;
+}
+
 /* ── generate */
 .generate-card {
     display: flex;

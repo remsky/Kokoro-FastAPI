@@ -175,6 +175,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `url_normalization` | `true` | `https://test.org/path` reads as https test dot org slash path |
 | `email_normalization` | `true` | `user@example.com` reads as user at example dot com |
 | `phone_normalization` | `true` | `555-123-4567` reads as spoken digits |
+| `caps_normalization` | `true` | `ARNE SAKNUSSEMM` reads as two words instead of spelled out, `FBI` and `US GDP` still spelled |
 | `unit_normalization` | `false` | `10KB` reads as 10 kilobytes |
 | `optional_pluralization_normalization` | `true` | `friend(s)` reads as friends |
 | `replace_remaining_symbols` | `true` | Leftover symbols read as words, `&` as and, `@` as at |

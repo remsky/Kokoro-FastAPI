@@ -123,6 +123,10 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Changes phone numbers so they can be properly pronouced by kokoro",
     )
+    caps_normalization: bool = Field(
+        default=True,
+        description="Reads all-caps headers and names as words instead of spelling them out, short acronyms like FBI stay spelled",
+    )
     replace_remaining_symbols: bool = Field(
         default=True,
         description="Replaces the remaining symbols after normalization with their words",

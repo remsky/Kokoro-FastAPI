@@ -36,4 +36,4 @@ Or the full compose stack (builds a CPU server + test-client, self-contained):
 - `test_tts_roundtrip.py` - synth + Whisper transcribe across 9 languages, WER/CER thresholds
 - `test_voices_endpoint.py` - voice listing shape, legacy compat, nova mapping
 
-17 tests total. The roundtrip tests need ~30s (Whisper inference is the bottleneck).
+19 tests total. The roundtrip tests need ~30s (Whisper inference is the bottleneck).

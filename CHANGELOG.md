@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
+- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
@@ -20,6 +21,9 @@ Per-PR attribution and contributor credits are published automatically on the co
   - Digits glued to letters (`MP3`, `B2B`, `v1.0`, `1.5x`) pass through as written. `COVID-19` is no longer COVID minus nineteen.
   - `.5` reads as zero point five, `1980S` as nineteen eighty S.
   - Long digit runs no longer stall or 500 the request.
+- Phone numbers read as spoken digits, `555-123-4567` as five five five, one two three, four five six seven.
+- `3.5 GHz` reads gigahertz and `1 min` reads one minute with `unit_normalization` on.
+- Plural and possessive acronyms (`DVDs`, `DVD's`) are no longer rewritten to `DVD'S`, which was spelled out as dee-vee-dee-ess.
 - Times with seconds keep their am/pm (`12:30:15 pm`).
 - Blank input, or emoji-only input with `remove_emoji`, is a 400 on the streaming path too, not an empty 200.
 - `--` and `---` read as a dash. Previously the words on either side fused and word timestamps stopped for the rest of the chunk (#249).

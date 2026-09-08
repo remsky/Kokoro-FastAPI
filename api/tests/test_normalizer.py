@@ -184,6 +184,20 @@ CASES = [
         "Blinked? No. Smiled ever so slightly? Yes.",
         "Blinked? No. Smiled ever so slightly? Yes.",
     ),
+    # phone numbers (pr #179)
+    ("Call 555-123-4567", "Call five five five, one two three, four five six seven"),
+    ("Call (555) 123-4567", "Call five five five, one two three, four five six seven"),
+    (
+        "Call +1 555 123 4567",
+        "Call one, five five five, one two three, four five six seven",
+    ),
+    (
+        "Dial 555.123.4567 now",
+        "Dial five five five, one two three, four five six seven now",
+    ),
+    # plural and possessive acronyms (pr #493)
+    ("the DVD's case", "the DVD's case"),
+    ("two CDs and DVDs", "two CDs and DVDs"),
     # punctuation and whitespace
     ("你好，世界", "你好, 世界"),
     ("你好。世界！好吗？再见", "你好. 世界! 好吗? 再见"),
@@ -231,6 +245,15 @@ CASES = [
         "Therefore the genre was hardcore before more.",
         "Therefore the genre was hardcore before more.",
     ),
+    # all-caps names and headers
+    ("ARNE SAKNUSSEMM", "arne saknussemm"),
+    ("CHAPTER IV. ARNE SAKNUSSEMM", "chapter IV. arne saknussemm"),
+    ("LIDENBROCK.", "lidenbrock."),
+    ("A TALE OF TWO CITIES", "A tale OF TWO cities"),
+    ("the FBI and CIA agreed", "the FBI and CIA agreed"),
+    ("US GDP grew", "US GDP grew"),
+    ("an HDMI cable", "an HDMI cable"),
+    ("NASA JPL", "nasa JPL"),
 ]
 
 UNITS = NormalizationOptions(unit_normalization=True)
@@ -242,6 +265,10 @@ OPTION_CASES = [
     ("The file is 5 MB", "The file is five megabytes", UNITS),
     ("Download 5MB", "Download five megabytes", UNITS),
     ("Set to 10 Mb", "Set to ten megabits", UNITS),
+    ("Runs at 3.5 GHz", "Runs at three point five gigahertz", UNITS),
+    ("Tuned to 1 Hz", "Tuned to one hertz", UNITS),
+    ("Wait 5 min", "Wait five minutes", UNITS),
+    ("Wait 1 min", "Wait one minute", UNITS),
     # pr #526
     ("It is 72 F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
     ("It is 72 °F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
@@ -266,28 +293,11 @@ OPTION_CASES = [
         NormalizationOptions(optional_pluralization_normalization=False),
     ),
     ("a & b @ c", "a & b @ c", NormalizationOptions(replace_remaining_symbols=False)),
-]
-
-KNOWN_BUGS = [
-    ("Runs at 3.5 GHz", "Runs at three point five gigahertz", UNITS),
-    # phone numbers (pr #179)
     (
-        "Call 555-123-4567",
-        "Call five five five, one two three, four five six seven",
-        NormalizationOptions(),
+        "ARNE SAKNUSSEMM",
+        "ARNE SAKNUSSEMM",
+        NormalizationOptions(caps_normalization=False),
     ),
-    (
-        "Call (555) 123-4567",
-        "Call five five five, one two three, four five six seven",
-        NormalizationOptions(),
-    ),
-    (
-        "Call +1 555 123 4567",
-        "Call one, five five five, one two three, four five six seven",
-        NormalizationOptions(),
-    ),
-    # pr #493
-    ("the DVD's case", "the DVD's case", NormalizationOptions()),
 ]
 
 
@@ -300,12 +310,4 @@ def test_normalize(text, expected):
     "text, expected, options", OPTION_CASES, ids=[text for text, _, _ in OPTION_CASES]
 )
 def test_normalize_with_options(text, expected, options):
-    assert normalize_text(text, options) == expected
-
-
-@pytest.mark.xfail(strict=True, reason="known bug, move the row to CASES once fixed")
-@pytest.mark.parametrize(
-    "text, expected, options", KNOWN_BUGS, ids=[text for text, _, _ in KNOWN_BUGS]
-)
-def test_known_bugs(text, expected, options):
     assert normalize_text(text, options) == expected

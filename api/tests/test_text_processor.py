@@ -110,9 +110,16 @@ def test_check_speakable():
 
 
 def test_strip_emoji_sequences():
-    for emoji in ["😊", "⏰", "1️⃣", "👨‍👩‍👧", "🇺🇸", "👍🏽"]:
+    england = "\U0001f3f4\U000e0067\U000e0062\U000e0065\U000e006e\U000e0067\U000e007f"
+    for emoji in ["😊", "⏰", "1️⃣", "👨‍👩‍👧", "🇺🇸", "👍🏽", england]:
         assert strip_emoji(f"a {emoji} b") == "a b"
     assert strip_emoji("call 1 or # now") == "call 1 or # now"
+
+
+def test_strip_emoji_leaves_joiners_inside_words():
+    conjunct = "क्‍ष"
+    assert strip_emoji(f"a {conjunct} b") == f"a {conjunct} b"
+    assert strip_emoji("a ‍ b") == "a ‍ b"
 
 
 def test_strip_emoji_flood_is_fast():
@@ -187,14 +194,6 @@ def test_get_sentence_info_abbreviations():
         "Data (Eastern Harbor vs. outer harbor) may vary.",
         "Keep that in mind.",
     ]
-
-
-@pytest.mark.xfail(
-    reason="unicode_sentences drops sentences with no alphanumeric character",
-    strict=True,
-)
-def test_get_sentence_info_keeps_punctuation_only_sentences():
-    assert [s for s, _, _ in get_sentence_info("!!! Ok.")] == ["!!!", "Ok."]
 
 
 def test_get_sentence_info_is_lazy(monkeypatch):

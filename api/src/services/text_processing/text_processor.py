@@ -23,8 +23,9 @@ CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
 EMOJI_PATTERN = regex.compile(
-    r" ?(?:[0-9#*]\uFE0F?\u20E3|[\p{Extended_Pictographic}\p{Regional_Indicator}"
-    r"\p{Emoji_Modifier}\u200D\uFE0F\u20E3]+) ?"
+    r" ?(?:[0-9#*]\uFE0F?\u20E3|[\p{Extended_Pictographic}\p{Regional_Indicator}]"
+    r"[\p{Extended_Pictographic}\p{Regional_Indicator}\p{Emoji_Modifier}"
+    r"\u200D\uFE0F\u20E3\U000E0020-\U000E007F]*) ?"
 )
 PARAGRAPH_PATTERN = re.compile(r"(?:\r?\n[^\S\r\n]*){2,}")
 LINE_PATTERN = re.compile(r"\r?\n[^\S\r\n]*")
