@@ -15,7 +15,10 @@ from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.temp_manager import TempFileWriter
 from ..services.text_processing import smart_split
-from ..services.text_processing.text_processor import check_pause_budget
+from ..services.text_processing.text_processor import (
+    check_pause_budget,
+    check_speakable,
+)
 from ..services.tts_service import TTSService
 from ..structures import (
     CaptionedSpeechRequest,
@@ -241,6 +244,11 @@ async def create_captioned_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {

@@ -5,6 +5,9 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
+
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
 
@@ -17,6 +20,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - `.5` reads as zero point five, `1980S` as nineteen eighty S.
   - Long digit runs no longer stall or 500 the request.
 - Times with seconds keep their am/pm (`12:30:15 pm`).
+- Blank input, or emoji-only input with `remove_emoji`, is a 400 on the streaming path too, not an empty 200.
 - `--` and `---` read as a dash. Previously the words on either side fused and word timestamps stopped for the rest of the chunk (#249).
 
 ## [v0.8.2] - 2026-09-05

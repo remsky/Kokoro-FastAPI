@@ -16,6 +16,7 @@ from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
     VOICE_TAG_PATTERN,
     check_pause_budget,
+    check_speakable,
 )
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
@@ -331,6 +332,11 @@ async def create_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {
@@ -733,9 +739,7 @@ async def list_voices(legacy: bool = False):
         if legacy:
             return {"voices": voices}
         return {
-            "voices": [
-                {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
-            ]
+            "voices": [{"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices]
         }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")

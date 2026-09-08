@@ -1,13 +1,17 @@
+import time
+
 import pytest
 
 from api.src.services.text_processing import text_processor
 from api.src.services.text_processing.normalization import Normalizer
 from api.src.services.text_processing.text_processor import (
+    check_speakable,
     get_sentence_info,
     join_lines,
     process_text_chunk,
     smart_split,
     split_by_voice,
+    strip_emoji,
 )
 from api.src.structures.schemas import NormalizationOptions
 
@@ -66,6 +70,55 @@ async def test_smart_split_keeps_custom_phonemes_out_of_the_normalizer(
     async for chunk_text, _, _ in smart_split(text, lang_code="xx"):
         assert chunk_text == "HELLO [Kokoro](/kˈOkəɹO/) WORLD"
         break
+
+
+# issue #353
+REMOVE_EMOJI = NormalizationOptions(remove_emoji=True)
+
+
+@pytest.mark.asyncio
+async def test_smart_split_keeps_emoji_by_default():
+    async for chunk_text, _, _ in smart_split("hello 😊 world", lang_code="a"):
+        assert "😊" in chunk_text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("lang_code", ["a", "z"])
+async def test_smart_split_remove_emoji_option(lang_code):
+    async for chunk_text, _, _ in smart_split(
+        "hello 😊 world", lang_code=lang_code, normalization_options=REMOVE_EMOJI
+    ):
+        assert chunk_text == "hello world"
+    assert [
+        chunk
+        async for chunk in smart_split(
+            "😊", lang_code=lang_code, normalization_options=REMOVE_EMOJI
+        )
+    ] == []
+
+
+def test_check_speakable():
+    check_speakable("hi")
+    check_speakable("[pause:1s]")
+    check_speakable("[voice:af_bella]")
+    check_speakable("😊")
+    for text in ["😊", "⏰ 1️⃣", "  ", "[voice:af_bella] [voice:bm_george]"]:
+        with pytest.raises(ValueError, match="no speakable text"):
+            check_speakable(
+                text, allow_voice_tags=True, normalization_options=REMOVE_EMOJI
+            )
+
+
+def test_strip_emoji_sequences():
+    for emoji in ["😊", "⏰", "1️⃣", "👨‍👩‍👧", "🇺🇸", "👍🏽"]:
+        assert strip_emoji(f"a {emoji} b") == "a b"
+    assert strip_emoji("call 1 or # now") == "call 1 or # now"
+
+
+def test_strip_emoji_flood_is_fast():
+    start = time.monotonic()
+    strip_emoji("1\ufe0f" * 20_000 + "😊" * 20_000)
+    assert time.monotonic() - start < 2.0
 
 
 def test_process_text_chunk_basic():

@@ -5,6 +5,7 @@ import re
 import time
 from typing import AsyncGenerator, Iterator, List, Optional, Tuple
 
+import regex
 from loguru import logger
 from unicode_segmentation_rs import unicode_sentences
 
@@ -20,6 +21,10 @@ from .vocabulary import tokenize
 CUSTOM_PHONEMES = re.compile(r"(\[[^\[\]]*?\]\(\/[^\/\(\)]*?\/\))")
 # Pattern to find pause tags like [pause:0.5s]
 PAUSE_TAG_PATTERN = re.compile(r"\[pause:(\d+(?:\.\d+)?)s\]", re.IGNORECASE)
+EMOJI_PATTERN = regex.compile(
+    r" ?(?:[0-9#*]\uFE0F?\u20E3|[\p{Extended_Pictographic}\p{Regional_Indicator}"
+    r"\p{Emoji_Modifier}\u200D\uFE0F\u20E3]+) ?"
+)
 PARAGRAPH_PATTERN = re.compile(r"(?:\r?\n[^\S\r\n]*){2,}")
 LINE_PATTERN = re.compile(r"\r?\n[^\S\r\n]*")
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
@@ -136,6 +141,24 @@ def split_by_voice(text: str, default_voice: str) -> List[Tuple[str, float, str]
     return [(voice, rate, text.strip()) for voice, rate, text in segments]
 
 
+def strip_emoji(text: str) -> str:
+    return EMOJI_PATTERN.sub(" ", text)
+
+
+def check_speakable(
+    text: str,
+    allow_voice_tags: bool = False,
+    normalization_options: Optional[NormalizationOptions] = None,
+) -> None:
+    """Raise before a stream opens when nothing would be spoken (issue #353)."""
+    if allow_voice_tags:
+        text = CONTROL_TAG_PATTERN.sub(" ", text)
+    if normalization_options is not None and normalization_options.remove_emoji:
+        text = strip_emoji(text)
+    if not text.strip():
+        raise ValueError("Input contains no speakable text")
+
+
 def check_pause_budget(text: str) -> None:
     """Cap aggregate silence across the whole request, before any segmentation."""
     total_pause_s = math.fsum(
@@ -213,6 +236,8 @@ async def smart_split(
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
+            if normalization_options.remove_emoji:
+                text_part_raw = strip_emoji(text_part_raw)
             processed_text = join_lines(text_part_raw)
 
             # Normalize text (original logic)
