@@ -7,7 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
-- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
+- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`, `TODO_LIST`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
