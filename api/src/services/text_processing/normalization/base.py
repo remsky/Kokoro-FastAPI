@@ -23,6 +23,7 @@ class Normalizer:
         self, options: NormalizationOptions
     ) -> tuple[Callable[[str], str] | None, ...]:
         return (
+            self.caps_words if options.caps_normalization else None,
             self.contractions,
             self.emails if options.email_normalization else None,
             self.urls if options.url_normalization else None,
@@ -39,7 +40,6 @@ class Normalizer:
             self.common_words,
             self.numbers,
             self.symbols if options.replace_remaining_symbols else None,
-            self.possessives,
             self.acronyms,
         )
 
@@ -51,9 +51,9 @@ class Normalizer:
 
     # neutral passes
     def quotes(self, text: str) -> str:
-        text = text.replace(chr(8216), "'").replace(chr(8217), "'")
-        text = text.replace("«", chr(8220)).replace("»", chr(8221))
-        return text.replace(chr(8220), '"').replace(chr(8221), '"')
+        text = text.replace("\u2018", "'").replace("\u2019", "'")
+        text = text.replace("\u00ab", "\u201c").replace("\u00bb", "\u201d")
+        return text.replace("\u201c", '"').replace("\u201d", '"')
 
     def cjk_punctuation(self, text: str) -> str:
         for a, b in CJK_PUNCTUATION.items():
@@ -65,6 +65,9 @@ class Normalizer:
         return re.sub(r"  +", " ", text)
 
     # language hooks, no-op until overridden
+    def caps_words(self, text: str) -> str:
+        return text
+
     def contractions(self, text: str) -> str:
         return text
 
@@ -96,9 +99,6 @@ class Normalizer:
         return text
 
     def symbols(self, text: str) -> str:
-        return text
-
-    def possessives(self, text: str) -> str:
         return text
 
     def acronyms(self, text: str) -> str:

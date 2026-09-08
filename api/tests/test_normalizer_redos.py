@@ -42,6 +42,12 @@ def test_scaling_is_linear():
     assert large / max(small, 1e-3) < 9.0
 
 
+def test_dash_flood_is_fast():
+    """Double-dash rule in the symbols pass (issue #249)."""
+    assert _elapsed("-" * 100_000) < BUDGET_S
+    assert _elapsed(" --" * 30_000) < BUDGET_S
+
+
 def test_digit_flood_is_fast():
     """Bare digit runs must not backtrack quadratically in the number passes (pr #492)."""
     assert _elapsed("9" * 80_000) < BUDGET_S
@@ -80,6 +86,14 @@ def test_pattern_floods_scale_linearly():
     ):
         small = _elapsed(unit * 500, opts)
         large = _elapsed(unit * 2_000, opts)
+        assert large / max(small, 0.05) < 9.0, unit
+
+
+def test_caps_floods_scale_linearly():
+    """Caps runs, long caps words and roman-numeral floods through the caps pass."""
+    for unit in ("AB ", "ABCD ", "ABCDEF\n", "I", "A.B "):
+        small = _elapsed(unit * 5_000)
+        large = _elapsed(unit * 20_000)
         assert large / max(small, 0.05) < 9.0, unit
 
 

@@ -4,7 +4,6 @@ from importlib.metadata import (
 )
 from pathlib import Path
 
-import torch
 from dotenv import dotenv_values
 from pydantic_settings import BaseSettings
 
@@ -106,6 +105,8 @@ class Settings(BaseSettings):
             return self.device_type
 
         # Auto-detect device
+        import torch
+
         if torch.backends.mps.is_available():
             return "mps"
         elif torch.cuda.is_available():

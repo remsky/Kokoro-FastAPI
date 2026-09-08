@@ -601,9 +601,9 @@ export class AudioService {
         const langCode = typeof document !== 'undefined'
             ? document.getElementById('lang-select')?.value || undefined
             : undefined;
-        const normalizeToggle = typeof document !== 'undefined'
-            ? document.getElementById('normalize-toggle')
-            : null;
+        const optionInputs = typeof document !== 'undefined'
+            ? document.querySelectorAll('[data-normalization-option]')
+            : [];
 
         const body = {
             input: text,
@@ -621,8 +621,14 @@ export class AudioService {
                 : undefined
         };
 
-        if (normalizeToggle && normalizeToggle.checked === false) {
-            body.normalization_options = { normalize: false };
+        const normalization = {};
+        for (const input of optionInputs) {
+            if (input.checked !== input.defaultChecked) {
+                normalization[input.dataset.normalizationOption] = input.checked;
+            }
+        }
+        if (Object.keys(normalization).length) {
+            body.normalization_options = normalization;
         }
 
         return body;

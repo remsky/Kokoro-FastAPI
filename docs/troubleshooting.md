@@ -135,7 +135,7 @@ Generating audio for a few paragraphs of varied length under the same overrides 
 
 ## Missing words & timestamps
 
-The API normalizes input text, which can incorrectly remove or change some phrases. Disable it with `"normalization_options":{"normalize": false}` in the request json:
+The API normalizes input text, which can incorrectly remove or change some phrases. Disable it with `"normalization_options":{"normalize": false}` in the request json, or control aspects via the full field list in [Text normalization](configuration.md#text-normalization):
 ```python
 import requests
 

@@ -7,9 +7,17 @@ import re
 import inflect
 
 from .base import Normalizer
-from .english_data import MONEY_UNITS, SYMBOL_REPLACEMENTS, VALID_TLDS, VALID_UNITS
+from .english_data import (
+    INFLECT_NOUNS,
+    MONEY_UNITS,
+    SYMBOL_REPLACEMENTS,
+    VALID_TLDS,
+    VALID_UNITS,
+)
 
 INFLECT_ENGINE = inflect.engine()
+for singular, plural in INFLECT_NOUNS.items():
+    INFLECT_ENGINE.defnoun(singular, plural)
 
 
 def conditional_int(number: float, threshold: float = 0.00001):
@@ -52,6 +60,21 @@ def unchanged_on_error(handler):
 
 class EnglishNormalizer(Normalizer):
     lang_codes = ("a", "b", "en-us", "en-gb")
+
+    CAPS_RUN_PATTERN = re.compile(r"\b[A-Z]+(?:[^A-Za-z]+[A-Z]+)+\b")
+    CAPS_WORD_PATTERN = re.compile(r"\b[A-Z]{4,}\b")
+    LONG_CAPS_PATTERN = re.compile(r"\b[A-Z]{6,}\b")
+    ROMAN_PATTERN = re.compile(r"[IVXLCDM]+")
+
+    def caps_words(self, text: str) -> str:
+        def lower(m: re.Match[str]) -> str:
+            word = m.group()
+            return word if self.ROMAN_PATTERN.fullmatch(word) else word.lower()
+
+        text = self.CAPS_RUN_PATTERN.sub(
+            lambda run: self.CAPS_WORD_PATTERN.sub(lower, run.group()), text
+        )
+        return self.LONG_CAPS_PATTERN.sub(lower, text)
 
     def contractions(self, text: str) -> str:
         # Expand the "'re" contractions that espeak mis-phonemizes with a spurious
@@ -175,27 +198,15 @@ class EnglishNormalizer(Normalizer):
         return re.sub(r"\(s\)", "s", text)
 
     PHONE_PATTERN = re.compile(
-        r"(\+?\d{1,2})?([ .-]?)(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})"
+        r"(?:(\+?\d{1,2})[ .-]?)?(\(?\d{3}\)?)[\s.-](\d{3})[\s.-](\d{4})"
     )
 
     def phone_numbers(self, text: str) -> str:
         def handle(p: re.Match[str]) -> str:
-            p = list(p.groups())
-
-            country_code = ""
-            if p[0] is not None:
-                p[0] = p[0].replace("+", "")
-                country_code += INFLECT_ENGINE.number_to_words(p[0])
-
-            area_code = INFLECT_ENGINE.number_to_words(
-                p[2].replace("(", "").replace(")", ""), group=1, comma=""
+            groups = [re.sub(r"\D", "", g) for g in p.groups() if g]
+            return ", ".join(
+                " ".join(INFLECT_ENGINE.number_to_words(d) for d in g) for g in groups
             )
-
-            telephone_prefix = INFLECT_ENGINE.number_to_words(p[3], group=1, comma="")
-
-            line_number = INFLECT_ENGINE.number_to_words(p[4], group=1, comma="")
-
-            return ",".join([country_code, area_code, telephone_prefix, line_number])
 
         return self.PHONE_PATTERN.sub(handle, text)
 
@@ -345,13 +356,10 @@ class EnglishNormalizer(Normalizer):
         return self.NUMBER_PATTERN.sub(handle, text)
 
     def symbols(self, text: str) -> str:
+        text = re.sub(r" ?-{2,} ?", " — ", text)
         for symbol, replacement in SYMBOL_REPLACEMENTS.items():
             text = text.replace(symbol, replacement)
         return text
-
-    def possessives(self, text: str) -> str:
-        text = re.sub(r"(?<=[BCDFGHJ-NP-TV-Z])'?s\b", "'S", text)
-        return re.sub(r"(?<=X')S\b", "s", text)
 
     def acronyms(self, text: str) -> str:
         text = re.sub(

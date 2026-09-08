@@ -90,6 +90,7 @@ function setupDocument() {
             }
             return elements.get(id);
         },
+        querySelectorAll() { return []; },
     };
     return elements;
 }

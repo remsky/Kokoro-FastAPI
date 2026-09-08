@@ -29,3 +29,5 @@ Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING
 - E2e: `npm run test:e2e` (Playwright against a static fixture server, no TTS backend needed).
 - Bundled Chromium has no mp3 codec, so real MSE playback needs system Chrome: launch with `channel: 'chrome'` in the spec/config when a test depends on real decoding.
 - For manual testing against a real backend, mount `web/` over the image's copy in the compose file rather than rebuilding per edit.
+- Before committing, check the change against [modern-web-guidance](https://developer.chrome.com/docs/modern-web-guidance) for current HTML/CSS/JS and accesibility patterns.
+  

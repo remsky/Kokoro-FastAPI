@@ -16,6 +16,7 @@ from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
     VOICE_TAG_PATTERN,
     check_pause_budget,
+    check_speakable,
 )
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
@@ -331,6 +332,11 @@ async def create_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {
@@ -725,7 +731,8 @@ async def list_voices(legacy: bool = False):
     full voice list. Entries also carry `target_quality`, `training_duration`
     and `overall_grade` for the voices graded in the upstream model card;
     ungraded voices (Spanish, Brazilian Portuguese, custom `.pt` files) omit
-    those keys. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    those keys. `default_voice` is the DEFAULT_VOICE setting. Pass
+    `?legacy=true` for the pre-0.3.x plain-string shape.
     """
     try:
         tts_service = await get_tts_service()
@@ -735,7 +742,8 @@ async def list_voices(legacy: bool = False):
         return {
             "voices": [
                 {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
-            ]
+            ],
+            "default_voice": settings.default_voice,
         }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")

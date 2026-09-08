@@ -57,7 +57,7 @@ VALID_UNITS = {
     "mg": "milligram",  # Mass
     "s": "second",
     "ms": "millisecond",
-    "min": "minutes",
+    "min": "minute",
     "h": "hour",  # Time
     "l": "liter",
     "ml": "mililiter",
@@ -114,6 +114,10 @@ VALID_UNITS = {
     "gbps": "gigabit per second",
     "tbps": "terabit per second",
     "px": "pixel",  # CSS units
+}
+
+INFLECT_NOUNS = {
+    "(.+)hertz": "$1hertz",
 }
 
 SYMBOL_REPLACEMENTS = {

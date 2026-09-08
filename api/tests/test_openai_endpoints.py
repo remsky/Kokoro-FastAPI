@@ -275,9 +275,7 @@ def test_openai_speech_endpoint(mock_tts_service, test_voice, mock_audio_bytes):
     assert response.content == mock_audio_bytes
 
     mock_tts_service.generate_audio.assert_called_once()
-    assert (
-        mock_tts_service.generate_audio.call_args.kwargs["output_format"] == "mp3"
-    )
+    assert mock_tts_service.generate_audio.call_args.kwargs["output_format"] == "mp3"
 
 
 def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes):
@@ -303,6 +301,16 @@ def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes)
     assert content == mock_audio_bytes
 
 
+def test_openai_speech_unexpected_error_is_500(mock_tts_service, test_voice):
+    mock_tts_service.generate_audio.side_effect = Exception("boom")
+    response = client.post(
+        "/v1/audio/speech",
+        json={"model": "kokoro", "input": "hi", "voice": test_voice, "stream": False},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"]["error"] == "processing_error"
+
+
 def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test_voice):
     """Over-budget requests must 400 before the stream opens, not die mid-200."""
     response = client.post(
@@ -317,6 +325,43 @@ def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test
     )
     assert response.status_code == 400
     assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test_voice):
+    """Blank input, or emoji-only with remove_emoji, 400s before the stream opens instead of an empty 200 (issue #353)."""
+    for body in [
+        {"input": "   "},
+        {"input": "😊", "normalization_options": {"remove_emoji": True}},
+    ]:
+        response = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": "kokoro",
+                "voice": test_voice,
+                "response_format": "mp3",
+                "stream": True,
+                **body,
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_openai_speech_streaming_null_normalization_options(
+    mock_tts_service, test_voice
+):
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "Hello world",
+            "voice": test_voice,
+            "response_format": "mp3",
+            "stream": True,
+            "normalization_options": None,
+        },
+    )
+    assert response.status_code == 200
 
 
 def test_captioned_streaming_over_pause_budget_is_400(mock_tts_service):
@@ -401,12 +446,7 @@ def test_openai_speech_invalid_voice(mock_tts_service):
 
 
 def test_openai_speech_empty_text(mock_tts_service, test_voice):
-    """Test error handling for empty text"""
-
-    async def mock_error_stream(*args, **kwargs):
-        raise ValueError("Text is empty after preprocessing")
-
-    mock_tts_service.generate_audio = mock_error_stream
+    """Empty input is rejected before the service is called."""
     mock_tts_service.list_voices.return_value = ["test_voice"]
 
     response = client.post(
@@ -422,7 +462,8 @@ def test_openai_speech_empty_text(mock_tts_service, test_voice):
     assert response.status_code == 400
     error_response = response.json()
     assert error_response["detail"]["error"] == "validation_error"
-    assert "Text is empty after preprocessing" in error_response["detail"]["message"]
+    assert "no speakable text" in error_response["detail"]["message"]
+    mock_tts_service.generate_audio.assert_not_called()
     assert error_response["detail"]["type"] == "invalid_request_error"
 
 
@@ -453,10 +494,28 @@ def test_list_voices(mock_tts_service):
     assert len(data["voices"]) == 2
     assert {"id": "voice1", "name": "voice1"} in data["voices"]
     assert {"id": "voice2", "name": "voice2"} in data["voices"]
+    assert data["default_voice"] == settings.default_voice
 
     legacy = client.get("/v1/audio/voices?legacy=true")
     assert legacy.status_code == 200
-    assert legacy.json()["voices"] == ["voice1", "voice2"]
+    assert legacy.json() == {"voices": ["voice1", "voice2"]}
+
+
+def test_omitted_voice_uses_default_voice_setting(mock_tts_service):
+    """A request without a voice takes DEFAULT_VOICE, and the docs show it."""
+    mock_tts_service.list_voices.return_value = ["am_adam", settings.default_voice]
+
+    response = client.post(
+        "/v1/audio/speech",
+        json={"input": "Hello world", "response_format": "mp3", "stream": False},
+    )
+    assert response.status_code == 200
+    voice = mock_tts_service.generate_audio.call_args[1]["voice"]
+    assert voice == settings.default_voice
+
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    for name in ("OpenAISpeechRequest", "CaptionedSpeechRequest"):
+        assert schemas[name]["properties"]["voice"]["default"] == settings.default_voice
 
 
 def test_list_voices_grades(mock_tts_service):
@@ -504,7 +563,9 @@ def test_combine_voices_weighted(mock_settings, mock_tts_service, tmp_path):
 
     response = client.post("/v1/audio/voices/combine", json="voice1(2.2)+voice2(2.8)")
     assert response.status_code == 200
-    assert 'filename="voice1_2.2_voice2_2.8.pt"' in response.headers["content-disposition"]
+    assert (
+        'filename="voice1_2.2_voice2_2.8.pt"' in response.headers["content-disposition"]
+    )
     mock_tts_service.get_voices_path.assert_awaited_once_with("voice1(2.2)+voice2(2.8)")
 
 
