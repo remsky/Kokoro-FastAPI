@@ -1,7 +1,9 @@
 """Tests for AudioService"""
 
+import io
 from unittest.mock import patch
 
+import av
 import numpy as np
 import pytest
 
@@ -26,6 +28,15 @@ def sample_audio():
     t = np.linspace(0, duration, int(sample_rate * duration))
     frequency = 440  # A4 note
     return np.sin(2 * np.pi * frequency * t).astype(np.float32), sample_rate
+
+
+def decode(blob: bytes, format: str) -> np.ndarray:
+    if format == "pcm":
+        return np.frombuffer(blob, np.int16)
+    with av.open(io.BytesIO(blob)) as container:
+        return np.concatenate(
+            [f.to_ndarray().ravel() for f in container.decode(audio=0)]
+        )
 
 
 @pytest.mark.asyncio
@@ -162,119 +173,69 @@ async def test_convert_to_invalid_format_raises_error(sample_audio):
 
 
 @pytest.mark.asyncio
-async def test_normalization_wav(sample_audio):
-    """Test that WAV output is properly normalized to int16 range"""
+@pytest.mark.parametrize("format", ["wav", "pcm"])
+async def test_normalization_clips_to_int16(sample_audio, format):
+    """Samples outside the int16 range land on the rails instead of wrapping"""
     audio_data, sample_rate = sample_audio
 
+    writer = StreamingAudioWriter(format, sample_rate=sample_rate)
+
+    audio_chunk = await AudioService.convert_audio(
+        AudioChunk(audio_data * 1e5), format, writer, is_last_chunk=True
+    )
+
+    samples = decode(audio_chunk.output, format)
+    assert samples.max() == 32767
+    assert samples.min() == -32768
+
+
+@pytest.mark.asyncio
+async def test_empty_audio_writes_nothing():
+    """An empty chunk produces no bytes and no error"""
     writer = StreamingAudioWriter("wav", sample_rate=24000)
 
-    # Create audio data outside int16 range
-    large_audio = audio_data * 1e5
-    # Write and finalize in one step for WAV
     audio_chunk = await AudioService.convert_audio(
-        AudioChunk(large_audio), "wav", writer
+        AudioChunk(np.array([], dtype=np.float32)), "wav", writer
     )
 
     writer.close()
 
-    assert isinstance(audio_chunk.output, bytes)
-    assert isinstance(audio_chunk, AudioChunk)
-    assert len(audio_chunk.output) > 0
+    assert audio_chunk.output == b""
 
 
 @pytest.mark.asyncio
-async def test_normalization_pcm(sample_audio):
-    """Test that PCM output is properly normalized to int16 range"""
-    audio_data, sample_rate = sample_audio
-
-    writer = StreamingAudioWriter("pcm", sample_rate=24000)
-
-    # Create audio data outside int16 range
-    large_audio = audio_data * 1e5
-    audio_chunk = await AudioService.convert_audio(
-        AudioChunk(large_audio), "pcm", writer
-    )
-    assert isinstance(audio_chunk.output, bytes)
-    assert isinstance(audio_chunk, AudioChunk)
-    assert len(audio_chunk.output) > 0
-
-
-@pytest.mark.asyncio
-async def test_invalid_audio_data():
-    """Test handling of invalid audio data"""
-    invalid_audio = np.array([])  # Empty array
-    sample_rate = 24000
-
-    writer = StreamingAudioWriter("wav", sample_rate=24000)
-
-    with pytest.raises(ValueError):
-        await AudioService.convert_audio(invalid_audio, sample_rate, "wav", writer)
-
-
-@pytest.mark.asyncio
-async def test_different_sample_rates(sample_audio):
-    """Test converting audio with different sample rates"""
+@pytest.mark.parametrize("rate", [8000, 16000, 44100, 48000])
+async def test_different_sample_rates(sample_audio, rate):
+    """The writer's sample rate is the one in the file header"""
     audio_data, _ = sample_audio
-    sample_rates = [8000, 16000, 44100, 48000]
 
-    for rate in sample_rates:
-        writer = StreamingAudioWriter("wav", sample_rate=rate)
+    writer = StreamingAudioWriter("wav", sample_rate=rate)
 
-        audio_chunk = await AudioService.convert_audio(
-            AudioChunk(audio_data), "wav", writer
-        )
-
-        writer.close()
-
-        assert isinstance(audio_chunk.output, bytes)
-        assert isinstance(audio_chunk, AudioChunk)
-        assert len(audio_chunk.output) > 0
-
-
-@pytest.mark.asyncio
-async def test_buffer_position_after_conversion(sample_audio):
-    """Test that buffer position is reset after writing"""
-    audio_data, sample_rate = sample_audio
-
-    writer = StreamingAudioWriter("wav", sample_rate=24000)
-
-    # Write and finalize in one step for first conversion
-    audio_chunk1 = await AudioService.convert_audio(
+    audio_chunk = await AudioService.convert_audio(
         AudioChunk(audio_data), "wav", writer, is_last_chunk=True
     )
-    assert isinstance(audio_chunk1.output, bytes)
-    assert isinstance(audio_chunk1, AudioChunk)
-    # Convert again to ensure buffer was properly reset
 
-    writer = StreamingAudioWriter("wav", sample_rate=24000)
-
-    audio_chunk2 = await AudioService.convert_audio(
-        AudioChunk(audio_data), "wav", writer, is_last_chunk=True
-    )
-    assert isinstance(audio_chunk2.output, bytes)
-    assert isinstance(audio_chunk2, AudioChunk)
-    assert len(audio_chunk1.output) == len(audio_chunk2.output)
+    with av.open(io.BytesIO(audio_chunk.output)) as container:
+        assert container.streams.audio[0].rate == rate
 
 
 @pytest.mark.parametrize("format", ["wav", "flac", "mp3", "opus", "aac"])
 def test_finalize_preserves_tail(format):
-    """Test that no audio is lost at finalize (issue #497)"""
-    import io
-
-    import av
-
+    """Test that no audio is lost across chunks or at finalize (issue #497)"""
     sample_rate = 16000
     t = np.arange(int(0.2 * sample_rate)) / sample_rate
     audio = (np.sin(2 * np.pi * 440 * t) * 20000).astype(np.int16)
 
     writer = StreamingAudioWriter(format, sample_rate=sample_rate)
-    blob = writer.write_chunk(audio) + writer.write_chunk(finalize=True)
-
-    with av.open(io.BytesIO(blob)) as container:
-        decoded = sum(f.samples for f in container.decode(audio=0))
+    blob = (
+        writer.write_chunk(audio)
+        + writer.write_chunk(audio)
+        + writer.write_chunk(finalize=True)
+    )
+    decoded = len(decode(blob, format))
 
     if format in ("wav", "flac"):
-        assert decoded == len(audio)
+        assert decoded == 2 * len(audio)
     else:
         # lossy encoders pad with encoder delay, but must not truncate
-        assert decoded >= len(audio)
+        assert decoded >= 2 * len(audio)
