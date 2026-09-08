@@ -60,7 +60,7 @@ For a CPU capture: swap to the CPU image, then rerun with `KOKORO_DEVICE=cpu` / 
 
 ## Gotchas
 
-- **First-token plots save under GENERIC names**, not `BENCH_PREFIX`. `BENCH_PREFIX` only changes plot titles and the (misleading) "Results saved to" print. Actual files are `first_token_{timeline,latency}_stream{,_openai}.png`. So a GPU run overwrites the CPU generic file. To keep both, copy the generic file to its device-named asset **between** runs (CPU run to copy to GPU run).
+- **First-token plots save under GENERIC names**, not `BENCH_PREFIX`. `BENCH_PREFIX` only changes the (misleading) "Results saved to" print, neither file names nor plot titles carry it. Actual files are `first_token_{timeline,latency}_stream{,_openai}.png`. So a GPU run overwrites the CPU generic file. To keep both, copy the generic file to its device-named asset **between** runs (CPU run to copy to GPU run).
 - Reports are split `_gpu` / `_cpu` with a `meta` header. Don't let a cpu run clobber a gpu file. If you see a bare `report.json` / `long_form_report.json`, it predates the split.
 - `transcribe_seconds` is constant across kokoro cpu/gpu unless you change `WHISPER_DEVICE`. Only `synth_seconds` tracks the kokoro device.
 - Regression bands live in `test_transcription/BASELINE.md` (WER < 0.07, synth >= 25x rt warm, transcribe >= 40x CUDA / 13-17x CPU int8).
@@ -90,4 +90,4 @@ Copy plot outputs to `assets/` under the README's names (No stamp):
 | `assets/gpu_dialogue_turn_length.png` | `test_dialogue/output/dialogue_turn_length.png` (GPU run; `KOKORO_DEVICE` only labels the caption) |
 | `assets/gpu_dialogue_text_length.png` | `test_dialogue/output/dialogue_text_length.png` (same run as above) |
 
-The README shows all six across three blocks (grep the asset name to find each). Other `gpu_first_token_*` assets exist but aren't displayed.
+The README shows all six across three blocks (grep the asset name to find each), plus `gpu_model_unload_{short,longform}.png` from `benchmarks/benchmark_model_unload.py`. Other `gpu_first_token_*` assets exist but aren't displayed.

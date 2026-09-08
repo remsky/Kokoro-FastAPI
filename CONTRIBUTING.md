@@ -26,9 +26,9 @@ We use `uv` for managing Python environments and dependencies, and `ruff` for li
     # .venv\Scripts\activate # On Windows
 
     # Install dependencies including test requirements
-    uv pip install -e ".[test,cpu]"
+    uv sync --extra test --extra cpu
     ```
-    *Note: If you have an NVIDIA GPU and want to test GPU-specific features locally, you can install `.[test,gpu]` instead, ensuring you have the correct CUDA toolkit installed.*
+    *Note: If you have an NVIDIA GPU and want to test GPU-specific features locally, use `--extra gpu` instead, ensuring you have the correct CUDA toolkit installed.*
 
     *Note: If running via uv locally, you will have to install espeak and handle any pathing issues that arise. The Docker images handle this automatically*
 
@@ -45,7 +45,7 @@ Before submitting changes, please ensure all tests pass as this is a automated r
 # Make sure your virtual environment is activated
 uv run pytest
 ```
-*Note: The CI workflow runs tests using `uv run pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml`. Running `uv run pytest` locally should cover the essential checks.*
+*Note: CI runs `uv run --extra test --extra cpu pytest api/tests/ --cov=api --cov-report=xml` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
 
 ## Testing with Docker Compose
 
@@ -54,7 +54,6 @@ In addition to local `pytest` runs, test your changes using Docker Compose to en
 ```bash
 
 docker compose -f docker/cpu/docker-compose.yml up --build
-+
 docker compose -f docker/gpu/docker-compose.yml up --build
 ```
 This command will build the Docker images (if they've changed) and start the services defined in the respective compose file. Verify the application starts correctly and test the relevant functionality.

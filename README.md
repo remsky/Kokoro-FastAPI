@@ -30,11 +30,19 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 - Apple Silicon (MPS) supported when running directly via UV (no image)
 
 
-### Integration Guides
+### Integration & Guides 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
 
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](docs/deployment/kubernetes.md) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](docs/deployment/digitalocean.md) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](docs/integrations/sillytavern.md)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](docs/integrations/openwebui.md)
+
+Community projects that use, recommend, or enable Kokoro-FastAPI as a backend:
+
+- Home Assistant: [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)
+- App stores and templates: [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Community Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)
+- Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-TTS](https://github.com/xujialiu/Zotero-TTS)
+- Assistants and agents: [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)
+- Browser: [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)
 
 ## Get Started
 
