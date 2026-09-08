@@ -37,6 +37,13 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
         enable-cache: true
+    - name: Cache model weights
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: api/src/models/v1_0
+        key: kokoro-model-${{ hashFiles('docker/scripts/download_model.py') }}
+    - name: Download model
+      run: python3 docker/scripts/download_model.py --output api/src/models/v1_0
     - name: Run Tests
       run: |
         uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml
