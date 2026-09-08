@@ -172,7 +172,9 @@ async def test_generate_skips_untimed_tokens(kokoro_backend):
     tokens = [
         SimpleNamespace(text="What", start_ts=0.0, end_ts=0.2),
         SimpleNamespace(text="--", start_ts=None, end_ts=None),
+        SimpleNamespace(text=" ", start_ts=0.2, end_ts=0.3),
         SimpleNamespace(text="key", start_ts=0.3, end_ts=0.5),
+        SimpleNamespace(text="tail"),
     ]
     result = SimpleNamespace(
         audio=torch.zeros(24000), tokens=tokens, pred_dur=torch.ones(8), phonemes=""

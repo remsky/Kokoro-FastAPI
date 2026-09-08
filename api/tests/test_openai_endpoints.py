@@ -301,6 +301,16 @@ def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes)
     assert content == mock_audio_bytes
 
 
+def test_openai_speech_unexpected_error_is_500(mock_tts_service, test_voice):
+    mock_tts_service.generate_audio.side_effect = Exception("boom")
+    response = client.post(
+        "/v1/audio/speech",
+        json={"model": "kokoro", "input": "hi", "voice": test_voice, "stream": False},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"]["error"] == "processing_error"
+
+
 def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test_voice):
     """Over-budget requests must 400 before the stream opens, not die mid-200."""
     response = client.post(
