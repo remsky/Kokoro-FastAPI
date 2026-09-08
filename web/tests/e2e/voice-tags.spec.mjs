@@ -142,6 +142,7 @@ test('the alias field takes enter for the button next to it', async ({ page }) =
     await tagsTab(page).click();
     await page.locator('#voice-search').click();
     await page.locator('.voice-option').first().click();
+    await expect(page.locator('#voice-search')).toBeFocused();
     await page.locator('#create-tag-name').fill('narrator');
     await page.locator('#create-tag-name').press('Enter');
 

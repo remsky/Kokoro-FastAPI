@@ -69,7 +69,7 @@ function mockMediaSource() {
         });
 
         // createObjectURL does real WebIDL overload resolution, a look-alike MediaSource throws
-        const mockObjectUrl = 'blob:mock-mediasource';
+        const mockObjectUrl = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YQAAAAA=';
         const realCreateObjectURL = URL.createObjectURL.bind(URL);
         const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
         URL.createObjectURL = (obj) => (obj instanceof MockMediaSource ? mockObjectUrl : realCreateObjectURL(obj));
