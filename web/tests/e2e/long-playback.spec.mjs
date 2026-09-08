@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
 
-// TODO: wire this suite into CI, nothing under .github/workflows runs playwright today
-
 function longText() {
     return Array.from({ length: 2000 }, (_, index) => `word${index}`).join(' ');
 }
@@ -121,6 +119,7 @@ test('long MP3 generation uses MediaSource streaming', async ({ page }) => {
     expect(captured.speechRequestBody.stream).toBe(true);
     await expect.poll(() => page.evaluate(() => window.__mediaSourceConstructed)).toBeGreaterThan(0);
     await expect.poll(() => page.evaluate(() => window.__sourceBufferCreated)).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.__sourceBufferAppends)).toBeGreaterThan(0);
 });
 
 test('the timing json gives the length, and a swap onto a missing file stays locked', async ({ page }) => {

@@ -1,14 +1,10 @@
 import { expect, test } from '@playwright/test';
 
-const API = process.env.KOKORO_BASE_URL || 'http://localhost:8880';
-
-test.beforeAll(async ({ request }) => {
-    const probe = await request.get(`${API}/web/config`).catch(() => null);
-    test.skip(!probe || !probe.ok(), `no Kokoro server at ${API}`);
-});
+import { mockApi } from './fixtures/mock-api.mjs';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto(`${API}/web/`);
+    await mockApi(page);
+    await page.goto('/');
     await expect(page.locator('.selected-voice-tag').first()).toBeVisible({ timeout: 15_000 });
 });
 
