@@ -11,7 +11,9 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
-- Web player: the normalize checkbox is now a menu with every `normalization_options` field.
+- Web player: 
+  - the normalize checkbox is now a menu with every `normalization_options` field.
+  - voice list sorted by model card grade, best first, then name. `DEFAULT_VOICE` is the preselected voice.
 
 ### Fixed
 - Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).
@@ -25,6 +27,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - `3.5 GHz` reads gigahertz and `1 min` reads one minute with `unit_normalization` on.
 - Plural and possessive acronyms (`DVDs`, `DVD's`) are no longer rewritten to `DVD'S`, which was spelled out as dee-vee-dee-ess.
 - Times with seconds keep their am/pm (`12:30:15 pm`).
+- `DEFAULT_VOICE` now applies to speech requests that omit a voice. Previously it only chose the warmup voice and requests fell back to `af_heart`. `/v1/audio/voices` reports it as `default_voice`.
 - Blank input, or emoji-only input with `remove_emoji`, is a 400 on the streaming path too, not an empty 200.
 - `--` and `---` read as a dash. Previously the words on either side fused and word timestamps stopped for the rest of the chunk (#249).
 

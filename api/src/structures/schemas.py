@@ -13,6 +13,8 @@ from pydantic import (
     model_validator,
 )
 
+from ..core.config import settings
+
 
 class TTSStatus(str, Enum):
     PENDING = "pending"
@@ -48,9 +50,6 @@ LangCode = Annotated[str, AfterValidator(_known_lang_code)]
 
 
 def _within_input_limit(value: str) -> str:
-    # deferred import, keeps torch out of every schema import
-    from ..core.config import settings
-
     if len(value) > settings.max_input_length:
         raise ValueError(
             f"input is {len(value)} characters, the limit is {settings.max_input_length}"
@@ -190,8 +189,8 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     )
     input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
-        description="The voice to use for generation. Can be a base voice or a combined voice name.",
+        default=settings.default_voice,
+        description="The voice to use for generation. Can be a base voice or a combined voice name. Defaults to DEFAULT_VOICE.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",
@@ -349,8 +348,8 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
     )
     input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
-        description="The voice to use for generation. Can be a base voice or a combined voice name.",
+        default=settings.default_voice,
+        description="The voice to use for generation. Can be a base voice or a combined voice name. Defaults to DEFAULT_VOICE.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",

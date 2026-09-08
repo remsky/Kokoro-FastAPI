@@ -731,7 +731,8 @@ async def list_voices(legacy: bool = False):
     full voice list. Entries also carry `target_quality`, `training_duration`
     and `overall_grade` for the voices graded in the upstream model card;
     ungraded voices (Spanish, Brazilian Portuguese, custom `.pt` files) omit
-    those keys. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    those keys. `default_voice` is the DEFAULT_VOICE setting. Pass
+    `?legacy=true` for the pre-0.3.x plain-string shape.
     """
     try:
         tts_service = await get_tts_service()
@@ -739,7 +740,10 @@ async def list_voices(legacy: bool = False):
         if legacy:
             return {"voices": voices}
         return {
-            "voices": [{"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices]
+            "voices": [
+                {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
+            ],
+            "default_voice": settings.default_voice,
         }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")

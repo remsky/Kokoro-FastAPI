@@ -494,10 +494,28 @@ def test_list_voices(mock_tts_service):
     assert len(data["voices"]) == 2
     assert {"id": "voice1", "name": "voice1"} in data["voices"]
     assert {"id": "voice2", "name": "voice2"} in data["voices"]
+    assert data["default_voice"] == settings.default_voice
 
     legacy = client.get("/v1/audio/voices?legacy=true")
     assert legacy.status_code == 200
-    assert legacy.json()["voices"] == ["voice1", "voice2"]
+    assert legacy.json() == {"voices": ["voice1", "voice2"]}
+
+
+def test_omitted_voice_uses_default_voice_setting(mock_tts_service):
+    """A request without a voice takes DEFAULT_VOICE, and the docs show it."""
+    mock_tts_service.list_voices.return_value = ["am_adam", settings.default_voice]
+
+    response = client.post(
+        "/v1/audio/speech",
+        json={"input": "Hello world", "response_format": "mp3", "stream": False},
+    )
+    assert response.status_code == 200
+    voice = mock_tts_service.generate_audio.call_args[1]["voice"]
+    assert voice == settings.default_voice
+
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    for name in ("OpenAISpeechRequest", "CaptionedSpeechRequest"):
+        assert schemas[name]["properties"]["voice"]["default"] == settings.default_voice
 
 
 def test_list_voices_grades(mock_tts_service):
