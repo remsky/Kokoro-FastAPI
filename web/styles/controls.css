@@ -79,6 +79,54 @@
     cursor: pointer;
 }
 
+.normalize-toggle {
+    color: var(--text-light);
+    font-size: 0.75rem;
+    list-style: none;
+    cursor: pointer;
+}
+
+.normalize-toggle::-webkit-details-marker {
+    display: none;
+}
+
+.normalize-panel {
+    padding-top: 0.35rem;
+}
+
+.normalize-master {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.normalize-help {
+    width: 1rem;
+    height: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    color: var(--text-light);
+    font-size: 0.7rem;
+    line-height: 1rem;
+    text-align: center;
+    text-decoration: none;
+}
+
+.normalize-panel fieldset {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+    margin: 0.35rem 0 0;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 0.35rem;
+    min-width: 0;
+}
+
+.normalize-panel fieldset:disabled {
+    opacity: 0.5;
+}
+
 /* ── generate */
 .generate-card {
     display: flex;

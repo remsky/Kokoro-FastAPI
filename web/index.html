@@ -162,10 +162,24 @@
                     </div>
                 </div>
                 <div class="settings-options">
-                    <label class="setting-toggle" for="normalize-toggle" title="Enable or disable automatic text normalization (numbers, dates, currency)">
-                        <input type="checkbox" id="normalize-toggle" checked>
-                        <span>Normalize text</span>
-                    </label>
+                    <details id="normalize-menu">
+                        <summary class="normalize-toggle" title="Text normalization options (numbers, dates, currency, emoji)">Normalization &#9662;</summary>
+                        <div class="normalize-panel">
+                            <div class="normalize-master">
+                                <label class="setting-toggle" title="Master switch, off sends the text as written"><input type="checkbox" id="normalize-toggle" data-normalization-option="normalize" checked><span>Normalize</span></label>
+                                <a class="normalize-help" href="https://github.com/remsky/Kokoro-FastAPI/blob/master/docs/configuration.md#text-normalization" target="_blank" rel="noopener" aria-label="Normalization options docs" title="What each option does">?</a>
+                            </div>
+                            <fieldset id="normalize-options">
+                                <label class="setting-toggle" title="https://test.org/path reads as https test dot org slash path"><input type="checkbox" data-normalization-option="url_normalization" checked><span>URLs</span></label>
+                                <label class="setting-toggle" title="user@example.com reads as user at example dot com"><input type="checkbox" data-normalization-option="email_normalization" checked><span>Emails</span></label>
+                                <label class="setting-toggle" title="555-123-4567 reads as spoken digits"><input type="checkbox" data-normalization-option="phone_normalization" checked><span>Phone numbers</span></label>
+                                <label class="setting-toggle" title="10KB reads as 10 kilobytes"><input type="checkbox" data-normalization-option="unit_normalization"><span>Units (km, kg, KB)</span></label>
+                                <label class="setting-toggle" title="friend(s) reads as friends"><input type="checkbox" data-normalization-option="optional_pluralization_normalization" checked><span>Optional plurals, word(s)</span></label>
+                                <label class="setting-toggle" title="&amp; reads as and, @ as at, # as number, % as percent"><input type="checkbox" data-normalization-option="replace_remaining_symbols" checked><span>Other symbols (&amp;@#$%)</span></label>
+                                <label class="setting-toggle" title="Emoji dropped instead of read by name"><input type="checkbox" data-normalization-option="remove_emoji"><span>Remove emoji</span></label>
+                            </fieldset>
+                        </div>
+                    </details>
                 </div>
             </section>
 

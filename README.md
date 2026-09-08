@@ -780,7 +780,7 @@ Global API [loguru logging level](https://loguru.readthedocs.io/en/stable/api/lo
 <details>
 <summary>Missing words & Missing some timestamps</summary>
 
-The API normalizes input text, which can incorrectly remove or change some phrases. Disable it with `"normalization_options":{"normalize": false}` in the request json:
+The API normalizes input text, which can incorrectly remove or change some phrases. Disable it with `"normalization_options":{"normalize": false}` in the request json, the full field list is in [Text normalization](docs/configuration.md#text-normalization):
 ```python
 import requests
 

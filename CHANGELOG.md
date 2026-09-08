@@ -10,6 +10,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
+- Web player: the normalize checkbox is now a menu with every `normalization_options` field.
 
 ### Fixed
 - Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).

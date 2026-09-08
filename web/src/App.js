@@ -46,6 +46,8 @@ export class App {
             downloadBtn: document.getElementById('download-btn'),
             downloadMenu: document.getElementById('download-menu'),
             autoplayToggle: document.getElementById('autoplay-toggle'),
+            normalizeToggle: document.getElementById('normalize-toggle'),
+            normalizeOptions: document.getElementById('normalize-options'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
             cancelBtn: document.getElementById('cancel-btn'),
@@ -676,6 +678,10 @@ export class App {
         // Keep browser/output warning aligned with the selected format and autoplay state
         this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());
         this.elements.autoplayToggle.addEventListener('change', () => this.applyBrowserStreamingNotice());
+
+        this.elements.normalizeToggle.addEventListener('change', () => {
+            this.elements.normalizeOptions.disabled = !this.elements.normalizeToggle.checked;
+        });
 
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
