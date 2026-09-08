@@ -3,6 +3,8 @@ name: web-contrib
 description: "Contributing to the Kokoro-FastAPI web player: vanilla JS constraints, MSE/audio gotchas, unit and e2e test setup. Use when changing anything under web/."
 ---
 
+Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) first, house rules live there.
+
 # Web player contributions
 
 ## Constraints

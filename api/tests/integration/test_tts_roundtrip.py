@@ -164,3 +164,38 @@ def test_tts_roundtrip(case: Case, openai_client, whisper_model, tmp_path):
         f"for {case.voice}/{case.lang}. "
         f"Expected: {case.text!r}. Heard: {transcript!r}."
     )
+
+
+UNPUNCTUATED_RUN = " ".join(
+    """
+    el pueblo despertaba despacio con el sol asomando sobre las colinas y las
+    calles todavía húmedas por la lluvia de la noche mientras el panadero abría
+    su puerta y el olor del pan recién hecho se mezclaba con el aire frío de la
+    mañana los vecinos salían poco a poco de sus casas saludándose con la mano y
+    comentando el tiempo y los niños corrían hacia la escuela con las mochilas
+    colgando de un solo hombro sin prestar atención a los charcos que pisaban en
+    la plaza el viejo reloj marcaba las ocho y las palomas se reunían alrededor
+    de la fuente esperando las migas que cada día les dejaba la señora del quiosco
+    que llegaba siempre puntual con su carrito lleno de periódicos y revistas y
+    caramelos para los más pequeños que se acercaban curiosos mientras sus madres
+    compraban el pan y hablaban de las noticias del día
+    """.split()
+)
+
+
+def test_unpunctuated_run_is_not_truncated(openai_client, whisper_model, tmp_path):
+    response = openai_client.audio.speech.create(
+        model="tts-1",
+        voice="ef_dora",
+        input=UNPUNCTUATED_RUN,
+        response_format="wav",
+    )
+    audio = response.content
+    audio_path = tmp_path / "unpunctuated_run.wav"
+    audio_path.write_bytes(audio)
+
+    segments, _ = whisper_model.transcribe(str(audio_path), language="es", beam_size=1)
+    hypothesis = " ".join(s.text for s in segments)
+    score = _score("es", UNPUNCTUATED_RUN, hypothesis)
+    print(f"unpunctuated run: audio={_wav_seconds(audio):.1f}s WER={score:.3f}")
+    assert score < WER_THRESHOLD, f"WER {score:.3f} suggests the run was truncated"

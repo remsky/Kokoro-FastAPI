@@ -4,6 +4,20 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Changed
+- Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
+
+### Fixed
+- Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).
+- Long runs of non-English text without punctuation (~100 words) no longer truncate incorrectly.
+- Number reading:
+  - `3,497` reads as thousands, not a year (#259).
+  - Digits glued to letters (`MP3`, `B2B`, `v1.0`, `1.5x`) pass through as written. `COVID-19` is no longer COVID minus nineteen.
+  - `.5` reads as zero point five, `1980S` as nineteen eighty S.
+  - Long digit runs no longer stall or 500 the request.
+- Times with seconds keep their am/pm (`12:30:15 pm`).
+
 ## [v0.8.2] - 2026-09-05
 ### Added
 - Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
