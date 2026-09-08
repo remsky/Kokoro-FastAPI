@@ -21,6 +21,7 @@ from api.src.services.text_processing import text_processor
 from api.src.services.text_processing.text_processor import (
     CONTROL_TAG_PATTERN,
     join_lines,
+    pack,
     smart_split,
     split_by_voice,
 )
@@ -43,6 +44,9 @@ tag = st.sampled_from(
 )
 gap = st.sampled_from(["", " ", "\n\n"])
 word = st.from_regex(r"\A[a-z]{1,8}[.,]?\Z")
+pieces = st.lists(st.integers(min_value=1, max_value=12), max_size=20).map(
+    lambda sizes: [(f"p{i}", [i] * n) for i, n in enumerate(sizes)]
+)
 tagged = st.lists(st.tuples(tag, gap, word, gap), min_size=1, max_size=8).map(
     lambda parts: "".join("".join(part) for part in parts)
 )
@@ -117,10 +121,47 @@ def test_smart_split_only_moves_whitespace(text, target_max):
     assert squash(" ".join(chunks)) == squash("".join(sentences))
 
 
-@given(runs, st.integers(min_value=3, max_value=20))
-def test_smart_split_honours_token_cap(text, max_tokens):
-    chunks = chunks_of(text, max_tokens, max_tokens)
+@given(
+    runs, st.integers(min_value=3, max_value=20), st.integers(min_value=3, max_value=40)
+)
+def test_smart_split_honours_token_cap(text, target_max, max_tokens):
+    chunks = chunks_of(text, target_max, max_tokens)
     assert words(" ".join(chunk for chunk, _ in chunks)) == words(text)
     assert all(
         len(tokens) <= max_tokens or " " not in chunk for chunk, tokens in chunks
     )
+
+
+@given(
+    pieces,
+    st.integers(min_value=1, max_value=20),
+    st.integers(min_value=0, max_value=20),
+    st.integers(min_value=1, max_value=30),
+)
+def test_pack_keeps_every_piece_in_order(pieces, max_tokens, min_tokens, target_max):
+    chunks = list(pack(pieces, max_tokens, min_tokens, target_max))
+    assert [t for _, tokens in chunks for t in tokens] == [
+        t for _, tokens in pieces for t in tokens
+    ]
+    assert " ".join(text for text, _ in chunks).split() == [text for text, _ in pieces]
+    assert all(text and tokens for text, tokens in chunks)
+
+
+@given(
+    pieces,
+    st.integers(min_value=1, max_value=20),
+    st.integers(min_value=0, max_value=20),
+    st.integers(min_value=1, max_value=30),
+)
+def test_pack_is_greedy_under_the_caps(pieces, max_tokens, min_tokens, target_max):
+    """A chunk only closes when the next piece would not fit, and never passes max_tokens unless it is one piece."""
+    chunks = list(pack(pieces, max_tokens, min_tokens, target_max))
+    cap = min(target_max, max_tokens)
+    assert all(
+        len(tokens) <= max_tokens or len(set(tokens)) == 1 for _, tokens in chunks
+    )
+    for (_, tokens), (_, following) in zip(chunks, chunks[1:]):
+        first_next = len(pieces[following[0]][1])
+        total = len(tokens) + first_next
+        assert total > cap
+        assert total > max_tokens or len(tokens) >= min_tokens

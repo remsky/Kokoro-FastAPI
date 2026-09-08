@@ -51,9 +51,9 @@ class Normalizer:
 
     # neutral passes
     def quotes(self, text: str) -> str:
-        text = text.replace(chr(8216), "'").replace(chr(8217), "'")
-        text = text.replace("«", chr(8220)).replace("»", chr(8221))
-        return text.replace(chr(8220), '"').replace(chr(8221), '"')
+        text = text.replace("\u2018", "'").replace("\u2019", "'")
+        text = text.replace("\u00ab", "\u201c").replace("\u00bb", "\u201d")
+        return text.replace("\u201c", '"').replace("\u201d", '"')
 
     def cjk_punctuation(self, text: str) -> str:
         for a, b in CJK_PUNCTUATION.items():

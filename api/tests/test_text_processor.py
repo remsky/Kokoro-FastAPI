@@ -610,6 +610,27 @@ def test_split_words_fits_each_piece(monkeypatch):
     ]
 
 
+def test_split_clauses_keeps_separators_and_falls_back_to_words(monkeypatch):
+    monkeypatch.setattr(
+        text_processor, "process_text_chunk", lambda text, *a, **k: [0] * len(text)
+    )
+
+    assert list(text_processor.split_clauses("a b, c d; e", 5)) == [
+        ("a b,", [0] * 4),
+        ("c d;", [0] * 4),
+        ("e", [0]),
+    ]
+    assert list(text_processor.split_clauses("abcdefgh ij, k", 5)) == [
+        ("abcdefgh", [0] * 8),
+        ("ij,", [0] * 3),
+        ("k", [0]),
+    ]
+    assert list(text_processor.split_clauses("a,, b", 5)) == [
+        ("a,", [0, 0]),
+        ("b", [0]),
+    ]
+
+
 @pytest.mark.asyncio
 async def test_smart_split_caps_unpunctuated_runs():
     """A long run with no punctuation is cut by words, never truncated by the model (issue #71, #95)."""

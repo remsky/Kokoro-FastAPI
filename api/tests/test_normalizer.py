@@ -186,6 +186,8 @@ CASES = [
     ),
     # punctuation and whitespace
     ("你好，世界", "你好, 世界"),
+    ("你好。世界！好吗？再见", "你好. 世界! 好吗? 再见"),
+    ("一、二；三：四–五", "一, 二; 三: 四- 五"),
     ("He said “hi” and ‘bye’", "He said \"hi\" and 'bye'"),
     ("Tab\there and   spaces", "Tab here and spaces"),
     ("Line one\n\nLine two", "Line one Line two"),
