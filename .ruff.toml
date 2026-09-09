@@ -3,7 +3,7 @@ line-length = 88
 exclude = ["examples"]
 
 [lint]
-select = ["I"]
+select = ["F", "I"]
 
 [lint.isort]
 combine-as-imports = true

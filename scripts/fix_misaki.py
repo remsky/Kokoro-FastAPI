@@ -2,7 +2,6 @@
 Patch for misaki package to fix the EspeakWrapper.set_data_path issue.
 """
 
-import importlib.util
 import os
 import sys
 

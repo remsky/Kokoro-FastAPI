@@ -1,16 +1,9 @@
 """Audio conversion service"""
 
 import math
-import struct
-import time
-from io import BytesIO
-from typing import Tuple
 
 import numpy as np
-import scipy.io.wavfile as wavfile
-import soundfile as sf
 from loguru import logger
-from torch import norm
 
 from ..core.config import settings
 from ..inference.base import AudioChunk

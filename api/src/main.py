@@ -5,7 +5,6 @@ FastAPI OpenAI Compatible API
 import os
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import torch
 import uvicorn

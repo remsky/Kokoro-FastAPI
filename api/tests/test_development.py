@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 import pytest
-import requests
 from fastapi.testclient import TestClient
 
 from api.src.inference.base import AudioChunk

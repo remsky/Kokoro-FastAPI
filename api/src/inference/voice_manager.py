@@ -3,7 +3,6 @@
 from typing import Dict, List, Optional
 
 import torch
-from loguru import logger
 
 from ..core import paths
 from ..core.config import settings
