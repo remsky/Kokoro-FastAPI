@@ -254,6 +254,9 @@ CASES = [
     ("US GDP grew", "US GDP grew"),
     ("an HDMI cable", "an HDMI cable"),
     ("NASA JPL", "nasa JPL"),
+    # pr #530
+    ("ARNE_SAKNUSSEMM", "arne saknussemm"),
+    ("NASA_JPL", "nasa JPL"),
 ]
 
 UNITS = NormalizationOptions(unit_normalization=True)

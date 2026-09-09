@@ -142,10 +142,18 @@ def test_decimal_normalization_preserved():
 
 def test_url_normalization_preserved():
     """The hardened patterns must still normalize real URLs and emails (pr #489)."""
-    assert "google" in normalize_text("visit https://google.com now", OPTS)
-    assert "example" in normalize_text("see www.example.com/x", OPTS)
-    out = normalize_text("mail me at a.user@example.org please", OPTS)
-    assert "at" in out and "example" in out
+    assert (
+        normalize_text("visit https://google.com now", OPTS)
+        == "visit https google dot com now"
+    )
+    assert (
+        normalize_text("see www.example.com/x", OPTS)
+        == "see www example dot com slash x"
+    )
+    assert (
+        normalize_text("mail me at a.user@example.org please", OPTS)
+        == "mail me at a dot user at example dot org please"
+    )
 
 
 def test_dotted_acronym_preserved():

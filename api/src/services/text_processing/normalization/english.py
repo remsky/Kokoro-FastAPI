@@ -62,8 +62,8 @@ class EnglishNormalizer(Normalizer):
     lang_codes = ("a", "b", "en-us", "en-gb")
 
     CAPS_RUN_PATTERN = re.compile(r"\b[A-Z]+(?:[^A-Za-z]+[A-Z]+)+\b")
-    CAPS_WORD_PATTERN = re.compile(r"\b[A-Z]{4,}\b")
-    LONG_CAPS_PATTERN = re.compile(r"\b[A-Z]{6,}\b")
+    CAPS_WORD_PATTERN = re.compile(r"(?<![0-9A-Za-z])[A-Z]{4,}(?![0-9A-Za-z])")
+    LONG_CAPS_PATTERN = re.compile(r"(?<![0-9A-Za-z])[A-Z]{6,}(?![0-9A-Za-z])")
     ROMAN_PATTERN = re.compile(r"[IVXLCDM]+")
 
     def caps_words(self, text: str) -> str:

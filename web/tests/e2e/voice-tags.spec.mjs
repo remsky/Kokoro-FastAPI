@@ -1,17 +1,9 @@
 import { readFile } from 'node:fs/promises';
 
-import { expect, test } from '@playwright/test';
-
-// editor and selector behaviour only, so nothing here asks the server to render
-const API = process.env.KOKORO_BASE_URL || 'http://localhost:8880';
-
-test.beforeAll(async ({ request }) => {
-    const probe = await request.get(`${API}/web/config`).catch(() => null);
-    test.skip(!probe || !probe.ok(), `no Kokoro server at ${API}`);
-});
+import { expect, test } from './fixtures/app.mjs';
 
 test.beforeEach(async ({ page }) => {
-    await page.goto(`${API}/web/`);
+    await page.goto('/');
     await expect(page.locator('.selected-voice-tag').first()).toBeVisible({ timeout: 15_000 });
 });
 
@@ -147,11 +139,69 @@ test('the alias field takes enter for the button next to it', async ({ page }) =
     await tagsTab(page).click();
     await page.locator('#voice-search').click();
     await page.locator('.voice-option').first().click();
+    await expect(page.locator('#voice-search')).toBeFocused();
     await page.locator('#create-tag-name').fill('narrator');
     await page.locator('#create-tag-name').press('Enter');
 
     await expect(castNames(page)).toHaveText(['narrator']);
     await expect(page.locator('.selected-voice-tag')).toHaveCount(0);
+});
+
+test('the voice dropdown closes on escape, on enter, and on tabbing away', async ({ page }) => {
+    // pr #530
+    const dropdown = page.locator('#voice-dropdown');
+    const search = page.locator('#voice-search');
+
+    await search.click();
+    await expect(dropdown).toHaveClass(/show/);
+    await search.press('Escape');
+    await expect(dropdown).not.toHaveClass(/show/);
+    await expect(search).toBeFocused();
+
+    await search.fill('af');
+    await expect(dropdown).toHaveClass(/show/);
+    await search.press('Enter');
+    await expect(dropdown).not.toHaveClass(/show/);
+
+    await search.click();
+    await expect(dropdown).toHaveClass(/show/);
+    await search.press('Tab');
+    await expect(dropdown).not.toHaveClass(/show/);
+    await expect(search).not.toBeFocused();
+});
+
+test('the suggested name can be cleared out instead of growing back', async ({ page }) => {
+    // pr #530
+    await tagsTab(page).click();
+    await page.locator('#voice-search').click();
+    await page.locator('.voice-option').first().click();
+    await expect(page.locator('#create-tag-name')).not.toHaveValue('');
+
+    await page.locator('#create-tag-name').fill('');
+    await expect(page.locator('#create-tag-name')).toHaveValue('');
+
+    await page.locator('#create-tag-name').fill('narrator');
+    await page.locator('#create-tag-name').press('Backspace');
+    await expect(page.locator('#create-tag-name')).toHaveValue('narrato');
+});
+
+test('the queued refocus leaves a field the typing already moved to', async ({ page }) => {
+    // pr #530
+    await page.addInitScript(() => {
+        window.__rafQ = [];
+        window.requestAnimationFrame = (cb) => (window.__rafQ.push(cb), 0);
+    });
+    await page.reload();
+    await tagsTab(page).click();
+    await page.locator('#voice-search').click();
+    await page.locator('.voice-option').first().click();
+
+    await page.locator('#create-tag-name').fill('narrator');
+    await page.evaluate(() => window.__rafQ.splice(0).forEach((cb) => cb(0)));
+
+    await expect(page.locator('#create-tag-name')).toBeFocused();
+    await expect(page.locator('#voice-search')).toHaveValue('');
+    await expect(page.locator('#create-tag-name')).toHaveValue('narrator');
 });
 
 test('a created tag is placed at the caret when its chip is clicked', async ({ page }) => {

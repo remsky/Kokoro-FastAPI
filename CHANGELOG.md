@@ -7,13 +7,14 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
-- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
+- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`, `TODO_LIST`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
 - Web player: 
   - the normalize checkbox is now a menu with every `normalization_options` field.
   - voice list sorted by model card grade, best first, then name. `DEFAULT_VOICE` is the preselected voice.
+  - voice search/alias UI fixes.
 
 ### Fixed
 - Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).

@@ -45,6 +45,6 @@ Task guides for agents live in `.claude/skills/`, listed in [CONTRIBUTING.md](CO
 - Dockerfiles are tuned for multi-arch CI. Don't remove build tools or restructure stages without a tested build for every target. 
 - Trust me on the above point. The dependencies are touchy for this stack. 
 - Local (non-Docker) runs need espeak-ng installed and on PATH; the Docker images handle this separately.
-- Japanese support (`misaki[ja]`) requires the full UniDic dictionary (~526MB), not `unidic-lite`. CI caches it.
+- Japanese support (`misaki[ja]`) requires the full UniDic dictionary (~526MB), not `unidic-lite`. The Docker images download it at build time, the CI pytest job does not install it.
 - Workflow actions are pinned to commit SHAs with a `# vX.Y.Z` comment. Dependabot bumps them monthly; don't hand-edit refs back to tags.
 - The release/publish workflow triggers itself on push to the `release` branch. It should never never be triggered manually. Tag @remsky to do so. 

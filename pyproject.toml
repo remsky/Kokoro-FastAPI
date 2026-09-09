@@ -134,9 +134,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 package-dir = { "" = "api/src" }
 packages.find = { where = ["api/src"], namespaces = true }
-
-[tool.pytest.ini_options]
-testpaths = ["api/tests"]
-python_files = ["test_*.py"]
-addopts = "--cov=api --cov-report=term-missing --cov-config=.coveragerc --full-trace"
-asyncio_mode = "auto"

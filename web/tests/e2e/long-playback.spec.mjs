@@ -1,6 +1,4 @@
-import { expect, test } from '@playwright/test';
-
-// TODO: wire this suite into CI, nothing under .github/workflows runs playwright today
+import { expect, test } from './fixtures/app.mjs';
 
 function longText() {
     return Array.from({ length: 2000 }, (_, index) => `word${index}`).join(' ');
@@ -71,7 +69,7 @@ function mockMediaSource() {
         });
 
         // createObjectURL does real WebIDL overload resolution, a look-alike MediaSource throws
-        const mockObjectUrl = 'blob:mock-mediasource';
+        const mockObjectUrl = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAwF0AAIC7AAACABAAZGF0YQAAAAA=';
         const realCreateObjectURL = URL.createObjectURL.bind(URL);
         const realRevokeObjectURL = URL.revokeObjectURL.bind(URL);
         URL.createObjectURL = (obj) => (obj instanceof MockMediaSource ? mockObjectUrl : realCreateObjectURL(obj));
@@ -82,20 +80,6 @@ async function mockServer(page, speechHeaders = {}) {
     const captured = { speechRequestBody: null };
 
     await page.addInitScript(mockMediaSource);
-
-    await page.route('**/web/config', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ root_path: '', version: 'test' }),
-        });
-    });
-
-    await page.route('**/v1/audio/voices', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ voices: [{ id: 'af_heart', name: 'af_heart' }] }),
-        });
-    });
 
     await page.route('**/v1/audio/speech', async (route) => {
         captured.speechRequestBody = JSON.parse(route.request().postData());
@@ -121,6 +105,7 @@ test('long MP3 generation uses MediaSource streaming', async ({ page }) => {
     expect(captured.speechRequestBody.stream).toBe(true);
     await expect.poll(() => page.evaluate(() => window.__mediaSourceConstructed)).toBeGreaterThan(0);
     await expect.poll(() => page.evaluate(() => window.__sourceBufferCreated)).toBeGreaterThan(0);
+    await expect.poll(() => page.evaluate(() => window.__sourceBufferAppends)).toBeGreaterThan(0);
 });
 
 test('the timing json gives the length, and a swap onto a missing file stays locked', async ({ page }) => {

@@ -18,7 +18,18 @@ from hypothesis import (
 from api.src.services.text_processing.normalization import normalize_text
 from api.src.structures.schemas import NormalizationOptions
 
-OPTIONS = NormalizationOptions()
+DEFAULTS = NormalizationOptions()
+options = st.builds(
+    NormalizationOptions,
+    unit_normalization=st.booleans(),
+    url_normalization=st.booleans(),
+    email_normalization=st.booleans(),
+    optional_pluralization_normalization=st.booleans(),
+    phone_normalization=st.booleans(),
+    caps_normalization=st.booleans(),
+    replace_remaining_symbols=st.booleans(),
+    remove_emoji=st.booleans(),
+)
 
 any_text = st.text(max_size=300)
 dense_text = st.text(alphabet="0123456789 .,:;-+$%#_/&@=()'\nabkmstAKS", max_size=24)
@@ -51,33 +62,33 @@ open_punct = st.sampled_from(["", "(", "'", '"'])
 close_punct = st.sampled_from(["", ".", ",", "!", "?", ")", ":", ";", "'", '"'])
 
 
-@given(plain_prose, open_punct, number_token, close_punct, plain_prose)
-def test_standalone_numbers_are_spelled_out(before, open_, number, close, after):
-    out = normalize_text(f"{before} {open_}{number}{close} {after}", OPTIONS)
+@given(plain_prose, open_punct, number_token, close_punct, plain_prose, options)
+def test_standalone_numbers_are_spelled_out(before, open_, number, close, after, opts):
+    out = normalize_text(f"{before} {open_}{number}{close} {after}", opts)
     assert not re.search(r"\d", out), out
 
 
-@example("0_")
-@example(".00A")
-@example("1.5x faster")
-@example("0K.0")
-@example("0K,0")
-@example("v1.0")
-@example("0S")
-@given(st.one_of(any_text, dense_text))
-def test_idempotent(text):
-    once = normalize_text(text, OPTIONS)
-    twice = normalize_text(once, OPTIONS)
+@example("0_", DEFAULTS)
+@example(".00A", DEFAULTS)
+@example("1.5x faster", DEFAULTS)
+@example("0K.0", DEFAULTS)
+@example("0K,0", DEFAULTS)
+@example("v1.0", DEFAULTS)
+@example("0S", DEFAULTS)
+@given(st.one_of(any_text, dense_text), options)
+def test_idempotent(text, opts):
+    once = normalize_text(text, opts)
+    twice = normalize_text(once, opts)
     assert once.strip() == twice.strip()
 
 
-@example("", "9" * 40, "")
-@example("$", "9" * 43, "")
-@given(number_prefix, number_like, number_suffix)
-def test_oversized_numbers_never_raise(prefix, number, suffix):
-    normalize_text(f"{prefix}{number}{suffix}", OPTIONS)
+@example("", "9" * 40, "", DEFAULTS)
+@example("$", "9" * 43, "", DEFAULTS)
+@given(number_prefix, number_like, number_suffix, options)
+def test_oversized_numbers_never_raise(prefix, number, suffix, opts):
+    normalize_text(f"{prefix}{number}{suffix}", opts)
 
 
-@given(plain_prose)
-def test_plain_prose_is_untouched(text):
-    assert normalize_text(text, OPTIONS) == text
+@given(plain_prose, options)
+def test_plain_prose_is_untouched(text, opts):
+    assert normalize_text(text, opts) == text

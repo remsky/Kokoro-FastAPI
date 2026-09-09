@@ -19,7 +19,6 @@ from unicode_segmentation_rs import unicode_sentences
 
 from api.src.services.text_processing import text_processor
 from api.src.services.text_processing.text_processor import (
-    CONTROL_TAG_PATTERN,
     join_lines,
     pack,
     smart_split,
@@ -47,9 +46,7 @@ word = st.from_regex(r"\A[a-z]{1,8}[.,]?\Z")
 pieces = st.lists(st.integers(min_value=1, max_value=12), max_size=20).map(
     lambda sizes: [(f"p{i}", [i] * n) for i, n in enumerate(sizes)]
 )
-tagged = st.lists(st.tuples(tag, gap, word, gap), min_size=1, max_size=8).map(
-    lambda parts: "".join("".join(part) for part in parts)
-)
+tagged_parts = st.lists(st.tuples(tag, gap, word, gap), min_size=1, max_size=8)
 
 
 def words(text: str) -> list[str]:
@@ -104,12 +101,23 @@ def test_join_lines_never_doubles_an_ender(text):
     assert len(DOUBLED_ENDER.findall(joined)) <= len(DOUBLED_ENDER.findall(text))
 
 
-@given(st.one_of(any_text, tagged))
-def test_split_by_voice_keeps_words(text):
+@given(tagged_parts)
+def test_split_by_voice_keeps_words(parts):
+    text = "".join(tag + before + word + after for tag, before, word, after in parts)
+    plain = "".join(
+        (" " if tag else "") + before + word + after
+        for tag, before, word, after in parts
+    )
     segments = split_by_voice(text, "af_heart")
     spoken = " ".join(segment_text for _, _, segment_text in segments)
-    assert spoken.split() == CONTROL_TAG_PATTERN.sub(" ", text).split()
+    assert spoken.split() == plain.split()
     assert all(0.25 <= rate <= 4.0 for _, rate, _ in segments)
+
+
+@given(any_text)
+def test_split_by_voice_returns_untagged_text_whole(text):
+    assume("[" not in text)
+    assert split_by_voice(text, "af_heart") == [("af_heart", 1.0, text)]
 
 
 @given(st.one_of(any_text, lines), st.integers(min_value=3, max_value=20))

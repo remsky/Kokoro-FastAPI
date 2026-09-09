@@ -115,24 +115,26 @@ def test_retrieve_model(mock_openai_mappings):
 
 @pytest.mark.asyncio
 async def test_get_tts_service_initialization():
-    """Test TTSService initialization"""
+    """Callers arriving while the service is being created wait for it, none creates a second one"""
+    gate = asyncio.Event()
+    mock_service = AsyncMock()
+
+    async def create():
+        await gate.wait()
+        return mock_service
+
     with patch("api.src.routers.openai_compatible._tts_service", None):
         with patch("api.src.routers.openai_compatible._init_lock", None):
-            with patch("api.src.services.tts_service.TTSService.create") as mock_create:
-                mock_service = AsyncMock()
-                mock_create.return_value = mock_service
-
-                # Test concurrent access
-                async def get_service():
-                    return await get_tts_service()
-
-                # Create multiple concurrent requests
-                tasks = [get_service() for _ in range(5)]
+            with patch(
+                "api.src.services.tts_service.TTSService.create", side_effect=create
+            ) as mock_create:
+                tasks = [asyncio.create_task(get_tts_service()) for _ in range(5)]
+                await asyncio.sleep(0)
+                gate.set()
                 results = await asyncio.gather(*tasks)
 
-                # Verify service was created only once
                 mock_create.assert_called_once()
-                assert all(r == mock_service for r in results)
+                assert all(r is mock_service for r in results)
 
 
 @pytest.mark.asyncio

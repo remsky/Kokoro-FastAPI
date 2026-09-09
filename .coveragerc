@@ -2,6 +2,7 @@
 source = 
     api
 omit = 
+    api/tests/*
     Kokoro-82M/*
     MagicMock/*
     test_*.py
