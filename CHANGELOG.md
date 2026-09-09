@@ -14,6 +14,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Web player: 
   - the normalize checkbox is now a menu with every `normalization_options` field.
   - voice list sorted by model card grade, best first, then name. `DEFAULT_VOICE` is the preselected voice.
+  - voice search/alias UI fixes.
 
 ### Fixed
 - Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).

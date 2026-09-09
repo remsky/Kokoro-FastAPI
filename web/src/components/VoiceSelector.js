@@ -159,7 +159,7 @@ export class VoiceSelector {
         this.elements.createTagRate?.addEventListener('input', () => this.updateCreateTagButton());
         this.elements.createTagName?.addEventListener('input', (e) => {
             e.target.setCustomValidity('');
-            this.nameEdited = e.target.value !== '';
+            this.nameEdited = true;
             this.updateCreateTagButton();
         });
 
@@ -456,8 +456,24 @@ export class VoiceSelector {
             this.elements.voiceDropdown.classList.add('show');
         });
 
+        this.elements.voiceSearch.addEventListener('click', () => {
+            this.elements.voiceDropdown.classList.add('show');
+        });
+
+        this.elements.voiceSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
+                this.elements.voiceDropdown.classList.remove('show');
+            }
+        });
+
+        this.elements.voiceSearch.addEventListener('blur', () => {
+            this.elements.voiceDropdown.classList.remove('show');
+        });
+
         // Voice search
         this.elements.voiceSearch.addEventListener('input', (e) => {
+            this.elements.voiceDropdown.classList.add('show');
             const filteredVoices = this.voiceService.filterVoices(e.target.value);
             this.renderVoiceOptions(filteredVoices);
         });
@@ -485,7 +501,9 @@ export class VoiceSelector {
             
             // Keep focus on search input
             requestAnimationFrame(() => {
-                this.elements.voiceSearch.focus();
+                if (document.activeElement === document.body) {
+                    this.elements.voiceSearch.focus();
+                }
             });
         });
 
