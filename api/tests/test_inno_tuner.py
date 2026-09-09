@@ -292,7 +292,8 @@ def test_forget_voice_evicts_pipeline_cache(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_transient_voice_resolves_before_disk(tmp_path):
+async def test_transient_voice_resolves_before_disk(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "voices_dir", str(tmp_path))
     manager = VoiceManager()
     manager.register_transient("a_tune_x", str(tmp_path / "x.pt"))
     assert await manager.get_voice_path("a_tune_x") == str(tmp_path / "x.pt")
