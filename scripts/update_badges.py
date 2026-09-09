@@ -124,7 +124,7 @@ def main():
 
     # Update badges
     if update_readme_badges(passed_tests, coverage_percentage, dep_info):
-        print(f"Updated badges:")
+        print("Updated badges:")
         print(f"- Tests: {passed_tests} passed")
         print(f"- Coverage: {coverage_percentage}%")
         if "kokoro" in dep_info:

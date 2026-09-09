@@ -5,11 +5,10 @@ import os
 import re
 import tempfile
 import time
-from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
@@ -23,10 +22,8 @@ from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
-from .text_processing import tokenize
 from .text_processing.text_processor import (
     check_pause_budget,
-    process_text_chunk,
     smart_split,
     split_by_voice,
 )
@@ -338,7 +335,6 @@ class TTSService:
             # backstop for direct callers; routers check pre-stream for a clean 400
             check_pause_budget(text)
             await self.model_manager.ensure_backend()
-            backend = self.model_manager.get_backend()
 
             # Process text in chunks with smart splitting, handling voice and pause tags
             async for (

@@ -1,12 +1,10 @@
 """Audio conversion service with proper streaming support"""
 
-import struct
 from io import BytesIO
 from typing import Optional
 
 import av
 import numpy as np
-import soundfile as sf
 from loguru import logger
 
 

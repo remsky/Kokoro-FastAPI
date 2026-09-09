@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from api.src.inference.base import AudioChunk
-from api.src.services.audio import AudioNormalizer, AudioService
+from api.src.services.audio import AudioService
 from api.src.services.streaming_audio_writer import StreamingAudioWriter
 
 
@@ -169,7 +169,7 @@ async def test_convert_to_invalid_format_raises_error(sample_audio):
     """Test that converting to an invalid format raises an error"""
     # audio_data, sample_rate = sample_audio
     with pytest.raises(ValueError, match="Unsupported format: invalid"):
-        writer = StreamingAudioWriter("invalid", sample_rate=24000)
+        StreamingAudioWriter("invalid", sample_rate=24000)
 
 
 @pytest.mark.asyncio

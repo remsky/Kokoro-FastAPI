@@ -1,20 +1,13 @@
 import base64
-import os
-import re
-from pathlib import Path
-from typing import AsyncGenerator, List, Tuple, Union
 
-import torch
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
 from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
-from ..services.temp_manager import TempFileWriter
-from ..services.text_processing import smart_split
 from ..services.text_processing.text_processor import (
     check_pause_budget,
     check_speakable,
@@ -25,7 +18,6 @@ from ..structures import (
     CaptionedSpeechResponse,
     DialogueRequest,
     OpenAISpeechRequest,
-    WordTimestamp,
 )
 from ..structures.custom_responses import JSONStreamingResponse
 from ..structures.text_schemas import (

@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import AsyncGenerator, Tuple
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np

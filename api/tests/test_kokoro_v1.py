@@ -3,7 +3,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
-import numpy as np
 import pytest
 import torch
 

@@ -1,6 +1,5 @@
 import os
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import numpy as np
 import pytest
@@ -11,7 +10,6 @@ from hypothesis import settings
 from api.src.inference.model_manager import ModelManager
 from api.src.inference.voice_manager import VoiceManager
 from api.src.services.tts_service import TTSService
-from api.src.structures.model_schemas import VoiceConfig
 
 settings.register_profile("dev", max_examples=300, deadline=None)
 settings.register_profile("ci", max_examples=500, deadline=None, derandomize=True)

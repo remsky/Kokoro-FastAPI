@@ -92,7 +92,7 @@ class ModelManager:
             logger.info(f"Warmup completed in {ms}ms")
 
             return self._device, "kokoro_v1", len(voices)
-        except FileNotFoundError as e:
+        except FileNotFoundError:
             logger.error("""
 Model files not found! You need to download the Kokoro V1 model:
 
