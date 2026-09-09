@@ -13,6 +13,7 @@ from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
+from ..inference.voice_manager import get_manager as get_voice_manager
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
     VOICE_TAG_PATTERN,
@@ -160,6 +161,7 @@ async def process_and_validate_voices(
 
     if available_voices is None:
         available_voices = await tts_service.list_voices()
+    voice_manager = await get_voice_manager()
 
     for voice_index in range(0, len(voices), 2):
         token = voices[voice_index]
@@ -179,7 +181,7 @@ async def process_and_validate_voices(
             weight = weight.strip()
 
         name = _openai_mappings["voices"].get(name, name)
-        if name not in available_voices:
+        if name not in available_voices and not voice_manager.is_transient(name):
             raise ValueError(
                 f"Voice '{name}' not found. Available voices: {', '.join(sorted(available_voices))}"
             )

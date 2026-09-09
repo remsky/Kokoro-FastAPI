@@ -7,3 +7,4 @@ import './voice-service.test.mjs';
 import './insert-log.test.mjs';
 import './read-along.test.mjs';
 import './read-along-timing.test.mjs';
+import './tune-service.test.mjs';

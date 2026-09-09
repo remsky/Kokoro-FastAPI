@@ -40,6 +40,7 @@ class Settings(BaseSettings):
         False  # Whether to allow saving combined voices locally
     )
     allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
+    enable_inno_tuner: bool = False  # Whether to expose POST /dev/tune
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
     )

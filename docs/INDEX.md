@@ -1,6 +1,6 @@
 # Docs
 
-[Configuration](configuration.md) · [Troubleshooting](troubleshooting.md)
+[Configuration](configuration.md) · [Troubleshooting](troubleshooting.md) · [Voice tuning](inno-tune.md)
 
 ### Deployment
 - [DigitalOcean](deployment/digitalocean.md)

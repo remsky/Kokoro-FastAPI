@@ -107,7 +107,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one, preselected in the web player, warms the model at startup |
 | `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter. Applies to every speaker, so a `[voice:]` dialogue mixing languages is forced onto this one |
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
-| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
+| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be downloaded (`/v1/audio/voices/combine`) and tuned voices be saved into `VOICES_DIR` (`/dev/tune` `save_voice`) |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
 
 **Text processing**
@@ -163,6 +163,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
 | `ALLOW_DEV_UNLOAD` | `false` | Expose `/dev/model`, `POST /dev/unload`, and `POST /dev/reload` |
+| `ENABLE_INNO_TUNER` | `false` | Expose `POST /dev/tune`, see [inno-tune.md](inno-tune.md) |
 | `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `0.0` | Idle seconds before auto-unload; `0` disables auto-unload |
 
 ## Text normalization

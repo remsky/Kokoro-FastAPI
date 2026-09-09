@@ -17,5 +17,6 @@ services:
         required: false
     environment:  # full list in docs/configuration.md
       - API_LOG_LEVEL=DEBUG
+      # - ENABLE_INNO_TUNER=true
       # - ALLOW_DEV_UNLOAD=true
       # - ENABLE_DEBUG_ENDPOINTS=true

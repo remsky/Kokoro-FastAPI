@@ -126,6 +126,14 @@ def download_model(output_dir: str) -> None:
         raise
 
 
+def download_tuner(output_dir: str) -> None:
+    """Fetch the pinned Inno clone tuner weights into output_dir/inno_tuner, no-op if present."""
+    from inno_kokoro.enroll import fetch_weights
+
+    path = fetch_weights(os.path.join(output_dir, "inno_tuner"))
+    logger.info(f"✓ Inno tuner weights prepared at {path}")
+
+
 def main():
     """Main entry point."""
     import argparse
@@ -137,6 +145,10 @@ def main():
 
     args = parser.parse_args()
     download_model(args.output)
+    try:
+        download_tuner(args.output)
+    except Exception as e:
+        logger.error(f"Inno tuner weights not fetched, /dev/tune will answer 503: {e}")
 
 
 if __name__ == "__main__":
