@@ -21,6 +21,7 @@ jobs:
     # Match Dockerfile dependencies
     - name: Install Dependencies
       run: |
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           espeak-ng \
@@ -72,6 +73,7 @@ jobs:
     - name: Install Dependencies
       run: |
         npm ci
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*
         npx playwright install --with-deps chromium
 
     - name: Run Unit Tests

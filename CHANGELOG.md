@@ -17,6 +17,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - voice search/alias UI fixes.
 
 ### Fixed
+- Cancelling a stream mid-playback (web player stop, open-webui call, any client abort) no longer segfaults the server on a later request (#288, #337).
 - Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).
 - Long runs of non-English text without punctuation (~100 words) no longer truncate incorrectly.
 - Number reading:
