@@ -13,6 +13,7 @@ from api.src.inference.base import AudioChunk
 from api.src.main import app
 from api.src.routers.openai_compatible import (
     _resolve_download_name,
+    create_speech,
     get_tts_service,
     load_openai_mappings,
     stream_audio_chunks,
@@ -172,6 +173,89 @@ async def test_stream_audio_chunks_client_disconnect():
     writer.close()
 
     assert len(chunks) == 0  # Should stop immediately due to disconnect
+
+
+@pytest.mark.asyncio
+async def test_stream_audio_chunks_closes_source_on_disconnect():
+    """A disconnect must close the upstream generator, not leave it to the GC."""
+    mock_request = MagicMock()
+    mock_request.is_disconnected = AsyncMock(return_value=True)
+
+    closed = []
+
+    async def mock_stream(*args, **kwargs):
+        try:
+            for _ in range(5):
+                yield AudioChunk(np.ndarray([], np.int16), output=b"chunk")
+        finally:
+            closed.append(True)
+
+    mock_service = AsyncMock()
+    mock_service.generate_audio_stream = mock_stream
+    mock_service.list_voices.return_value = ["test_voice"]
+
+    request = OpenAISpeechRequest(
+        model="kokoro",
+        input="Test text",
+        voice="test_voice",
+        response_format="mp3",
+        stream=True,
+        speed=1.0,
+    )
+
+    writer = StreamingAudioWriter("mp3", 24000)
+    async for _ in stream_audio_chunks(
+        mock_service, request, mock_request, writer, "test_voice"
+    ):
+        pass
+    writer.close()
+
+    assert closed == [True]
+
+
+@pytest.mark.asyncio
+async def test_abandoned_stream_closes_audio_writer(mock_tts_service):
+    """An abandoned response must close the writer, not leave PyAV to the GC."""
+    writers = []
+    writer_cls = StreamingAudioWriter
+
+    def capture(*args, **kwargs):
+        writer = writer_cls(*args, **kwargs)
+        writers.append(writer)
+        return writer
+
+    closed = []
+
+    async def mock_stream(*args, **kwargs):
+        try:
+            while True:
+                yield AudioChunk(np.zeros(1200, np.int16), output=b"chunk")
+        finally:
+            closed.append(True)
+
+    mock_tts_service.generate_audio_stream = mock_stream
+
+    request = OpenAISpeechRequest(
+        model="kokoro",
+        input="Test text",
+        voice="test_voice",
+        response_format="mp3",
+        stream=True,
+        speed=1.0,
+    )
+
+    client_request = MagicMock()
+    client_request.is_disconnected = AsyncMock(return_value=False)
+
+    with patch("api.src.routers.openai_compatible.StreamingAudioWriter", capture):
+        response = await create_speech(request, client_request)
+        body = response.body_iterator
+        await body.__anext__()
+        await body.aclose()
+
+    assert len(writers) == 1
+    assert writers[0].output_buffer.closed
+    assert closed == [True]
 
 
 def test_openai_voice_mapping(mock_tts_service, mock_openai_mappings):

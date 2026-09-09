@@ -128,16 +128,15 @@ async def generate_from_phonemes(
                     final_bytes = writer.write_chunk(finalize=True)
                     if final_bytes:
                         yield final_bytes
-                        writer.close()
                 else:
                     raise ValueError("Failed to generate audio data")
 
             except Exception as e:
                 logger.error(f"Error in audio generation: {str(e)}")
-                # Clean up writer on error
-                writer.close()
                 # Re-raise the original exception
                 raise
+            finally:
+                writer.close()
 
         return StreamingResponse(
             generate_chunks(),
@@ -325,6 +324,7 @@ async def create_captioned_speech(
                         # Ensure temp writer is closed
                         if not temp_writer._finalized:
                             await temp_writer.__aexit__(None, None, None)
+                        await generator.aclose()
                         writer.close()
 
                 # Stream with temp file writing
@@ -368,8 +368,10 @@ async def create_captioned_speech(
 
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
-                    writer.close()
                     raise
+                finally:
+                    await generator.aclose()
+                    writer.close()
 
             # Standard streaming without download link
             return JSONStreamingResponse(

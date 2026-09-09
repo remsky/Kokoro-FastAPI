@@ -4,6 +4,7 @@ import json
 import math
 import os
 import re
+from contextlib import aclosing
 from typing import AsyncGenerator, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
@@ -267,28 +268,31 @@ async def stream_audio_chunks(
     return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
-        async for chunk_data in tts_service.generate_audio_stream(
-            text=request.input,
-            voice=voice_name,
-            writer=writer,
-            speed=request.speed,
-            output_format=request.response_format,
-            lang_code=request.lang_code,
-            volume_multiplier=request.volume_multiplier,
-            normalization_options=request.normalization_options,
-            return_timestamps=return_timestamps,
-            allow_voice_tags=request.allow_voice_tags,
-            timings=timings,
-        ):
-            # Check if client is still connected
-            is_disconnected = client_request.is_disconnected
-            if callable(is_disconnected):
-                is_disconnected = await is_disconnected()
-            if is_disconnected:
-                logger.info("Client disconnected, stopping audio generation")
-                break
+        async with aclosing(
+            tts_service.generate_audio_stream(
+                text=request.input,
+                voice=voice_name,
+                writer=writer,
+                speed=request.speed,
+                output_format=request.response_format,
+                lang_code=request.lang_code,
+                volume_multiplier=request.volume_multiplier,
+                normalization_options=request.normalization_options,
+                return_timestamps=return_timestamps,
+                allow_voice_tags=request.allow_voice_tags,
+                timings=timings,
+            )
+        ) as audio_stream:
+            async for chunk_data in audio_stream:
+                # Check if client is still connected
+                is_disconnected = client_request.is_disconnected
+                if callable(is_disconnected):
+                    is_disconnected = await is_disconnected()
+                if is_disconnected:
+                    logger.info("Client disconnected, stopping audio generation")
+                    break
 
-            yield chunk_data
+                yield chunk_data
     except Exception as e:
         logger.error(f"Error in audio streaming: {str(e)}")
         # Let the exception propagate to trigger cleanup
@@ -411,6 +415,7 @@ async def create_speech(
                         # Ensure temp writer is closed
                         if not temp_writer._finalized:
                             await temp_writer.__aexit__(None, None, None)
+                        await generator.aclose()
                         writer.close()
 
                 # Stream with temp file writing
@@ -426,8 +431,10 @@ async def create_speech(
                             yield chunk_data.output
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
-                    writer.close()
                     raise
+                finally:
+                    await generator.aclose()
+                    writer.close()
 
             # Standard streaming without download link
             return StreamingResponse(
