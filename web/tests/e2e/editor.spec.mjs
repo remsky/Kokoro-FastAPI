@@ -1,9 +1,6 @@
-import { expect, test } from '@playwright/test';
-
-import { mockApi } from './fixtures/mock-api.mjs';
+import { expect, test } from './fixtures/app.mjs';
 
 test.beforeEach(async ({ page }) => {
-    await mockApi(page);
     await page.goto('/');
     await expect(page.locator('.selected-voice-tag').first()).toBeVisible({ timeout: 15_000 });
 });

@@ -10,4 +10,9 @@ export async function mockApi(page) {
         contentType: 'application/json',
         body: JSON.stringify({ voices: VOICES.map((id) => ({ id, name: id })) }),
     }));
+
+    await page.route('https://api.github.com/**', (route) => route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ stargazers_count: 1234 }),
+    }));
 }

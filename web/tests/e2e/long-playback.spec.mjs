@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/app.mjs';
 
 function longText() {
     return Array.from({ length: 2000 }, (_, index) => `word${index}`).join(' ');
@@ -80,20 +80,6 @@ async function mockServer(page, speechHeaders = {}) {
     const captured = { speechRequestBody: null };
 
     await page.addInitScript(mockMediaSource);
-
-    await page.route('**/web/config', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ root_path: '', version: 'test' }),
-        });
-    });
-
-    await page.route('**/v1/audio/voices', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ voices: [{ id: 'af_heart', name: 'af_heart' }] }),
-        });
-    });
 
     await page.route('**/v1/audio/speech', async (route) => {
         captured.speechRequestBody = JSON.parse(route.request().postData());
