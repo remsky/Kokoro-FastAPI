@@ -278,6 +278,7 @@ async def stream_audio_chunks(
             return_timestamps=return_timestamps,
             allow_voice_tags=request.allow_voice_tags,
             timings=timings,
+            max_duration_seconds=getattr(request, "max_duration_seconds", None),
         ):
             # Check if client is still connected
             is_disconnected = client_request.is_disconnected
@@ -451,6 +452,7 @@ async def create_speech(
                 lang_code=request.lang_code,
                 allow_voice_tags=request.allow_voice_tags,
                 output_format=request.response_format,
+                max_duration_seconds=request.max_duration_seconds,
             )
             output = audio_data.output
 

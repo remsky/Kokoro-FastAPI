@@ -514,6 +514,47 @@ async def test_rate_tags_multiply_request_speed():
 
 
 @pytest.mark.asyncio
+async def test_max_duration_seconds_stops_generation_early():
+    """Each stubbed chunk is 0.1s; a 0.15s cap must stop after the 2nd of 3 segments."""
+    service = await _stubbed_service()
+
+    text = "[voice:af_bella] One. [voice:bm_george] Two. [voice:af_bella] Three."
+    chunks = [
+        chunk
+        async for chunk in service.generate_audio_stream(
+            text,
+            "af_heart",
+            MagicMock(),
+            output_format=None,
+            allow_voice_tags=True,
+            max_duration_seconds=0.15,
+        )
+    ]
+
+    assert len(chunks) == 2
+
+
+@pytest.mark.asyncio
+async def test_no_max_duration_seconds_runs_to_completion():
+    """Without a cap, every segment is still generated."""
+    service = await _stubbed_service()
+
+    text = "[voice:af_bella] One. [voice:bm_george] Two. [voice:af_bella] Three."
+    chunks = [
+        chunk
+        async for chunk in service.generate_audio_stream(
+            text,
+            "af_heart",
+            MagicMock(),
+            output_format=None,
+            allow_voice_tags=True,
+        )
+    ]
+
+    assert len(chunks) == 3
+
+
+@pytest.mark.asyncio
 async def test_generate_audio_joins_encoded_chunks():
     """Non-streaming accumulates encoded bytes as they arrive, never raw PCM."""
     service = await _stubbed_service()

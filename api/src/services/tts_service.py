@@ -329,6 +329,7 @@ class TTSService:
         return_timestamps: Optional[bool] = False,
         allow_voice_tags: bool = False,
         timings: Optional[List[dict]] = None,
+        max_duration_seconds: Optional[float] = None,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
@@ -470,6 +471,16 @@ class TTSService:
                         )
                         continue
 
+                if (
+                    max_duration_seconds is not None
+                    and current_offset >= max_duration_seconds
+                ):
+                    logger.warning(
+                        f"Reached max_duration_seconds cap of {max_duration_seconds}s "
+                        f"at {current_offset:.2f}s; stopping generation early"
+                    )
+                    break
+
             # Only finalize if we successfully processed at least one chunk
             if chunk_index > 0:
                 try:
@@ -509,6 +520,7 @@ class TTSService:
         lang_code: Optional[str] = None,
         allow_voice_tags: bool = False,
         output_format: str = "wav",
+        max_duration_seconds: Optional[float] = None,
     ) -> AudioChunk:
         """Generate complete audio for text, encoding chunks as they arrive."""
         output_parts = []
@@ -526,6 +538,7 @@ class TTSService:
                 lang_code=lang_code,
                 output_format=output_format,
                 allow_voice_tags=allow_voice_tags,
+                max_duration_seconds=max_duration_seconds,
             ):
                 if audio_stream_data.output:
                     output_parts.append(audio_stream_data.output)

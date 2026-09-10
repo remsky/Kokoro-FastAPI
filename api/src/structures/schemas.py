@@ -61,6 +61,28 @@ def _within_input_limit(value: str) -> str:
 InputText = Annotated[str, AfterValidator(_within_input_limit)]
 
 
+# floor for max_duration_seconds; the ceiling is the server's settings.max_output_duration_s
+DURATION_MIN = 1.0
+
+
+def _within_duration_ceiling(value: float) -> float:
+    """Fail at the request boundary, not partway through a long stream."""
+    # deferred import, keeps torch out of every schema import
+    from ..core.config import settings
+
+    if value > settings.max_output_duration_s:
+        raise ValueError(
+            f"max_duration_seconds {value} exceeds the server's "
+            f"{settings.max_output_duration_s}s ceiling"
+        )
+    return value
+
+
+Duration = Annotated[
+    float, Field(ge=DURATION_MIN), AfterValidator(_within_duration_ceiling)
+]
+
+
 def clamp_rate(value: float) -> float:
     """Hold a computed pace inside the bounds the request fields already enforce."""
     return min(max(value, RATE_MIN), RATE_MAX)
@@ -226,6 +248,10 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     ssml: bool = Field(
         default=False,
         description="If true, the input is translated from SSML before synthesis. Requires allow_voice_tags, since the translation emits [voice:] and [rate:] spans.",
+    )
+    max_duration_seconds: Optional[Duration] = Field(
+        default=None,
+        description="If set, stop generating once the produced audio reaches this many seconds, returning what was generated so far. Cannot exceed the server's configured ceiling.",
     )
 
 

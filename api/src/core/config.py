@@ -56,6 +56,7 @@ class Settings(BaseSettings):
 
     # Audio Settings
     default_volume_multiplier: float = 1.0
+    max_output_duration_s: float = 600.0  # Hard ceiling on generated audio length; a request's max_duration_seconds may only lower this, never raise it
     # Text Processing Settings
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk

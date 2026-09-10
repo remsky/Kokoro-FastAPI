@@ -53,6 +53,29 @@ def test_input_over_limit_rejected():
         )
 
 
+def test_max_duration_seconds_default_none():
+    assert _req().max_duration_seconds is None
+
+
+def test_max_duration_seconds_accepts_in_range():
+    assert _req(max_duration_seconds=30.0).max_duration_seconds == 30.0
+
+
+def test_max_duration_seconds_accepts_at_server_ceiling():
+    ceiling = settings.max_output_duration_s
+    assert _req(max_duration_seconds=ceiling).max_duration_seconds == ceiling
+
+
+def test_max_duration_seconds_rejects_below_floor():
+    with pytest.raises(ValidationError):
+        _req(max_duration_seconds=0.0)
+
+
+def test_max_duration_seconds_rejects_above_server_ceiling():
+    with pytest.raises(ValidationError, match="ceiling"):
+        _req(max_duration_seconds=settings.max_output_duration_s + 1)
+
+
 def test_dialogue_turns_over_limit_in_aggregate_rejected():
     """Turns individually under the limit must not combine past it."""
     half = "x" * (settings.max_input_length // 2 + 100)
