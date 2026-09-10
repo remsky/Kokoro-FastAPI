@@ -10,16 +10,14 @@
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::41e5892-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/41e5892b9d8b43e56fc560f892312a328a410973) 
 
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-2.5M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-2.6M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
 
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
-> [!NOTE]
-> Looking for custom voices? Try the [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
-
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
+- Custom voicepack generation via [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
 - Optional integrated WebUI; read-along long-generation
 - Inline multi-speaker generation & voice mixing + aliasing weighted combinations, SSML support
 - Per-word, or per-chunk timestamped caption generation
@@ -38,11 +36,11 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 
 Community projects that use, recommend, or enable Kokoro-FastAPI as a backend:
 
-- Home Assistant: [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)
-- App stores and templates: [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Community Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)
-- Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-TTS](https://github.com/xujialiu/Zotero-TTS)
-- Assistants and agents: [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)
-- Browser: [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)
+- <sub>Home Assistant: [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)</sub>
+- <sub>App stores and templates: [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)</sub>
+- <sub>Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-TTS](https://github.com/xujialiu/Zotero-TTS)</sub>
+- <sub>Assistants and agents: [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)</sub>
+- <sub>Browser: [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)</sub>
 
 ## Get Started
 
@@ -411,6 +409,27 @@ curl -X POST http://localhost:8880/v1/audio/speech \
 </details>
 
 <details>
+<summary>Voice Tuning (reference clip) 🧪</summary>
+
+`POST /dev/tune` takes a 3 to 30 s clip of one English speaker and speaks with a voice tuned toward it, via [inno-kokoro](https://github.com/remsky/inno-kokoro). A tuner, not a cloner: expect the same neighbourhood, not a match. Only tune voices you have permission to use.
+
+```bash
+curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F 'request={"input":"Hello there."}' -o out.mp3
+curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F return_voice_pack=true -o ref.pt
+curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F save_voice=am_ref   # saves am_ref_tuned, needs ALLOW_LOCAL_VOICE_SAVING=true
+```
+
+- `request` is the `/v1/audio/speech` body minus `voice`; the pack only exists for the length of the response unless `save_voice` keeps it in `VOICES_DIR`
+- Names follow the existing language prefix pattern (`am_`, `bf_`, `ax_`, etc.) and saved voices get a `_tuned` suffix. Bundled tuned voices end in `_inno`
+- Knobs: `prosody_head` (default on), `fmax` pitch ceiling in Hz (default auto)
+- Off by default:
+    - `ENABLE_INNO_TUNER=true` enables with a web player tab
+    - `ALLOW_LOCAL_VOICE_SAVING=true` allows saving them to the live server.
+- Full reference in [docs/inno-tune.md](docs/inno-tune.md)
+
+</details>
+
+<details>
 <summary>Multi-Speaker / Dialogue</summary>
 
 - `[voice:...]` tags switch speakers inline, anywhere `input` is accepted
@@ -493,7 +512,7 @@ The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
 </details>
 
 <details>
-<summary>SSML Input (experimental)</summary>
+<summary>SSML Input 🧪</summary>
 
 Send `ssml: true` with `allow_voice_tags: true` on `/v1/audio/speech` or `/dev/captioned_speech` to translate and speak in one call. Both flags are needed, since the translation emits `[voice:]` and `[rate:]` spans that would otherwise be read aloud; `ssml` without them is a 400.
 

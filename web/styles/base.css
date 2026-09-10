@@ -121,10 +121,7 @@ body {
 }
 
 .card-tabs {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    width: fit-content;
+    display: flex;
     margin-bottom: 0.3rem;
     padding: 0.15rem;
     background: rgba(15, 23, 42, 0.3);
@@ -132,26 +129,12 @@ body {
     border-radius: 0.25rem;
 }
 
-.card-tabs::before {
-    content: "";
-    position: absolute;
-    inset: 0.15rem auto 0.15rem 0.15rem;
-    width: calc(50% - 0.15rem);
-    background: rgba(99, 102, 241, 0.25);
-    border: 1px solid rgba(99, 102, 241, 0.5);
-    border-radius: 0.15rem;
-    transition: transform 0.2s ease;
-}
-
-.card-tabs.is-tags::before {
-    transform: translateX(100%);
-}
-
 .card-tab {
-    position: relative;
-    padding: 0.25rem 0.65rem;
+    flex: 1 1 auto;
+    padding: 0.25rem 0.3rem;
     background: none;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: 0.15rem;
     color: var(--text-light);
     font-family: inherit;
     font-size: 0.7rem;
@@ -168,7 +151,19 @@ body {
     opacity: 1;
 }
 
+.card-tab:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.card-tab svg {
+    vertical-align: -0.1em;
+    margin-left: 0.3em;
+}
+
 .card-tab.is-active {
+    background: rgba(99, 102, 241, 0.25);
+    border-color: rgba(99, 102, 241, 0.5);
     color: var(--text);
     opacity: 1;
 }
@@ -180,11 +175,9 @@ body {
     padding: 0.45rem 0.75rem;
     border-radius: 0.35rem;
     font-weight: 500;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    overflow-wrap: anywhere;
 }
 
 .status.info,
@@ -225,9 +218,5 @@ body {
     .scene .scanline {
         animation: none;
         display: none;
-    }
-
-    .card-tabs::before {
-        transition: none;
     }
 }

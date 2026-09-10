@@ -19,6 +19,17 @@ class VoiceManager:
         # Strictly respect settings.use_gpu
         self._device = settings.get_device()
         self._voices: Dict[str, torch.Tensor] = {}
+        self._transient: Dict[str, str] = {}
+
+    def register_transient(self, voice_name: str, path: str) -> None:
+        """Make a pack outside VOICES_DIR resolvable by name for the life of a request."""
+        self._transient[voice_name] = path
+
+    def forget_transient(self, voice_name: str) -> None:
+        self._transient.pop(voice_name, None)
+
+    def is_transient(self, voice_name: str) -> bool:
+        return voice_name in self._transient
 
     async def get_voice_path(self, voice_name: str) -> str:
         """Get path to voice file.
@@ -32,6 +43,8 @@ class VoiceManager:
         Raises:
             RuntimeError: If voice not found
         """
+        if voice_name in self._transient:
+            return self._transient[voice_name]
         return await paths.get_voice_path(voice_name)
 
     async def load_voice(

@@ -8,6 +8,10 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Added
 - `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
 - `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`, `TODO_LIST`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
+- `POST /dev/tune`: tune a voice from a short reference clip and speak with it in one request, via [inno-kokoro](https://github.com/remsky/inno-kokoro). Off by default, `ENABLE_INNO_TUNER=true` turns it on. See [docs/inno-tune.md](docs/inno-tune.md).
+  - `return_voice_pack=true` returns the tuned `.pt` instead of audio; `save_voice=<name>` keeps it in `VOICES_DIR` as `<name>_tuned`, behind `ALLOW_LOCAL_VOICE_SAVING`.
+- Four tuned voices bundled with the server, `_inno` suffix: `af_amelia_inno`, `af_goodall_inno`, `am_price_inno`, `bm_atten_inno`.
+- Web player: Tune tab, record or upload a clip and generate with it, download the pack, or save it to the server.
 
 ### Changed
 - Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.

@@ -1127,6 +1127,30 @@ wheels = [
 ]
 
 [[package]]
+name = "inno-kokoro"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "kokoro" },
+    { name = "praat-parselmouth" },
+    { name = "safetensors" },
+    { name = "scipy" },
+    { name = "soundfile" },
+    { name = "torch", version = "2.8.0", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform == 'darwin' and extra == 'extra-14-kokoro-fastapi-cpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0", source = { registry = "https://pypi.org/simple" }, marker = "(platform_machine != 'aarch64' and platform_machine != 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu') or (platform_machine != 'aarch64' and platform_machine != 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (platform_machine == 'aarch64' and extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (platform_machine == 'aarch64' and extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (platform_machine == 'aarch64' and extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm') or (platform_machine == 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (platform_machine == 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (platform_machine == 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra != 'extra-14-kokoro-fastapi-cpu' and extra != 'extra-14-kokoro-fastapi-gpu' and extra != 'extra-14-kokoro-fastapi-gpu-cu128' and extra != 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-14-kokoro-fastapi-cpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "(platform_machine == 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "(platform_machine == 'x86_64' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0+cu129", source = { registry = "https://download.pytorch.org/whl/cu129" }, marker = "(platform_machine == 'aarch64' and extra == 'extra-14-kokoro-fastapi-gpu') or (platform_machine == 'aarch64' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+    { name = "torch", version = "2.8.0+rocm6.4", source = { registry = "https://download.pytorch.org/whl/rocm6.4" }, marker = "(extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra != 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra != 'extra-14-kokoro-fastapi-cpu' and extra != 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm')" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4c/25/fc62c06761866e9e645556b942cf49daf62fb5801b340ae775ded3e45a33/inno_kokoro-0.2.0.tar.gz", hash = "sha256:913cf4244d836fe4be8db9ad15ba1940a1780b65d834a6fe3da88b8dcecb8223", size = 21164, upload-time = "2026-09-05T07:45:20.563Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/7e/6dcee78130103f41c7e8a0143aa040a8ce330e5553bf5719642a174ad1d9/inno_kokoro-0.2.0-py3-none-any.whl", hash = "sha256:faebd4006d939f99cf3a8b30c6bdc280f74309c42b88887362e4d28995601664", size = 18324, upload-time = "2026-09-05T07:45:19.597Z" },
+]
+
+[[package]]
 name = "isodate"
 version = "0.7.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1339,6 +1363,7 @@ dependencies = [
     { name = "espeakng-loader" },
     { name = "fastapi" },
     { name = "inflect" },
+    { name = "inno-kokoro" },
     { name = "kokoro" },
     { name = "loguru" },
     { name = "misaki", extra = ["en", "ja", "ko", "zh"] },
@@ -1352,6 +1377,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "pyopenjtalk-plus", marker = "sys_platform == 'win32' or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-cpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-gpu-cu128') or (extra == 'extra-14-kokoro-fastapi-gpu' and extra == 'extra-14-kokoro-fastapi-rocm') or (extra == 'extra-14-kokoro-fastapi-gpu-cu128' and extra == 'extra-14-kokoro-fastapi-rocm')" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "regex" },
     { name = "requests" },
     { name = "scipy" },
@@ -1405,6 +1431,7 @@ requires-dist = [
     { name = "httpx", marker = "extra == 'test'", specifier = "==0.26.0" },
     { name = "hypothesis", marker = "extra == 'test'", specifier = "==6.167.1" },
     { name = "inflect", specifier = ">=7.5.0" },
+    { name = "inno-kokoro", specifier = "==0.2.0" },
     { name = "jinja2", marker = "extra == 'test'", specifier = ">=3.1.6" },
     { name = "kokoro", specifier = "==0.9.4" },
     { name = "loguru", specifier = "==0.7.3" },
@@ -1422,6 +1449,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = "==0.25.3" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = "==6.0.0" },
     { name = "python-dotenv", specifier = "==1.2.2" },
+    { name = "python-multipart", specifier = ">=0.0.20" },
     { name = "pytorch-triton-rocm", marker = "extra == 'rocm'", specifier = ">=3.2.0", index = "https://download.pytorch.org/whl/rocm6.4", conflict = { package = "kokoro-fastapi", extra = "rocm" } },
     { name = "regex", specifier = ">=2025.10.22" },
     { name = "requests", specifier = "==2.33.0" },
@@ -2393,6 +2421,62 @@ wheels = [
 ]
 
 [[package]]
+name = "praat-parselmouth"
+version = "0.4.7"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4f/28/2c1204fe3e7aeb6942051ff6776e31da52c7ab5b7df2ca438f371bd60d8a/praat_parselmouth-0.4.7.tar.gz", hash = "sha256:6dd81d246ce1eef5fd93d8cbdaf1bef61ca40ef1d2fc12aa23996a28071181e6", size = 22526491, upload-time = "2025-11-27T20:08:58.276Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/64/8f5d94ae6b3a11828185a6a5b6b8fce0446db0885fa30ed02f180ba08dce/praat_parselmouth-0.4.7-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:16243bd11c671829a740560f42e323cd323469e3eff08352610fe8ee1df913f2", size = 17664197, upload-time = "2025-11-27T20:01:15.91Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/ed/8b609582c9859becb54f12fed5689738347161fd348b3d0600904f5c1023/praat_parselmouth-0.4.7-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:c1b3468c962d745d1c3bc09535bc5c0cf5416a7c0847637ebeb987311c860b7a", size = 9044039, upload-time = "2025-11-27T20:01:19.742Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/ed/7acfcfe09584de89037a832ab759c68107bc5b6260131d396c5eafeeb3bf/praat_parselmouth-0.4.7-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:699b4dec1c4251d0cd9ad004eaeb49bd1b11c671677436e8fc6b191b93fa2bc9", size = 8634313, upload-time = "2025-11-27T20:01:23.297Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/9a/38a9b2883b9d617398fda35342b31a4e9f6ca3b343fe7b77466748aa6d60/praat_parselmouth-0.4.7-cp310-cp310-manylinux_2_12_i686.manylinux2010_i686.whl", hash = "sha256:29674d590189fef2835c6cdc04d8230e90bb324d2fbde2094065c7b2f7e24ac9", size = 10299898, upload-time = "2025-11-27T20:01:26.812Z" },
+    { url = "https://files.pythonhosted.org/packages/12/28/020eaa62e6aa75024a3ab7b04305854fabb6c014bfc7fee9c6ac40b28c85/praat_parselmouth-0.4.7-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:319cd87cc648b57b49f443249bb30612c1c0ac7e084f49ce219e384d96c16098", size = 10723051, upload-time = "2025-11-27T20:01:30.719Z" },
+    { url = "https://files.pythonhosted.org/packages/50/f2/1a9ae7192c47f754bf18668ce23423f9637caeb5168d7a6cbf641204bfa3/praat_parselmouth-0.4.7-cp310-cp310-win32.whl", hash = "sha256:e36f8eb599929e95ae1824c70be27de0c3eacd8c3550440f87cdacf649454ee5", size = 8128042, upload-time = "2025-11-27T20:01:35.927Z" },
+    { url = "https://files.pythonhosted.org/packages/87/5f/b25cb817e4727c759cd92c451d5d8a554929adbf0f4b72c98531f98b698e/praat_parselmouth-0.4.7-cp310-cp310-win_amd64.whl", hash = "sha256:fd6f1946e463dfc1b29a8ac4ad5b9792f5bb2436db74f42f2ee4b04168220583", size = 8954447, upload-time = "2025-11-27T20:01:39.262Z" },
+    { url = "https://files.pythonhosted.org/packages/11/74/9f27fc62ac4afb06c75f869bc32ed281b507391ad54aa4953562f1381b89/praat_parselmouth-0.4.7-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:7193ecb78b7dde649800aaadbd14364ce8dbba7608c3760da24ed6c1c47731df", size = 17664259, upload-time = "2025-11-27T20:01:44.921Z" },
+    { url = "https://files.pythonhosted.org/packages/16/cc/204a663ea0e26c388ded379e444b7c57232108f6fa85a0f5729d701f74ea/praat_parselmouth-0.4.7-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:508b10da7a958c71c6cda8ad22569917774002da4c9841a571a308a50dff0107", size = 9044039, upload-time = "2025-11-27T20:01:47.933Z" },
+    { url = "https://files.pythonhosted.org/packages/7e/b3/cf0de61814c676e6b99a6580a05633da90a3f1a3bc1c8a826edcbe3fc7cd/praat_parselmouth-0.4.7-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:88380dd454a26b613eaef810bcc80e842f5eef802631c20e00cdef92aee91d8a", size = 8634343, upload-time = "2025-11-27T20:01:52.85Z" },
+    { url = "https://files.pythonhosted.org/packages/03/17/7cd5fe8f24dd5477cdeea708ebbd4e4fc1e555e6eba147643f1737c977f9/praat_parselmouth-0.4.7-cp311-cp311-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:dc4812928cb05e63de0f291fcbd787a0e831b06bcdf74bd9df34500cdfd6edbc", size = 10717365, upload-time = "2025-11-27T20:01:55.919Z" },
+    { url = "https://files.pythonhosted.org/packages/d2/73/4475dcc95fc51b6cd6968c2e20df576ba4bba78ebca024034a333be70e5f/praat_parselmouth-0.4.7-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:618310c98b5bb0de5ea3a6f365332bbffb4dc0a7c3c5442a5041bf93d5409036", size = 10753885, upload-time = "2025-11-27T20:01:59.611Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/0a/dbb3be27ef74eb6b111af094864c02cca526f6982700cccbd295fff6db73/praat_parselmouth-0.4.7-cp311-cp311-win32.whl", hash = "sha256:f879a0dea38243e46acc6e5ce385508bf4f6131a85bc1cfc67ae5872a25112e2", size = 8127601, upload-time = "2025-11-27T20:02:04.134Z" },
+    { url = "https://files.pythonhosted.org/packages/71/c9/f49ba95b171c91770adb1401d401d9cea2d98f05f4304138d74e737d9146/praat_parselmouth-0.4.7-cp311-cp311-win_amd64.whl", hash = "sha256:87671f42cb52ecdb0e1bc8f12786b37dbb5242c80968ff77c85aa30c8767612e", size = 8954605, upload-time = "2025-11-27T20:02:06.074Z" },
+    { url = "https://files.pythonhosted.org/packages/71/8b/e3ac60fd972d457ecf6b0b0bdd9b651f578c0f50ce31b4e176065ad1713d/praat_parselmouth-0.4.7-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:fe123f5004e77a3a39150fc0b64b8960404c87ca8bb2a2e031c73ebd32d8e548", size = 17673383, upload-time = "2025-11-27T20:02:09.287Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/e3/60f2caa3df1382bf24e171c6be2bf7c8fc0d5f9b443701a9b3397596c899/praat_parselmouth-0.4.7-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:5892deae3631d691c6339455f1bce065e095c77634299e57bb00df94041f7db3", size = 9051957, upload-time = "2025-11-27T20:02:13.435Z" },
+    { url = "https://files.pythonhosted.org/packages/75/ea/10e0f1bb64923c27dec9fcd3c28852751565df8ba3beb5ae1d8288fa65f8/praat_parselmouth-0.4.7-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:29e468febc3de2acad8f7718b10cc800610871e229afc549b6b51f009a87ede7", size = 8635367, upload-time = "2025-11-27T20:02:16.791Z" },
+    { url = "https://files.pythonhosted.org/packages/f9/a8/d410e7f10ca97293cf271f94c8ddff70deeac44d3b8a524aa44c796f52cc/praat_parselmouth-0.4.7-cp312-cp312-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:e3fc0be825c5d1a4a05d2f85c5d8ff214d7178579cd2dd036cb902d9737a8d80", size = 10711677, upload-time = "2025-11-27T20:02:19.445Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/5f/e4495c8ac6ed26a1f16a34269c12579532e747b4ac5db57123093904f2ec/praat_parselmouth-0.4.7-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:6b5fbfab5b3cd4f6146e6145559d5d7c231384d88f942e0c8c0e791058aa61a5", size = 10749363, upload-time = "2025-11-27T20:02:23.082Z" },
+    { url = "https://files.pythonhosted.org/packages/50/f3/6b7a92ab093e89b58c7abbda93ca9a7b1e72c1a5c020d49f42e8856c6740/praat_parselmouth-0.4.7-cp312-cp312-win32.whl", hash = "sha256:fb579964b92e7aa5774badfa760570a6645641592cb5eb9e50b5a2225875b210", size = 8125421, upload-time = "2025-11-27T20:02:26.073Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/df/a358062226918326825b7af95850ce561a22c6dcdc2cac0665a8efc6a2d9/praat_parselmouth-0.4.7-cp312-cp312-win_amd64.whl", hash = "sha256:7cfd6941a4e8dd1d8398260f1269a831b84e9f230b03c569993e144a20704f99", size = 8958177, upload-time = "2025-11-27T20:02:29.308Z" },
+    { url = "https://files.pythonhosted.org/packages/be/1c/a772c9b064a935d40505699e69c6c7c513fbaa4725784bfef7fe36f47270/praat_parselmouth-0.4.7-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:97a2f9225fe63b9d6ea4fd2787983faf4ad46b83b3d772abbc8b066e9ef8559f", size = 17673409, upload-time = "2025-11-27T20:02:33.031Z" },
+    { url = "https://files.pythonhosted.org/packages/c2/a9/5e38d5ce459795c73600dedca72912955a299eefc4cbd0759529d30fe488/praat_parselmouth-0.4.7-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:6ec2b7c3d59b41794923bf6ca7dd97f64bc295b1a4c7835e732add2cb0fabce9", size = 9051832, upload-time = "2025-11-27T20:02:35.545Z" },
+    { url = "https://files.pythonhosted.org/packages/53/16/ac1b44f6247d3abd86fc66634a32f56d43cc58f7314db81c40fd67fa2afd/praat_parselmouth-0.4.7-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:02b2b351e9dce18fb795ef91ce92107343183cff2cd8e56b40050016a45c7778", size = 8635340, upload-time = "2025-11-27T20:02:38.939Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/e4/821007a09ca572ae4d4e0f431b925d47aa5ad41fea21de2f6283f7ef8e5c/praat_parselmouth-0.4.7-cp313-cp313-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:b6430856750467b8dc84a7dec87ca52a43dc6e2c44a4f1864e8f01f32901ceeb", size = 10711649, upload-time = "2025-11-27T20:02:42.222Z" },
+    { url = "https://files.pythonhosted.org/packages/48/b8/4eb427cc8d03156990360cf21e2e3f9180a8c0a0a03698c9d2dd36c54e0c/praat_parselmouth-0.4.7-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:c22d9f80984e91162e3be13109637f5dfe10d2ca4d3b15edd7e782550ba627f1", size = 10749436, upload-time = "2025-11-27T20:02:45.746Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/02/082031f1d6980aaeff05984225a6feadd948047ed6f4cbc0b00281a33950/praat_parselmouth-0.4.7-cp313-cp313-win32.whl", hash = "sha256:768b603cccd1b98db057aed3af52ba26c7a930ac4d48c2371bf6bb6702d7a068", size = 8125197, upload-time = "2025-11-27T20:02:49.291Z" },
+    { url = "https://files.pythonhosted.org/packages/83/35/089a5a8dd45800dcbaa23a414d6f4f5ec29a46fec04d654923efdb3a6746/praat_parselmouth-0.4.7-cp313-cp313-win_amd64.whl", hash = "sha256:e3bfe1fc8d0f0252766978affa2e7f9b68876540688dfb9c56535fcaa2f4776a", size = 8958175, upload-time = "2025-11-27T20:02:53.583Z" },
+    { url = "https://files.pythonhosted.org/packages/27/a6/50ab4dfee275a55cfe72383f861631f65753eac83b4dc6674ab173f04324/praat_parselmouth-0.4.7-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:f022783e8c7fbc3985194d62db64a9ccde60a3ce744633dab8b55f594c12f625", size = 17668901, upload-time = "2025-11-27T20:03:01.486Z" },
+    { url = "https://files.pythonhosted.org/packages/94/87/03cef2fc1365000c0bd20f87bf282b3a913a39a2cd9edfc9fb3239c85f4c/praat_parselmouth-0.4.7-cp314-cp314-macosx_10_15_x86_64.whl", hash = "sha256:d656eb4a18edcf52735e95b0a68c32edf7202c591c35afae74cfc54bead88277", size = 9049021, upload-time = "2025-11-27T20:03:21.658Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/8d/bb1121fd50ddcecd9e5d2d150c7a8656968c984e3562b623c64b02d90b10/praat_parselmouth-0.4.7-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:998138bf2acb15ae329caa217d523965b897417a1a2df130a2ecf41b664bfbf1", size = 8634455, upload-time = "2025-11-27T20:03:26.958Z" },
+    { url = "https://files.pythonhosted.org/packages/89/06/00003910356fb74284e9eb58c64bea0d0c85311061e7e39c080e370a86ef/praat_parselmouth-0.4.7-cp314-cp314-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:313710a579d47effa50652d1cb3e335d926c1c0d1cea13e62dde8041676498f0", size = 10711434, upload-time = "2025-11-27T20:03:30.22Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/fa/a9a2bb835c3c13e8212093f060831323c0cb1172223ba3af93f66212e4e0/praat_parselmouth-0.4.7-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:528cec1f4d2bbe02ed58fc6575071e9ccbf0d7ece815613c05d516e076b58a68", size = 10748994, upload-time = "2025-11-27T20:03:33.313Z" },
+    { url = "https://files.pythonhosted.org/packages/f7/ef/399a0f8b0c64d8910dc75826ba8c5fbb9490fa4b2e0777fbda7293db55d5/praat_parselmouth-0.4.7-cp314-cp314-win32.whl", hash = "sha256:71ff8990d454d0fa164aef269d1b2acccb6778d5c26a303d7e668b053a81af56", size = 8232788, upload-time = "2025-11-27T20:03:36.432Z" },
+    { url = "https://files.pythonhosted.org/packages/38/d4/bbc8153bde9812b33714c210b41ddb50d5af56a6d155f23ee44a01724146/praat_parselmouth-0.4.7-cp314-cp314-win_amd64.whl", hash = "sha256:aa467b5839fa9dd6e1aff146a80e80e157aedc93825772dfb4258f772c062ebb", size = 9110034, upload-time = "2025-11-27T20:03:38.516Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/01/fb567977deff7eb4617393b84e7729577e2dd801d847704e884f46c73208/praat_parselmouth-0.4.7-pp310-pypy310_pp73-macosx_10_15_x86_64.whl", hash = "sha256:71f4f157c58db1d43b9c851b7348508628dd7cf0b1382a5f6517eff6c03e4171", size = 9044833, upload-time = "2025-11-27T20:05:56.371Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/62/e2feeb05f0b833c350b9fe88d8e6208b703159f448fca6246924ea213a36/praat_parselmouth-0.4.7-pp310-pypy310_pp73-macosx_11_0_arm64.whl", hash = "sha256:d746609bfe8f098f53feb8685e6b7b12d171622ec8a0d98d5eac7d4c1aac2e5f", size = 8634302, upload-time = "2025-11-27T20:06:01.35Z" },
+    { url = "https://files.pythonhosted.org/packages/36/8a/caf3668960743c2a7ffc2dbf69bc6ea7f852f685a47c59fde965f25e2f26/praat_parselmouth-0.4.7-pp310-pypy310_pp73-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:00387f2556c57cfc4bf30605d21ec3bb710096b24719dce6aebfdafe1cd64913", size = 10716386, upload-time = "2025-11-27T20:06:04.272Z" },
+    { url = "https://files.pythonhosted.org/packages/c7/b7/7f1573ae35cf08960e0642d7e29a2be3eaa584693cf9f2b619f32f6c86f0/praat_parselmouth-0.4.7-pp310-pypy310_pp73-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:dda954a0699e33e17599780c73819facc024087c5e6c3cd5630d223d3c3eaf07", size = 10757758, upload-time = "2025-11-27T20:06:07.165Z" },
+    { url = "https://files.pythonhosted.org/packages/42/5f/e1df6d9ab284ee65ce75caed2cd55e760cf4d68330f7d39644743c569c55/praat_parselmouth-0.4.7-pp310-pypy310_pp73-win_amd64.whl", hash = "sha256:027cb0ec6c8f28214b1fe1ef19261e501e929472f37092f62ed68b30076e852a", size = 8954070, upload-time = "2025-11-27T20:06:12.136Z" },
+    { url = "https://files.pythonhosted.org/packages/67/1b/9b8d219a0b9ce7358d428585b51c3d33b8faab87b3fb4552cf2a00907e03/praat_parselmouth-0.4.7-pp311-pypy311_pp73-macosx_10_15_x86_64.whl", hash = "sha256:907ea3d2a466ae9d636a0cf55e4df898157637345e7695422de41b420b7f7fe9", size = 9044824, upload-time = "2025-11-27T20:06:17.976Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/c0/ab24f80e230d0a88662ef2627e9a13d0749a7c778f429459bfc76047c0e9/praat_parselmouth-0.4.7-pp311-pypy311_pp73-macosx_11_0_arm64.whl", hash = "sha256:6ac46a16e51b265f81aaa0696fe889a088491903d53c28032e1b7c9044fa3493", size = 8634302, upload-time = "2025-11-27T20:06:23.494Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/a4/df400fc823ab6ba29a7a6efe2288f0df5d83c92b526a9d32c4483af84a08/praat_parselmouth-0.4.7-pp311-pypy311_pp73-manylinux2014_i686.manylinux_2_17_i686.whl", hash = "sha256:a5b0adb5b60bc7006f76afbcea4c806f23c3e0a571e80fb1028a007c2029f0d2", size = 10716355, upload-time = "2025-11-27T20:06:29.758Z" },
+    { url = "https://files.pythonhosted.org/packages/30/a3/ecb1c08018de89c5f4ece53b80fd28b5ddf3446907b74d04aefaa489803e/praat_parselmouth-0.4.7-pp311-pypy311_pp73-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:70dfa96c18a3423eaf805c6326218ec7777d2f9e0e21a1c31fdd176eb9770118", size = 10757499, upload-time = "2025-11-27T20:06:34.538Z" },
+    { url = "https://files.pythonhosted.org/packages/58/de/1041b4e5673f29eddf6f8cba0ac2a74e24a468e9d3e1f3a5c49ba83171f2/praat_parselmouth-0.4.7-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:6cc2c06534828ba3ab8e2438cbab8672bb476beb1b6b06616c7945344ef115f6", size = 8954414, upload-time = "2025-11-27T20:06:38.802Z" },
+]
+
+[[package]]
 name = "preshed"
 version = "3.0.12"
 source = { registry = "https://pypi.org/simple" }
@@ -2745,6 +2829,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/82/ed/0301aeeac3e5353ef3d94b6ec08bbcabd04a72018415dcb29e588514bba8/python_dotenv-1.2.2.tar.gz", hash = "sha256:2c371a91fbd7ba082c2c1dc1f8bf89ca22564a087c2c287cd9b662adde799cf3", size = 50135, upload-time = "2026-03-01T16:00:26.196Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/0b/d7/1959b9648791274998a9c3526f6d0ec8fd2233e4d4acce81bbae76b44b2a/python_dotenv-1.2.2-py3-none-any.whl", hash = "sha256:1d8214789a24de455a8b8bd8ae6fe3c6b69a5e3d64aa8a8e5d68e694bbcb285a", size = 22101, upload-time = "2026-03-01T16:00:25.09Z" },
+]
+
+[[package]]
+name = "python-multipart"
+version = "0.0.32"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/42/55c32bb9b12693c092ad250a0e82edb5b31ddeda6eb772de5f308b3804ad/python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e", size = 46881, upload-time = "2026-06-04T16:18:58.647Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/04/e8135ebd1ad02c56ec633277529b2602ff99ff634be76cdba5744cf554fd/python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23", size = 30042, upload-time = "2026-06-04T16:18:57.319Z" },
 ]
 
 [[package]]

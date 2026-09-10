@@ -1,6 +1,7 @@
 """Clean Kokoro implementation with controlled resource management."""
 
 import os
+import tempfile
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -128,6 +129,18 @@ class KokoroV1(BaseModelBackend):
             )
             logger.debug(f"Cached voice tensor from {voice_path}")
         return self._voice_cache[cache_key]
+
+    def forget_voice(self, voice_path: str) -> None:
+        """Drop a pack's cached tensor and the temp copy generate() wrote for the pipeline."""
+        for key in [k for k in self._voice_cache if k.startswith(f"{voice_path}:")]:
+            del self._voice_cache[key]
+        temp_copy = os.path.join(
+            tempfile.gettempdir(), f"temp_voice_{os.path.basename(voice_path)}"
+        )
+        for pipeline in self._pipelines.values():
+            pipeline.voices.pop(temp_copy, None)
+        if os.path.exists(temp_copy):
+            os.remove(temp_copy)
 
     async def load_model(self, path: str) -> None:
         """Load pre-baked model.

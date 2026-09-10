@@ -8,7 +8,8 @@
     min-height: 0;
 }
 
-.voice-select-container:has(.create-tag-row:not([hidden])) {
+.voice-select-container:has(.create-tag-row:not([hidden])),
+.voice-select-container:has(#tune-panel:not([hidden])) {
     padding: 0.35rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
@@ -607,4 +608,125 @@
     opacity: 0.4;
     cursor: default;
     text-decoration: none;
+}
+
+/* tune */
+.voice-select-container[hidden] {
+    display: none;
+}
+
+#tune-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+#tune-panel[hidden] {
+    display: none;
+}
+
+.tune-wave {
+    display: block;
+    width: 100%;
+    height: 3rem;
+    color: var(--fg-color);
+    background: rgba(15, 23, 42, 0.3);
+    border: 1px solid var(--border);
+    border-radius: 0.25rem;
+}
+
+.tune-row {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.tune-clip {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.7rem;
+    opacity: 0.7;
+}
+
+.tune-center {
+    justify-content: center;
+}
+
+.tune-row.tune-center .help-hint {
+    margin-left: 0;
+}
+
+.tune-sep {
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--border);
+}
+
+#tune-record-btn.is-recording {
+    --zone: 0;
+    border-color: color-mix(in oklch, var(--error), var(--success) calc(var(--zone) * 100%));
+    color: color-mix(in oklch, var(--error), var(--success) calc(var(--zone) * 100%));
+    transition: color 1s linear, border-color 1s linear;
+}
+
+.tune-row .help-hint {
+    flex: none;
+    margin-left: auto;
+}
+
+.tune-prefix {
+    display: flex;
+}
+
+.tune-prefix + .setting-toggle {
+    margin-left: auto;
+}
+
+.tune-prefix label {
+    position: relative;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--border);
+    color: var(--text-light);
+    font-size: 0.7rem;
+    text-align: center;
+    cursor: pointer;
+}
+
+.tune-prefix label:first-child {
+    border-radius: 0.2rem 0 0 0.2rem;
+}
+
+.tune-prefix label:last-child {
+    border-radius: 0 0.2rem 0.2rem 0;
+    border-left: none;
+}
+
+.tune-prefix label:has(:checked) {
+    background: rgba(99, 102, 241, 0.25);
+    color: var(--text);
+}
+
+.tune-prefix label:has(:focus-visible) {
+    outline: 2px solid var(--fg-color);
+    outline-offset: 1px;
+}
+
+.tune-prefix input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+#tune-fmax {
+    width: 3.2rem;
+}
+
+.tune-name-prefix {
+    color: var(--text-light);
+    font-size: 0.75rem;
+    font-family: monospace;
 }

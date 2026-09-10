@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.src.core.config import settings
+from api.src.inference import inno_tuner
 from api.src.main import app
 
 client = TestClient(app)
@@ -16,7 +17,12 @@ def test_web_config_reports_root_path_and_version():
         response = client.get("/web/config")
 
     assert response.status_code == 200
-    assert response.json() == {"root_path": "/tts", "version": settings.api_version}
+    assert response.json() == {
+        "root_path": "/tts",
+        "version": settings.api_version,
+        "tuner": inno_tuner.available(),
+        "voice_saving": settings.allow_local_voice_saving,
+    }
 
 
 def test_web_root_serves_index():
