@@ -4,38 +4,38 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [v0.9.0] - 2026-09-09
 ### Added
-- `normalization_options.remove_emoji` drops emoji before synthesis instead of reading them by name, any language (#353). Off by default.
-- `normalization_options.caps_normalization` reads all-caps headers and names (`ARNE SAKNUSSEMM`, `TODO_LIST`) as words instead of letter by letter. On by default. Short acronyms (`FBI`, `US GDP`) are still spelled.
-- `POST /dev/tune`: tune a voice from a short reference clip and speak with it in one request, via [inno-kokoro](https://github.com/remsky/inno-kokoro). Off by default, `ENABLE_INNO_TUNER=true` turns it on. See [docs/inno-tune.md](docs/inno-tune.md).
-  - `return_voice_pack=true` returns the tuned `.pt` instead of audio; `save_voice=<name>` keeps it in `VOICES_DIR` as `<name>_tuned`, behind `ALLOW_LOCAL_VOICE_SAVING`.
-- Four tuned voices bundled with the server, `_inno` suffix: `af_amelia_inno`, `af_goodall_inno`, `am_price_inno`, `bm_atten_inno`.
-- Web player: Tune tab, record or upload a clip and generate with it, download the pack, or save it to the server.
+- Voice clone-tuning from a short reference clip via [inno-kokoro](https://github.com/remsky/inno-kokoro):
+  - `POST /dev/tune` speaks with the tuned voice (passes through to `/v1/audio/speech`) or returns the `.pt` via `return_voice_pack=true`,
+  - When `ALLOW_LOCAL_VOICE_SAVING=true`, saves it as `<name>_tuned` with `save_voice=<name>`.
+  - Off by default, requires `ENABLE_INNO_TUNER=true`. See [docs/inno-tune.md](docs/inno-tune.md).
+- Web player: Tune tab (record or upload a clip, generate, download or save the pack).
+- Four tuned voices bundled with `_inno` suffix:
+  - `af_amelia_inno`, `af_goodall_inno`, `am_price_inno`, `bm_atten_inno`.
+- `normalization_options.remove_emoji`, off by default: drop emoji instead of reading their names (#353).
+- `normalization_options.caps_normalization`, on by default: all-caps names and headers read as words, short acronyms (`FBI`) still spelled.
 
 ### Changed
-- Text normalization refactored towards multi-language support: `Normalizer` base class w/ neutral passes, `EnglishNormalizer` implements the rest, registry keyed by lang code. Adding a language is a subclass + table test, see CONTRIBUTING.md.
-- Web player: 
-  - the normalize checkbox is now a menu with every `normalization_options` field.
-  - voice list sorted by model card grade, best first, then name. `DEFAULT_VOICE` is the preselected voice.
-  - voice search/alias UI fixes.
+- Normalizer split into per-language classes, registry keyed by lang code.
+  - CONTRIBUTING.md documents standardized contract to add additional languages
+- `DEFAULT_VOICE` applies to requests that omit a voice, not just warmup. Reported as `default_voice` on `/v1/audio/voices`.
+- Web player:
+  - normalize checkbox replaced by a menu with every `normalization_options` field;
+  - voice list sorted by grade then name, `DEFAULT_VOICE` preselected.
 
 ### Fixed
-- Cancelling a stream mid-playback (web player stop, open-webui call, any client abort) no longer segfaults the server on a later request (#288, #337).
-- Blank lines now end a sentence, so headings, bylines, etc no longer run into the next paragraph. Single newlines still join (#519, #525 by @Christian-Sidak).
-- Long runs of non-English text without punctuation (~100 words) no longer truncate incorrectly.
-- Number reading:
-  - `3,497` reads as thousands, not a year (#259).
-  - Digits glued to letters (`MP3`, `B2B`, `v1.0`, `1.5x`) pass through as written. `COVID-19` is no longer COVID minus nineteen.
-  - `.5` reads as zero point five, `1980S` as nineteen eighty S.
-  - Long digit runs no longer stall or 500 the request.
-- Phone numbers read as spoken digits, `555-123-4567` as five five five, one two three, four five six seven.
-- `3.5 GHz` reads gigahertz and `1 min` reads one minute with `unit_normalization` on.
-- Plural and possessive acronyms (`DVDs`, `DVD's`) are no longer rewritten to `DVD'S`, which was spelled out as dee-vee-dee-ess.
-- Times with seconds keep their am/pm (`12:30:15 pm`).
-- `DEFAULT_VOICE` now applies to speech requests that omit a voice. Previously it only chose the warmup voice and requests fell back to `af_heart`. `/v1/audio/voices` reports it as `default_voice`.
-- Blank input, or emoji-only input with `remove_emoji`, is a 400 on the streaming path too, not an empty 200.
-- `--` and `---` read as a dash. Previously the words on either side fused and word timestamps stopped for the rest of the chunk (#249).
+- Aborting a stream mid-playback no longer segfaults the server on a follow-up request with a new lang_code engine (#288, #337).
+- Blank lines end a sentence, single newlines still join (#519, #525 by @Christian-Sidak).
+- Very long unpunctuated non-English text no longer truncates.
+- Blank or emoji-only input is a 400 on the streaming path too, not an empty 200.
+- Web player: voice search and alias minor fixes.
+- Normalization fixes:
+  - Number reading: `3,497` as thousands not a year (#259);
+  - `MP3`, `B2B`, `v1.0`, `COVID-19` read as written;
+  - `.5` as zero point five; long digit runs no longer stall or 500.
+  - Phone numbers, `3.5 GHz`, `1 min` (with `unit_normalization`), `DVDs`/`DVD's`, `12:30:15 pm` read correctly.
+  - `--` reads as a dash and no longer fuses words or drops word timestamps (#249).
 
 ## [v0.8.2] - 2026-09-05
 ### Added
