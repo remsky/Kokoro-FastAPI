@@ -16,7 +16,7 @@ Multipart form. `audio` is the only required field.
 
 | Field | Default | |
 |---|---|---|
-| `audio` | required | Reference clip, any format libsndfile reads (wav, flac, ogg, mp3). 3 to 30 s, one speaker, mono or stereo, up to 96 kHz, 10 MB cap. Only the first 30 s are decoded |
+| `audio` | required | Reference clip, any format libsndfile reads (wav, flac, ogg, mp3). 3 to 30 s, one speaker, mono or stereo, 8 to 96 kHz, 10 MB cap. Only the first 30 s are decoded |
 | `request` | unset | JSON with the same fields as the `/v1/audio/speech` body, minus `voice` (`input`, `response_format`, `speed`, `stream`, `lang_code`, `normalization_options`, `return_download_link`, etc). When set, the clip's voice speaks it |
 | `prosody_head` | `true` | Apply the prosody head. `false` uses the plain stock blend, closer to a stock voice |
 | `fmax` | auto | Pitch tracking ceiling in Hz, 60 to 1000. Unset, the tuner picks one from the clip's harmonics. Set it if a band-limited clip reads an octave high |
@@ -77,11 +77,11 @@ If the weights are missing or fail to load, the server still starts, logs `Inno 
 
 | Status | |
 |---|---|
-| 400 | Clip under 3 s, over 2 channels or 96 kHz, unreadable audio, bad `request` JSON, `save_voice` off the naming rule, nothing to do (no `request`, `return_voice_pack`, or `save_voice`) |
+| 400 | Clip under 3 s, over 2 channels, outside 8 to 96 kHz, unreadable audio, bad `request` JSON, `save_voice` off the naming rule, nothing to do (no `request`, `return_voice_pack`, or `save_voice`) |
 | 403 | `ENABLE_INNO_TUNER=false`, or `save_voice` without `ALLOW_LOCAL_VOICE_SAVING` |
 | 409 | `<name>` already exists |
 | 413 | Clip over 10 MB |
-| 503 | Tuner not loaded |
+| 503 | Tuner not loaded, or busy with another clip |
 
 ## How it works
 

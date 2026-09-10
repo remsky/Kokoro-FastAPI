@@ -5,7 +5,6 @@ import re
 import shutil
 from typing import AsyncIterator, Optional
 
-import soundfile as sf
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from loguru import logger
@@ -138,10 +137,18 @@ async def tune_speech(
                 "message": f"reference exceeds {inno_tuner.MAX_UPLOAD_BYTES >> 20} MB",
             },
         )
+    if not inno_tuner.reserve():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "busy",
+                "message": "Inno voice tuner is busy, retry shortly",
+            },
+        )
     try:
-        pack_path = await asyncio.to_thread(inno_tuner.tune, data, prosody_head, fmax)
-    except sf.LibsndfileError:
-        raise _bad_request("reference audio could not be decoded")
+        pack_path = await asyncio.shield(
+            asyncio.to_thread(inno_tuner.tune, data, prosody_head, fmax)
+        )
     except ValueError as e:
         raise _bad_request(str(e))
 

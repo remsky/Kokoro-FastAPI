@@ -5,23 +5,24 @@ weights next to the Kokoro model; load() runs at startup when ENABLE_INNO_TUNER 
 set and any failure leaves available() False, so /dev/tune answers 503.
 """
 
-import io
 import os
+import subprocess
+import sys
 import tempfile
 import threading
 from typing import Optional
 
-import soundfile as sf
+import numpy as np
 import torch
 from loguru import logger
 
 from ..core import paths
 from ..core.config import settings
+from .decode_clip import REFUSED
 
 MAX_UPLOAD_BYTES = 10 << 20
-MAX_REF_SECONDS = 30
-MAX_SAMPLE_RATE = 96000
-MAX_CHANNELS = 2
+DECODER = os.path.join(os.path.dirname(__file__), "decode_clip.py")
+DECODE_TIMEOUT = 5
 
 _tuner = None
 _lock = threading.Lock()
@@ -43,29 +44,48 @@ def available() -> bool:
     return _tuner is not None
 
 
+def reserve() -> bool:
+    """Claim the tuner for one tune() call, False if held. tune() releases it."""
+    return _lock.acquire(blocking=False)
+
+
+def decode(data: bytes) -> tuple[int, torch.Tensor]:
+    """Run decode_clip.py in a child process. ValueError with the child's reason when
+    it refuses the clip; a crash or timeout is logged and reported as undecodable."""
+    try:
+        proc = subprocess.run(
+            [sys.executable, DECODER],
+            input=data,
+            capture_output=True,
+            timeout=DECODE_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Reference decode timed out after {DECODE_TIMEOUT}s")
+        raise ValueError("reference audio could not be decoded")
+    reason = proc.stderr.decode(errors="replace").strip()
+    if proc.returncode == REFUSED:
+        raise ValueError(reason)
+    if proc.returncode != 0:
+        logger.warning(f"Reference decode exited {proc.returncode}: {reason}")
+        raise ValueError("reference audio could not be decoded")
+    sr = int.from_bytes(proc.stdout[:4], "little")
+    return sr, torch.from_numpy(np.frombuffer(proc.stdout[4:], dtype=np.float32).copy())
+
+
 def tune(data: bytes, head: bool = True, fmax: Optional[float] = None) -> str:
-    """Decode a clip, enroll it, write the pack to the temp dir, return its path.
+    """Decode, enroll, write the pack to the temp dir, return its path. Blocking,
+    call off the event loop after reserve(); releases the claim on return.
+    ValueError on a refused clip or one under 3 s."""
+    try:
+        if not available():
+            raise RuntimeError("inno voice tuner not available")
+        from inno_kokoro.enroll import enroll
 
-    Raises ValueError on a clip under 3 s, over 2 channels, or over 96 kHz, and
-    soundfile.LibsndfileError on bytes that do not decode. Only the first 30 s are
-    decoded. Blocking, call it off the event loop.
-    """
-    if not available():
-        raise RuntimeError("inno voice tuner not available")
-    from inno_kokoro.enroll import enroll
-
-    with sf.SoundFile(io.BytesIO(data)) as clip:
-        sr = clip.samplerate
-        if clip.channels > MAX_CHANNELS or sr > MAX_SAMPLE_RATE:
-            raise ValueError(
-                f"reference must be mono or stereo at {MAX_SAMPLE_RATE // 1000} kHz or less"
-            )
-        wav = torch.from_numpy(clip.read(MAX_REF_SECONDS * sr, dtype="float32"))
-    if wav.ndim > 1:
-        wav = wav.mean(-1)
-    with _lock:
+        sr, wav = decode(data)
         pack, _ = enroll(wav, sr, _tuner, fmax=fmax, head=head)
-    fd, path = tempfile.mkstemp(prefix="a_tune_", suffix=".pt")
-    with os.fdopen(fd, "wb") as f:
-        torch.save(pack, f)
-    return path
+        fd, path = tempfile.mkstemp(prefix="a_tune_", suffix=".pt")
+        with os.fdopen(fd, "wb") as f:
+            torch.save(pack, f)
+        return path
+    finally:
+        _lock.release()

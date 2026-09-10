@@ -4,8 +4,11 @@ import io
 import json
 import os
 import tempfile
+import threading
+import time
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import numpy as np
 import pytest
 import soundfile as sf
@@ -167,7 +170,7 @@ def test_decode_is_bounded(service, fake_tuner):
     assert len(long_flac) < inno_tuner.MAX_UPLOAD_BYTES
     assert post({"return_voice_pack": "true"}, raw=long_flac).status_code == 200
     assert fake_tuner[-1][0] == 30.0
-    for raw in (wav_bytes(channels=4), wav_bytes(sr=192000)):
+    for raw in (wav_bytes(channels=4), wav_bytes(sr=192000), wav_bytes(sr=1)):
         assert post({"return_voice_pack": "true"}, raw=raw).status_code == 400
 
 
@@ -243,37 +246,6 @@ def test_stream_failure_still_discards_pack(service):
     assert temp_packs() == before
     assert transient() == {}
     svc.model_manager.get_backend.return_value.forget_voice.assert_called_once()
-
-
-def test_enrollment_is_serialized(fake_tuner, monkeypatch):
-    import threading
-    import time
-
-    import inno_kokoro.enroll
-
-    in_flight, peak = [0], [0]
-
-    def slow_enroll(wav, sr, tuner, fmax=None, head=True):
-        in_flight[0] += 1
-        peak[0] = max(peak[0], in_flight[0])
-        time.sleep(0.05)
-        in_flight[0] -= 1
-        return torch.zeros(510, 1, 256), {}
-
-    monkeypatch.setattr(inno_kokoro.enroll, "enroll", slow_enroll)
-    data = wav_bytes(4.0)
-    paths = []
-    threads = [
-        threading.Thread(target=lambda: paths.append(inno_tuner.tune(data)))
-        for _ in range(4)
-    ]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-    for path in paths:
-        os.remove(path)
-    assert peak[0] == 1
 
 
 def test_forget_voice_evicts_pipeline_cache(tmp_path):
@@ -395,3 +367,93 @@ def test_startup_survives_tuner_load_failure(monkeypatch):
             ).status_code
             == 503
         )
+
+
+def test_decoder_crash_is_a_400_and_the_server_lives(
+    service, fake_tuner, monkeypatch, tmp_path
+):
+    crasher = tmp_path / "crash.py"
+    crasher.write_text("import os\nos.abort()\n")
+    decoder = inno_tuner.DECODER
+    monkeypatch.setattr(inno_tuner, "DECODER", str(crasher))
+    r = post({"return_voice_pack": "true"})
+    assert r.status_code == 400
+    assert r.json()["detail"]["message"] == "reference audio could not be decoded"
+    monkeypatch.setattr(inno_tuner, "DECODER", decoder)
+    assert post({"return_voice_pack": "true"}).status_code == 200
+
+
+def test_broken_decoders_stay_generic_and_the_server_lives(
+    service, fake_tuner, monkeypatch, tmp_path
+):
+    raiser = tmp_path / "raise.py"
+    raiser.write_text("raise RuntimeError('/secret/path')\n")
+    sleeper = tmp_path / "sleep.py"
+    sleeper.write_text("import sys, time; sys.stdin.buffer.read(); time.sleep(30)")
+    decoder = inno_tuner.DECODER
+    monkeypatch.setattr(inno_tuner, "DECODE_TIMEOUT", 1)
+    for broken in (raiser, sleeper, tmp_path / "missing.py"):
+        monkeypatch.setattr(inno_tuner, "DECODER", str(broken))
+        r = post({"return_voice_pack": "true"})
+        assert r.status_code == 400, broken
+        assert r.json()["detail"]["message"] == "reference audio could not be decoded"
+    monkeypatch.setattr(inno_tuner, "DECODER", decoder)
+    assert post({"return_voice_pack": "true"}).status_code == 200
+
+
+def test_decode_makes_samples_finite():
+    buf = io.BytesIO()
+    frames = np.array([0.5, np.nan, np.inf, -np.inf, -2.0], dtype=np.float32)
+    sf.write(buf, frames, 8000, format="WAV", subtype="FLOAT")
+    sr, wav = inno_tuner.decode(buf.getvalue())
+    assert sr == 8000
+    assert wav.tolist() == [0.5, 0.0, 1.0, -1.0, -1.0]
+
+
+def test_one_clip_tunes_at_a_time(service, fake_tuner):
+    assert inno_tuner.reserve()
+    r = post({"return_voice_pack": "true"})
+    inno_tuner._lock.release()
+    assert r.status_code == 503
+    assert r.json()["detail"]["error"] == "busy"
+    assert post({"return_voice_pack": "true"}).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a_cancelled_request_holds_the_tuner_until_the_worker_exits(
+    service, fake_tuner, monkeypatch
+):
+    import inno_kokoro.enroll
+
+    quick = inno_kokoro.enroll.enroll
+    started = threading.Event()
+
+    def enroll(*args, **kwargs):
+        started.set()
+        time.sleep(0.5)
+        return quick(*args, **kwargs)
+
+    monkeypatch.setattr(inno_kokoro.enroll, "enroll", enroll)
+    before = temp_packs()
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://t") as ac:
+        task = asyncio.create_task(
+            ac.post(
+                "/dev/tune",
+                files={"audio": ("ref.wav", wav_bytes(), "audio/wav")},
+                data={"return_voice_pack": "true"},
+            )
+        )
+        await asyncio.to_thread(started.wait, 5)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+    assert not inno_tuner.reserve()
+    for _ in range(50):
+        if inno_tuner.reserve():
+            break
+        await asyncio.sleep(0.1)
+    inno_tuner._lock.release()
+    for leftover in temp_packs() - before:
+        os.unlink(leftover)
+    assert post({"return_voice_pack": "true"}).status_code == 200
