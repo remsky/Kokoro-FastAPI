@@ -303,6 +303,23 @@ def test_tune_without_tuner_raises(monkeypatch):
         inno_tuner.tune(wav_bytes())
 
 
+def test_tuner_crash_is_a_json_500(service, monkeypatch):
+    import inno_kokoro.enroll
+
+    def enroll(*a, **k):
+        raise RuntimeError("Maximum number of iterations reached.")
+
+    monkeypatch.setattr(inno_kokoro.enroll, "enroll", enroll)
+    before = temp_packs()
+    r = post({"return_voice_pack": "true"})
+    assert r.status_code == 500
+    assert r.json()["detail"]["error"] == "tune_failed"
+    assert "iterations" not in r.text
+    assert temp_packs() == before
+    assert inno_tuner.reserve()
+    inno_tuner._lock.release()
+
+
 def test_stereo_clip_is_mixed_to_mono(service, monkeypatch):
     import inno_kokoro.enroll
 

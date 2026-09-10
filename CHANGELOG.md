@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
+
 ## [v0.9.0] - 2026-09-09
 ### Added
 - Voice clone-tuning from a short reference clip via [inno-kokoro](https://github.com/remsky/inno-kokoro):
