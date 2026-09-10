@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import AsyncGenerator, Tuple
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
@@ -13,6 +13,7 @@ from api.src.inference.base import AudioChunk
 from api.src.main import app
 from api.src.routers.openai_compatible import (
     _resolve_download_name,
+    create_speech,
     get_tts_service,
     load_openai_mappings,
     stream_audio_chunks,
@@ -115,24 +116,26 @@ def test_retrieve_model(mock_openai_mappings):
 
 @pytest.mark.asyncio
 async def test_get_tts_service_initialization():
-    """Test TTSService initialization"""
+    """Callers arriving while the service is being created wait for it, none creates a second one"""
+    gate = asyncio.Event()
+    mock_service = AsyncMock()
+
+    async def create():
+        await gate.wait()
+        return mock_service
+
     with patch("api.src.routers.openai_compatible._tts_service", None):
         with patch("api.src.routers.openai_compatible._init_lock", None):
-            with patch("api.src.services.tts_service.TTSService.create") as mock_create:
-                mock_service = AsyncMock()
-                mock_create.return_value = mock_service
-
-                # Test concurrent access
-                async def get_service():
-                    return await get_tts_service()
-
-                # Create multiple concurrent requests
-                tasks = [get_service() for _ in range(5)]
+            with patch(
+                "api.src.services.tts_service.TTSService.create", side_effect=create
+            ) as mock_create:
+                tasks = [asyncio.create_task(get_tts_service()) for _ in range(5)]
+                await asyncio.sleep(0)
+                gate.set()
                 results = await asyncio.gather(*tasks)
 
-                # Verify service was created only once
                 mock_create.assert_called_once()
-                assert all(r == mock_service for r in results)
+                assert all(r is mock_service for r in results)
 
 
 @pytest.mark.asyncio
@@ -170,6 +173,89 @@ async def test_stream_audio_chunks_client_disconnect():
     writer.close()
 
     assert len(chunks) == 0  # Should stop immediately due to disconnect
+
+
+@pytest.mark.asyncio
+async def test_stream_audio_chunks_closes_source_on_disconnect():
+    """A disconnect must close the upstream generator, not leave it to the GC."""
+    mock_request = MagicMock()
+    mock_request.is_disconnected = AsyncMock(return_value=True)
+
+    closed = []
+
+    async def mock_stream(*args, **kwargs):
+        try:
+            for _ in range(5):
+                yield AudioChunk(np.ndarray([], np.int16), output=b"chunk")
+        finally:
+            closed.append(True)
+
+    mock_service = AsyncMock()
+    mock_service.generate_audio_stream = mock_stream
+    mock_service.list_voices.return_value = ["test_voice"]
+
+    request = OpenAISpeechRequest(
+        model="kokoro",
+        input="Test text",
+        voice="test_voice",
+        response_format="mp3",
+        stream=True,
+        speed=1.0,
+    )
+
+    writer = StreamingAudioWriter("mp3", 24000)
+    async for _ in stream_audio_chunks(
+        mock_service, request, mock_request, writer, "test_voice"
+    ):
+        pass
+    writer.close()
+
+    assert closed == [True]
+
+
+@pytest.mark.asyncio
+async def test_abandoned_stream_closes_audio_writer(mock_tts_service):
+    """An abandoned response must close the writer, not leave PyAV to the GC."""
+    writers = []
+    writer_cls = StreamingAudioWriter
+
+    def capture(*args, **kwargs):
+        writer = writer_cls(*args, **kwargs)
+        writers.append(writer)
+        return writer
+
+    closed = []
+
+    async def mock_stream(*args, **kwargs):
+        try:
+            while True:
+                yield AudioChunk(np.zeros(1200, np.int16), output=b"chunk")
+        finally:
+            closed.append(True)
+
+    mock_tts_service.generate_audio_stream = mock_stream
+
+    request = OpenAISpeechRequest(
+        model="kokoro",
+        input="Test text",
+        voice="test_voice",
+        response_format="mp3",
+        stream=True,
+        speed=1.0,
+    )
+
+    client_request = MagicMock()
+    client_request.is_disconnected = AsyncMock(return_value=False)
+
+    with patch("api.src.routers.openai_compatible.StreamingAudioWriter", capture):
+        response = await create_speech(request, client_request)
+        body = response.body_iterator
+        await body.__anext__()
+        await body.aclose()
+
+    assert len(writers) == 1
+    assert writers[0].output_buffer.closed
+    assert closed == [True]
 
 
 def test_openai_voice_mapping(mock_tts_service, mock_openai_mappings):
@@ -275,9 +361,7 @@ def test_openai_speech_endpoint(mock_tts_service, test_voice, mock_audio_bytes):
     assert response.content == mock_audio_bytes
 
     mock_tts_service.generate_audio.assert_called_once()
-    assert (
-        mock_tts_service.generate_audio.call_args.kwargs["output_format"] == "mp3"
-    )
+    assert mock_tts_service.generate_audio.call_args.kwargs["output_format"] == "mp3"
 
 
 def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes):
@@ -303,6 +387,16 @@ def test_openai_speech_streaming(mock_tts_service, test_voice, mock_audio_bytes)
     assert content == mock_audio_bytes
 
 
+def test_openai_speech_unexpected_error_is_500(mock_tts_service, test_voice):
+    mock_tts_service.generate_audio.side_effect = Exception("boom")
+    response = client.post(
+        "/v1/audio/speech",
+        json={"model": "kokoro", "input": "hi", "voice": test_voice, "stream": False},
+    )
+    assert response.status_code == 500
+    assert response.json()["detail"]["error"] == "processing_error"
+
+
 def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test_voice):
     """Over-budget requests must 400 before the stream opens, not die mid-200."""
     response = client.post(
@@ -317,6 +411,43 @@ def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test
     )
     assert response.status_code == 400
     assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test_voice):
+    """Blank input, or emoji-only with remove_emoji, 400s before the stream opens instead of an empty 200 (issue #353)."""
+    for body in [
+        {"input": "   "},
+        {"input": "😊", "normalization_options": {"remove_emoji": True}},
+    ]:
+        response = client.post(
+            "/v1/audio/speech",
+            json={
+                "model": "kokoro",
+                "voice": test_voice,
+                "response_format": "mp3",
+                "stream": True,
+                **body,
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_openai_speech_streaming_null_normalization_options(
+    mock_tts_service, test_voice
+):
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "Hello world",
+            "voice": test_voice,
+            "response_format": "mp3",
+            "stream": True,
+            "normalization_options": None,
+        },
+    )
+    assert response.status_code == 200
 
 
 def test_captioned_streaming_over_pause_budget_is_400(mock_tts_service):
@@ -401,12 +532,7 @@ def test_openai_speech_invalid_voice(mock_tts_service):
 
 
 def test_openai_speech_empty_text(mock_tts_service, test_voice):
-    """Test error handling for empty text"""
-
-    async def mock_error_stream(*args, **kwargs):
-        raise ValueError("Text is empty after preprocessing")
-
-    mock_tts_service.generate_audio = mock_error_stream
+    """Empty input is rejected before the service is called."""
     mock_tts_service.list_voices.return_value = ["test_voice"]
 
     response = client.post(
@@ -422,7 +548,8 @@ def test_openai_speech_empty_text(mock_tts_service, test_voice):
     assert response.status_code == 400
     error_response = response.json()
     assert error_response["detail"]["error"] == "validation_error"
-    assert "Text is empty after preprocessing" in error_response["detail"]["message"]
+    assert "no speakable text" in error_response["detail"]["message"]
+    mock_tts_service.generate_audio.assert_not_called()
     assert error_response["detail"]["type"] == "invalid_request_error"
 
 
@@ -453,10 +580,28 @@ def test_list_voices(mock_tts_service):
     assert len(data["voices"]) == 2
     assert {"id": "voice1", "name": "voice1"} in data["voices"]
     assert {"id": "voice2", "name": "voice2"} in data["voices"]
+    assert data["default_voice"] == settings.default_voice
 
     legacy = client.get("/v1/audio/voices?legacy=true")
     assert legacy.status_code == 200
-    assert legacy.json()["voices"] == ["voice1", "voice2"]
+    assert legacy.json() == {"voices": ["voice1", "voice2"]}
+
+
+def test_omitted_voice_uses_default_voice_setting(mock_tts_service):
+    """A request without a voice takes DEFAULT_VOICE, and the docs show it."""
+    mock_tts_service.list_voices.return_value = ["am_adam", settings.default_voice]
+
+    response = client.post(
+        "/v1/audio/speech",
+        json={"input": "Hello world", "response_format": "mp3", "stream": False},
+    )
+    assert response.status_code == 200
+    voice = mock_tts_service.generate_audio.call_args[1]["voice"]
+    assert voice == settings.default_voice
+
+    schemas = client.get("/openapi.json").json()["components"]["schemas"]
+    for name in ("OpenAISpeechRequest", "CaptionedSpeechRequest"):
+        assert schemas[name]["properties"]["voice"]["default"] == settings.default_voice
 
 
 def test_list_voices_grades(mock_tts_service):
@@ -504,7 +649,9 @@ def test_combine_voices_weighted(mock_settings, mock_tts_service, tmp_path):
 
     response = client.post("/v1/audio/voices/combine", json="voice1(2.2)+voice2(2.8)")
     assert response.status_code == 200
-    assert 'filename="voice1_2.2_voice2_2.8.pt"' in response.headers["content-disposition"]
+    assert (
+        'filename="voice1_2.2_voice2_2.8.pt"' in response.headers["content-disposition"]
+    )
     mock_tts_service.get_voices_path.assert_awaited_once_with("voice1(2.2)+voice2(2.8)")
 
 

@@ -4,7 +4,6 @@ from importlib.metadata import (
 )
 from pathlib import Path
 
-import torch
 from dotenv import dotenv_values
 from pydantic_settings import BaseSettings
 
@@ -41,6 +40,7 @@ class Settings(BaseSettings):
         False  # Whether to allow saving combined voices locally
     )
     allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
+    enable_inno_tuner: bool = False  # Whether to expose POST /dev/tune
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
     )
@@ -106,6 +106,8 @@ class Settings(BaseSettings):
             return self.device_type
 
         # Auto-detect device
+        import torch
+
         if torch.backends.mps.is_available():
             return "mps"
         elif torch.cuda.is_available():

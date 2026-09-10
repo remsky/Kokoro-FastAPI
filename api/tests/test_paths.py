@@ -1,16 +1,30 @@
 import os
+import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import torch
 
+from api.src.core.config import settings
 from api.src.core.paths import (
     _find_file,
     _scan_directories,
+    cleanup_temp_files,
     get_content_type,
+    get_model_path,
     get_temp_dir_size,
     get_temp_file_path,
+    get_voice_path,
     list_temp_files,
+    list_voices,
+    load_json,
+    load_model_weights,
+    load_voice_tensor,
+    read_bytes,
+    read_file,
+    save_voice_tensor,
+    verify_model_path,
 )
 
 
@@ -231,3 +245,94 @@ async def test_get_temp_dir_size():
 
         size = await get_temp_dir_size()
         assert size == 1024
+
+
+@pytest.mark.asyncio
+async def test_voice_lookup_in_voices_dir(tmp_path):
+    (tmp_path / "af_bella.pt").write_bytes(b"")
+    (tmp_path / "am_adam.pt").write_bytes(b"")
+    (tmp_path / "notes.txt").write_text("")
+
+    with patch.object(settings, "voices_dir", str(tmp_path)):
+        assert await list_voices() == ["af_bella", "am_adam"]
+        assert await get_voice_path("af_bella") == str(tmp_path / "af_bella.pt")
+        with pytest.raises(FileNotFoundError):
+            await get_voice_path("af_nope")
+
+
+@pytest.mark.asyncio
+async def test_model_lookup_in_model_dir(tmp_path):
+    (tmp_path / "kokoro.pth").write_bytes(b"")
+
+    with patch.object(settings, "model_dir", str(tmp_path)):
+        assert await get_model_path("kokoro.pth") == str(tmp_path / "kokoro.pth")
+        with pytest.raises(FileNotFoundError):
+            await get_model_path("other.pth")
+
+
+@pytest.mark.asyncio
+async def test_voice_tensor_roundtrip(tmp_path):
+    path = str(tmp_path / "voice.pt")
+    tensor = torch.arange(6, dtype=torch.float32).reshape(2, 3)
+
+    await save_voice_tensor(tensor, path)
+    assert torch.equal(await load_voice_tensor(path), tensor)
+
+    with pytest.raises(RuntimeError, match="Failed to load voice tensor"):
+        await load_voice_tensor(str(tmp_path / "missing.pt"))
+    with pytest.raises(RuntimeError, match="Failed to save voice tensor"):
+        await save_voice_tensor(tensor, str(tmp_path / "no_dir" / "voice.pt"))
+
+
+@pytest.mark.asyncio
+async def test_model_weights_load(tmp_path):
+    path = str(tmp_path / "model.pth")
+    torch.save({"w": torch.zeros(2)}, path)
+
+    weights = await load_model_weights(path)
+    assert list(weights) == ["w"]
+    with pytest.raises(RuntimeError, match="Failed to load model weights"):
+        await load_model_weights(str(tmp_path / "missing.pth"))
+
+
+@pytest.mark.asyncio
+async def test_text_json_and_bytes_readers(tmp_path):
+    text = tmp_path / "a.json"
+    text.write_text('{"k": 1}', encoding="utf-8")
+
+    assert await read_file(str(text)) == '{"k": 1}'
+    assert await read_bytes(str(text)) == b'{"k": 1}'
+    assert await load_json(str(text)) == {"k": 1}
+    assert await verify_model_path(str(text)) is True
+    assert await verify_model_path(str(tmp_path / "missing")) is False
+
+    missing = str(tmp_path / "missing")
+    for reader in (read_file, read_bytes, load_json):
+        with pytest.raises(RuntimeError, match="Failed to"):
+            await reader(missing)
+
+
+@pytest.mark.asyncio
+async def test_cleanup_temp_files_removes_only_old_files(tmp_path):
+    old = tmp_path / "old.wav"
+    new = tmp_path / "new.wav"
+    old.write_bytes(b"x")
+    new.write_bytes(b"x")
+    stale = time.time() - 2 * settings.max_temp_dir_age_hours * 3600
+    os.utime(old, (stale, stale))
+
+    with patch.object(settings, "temp_file_dir", str(tmp_path)):
+        await cleanup_temp_files()
+
+    assert not old.exists()
+    assert new.exists()
+
+
+@pytest.mark.asyncio
+async def test_cleanup_temp_files_creates_missing_dir(tmp_path):
+    target = tmp_path / "temp"
+
+    with patch.object(settings, "temp_file_dir", str(target)):
+        await cleanup_temp_files()
+
+    assert target.is_dir()

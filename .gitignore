@@ -10,6 +10,7 @@ __pycache__/
 *$py.class
 .Python
 .pytest_cache
+.hypothesis
 .coverage
 coverage.xml
 .coveragerc
@@ -52,6 +53,7 @@ api/src/models/**/*.download
 !.claude/skills/web-contrib/
 !.claude/skills/readme-benchmarks/
 !.claude/skills/integration-tests/
+!.claude/skills/adding-normalizer/
 .agents/*
 Kokoro-82M/
 EXTERNAL_UV_DOCUMENTATION*
@@ -106,3 +108,4 @@ test-results/
 ROCM_TRIM.md
 Kokoro-FastAPI.code-workspace
 experiments/*
+api/src/models/v1_0/inno_tuner/

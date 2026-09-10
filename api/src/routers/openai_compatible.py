@@ -4,18 +4,21 @@ import json
 import math
 import os
 import re
-from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
+from contextlib import aclosing
+from typing import AsyncGenerator, Dict, List, Optional, Union
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
+from ..inference.voice_manager import get_manager as get_voice_manager
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
     VOICE_TAG_PATTERN,
     check_pause_budget,
+    check_speakable,
 )
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
@@ -158,6 +161,7 @@ async def process_and_validate_voices(
 
     if available_voices is None:
         available_voices = await tts_service.list_voices()
+    voice_manager = await get_voice_manager()
 
     for voice_index in range(0, len(voices), 2):
         token = voices[voice_index]
@@ -177,7 +181,7 @@ async def process_and_validate_voices(
             weight = weight.strip()
 
         name = _openai_mappings["voices"].get(name, name)
-        if name not in available_voices:
+        if name not in available_voices and not voice_manager.is_transient(name):
             raise ValueError(
                 f"Voice '{name}' not found. Available voices: {', '.join(sorted(available_voices))}"
             )
@@ -266,28 +270,31 @@ async def stream_audio_chunks(
     return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
-        async for chunk_data in tts_service.generate_audio_stream(
-            text=request.input,
-            voice=voice_name,
-            writer=writer,
-            speed=request.speed,
-            output_format=request.response_format,
-            lang_code=request.lang_code,
-            volume_multiplier=request.volume_multiplier,
-            normalization_options=request.normalization_options,
-            return_timestamps=return_timestamps,
-            allow_voice_tags=request.allow_voice_tags,
-            timings=timings,
-        ):
-            # Check if client is still connected
-            is_disconnected = client_request.is_disconnected
-            if callable(is_disconnected):
-                is_disconnected = await is_disconnected()
-            if is_disconnected:
-                logger.info("Client disconnected, stopping audio generation")
-                break
+        async with aclosing(
+            tts_service.generate_audio_stream(
+                text=request.input,
+                voice=voice_name,
+                writer=writer,
+                speed=request.speed,
+                output_format=request.response_format,
+                lang_code=request.lang_code,
+                volume_multiplier=request.volume_multiplier,
+                normalization_options=request.normalization_options,
+                return_timestamps=return_timestamps,
+                allow_voice_tags=request.allow_voice_tags,
+                timings=timings,
+            )
+        ) as audio_stream:
+            async for chunk_data in audio_stream:
+                # Check if client is still connected
+                is_disconnected = client_request.is_disconnected
+                if callable(is_disconnected):
+                    is_disconnected = await is_disconnected()
+                if is_disconnected:
+                    logger.info("Client disconnected, stopping audio generation")
+                    break
 
-            yield chunk_data
+                yield chunk_data
     except Exception as e:
         logger.error(f"Error in audio streaming: {str(e)}")
         # Let the exception propagate to trigger cleanup
@@ -331,6 +338,11 @@ async def create_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {
@@ -405,6 +417,7 @@ async def create_speech(
                         # Ensure temp writer is closed
                         if not temp_writer._finalized:
                             await temp_writer.__aexit__(None, None, None)
+                        await generator.aclose()
                         writer.close()
 
                 # Stream with temp file writing
@@ -420,8 +433,10 @@ async def create_speech(
                             yield chunk_data.output
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
-                    writer.close()
                     raise
+                finally:
+                    await generator.aclose()
+                    writer.close()
 
             # Standard streaming without download link
             return StreamingResponse(
@@ -725,7 +740,8 @@ async def list_voices(legacy: bool = False):
     full voice list. Entries also carry `target_quality`, `training_duration`
     and `overall_grade` for the voices graded in the upstream model card;
     ungraded voices (Spanish, Brazilian Portuguese, custom `.pt` files) omit
-    those keys. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    those keys. `default_voice` is the DEFAULT_VOICE setting. Pass
+    `?legacy=true` for the pre-0.3.x plain-string shape.
     """
     try:
         tts_service = await get_tts_service()
@@ -735,7 +751,8 @@ async def list_voices(legacy: bool = False):
         return {
             "voices": [
                 {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
-            ]
+            ],
+            "default_voice": settings.default_voice,
         }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")

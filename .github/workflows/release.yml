@@ -39,7 +39,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.resolve-ref.outputs.source_ref }}
           fetch-depth: 0
@@ -104,7 +104,7 @@ jobs:
     runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare-release.outputs.source_ref }}
 
@@ -279,19 +279,26 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
+      - name: Generate release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ needs.prepare-release.outputs.version_tag }}
+          REF: ${{ needs.prepare-release.outputs.source_ref }}
+        run: |
+          echo "Curated summary: [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/${TAG}/CHANGELOG.md)" > notes.md
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes"             -f tag_name="${TAG}" -f target_commitish="${REF}" --jq .body             | sed '/^## What.s Changed$/d' >> notes.md
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: ${{ needs.prepare-release.outputs.version_tag }}
           target_commitish: ${{ needs.prepare-release.outputs.source_ref }}
           name: Release ${{ needs.prepare-release.outputs.version_tag }}
-          body: |
-            Curated summary: [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/${{ needs.prepare-release.outputs.version_tag }}/CHANGELOG.md)
-          generate_release_notes: true
+          body_path: notes.md
           draft: false
           prerelease: false
         env:

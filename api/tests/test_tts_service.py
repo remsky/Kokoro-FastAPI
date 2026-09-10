@@ -1,4 +1,3 @@
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -453,6 +452,27 @@ async def test_timings_collect_chunks_and_pauses():
         ("One.", 0.0, 0.1),
         ("", 0.1, 0.6),
         ("Two.", 0.6, 0.7),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_leading_pause_tag_streams_a_gap():
+    """A pause tag before any text is a gap, not a crash (issue #355)."""
+    service = await _stubbed_service()
+
+    timings = []
+    async for _ in service.generate_audio_stream(
+        "[pause:1s] Hello.",
+        "af_heart",
+        MagicMock(),
+        output_format=None,
+        timings=timings,
+    ):
+        pass
+
+    assert [(t["text"].strip(), t["start"], t["end"]) for t in timings] == [
+        ("", 0.0, 1.0),
+        ("Hello.", 1.0, 1.1),
     ]
 
 

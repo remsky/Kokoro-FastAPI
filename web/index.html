@@ -69,7 +69,8 @@
             <section class="voice-card">
                 <div class="card-tabs" role="tablist" aria-label="Voice mode">
                     <button type="button" id="voices-tab" class="card-tab is-active" role="tab" aria-selected="true" aria-controls="voice-panel">Voices</button>
-                    <button type="button" id="voice-tags-tab" class="card-tab" role="tab" aria-selected="false" aria-controls="voice-panel" tabindex="-1">Voice Tags</button>
+                    <button type="button" id="voice-tags-tab" class="card-tab" role="tab" aria-selected="false" aria-controls="voice-panel" tabindex="-1">Tags</button>
+                    <button type="button" id="tune-tab" class="card-tab" role="tab" aria-selected="false" aria-controls="voice-panel" tabindex="-1">Tune<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" d="M5.5 1.5h5M6.5 1.5v4.2L2.6 12.3a1.2 1.2 0 0 0 1.05 1.7h8.7a1.2 1.2 0 0 0 1.05-1.7L9.5 5.7V1.5"/><path fill="currentColor" d="M4.6 10h6.8l1.1 2.2H3.5z"/></svg></button>
                 </div>
                 <div id="voice-panel" class="voice-panel" role="tabpanel">
                     <div class="voice-select-container">
@@ -95,6 +96,39 @@
                             <span class="create-tag-x" aria-hidden="true">x</span>
                             <button type="button" id="create-tag-btn" class="create-tag-btn">Create tag</button>
                         </span>
+                    </div>
+                    <div id="tune-panel" hidden>
+                        <span id="tune-clip" class="tune-clip" aria-live="polite">5 - 30 seconds</span>
+                        <canvas id="tune-wave" class="tune-wave" height="48" aria-hidden="true"></canvas>
+                        <div class="tune-row tune-center">
+                            <button type="button" id="tune-record-btn" class="create-tag-btn">Record</button>
+                            <button type="button" id="tune-upload-btn" class="create-tag-btn">Upload</button>
+                            <input type="file" id="tune-file" accept="audio/*" hidden>
+                        </div>
+                        <hr class="tune-sep">
+                        <div class="tune-row">
+                            <span class="tune-prefix" role="radiogroup" aria-label="Accent" title="Pronunciation of the tuned voice, the clip itself can be either">
+                                <label><input type="radio" name="tune-prefix" value="ax" checked>US</label>
+                                <label><input type="radio" name="tune-prefix" value="bx">UK</label>
+                            </span>
+                            <label class="setting-toggle">
+                                <span>Ceiling</span>
+                                <input type="number" id="tune-fmax" class="cast-rate" min="60" max="1000" step="10" placeholder="auto">
+                                <span>Hz</span>
+                            </label>
+                            <span class="help-hint" title="Pitch tracking ceiling in Hz, blank for auto; set if a band-limited clip reads an octave high">?</span>
+                        </div>
+                        <hr class="tune-sep">
+                        <div class="tune-row">
+                            <span id="tune-name-prefix" class="tune-name-prefix">ax_</span>
+                            <input type="text" id="tune-name" class="create-tag-name" placeholder="name" maxlength="40" aria-label="Name for the tuned voice">
+                            <span class="help-hint" title="Lowercase letters, digits, underscores. Saved as ax_name_tuned">?</span>
+                        </div>
+                        <div class="tune-row">
+                            <button type="button" id="tune-save-btn" class="create-tag-btn" disabled>Save to server</button>
+                            <button type="button" id="tune-download-btn" class="create-tag-btn" disabled>Download .pt</button>
+                        </div>
+                        <hr class="tune-sep">
                     </div>
                     <div id="voice-cast" class="voice-cast" hidden>
                         <div class="voice-cast-head">
@@ -162,10 +196,25 @@
                     </div>
                 </div>
                 <div class="settings-options">
-                    <label class="setting-toggle" for="normalize-toggle" title="Enable or disable automatic text normalization (numbers, dates, currency)">
-                        <input type="checkbox" id="normalize-toggle" checked>
-                        <span>Normalize text</span>
-                    </label>
+                    <details id="normalize-menu">
+                        <summary class="normalize-toggle" title="Text normalization options (numbers, dates, currency, emoji)">Normalization &#9662;</summary>
+                        <div class="normalize-panel">
+                            <div class="normalize-master">
+                                <label class="setting-toggle" title="Master switch, off sends the text as written"><input type="checkbox" id="normalize-toggle" data-normalization-option="normalize" checked><span>Normalize</span></label>
+                                <a class="help-hint" href="https://github.com/remsky/Kokoro-FastAPI/blob/master/docs/configuration.md#text-normalization" target="_blank" rel="noopener" aria-label="Normalization options docs" title="What each option does">?</a>
+                            </div>
+                            <fieldset id="normalize-options">
+                                <label class="setting-toggle" title="https://test.org/path reads as https test dot org slash path"><input type="checkbox" data-normalization-option="url_normalization" checked><span>URLs</span></label>
+                                <label class="setting-toggle" title="user@example.com reads as user at example dot com"><input type="checkbox" data-normalization-option="email_normalization" checked><span>Emails</span></label>
+                                <label class="setting-toggle" title="555-123-4567 reads as spoken digits"><input type="checkbox" data-normalization-option="phone_normalization" checked><span>Phone numbers</span></label>
+                                <label class="setting-toggle" title="ARNE SAKNUSSEMM reads as two words instead of spelled out, FBI and US GDP still spelled"><input type="checkbox" data-normalization-option="caps_normalization" checked><span>All-caps words</span></label>
+                                <label class="setting-toggle" title="10KB reads as 10 kilobytes"><input type="checkbox" data-normalization-option="unit_normalization"><span>Units (km, kg, KB)</span></label>
+                                <label class="setting-toggle" title="friend(s) reads as friends"><input type="checkbox" data-normalization-option="optional_pluralization_normalization" checked><span>Optional plurals, word(s)</span></label>
+                                <label class="setting-toggle" title="&amp; reads as and, @ as at, # as number, % as percent"><input type="checkbox" data-normalization-option="replace_remaining_symbols" checked><span>Other symbols (&amp;@#$%)</span></label>
+                            </fieldset>
+                            <label class="setting-toggle normalize-emoji" title="Emoji dropped instead of read by name, works with Normalize off and in every language"><input type="checkbox" data-normalization-option="remove_emoji"><span>Remove emoji</span></label>
+                        </div>
+                    </details>
                 </div>
             </section>
 

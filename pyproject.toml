@@ -1,6 +1,6 @@
 [project]
 name = "kokoro-fastapi"
-version = "0.8.2"
+version = "0.9.0"
 description = "FastAPI TTS Service"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -19,6 +19,8 @@ dependencies = [
     "scipy==1.14.1",
     # Audio processing
     "soundfile==0.13.0",
+    "inno-kokoro==0.2.0",
+    "python-multipart>=0.0.20",
     "regex>=2025.10.22",
     "unicode-segmentation-rs>=0.3.3",
     # Utilities
@@ -68,6 +70,7 @@ test = [
     "pytest-asyncio==0.25.3",
     "tomli>=2.0.1",
     "jinja2>=3.1.6",
+    "hypothesis==6.167.1",
 ]
 # Integration test deps (faster-whisper, jiwer, soundfile, etc.) intentionally
 # live in the tts-api-test-client image, not here. Run via:
@@ -133,9 +136,3 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 package-dir = { "" = "api/src" }
 packages.find = { where = ["api/src"], namespaces = true }
-
-[tool.pytest.ini_options]
-testpaths = ["api/tests"]
-python_files = ["test_*.py"]
-addopts = "--cov=api --cov-report=term-missing --cov-config=.coveragerc --full-trace"
-asyncio_mode = "auto"

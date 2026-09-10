@@ -1,16 +1,9 @@
 """Audio conversion service"""
 
 import math
-import struct
-import time
-from io import BytesIO
-from typing import Tuple
 
 import numpy as np
-import scipy.io.wavfile as wavfile
-import soundfile as sf
 from loguru import logger
-from torch import norm
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
@@ -177,20 +170,14 @@ class AudioService:
                     audio_chunk, chunk_text, speed, is_last_chunk, normalizer
                 )
 
-            # Write audio data first
+            chunk_data = b""
             if len(audio_chunk.audio) > 0:
                 chunk_data = writer.write_chunk(audio_chunk.audio)
 
-            # Then finalize if this is the last chunk
             if is_last_chunk:
-                final_data = writer.write_chunk(finalize=True)
+                chunk_data += writer.write_chunk(finalize=True)
 
-                if final_data:
-                    audio_chunk.output = final_data
-                return audio_chunk
-
-            if chunk_data:
-                audio_chunk.output = chunk_data
+            audio_chunk.output = chunk_data
             return audio_chunk
 
         except Exception as e:

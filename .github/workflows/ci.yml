@@ -9,17 +9,19 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 30
     strategy:
       matrix:
         python-version: ["3.10", "3.12"]
       fail-fast: false
     
     steps:
-    - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     
     # Match Dockerfile dependencies
     - name: Install Dependencies
       run: |
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           espeak-ng \
@@ -32,14 +34,50 @@ jobs:
           cmake
     
     - name: Install uv
-      uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
       with:
         python-version: ${{ matrix.python-version }}
         enable-cache: true
+    - name: Cache model weights
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: api/src/models/v1_0
+        key: kokoro-model-${{ hashFiles('docker/scripts/download_model.py') }}
+    - name: Download model
+      run: python3 docker/scripts/download_model.py --output api/src/models/v1_0
     - name: Run Tests
       run: |
         uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml
-    - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5.5.5
+    - uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         files: coverage.xml
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: 22
+        cache: npm
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/ms-playwright
+        key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+    - name: Install Dependencies
+      run: |
+        npm ci
+        sudo rm -f /etc/apt/sources.list.d/google-chrome*
+        npx playwright install --with-deps chromium
+
+    - name: Run Unit Tests
+      run: npm run test:web
+
+    - name: Run E2E Tests
+      run: npm run test:e2e

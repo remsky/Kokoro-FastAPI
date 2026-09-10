@@ -26,17 +26,3 @@ def tokenize(phonemes: str) -> list[int]:
     # Strip phonemes to remove leading/trailing spaces that could cause artifacts
     phonemes = phonemes.strip()
     return [i for i in map(VOCAB.get, phonemes) if i is not None]
-
-
-def decode_tokens(tokens: list[int]) -> str:
-    """Convert token IDs back to phonemes string
-
-    Args:
-        tokens: List of token IDs
-
-    Returns:
-        String of phonemes
-    """
-    # Create reverse mapping
-    id_to_symbol = {i: s for s, i in VOCAB.items()}
-    return "".join(id_to_symbol[t] for t in tokens)

@@ -1,28 +1,23 @@
 import base64
-import os
-import re
-from pathlib import Path
-from typing import AsyncGenerator, List, Tuple, Union
 
-import torch
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
 from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
-from ..services.temp_manager import TempFileWriter
-from ..services.text_processing import smart_split
-from ..services.text_processing.text_processor import check_pause_budget
+from ..services.text_processing.text_processor import (
+    check_pause_budget,
+    check_speakable,
+)
 from ..services.tts_service import TTSService
 from ..structures import (
     CaptionedSpeechRequest,
     CaptionedSpeechResponse,
     DialogueRequest,
     OpenAISpeechRequest,
-    WordTimestamp,
 )
 from ..structures.custom_responses import JSONStreamingResponse
 from ..structures.text_schemas import (
@@ -133,16 +128,15 @@ async def generate_from_phonemes(
                     final_bytes = writer.write_chunk(finalize=True)
                     if final_bytes:
                         yield final_bytes
-                        writer.close()
                 else:
                     raise ValueError("Failed to generate audio data")
 
             except Exception as e:
                 logger.error(f"Error in audio generation: {str(e)}")
-                # Clean up writer on error
-                writer.close()
                 # Re-raise the original exception
                 raise
+            finally:
+                writer.close()
 
         return StreamingResponse(
             generate_chunks(),
@@ -241,6 +235,11 @@ async def create_captioned_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {
@@ -325,6 +324,7 @@ async def create_captioned_speech(
                         # Ensure temp writer is closed
                         if not temp_writer._finalized:
                             await temp_writer.__aexit__(None, None, None)
+                        await generator.aclose()
                         writer.close()
 
                 # Stream with temp file writing
@@ -368,8 +368,10 @@ async def create_captioned_speech(
 
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
-                    writer.close()
                     raise
+                finally:
+                    await generator.aclose()
+                    writer.close()
 
             # Standard streaming without download link
             return JSONStreamingResponse(

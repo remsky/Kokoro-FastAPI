@@ -104,10 +104,10 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
+| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one, preselected in the web player, warms the model at startup |
 | `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter. Applies to every speaker, so a `[voice:]` dialogue mixing languages is forced onto this one |
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
-| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
+| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be downloaded (`/v1/audio/voices/combine`) and tuned voices be saved into `VOICES_DIR` (`/dev/tune` `save_voice`) |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
 
 **Text processing**
@@ -122,7 +122,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
 | `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
-| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
+| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, per-request fields in [Text normalization](#text-normalization) |
 
 **Audio**
 
@@ -163,7 +163,28 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
 | `ALLOW_DEV_UNLOAD` | `false` | Expose `/dev/model`, `POST /dev/unload`, and `POST /dev/reload` |
+| `ENABLE_INNO_TUNER` | `false` | Expose `POST /dev/tune`, see [inno-tune.md](inno-tune.md) |
 | `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `0.0` | Idle seconds before auto-unload; `0` disables auto-unload |
+
+## Text normalization
+
+`normalization_options` on the speech endpoints, per request. The normalizer runs for English only, the one language with a normalizer registered. Other languages go to the phonemizer as written, `remove_emoji` aside.
+
+| Field | Default | |
+|---|---|---|
+| `normalize` | `true` | Master switch, off sends the text as written |
+| `url_normalization` | `true` | `https://test.org/path` reads as https test dot org slash path |
+| `email_normalization` | `true` | `user@example.com` reads as user at example dot com |
+| `phone_normalization` | `true` | `555-123-4567` reads as spoken digits |
+| `caps_normalization` | `true` | `ARNE SAKNUSSEMM` reads as two words instead of spelled out, `FBI` and `US GDP` still spelled |
+| `unit_normalization` | `false` | `10KB` reads as 10 kilobytes |
+| `optional_pluralization_normalization` | `true` | `friend(s)` reads as friends |
+| `replace_remaining_symbols` | `true` | Leftover symbols read as words, `&` as and, `@` as at |
+| `remove_emoji` | `false` | Emoji dropped instead of read by name, every language |
+
+```json
+{"input": "10KB at user@example.com", "voice": "af_heart", "normalization_options": {"unit_normalization": true, "remove_emoji": true}}
+```
 
 ## Logging
 

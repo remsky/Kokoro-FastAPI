@@ -26,9 +26,9 @@ We use `uv` for managing Python environments and dependencies, and `ruff` for li
     # .venv\Scripts\activate # On Windows
 
     # Install dependencies including test requirements
-    uv pip install -e ".[test,cpu]"
+    uv sync --extra test --extra cpu
     ```
-    *Note: If you have an NVIDIA GPU and want to test GPU-specific features locally, you can install `.[test,gpu]` instead, ensuring you have the correct CUDA toolkit installed.*
+    *Note: If you have an NVIDIA GPU and want to test GPU-specific features locally, use `--extra gpu` instead, ensuring you have the correct CUDA toolkit installed.*
 
     *Note: If running via uv locally, you will have to install espeak and handle any pathing issues that arise. The Docker images handle this automatically*
 
@@ -45,7 +45,7 @@ Before submitting changes, please ensure all tests pass as this is a automated r
 # Make sure your virtual environment is activated
 uv run pytest
 ```
-*Note: The CI workflow runs tests using `uv run pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml`. Running `uv run pytest` locally should cover the essential checks.*
+*Note: CI runs `uv run --extra test --extra cpu pytest api/tests/ --cov=api --cov-report=xml` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
 
 ## Testing with Docker Compose
 
@@ -54,7 +54,6 @@ In addition to local `pytest` runs, test your changes using Docker Compose to en
 ```bash
 
 docker compose -f docker/cpu/docker-compose.yml up --build
-+
 docker compose -f docker/gpu/docker-compose.yml up --build
 ```
 This command will build the Docker images (if they've changed) and start the services defined in the respective compose file. Verify the application starts correctly and test the relevant functionality.
@@ -75,6 +74,16 @@ We use `ruff` to maintain code quality and consistency. Please format and lint y
     ruff check . --fix
     ```
     Review any changes made by `--fix` and address any remaining linting errors manually.
+
+## Skills
+
+Task guides in `.claude/skills/`, written for coding agents, readable as plain markdown:
+
+- [api-contrib](.claude/skills/api-contrib/SKILL.md): API module layout, endpoint gating, test expectations.
+- [web-contrib](.claude/skills/web-contrib/SKILL.md): web player constraints, MSE gotchas, unit and e2e tests.
+- [adding-normalizer](.claude/skills/adding-normalizer/SKILL.md): adding a language normalizer.
+- [integration-tests](.claude/skills/integration-tests/SKILL.md): the e2e suite against a live server.
+- [readme-benchmarks](.claude/skills/readme-benchmarks/SKILL.md): benchmark runs and README plots.
 
 ## Submitting Changes
 
