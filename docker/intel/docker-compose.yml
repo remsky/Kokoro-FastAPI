@@ -1,0 +1,28 @@
+name: kokoro-tts-intel
+services:
+  kokoro-tts:
+    image: kokoro-tts-intel
+    build:
+      context: ../..
+      dockerfile: docker/intel/Dockerfile
+      args:
+        RENDER_GID: ${RENDER_GID:-992}
+    volumes:
+      - ../../api:/app/api
+      - models_data:/app/api/src/models/v1_0
+    user: appuser
+    ports:
+      - "8880:8880"
+    devices:
+      - /dev/dri:/dev/dri # Pass Intel GPU device
+    environment:
+      - PYTHONPATH=/app:/app/api
+      - USE_GPU=true
+      - PYTHONUNBUFFERED=1
+      - API_LOG_LEVEL=DEBUG
+      - DEVICE_TYPE=xpu
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+
+volumes:
+  models_data:
