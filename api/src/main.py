@@ -55,6 +55,28 @@ for _key in unrecognized_env_file_keys():
     logger.warning(f"ignoring unrecognized env file key: {_key}")
 
 
+def _get_effective_port() -> int:
+    """Return the port uvicorn is actually bound to.
+
+    When launched via ``uvicorn ... --port N`` the CLI argument is
+    authoritative; ``settings.port`` only reflects the env/dotenv value
+    and defaults to 8880, so the startup URL would show the wrong port
+    if the two differ (see GitHub issue #545).
+    """
+    for i, arg in enumerate(sys.argv):
+        if arg in ("--port", "-p") and i + 1 < len(sys.argv):
+            try:
+                return int(sys.argv[i + 1])
+            except ValueError:
+                break
+        if arg.startswith("--port="):
+            try:
+                return int(arg.split("=", 1)[1])
+            except ValueError:
+                break
+    return settings.port
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for model initialization"""
@@ -117,11 +139,12 @@ async def lifespan(app: FastAPI):
         )
 
     # Add web player info if enabled
+    effective_port = _get_effective_port()
     if settings.enable_web_player:
         startup_msg += (
-            f"\n\nBeta Web Player: http://{settings.host}:{settings.port}/web/"
+            f"\n\nBeta Web Player: http://{settings.host}:{effective_port}/web/"
         )
-        startup_msg += f"\nor http://localhost:{settings.port}/web/"
+        startup_msg += f"\nor http://localhost:{effective_port}/web/"
     else:
         startup_msg += "\n\nWeb Player: disabled"
 
