@@ -38,7 +38,7 @@ Community projects that use, recommend, or enable Kokoro-FastAPI as a backend:
 
 - <sub>Home Assistant: [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)</sub>
 - <sub>App stores and templates: [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)</sub>
-- <sub>Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-TTS](https://github.com/xujialiu/Zotero-TTS)</sub>
+- <sub>Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-OpenReader](https://github.com/xujialiu/Zotero-OpenReader)</sub>
 - <sub>Assistants and agents: [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)</sub>
 - <sub>Browser: [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)</sub>
 
