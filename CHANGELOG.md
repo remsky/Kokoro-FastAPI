@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Fixed
 - `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
+- Apple Silicon (MPS): memory no longer grows with every request; it stays near its startup size instead of climbing until the machine runs out
 
 ## [v0.9.0] - 2026-09-09
 ### Added
