@@ -109,3 +109,4 @@ ROCM_TRIM.md
 Kokoro-FastAPI.code-workspace
 experiments/*
 api/src/models/v1_0/inno_tuner/
+.coverage.*
