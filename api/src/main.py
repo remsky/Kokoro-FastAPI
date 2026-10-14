@@ -2,7 +2,9 @@
 FastAPI OpenAI Compatible API
 """
 
+import logging
 import os
+import re
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -54,26 +56,36 @@ for _key in unrecognized_env_file_keys():
     logger.warning(f"ignoring unrecognized env file key: {_key}")
 
 
-def _get_effective_port() -> int:
-    """Return the port uvicorn is actually bound to.
+class _WebPlayerStartupHandler(logging.Handler):
+    """Log the /web/ URL once uvicorn emits its 'running on' record.
 
-    When launched via ``uvicorn ... --port N`` the CLI argument is
-    authoritative; ``settings.port`` only reflects the env/dotenv value
-    and defaults to 8880, so the startup URL would show the wrong port
-    if the two differ (see GitHub issue #545).
+    Uvicorn logs the bound address via the uvicorn.error logger just
+    before accepting connections, e.g.:
+
+        Uvicorn running on http://0.0.0.0:8880 (Press CTRL+C to quit)
+
+    Reading that record is more reliable than parsing sys.argv because
+    uvicorn does not have a -p short form and the record args already
+    carry the resolved host and port.
     """
-    for i, arg in enumerate(sys.argv):
-        if arg in ("--port", "-p") and i + 1 < len(sys.argv):
-            try:
-                return int(sys.argv[i + 1])
-            except ValueError:
-                break
-        if arg.startswith("--port="):
-            try:
-                return int(arg.split("=", 1)[1])
-            except ValueError:
-                break
-    return settings.port
+
+    _RE = re.compile(r"Uvicorn running on (https?://[^\s]+)", re.IGNORECASE)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        m = self._RE.search(record.getMessage())
+        if m and settings.enable_web_player:
+            base = m.group(1).rstrip("/")
+            port_match = re.search(r":(\d+)$", base)
+            if port_match:
+                port = port_match.group(1)
+                logger.info(
+                    f"Beta Web Player:  http://localhost:{port}/web/"
+                    f"\n                  or {base}/web/"
+                )
+
+
+# Register before the app loads so the handler is in place for startup.
+logging.getLogger("uvicorn.error").addHandler(_WebPlayerStartupHandler())
 
 
 @asynccontextmanager
@@ -125,13 +137,8 @@ async def lifespan(app: FastAPI):
         startup_msg += "\nRunning on CPU"
     startup_msg += f"\n{voicepack_count} voice packs loaded"
 
-    # Add web player info if enabled
-    effective_port = _get_effective_port()
     if settings.enable_web_player:
-        startup_msg += (
-            f"\n\nBeta Web Player: http://{settings.host}:{effective_port}/web/"
-        )
-        startup_msg += f"\nor http://localhost:{effective_port}/web/"
+        startup_msg += "\n\nWeb Player: enabled (URL logged below)"
     else:
         startup_msg += "\n\nWeb Player: disabled"
 
