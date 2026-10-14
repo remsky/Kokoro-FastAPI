@@ -233,7 +233,7 @@ class KokoroV1(BaseModelBackend):
 
         try:
             # Memory management for GPU
-            if self._device == "cuda":
+            if self._device in ("cuda", "mps"):
                 if self._check_memory():
                     self._clear_memory()
 
@@ -331,7 +331,7 @@ class KokoroV1(BaseModelBackend):
             raise RuntimeError("Model not loaded")
         try:
             # Memory management for GPU
-            if self._device == "cuda":
+            if self._device in ("cuda", "mps"):
                 if self._check_memory():
                     self._clear_memory()
 
@@ -479,7 +479,10 @@ class KokoroV1(BaseModelBackend):
         if self._device == "cuda":
             memory_gb = torch.cuda.memory_allocated() / 1e9
             return memory_gb > model_config.pytorch_gpu.memory_threshold
-        # MPS doesn't provide memory management APIs
+        if self._device == "mps":
+            # Counts the allocator's cache, which is what grows.
+            memory_gb = torch.mps.driver_allocated_memory() / 1e9
+            return memory_gb > model_config.pytorch_gpu.memory_threshold
         return False
 
     def _clear_memory(self) -> None:
