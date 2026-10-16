@@ -177,6 +177,11 @@ class KokoroV1(BaseModelBackend):
                 # ROCm reports device "cuda", so this is the ROCm path too.
                 _configure_rocm_backend()
                 self._model = self._model.cuda()
+                if os.environ.get("KOKORO_DECODER_FUSION") == "1":
+                    from .decoder_fusion import enable
+
+                    details = enable(self._model)
+                    logger.info(f"Experimental decoder fusion enabled: {details}")
             else:
                 self._model = self._model.cpu()
 
