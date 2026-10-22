@@ -57,6 +57,62 @@ test('timing download URL reuses the audio save-as name', async () => {
     assert.equal(await service.getTimingDownloadUrl(), null);
 });
 
+test('buildRequestBody leaves normalization_options undefined by default', () => {
+    const service = new AudioService();
+    const body = service.buildRequestBody('Hello world', 'af_bella', 1.0);
+
+    assert.equal(body.input, 'Hello world');
+    assert.equal(body.voice, 'af_bella');
+    assert.equal(body.speed, 1.0);
+    assert.equal(body.normalization_options, undefined);
+});
+
+function withOptionInputs(inputs, fn) {
+    const previousDocument = globalThis.document;
+    globalThis.document = {
+        getElementById() { return null; },
+        querySelectorAll() { return inputs; }
+    };
+    try {
+        return fn();
+    } finally {
+        globalThis.document = previousDocument;
+    }
+}
+
+function optionInput(name, checked, defaultChecked) {
+    return { checked, defaultChecked, dataset: { normalizationOption: name } };
+}
+
+test('buildRequestBody sends only the normalization options that differ from their defaults', () => {
+    const service = new AudioService();
+    const body = withOptionInputs([
+        optionInput('normalize', false, true),
+        optionInput('url_normalization', true, true),
+        optionInput('remove_emoji', true, false)
+    ], () => service.buildRequestBody('Hello world', 'af_bella', 1.0));
+
+    assert.deepEqual(body.normalization_options, { normalize: false, remove_emoji: true });
+});
+
+test('buildRequestBody leaves normalization_options undefined when every option is at its default', () => {
+    const service = new AudioService();
+    const body = withOptionInputs([
+        optionInput('normalize', true, true),
+        optionInput('remove_emoji', false, false)
+    ], () => service.buildRequestBody('Hello world', 'af_bella', 1.0));
+
+    assert.equal(body.normalization_options, undefined);
+});
+
+test('buildRequestBody uses passed responseFormat without reading format-select DOM', () => {
+    const service = new AudioService();
+    const body = service.buildRequestBody('Hello world', 'af_bella', 1.0, {}, 'wav');
+
+    assert.equal(body.response_format, 'wav');
+    assert.equal(body.download_format, 'wav');
+});
+
 // Stand-in for teardown only: a real element fires an error when its src is blanked.
 class TeardownAudio {
     constructor() {

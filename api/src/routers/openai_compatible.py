@@ -4,18 +4,21 @@ import json
 import math
 import os
 import re
-from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
+from contextlib import aclosing
+from typing import AsyncGenerator, Dict, List, Optional, Union
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
 from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
+from ..inference.voice_manager import get_manager as get_voice_manager
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
     VOICE_TAG_PATTERN,
     check_pause_budget,
+    check_speakable,
 )
 from ..services.tts_service import TTSService
 from ..structures import OpenAISpeechRequest
@@ -28,20 +31,29 @@ from ..structures.schemas import (
 from .ssml import apply_ssml
 
 
-# Load OpenAI mappings
-def load_openai_mappings() -> Dict:
-    """Load OpenAI voice and model mappings from JSON"""
+def _load_core_json(filename: str, default: Dict) -> Dict:
     api_dir = os.path.dirname(os.path.dirname(__file__))
-    mapping_path = os.path.join(api_dir, "core", "openai_mappings.json")
+    path = os.path.join(api_dir, "core", filename)
     try:
-        with open(mapping_path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        logger.error(f"Failed to load OpenAI mappings: {e}")
-        return {"models": {}, "voices": {}}
+        logger.error(f"Failed to load {filename}: {e}")
+        return default
+
+
+def load_openai_mappings() -> Dict:
+    """Load OpenAI voice and model mappings from JSON"""
+    return _load_core_json("openai_mappings.json", {"models": {}, "voices": {}})
+
+
+def load_voice_grades() -> Dict:
+    """Load per-voice grades from https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md"""
+    return _load_core_json("voice_grades.json", {})
 
 
 _openai_mappings = load_openai_mappings()
+_voice_grades = load_voice_grades()
 
 # a combine item is a bare voice name or name(weight), parens never nest
 _VOICE_WEIGHT_PATTERN = re.compile(r"(?P<name>[^()]+)(?:\((?P<weight>[^()]*)\))?")
@@ -149,6 +161,7 @@ async def process_and_validate_voices(
 
     if available_voices is None:
         available_voices = await tts_service.list_voices()
+    voice_manager = await get_voice_manager()
 
     for voice_index in range(0, len(voices), 2):
         token = voices[voice_index]
@@ -168,7 +181,7 @@ async def process_and_validate_voices(
             weight = weight.strip()
 
         name = _openai_mappings["voices"].get(name, name)
-        if name not in available_voices:
+        if name not in available_voices and not voice_manager.is_transient(name):
             raise ValueError(
                 f"Voice '{name}' not found. Available voices: {', '.join(sorted(available_voices))}"
             )
@@ -257,28 +270,31 @@ async def stream_audio_chunks(
     return_timestamps = getattr(request, "return_timestamps", False)
 
     try:
-        async for chunk_data in tts_service.generate_audio_stream(
-            text=request.input,
-            voice=voice_name,
-            writer=writer,
-            speed=request.speed,
-            output_format=request.response_format,
-            lang_code=request.lang_code,
-            volume_multiplier=request.volume_multiplier,
-            normalization_options=request.normalization_options,
-            return_timestamps=return_timestamps,
-            allow_voice_tags=request.allow_voice_tags,
-            timings=timings,
-        ):
-            # Check if client is still connected
-            is_disconnected = client_request.is_disconnected
-            if callable(is_disconnected):
-                is_disconnected = await is_disconnected()
-            if is_disconnected:
-                logger.info("Client disconnected, stopping audio generation")
-                break
+        async with aclosing(
+            tts_service.generate_audio_stream(
+                text=request.input,
+                voice=voice_name,
+                writer=writer,
+                speed=request.speed,
+                output_format=request.response_format,
+                lang_code=request.lang_code,
+                volume_multiplier=request.volume_multiplier,
+                normalization_options=request.normalization_options,
+                return_timestamps=return_timestamps,
+                allow_voice_tags=request.allow_voice_tags,
+                timings=timings,
+            )
+        ) as audio_stream:
+            async for chunk_data in audio_stream:
+                # Check if client is still connected
+                is_disconnected = client_request.is_disconnected
+                if callable(is_disconnected):
+                    is_disconnected = await is_disconnected()
+                if is_disconnected:
+                    logger.info("Client disconnected, stopping audio generation")
+                    break
 
-            yield chunk_data
+                yield chunk_data
     except Exception as e:
         logger.error(f"Error in audio streaming: {str(e)}")
         # Let the exception propagate to trigger cleanup
@@ -322,6 +338,11 @@ async def create_speech(
         apply_alias_rate(request)
         # checked post-SSML and pre-stream, so an over-budget request 400s before headers
         check_pause_budget(request.input)
+        check_speakable(
+            request.input,
+            request.allow_voice_tags,
+            request.normalization_options,
+        )
 
         # Set content type based on format
         content_type = {
@@ -396,6 +417,7 @@ async def create_speech(
                         # Ensure temp writer is closed
                         if not temp_writer._finalized:
                             await temp_writer.__aexit__(None, None, None)
+                        await generator.aclose()
                         writer.close()
 
                 # Stream with temp file writing
@@ -411,8 +433,10 @@ async def create_speech(
                             yield chunk_data.output
                 except Exception as e:
                     logger.error(f"Error in single output streaming: {e}")
-                    writer.close()
                     raise
+                finally:
+                    await generator.aclose()
+                    writer.close()
 
             # Standard streaming without download link
             return StreamingResponse(
@@ -713,14 +737,23 @@ async def list_voices(legacy: bool = False):
     Returns `[{"id": ..., "name": ...}, ...]` by default so OpenAI-compatible
     clients (Open WebUI in particular, which does `voice['id']` directly and
     silently falls back to a hardcoded 6-voice list otherwise) can render the
-    full voice list. Pass `?legacy=true` for the pre-0.3.x plain-string shape.
+    full voice list. Entries also carry `target_quality`, `training_duration`
+    and `overall_grade` for the voices graded in the upstream model card;
+    ungraded voices (Spanish, Brazilian Portuguese, custom `.pt` files) omit
+    those keys. `default_voice` is the DEFAULT_VOICE setting. Pass
+    `?legacy=true` for the pre-0.3.x plain-string shape.
     """
     try:
         tts_service = await get_tts_service()
         voices = await tts_service.list_voices()
         if legacy:
             return {"voices": voices}
-        return {"voices": [{"id": v, "name": v} for v in voices]}
+        return {
+            "voices": [
+                {"id": v, "name": v, **_voice_grades.get(v, {})} for v in voices
+            ],
+            "default_voice": settings.default_voice,
+        }
     except Exception as e:
         logger.error(f"Error listing voices: {str(e)}")
         raise HTTPException(

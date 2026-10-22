@@ -1,22 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures/app.mjs';
 
 test('cancel mid-generation keeps the controls consistent', async ({ page }) => {
     const pageErrors = [];
     page.on('pageerror', (error) => pageErrors.push(error));
-
-    await page.route('**/web/config', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ root_path: '', version: 'test' }),
-        });
-    });
-
-    await page.route('**/v1/audio/voices', async (route) => {
-        await route.fulfill({
-            contentType: 'application/json',
-            body: JSON.stringify({ voices: [{ id: 'af_heart', name: 'af_heart' }] }),
-        });
-    });
 
     await page.route('**/v1/audio/speech', async (route) => {
         await new Promise((resolve) => setTimeout(resolve, 10_000));

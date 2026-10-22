@@ -1,8 +1,16 @@
 import { config } from '../config.js';
 
+const GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'F+', 'F', 'F-'];
+
+function gradeRank(grade) {
+    const rank = GRADES.indexOf(grade);
+    return rank === -1 ? GRADES.length : rank;
+}
+
 export class VoiceService {
     constructor() {
         this.availableVoices = [];
+        this.voiceGrades = new Map();
         this.selectedVoices = new Map(); // Changed to Map to store voice:weight pairs
     }
 
@@ -21,10 +29,17 @@ export class VoiceService {
             }
 
             this.availableVoices = data.voices.map(v => typeof v === 'string' ? v : v.id);
-            
-            // Select first voice if none selected
+            this.voiceGrades = new Map(data.voices
+                .filter(v => v?.overall_grade)
+                .map(v => [v.id, v]));
+            const rankOf = (voice) => gradeRank(this.voiceGrades.get(voice)?.overall_grade);
+            this.availableVoices.sort((a, b) => rankOf(a) - rankOf(b) || a.localeCompare(b));
+
+            // Select the server default, else the first voice, if none selected
             if (this.selectedVoices.size === 0) {
-                const firstVoice = this.availableVoices.find(voice => voice && voice.trim());
+                const firstVoice = this.availableVoices.includes(data.default_voice)
+                    ? data.default_voice
+                    : this.availableVoices.find(voice => voice && voice.trim());
                 if (firstVoice) {
                     this.addVoice(firstVoice);
                 }
@@ -35,6 +50,10 @@ export class VoiceService {
             console.error('Failed to load voices:', error);
             throw error;
         }
+    }
+
+    getGrade(voice) {
+        return this.voiceGrades.get(voice);
     }
 
     getAvailableVoices() {

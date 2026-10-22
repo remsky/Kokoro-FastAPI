@@ -1,6 +1,6 @@
 import re
 from enum import Enum
-from typing import Annotated, Dict, List, Literal, Mapping, Optional, Union
+from typing import Annotated, List, Literal, Mapping, Optional, Union
 
 from pydantic import (
     AfterValidator,
@@ -12,6 +12,8 @@ from pydantic import (
     model_serializer,
     model_validator,
 )
+
+from ..core.config import settings
 
 
 class TTSStatus(str, Enum):
@@ -48,9 +50,6 @@ LangCode = Annotated[str, AfterValidator(_known_lang_code)]
 
 
 def _within_input_limit(value: str) -> str:
-    # deferred import, keeps torch out of every schema import
-    from ..core.config import settings
-
     if len(value) > settings.max_input_length:
         raise ValueError(
             f"input is {len(value)} characters, the limit is {settings.max_input_length}"
@@ -123,9 +122,17 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Changes phone numbers so they can be properly pronouced by kokoro",
     )
+    caps_normalization: bool = Field(
+        default=True,
+        description="Reads all-caps headers and names as words instead of spelling them out, short acronyms like FBI stay spelled",
+    )
     replace_remaining_symbols: bool = Field(
         default=True,
         description="Replaces the remaining symbols after normalization with their words",
+    )
+    remove_emoji: bool = Field(
+        default=False,
+        description="Removes emoji instead of letting the phonemizer read them by name",
     )
 
 
@@ -182,8 +189,8 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     )
     input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
-        description="The voice to use for generation. Can be a base voice or a combined voice name.",
+        default=settings.default_voice,
+        description="The voice to use for generation. Can be a base voice or a combined voice name. Defaults to DEFAULT_VOICE.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",
@@ -341,8 +348,8 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
     )
     input: InputText = Field(..., description="The text to generate audio for")
     voice: str = Field(
-        default="af_heart",
-        description="The voice to use for generation. Can be a base voice or a combined voice name.",
+        default=settings.default_voice,
+        description="The voice to use for generation. Can be a base voice or a combined voice name. Defaults to DEFAULT_VOICE.",
     )
     response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
         default="mp3",

@@ -81,7 +81,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `HOST` | `0.0.0.0` | Bind address |
+| `HOST` | `0.0.0.0` | Bind address, `::` for IPv6-only or dual-stack |
 | `PORT` | `8880` | Bind port |
 | `API_TITLE` | `Kokoro TTS API` | OpenAPI title |
 | `API_DESCRIPTION` | `API for text-to-speech generation using Kokoro` | OpenAPI description |
@@ -104,10 +104,10 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one |
-| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter |
+| `DEFAULT_VOICE` | `af_heart` | Voice used when a request omits one, preselected in the web player, warms the model at startup |
+| `DEFAULT_VOICE_CODE` | unset | Override the language code normally taken from the voice name's first letter. Applies to every speaker, so a `[voice:]` dialogue mixing languages is forced onto this one |
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
-| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be written to disk |
+| `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be downloaded (`/v1/audio/voices/combine`) and tuned voices be saved into `VOICES_DIR` (`/dev/tune` `save_voice`) |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
 
 **Text processing**
@@ -122,7 +122,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
 | `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
-| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, opt out per request with `normalization_options` |
+| `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, per-request fields in [Text normalization](#text-normalization) |
 
 **Audio**
 
@@ -151,12 +151,40 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_TEMP_DIR_AGE_HOURS` | `1` | Prune temp files older than this |
 | `MAX_TEMP_DIR_COUNT` | `3` | Keep at most this many temp files |
 
+**Hardware**
+
+| Variable | Default | |
+|---|---|---|
+| `ENABLE_MIOPEN` | `false` | Keep MIOpen enabled on ROCm. Off by default because MIOpen compiles a kernel per tensor shape, which negatively impacts performance as Kokoro hits it every request |
+
 **Operational routes**
 
 | Variable | Default | |
 |---|---|---|
 | `ENABLE_DEBUG_ENDPOINTS` | `false` | Expose `/debug/*` host and process introspection |
-| `ALLOW_DEV_UNLOAD` | `false` | Expose `POST /dev/unload` |
+| `ALLOW_DEV_UNLOAD` | `false` | Expose `/dev/model`, `POST /dev/unload`, and `POST /dev/reload` |
+| `ENABLE_INNO_TUNER` | `false` | Expose `POST /dev/tune`, see [inno-tune.md](inno-tune.md) |
+| `MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS` | `0.0` | Idle seconds before auto-unload; `0` disables auto-unload |
+
+## Text normalization
+
+`normalization_options` on the speech endpoints, per request. The normalizer runs for English only, the one language with a normalizer registered. Other languages go to the phonemizer as written, `remove_emoji` aside.
+
+| Field | Default | |
+|---|---|---|
+| `normalize` | `true` | Master switch, off sends the text as written |
+| `url_normalization` | `true` | `https://test.org/path` reads as https test dot org slash path |
+| `email_normalization` | `true` | `user@example.com` reads as user at example dot com |
+| `phone_normalization` | `true` | `555-123-4567` reads as spoken digits |
+| `caps_normalization` | `true` | `ARNE SAKNUSSEMM` reads as two words instead of spelled out, `FBI` and `US GDP` still spelled |
+| `unit_normalization` | `false` | `10KB` reads as 10 kilobytes |
+| `optional_pluralization_normalization` | `true` | `friend(s)` reads as friends |
+| `replace_remaining_symbols` | `true` | Leftover symbols read as words, `&` as and, `@` as at |
+| `remove_emoji` | `false` | Emoji dropped instead of read by name, every language |
+
+```json
+{"input": "10KB at user@example.com", "voice": "af_heart", "normalization_options": {"unit_normalization": true, "remove_emoji": true}}
+```
 
 ## Logging
 

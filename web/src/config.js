@@ -4,6 +4,8 @@ class Config {
     constructor() {
         this.rootPath = '';
         this.version = '';
+        this.tuner = false;
+        this.voiceSaving = false;
         this.initialized = false;
         this.initPromise = this.initialize();
     }
@@ -23,6 +25,8 @@ class Config {
                 if (serverConfig.version !== undefined) {
                     this.version = serverConfig.version;
                 }
+                this.tuner = serverConfig.tuner === true;
+                this.voiceSaving = serverConfig.voice_saving === true;
             } else {
                 console.log('Using detected root path:', this.rootPath);
             }

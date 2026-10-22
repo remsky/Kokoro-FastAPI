@@ -1,13 +1,13 @@
 import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
-import numpy as np
 import pytest
 import torch
 
 from api.src.core.config import settings
-from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.inference.kokoro_v1 import KokoroV1, _configure_rocm_backend
 
 
 @pytest.fixture
@@ -38,6 +38,35 @@ def test_memory_management(mock_memory, mock_cuda, kokoro_backend):
 
             mock_config.pytorch_gpu.memory_threshold = 6
             assert kokoro_backend._check_memory() == False
+
+
+@patch("torch.mps.driver_allocated_memory", return_value=5e9)
+def test_mps_memory_management(mock_memory, kokoro_backend):
+    with patch.object(kokoro_backend, "_device", "mps"):
+        with patch("api.src.inference.kokoro_v1.model_config") as mock_config:
+            mock_config.pytorch_gpu.memory_threshold = 4
+            assert kokoro_backend._check_memory()
+
+            mock_config.pytorch_gpu.memory_threshold = 6
+            assert not kokoro_backend._check_memory()
+
+
+@pytest.mark.parametrize("method", ["generate", "generate_from_tokens"])
+async def test_generate_clears_mps_memory_over_threshold(method, kokoro_backend):
+    kokoro_backend._model = MagicMock()
+    mock_pipeline = MagicMock(return_value=iter([]))
+    mock_pipeline.generate_from_tokens.return_value = iter([])
+    with (
+        patch.object(kokoro_backend, "_device", "mps"),
+        patch.object(kokoro_backend, "_check_memory", return_value=True),
+        patch.object(kokoro_backend, "_clear_memory") as mock_clear,
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline),
+    ):
+        async for _ in getattr(kokoro_backend, method)("test", "af_voice"):
+            pass
+    mock_clear.assert_called_once()
 
 
 @patch("torch.cuda.empty_cache")
@@ -164,6 +193,37 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
             assert voice_arg.parent == Path(tempfile.gettempdir())
 
 
+@pytest.mark.asyncio
+async def test_generate_skips_untimed_tokens(kokoro_backend):
+    """A token misaki gave no phonemes has no start_ts; later words keep their timestamps (issue #249)."""
+    kokoro_backend._model = MagicMock()
+    tokens = [
+        SimpleNamespace(text="What", start_ts=0.0, end_ts=0.2),
+        SimpleNamespace(text="--", start_ts=None, end_ts=None),
+        SimpleNamespace(text=" ", start_ts=0.2, end_ts=0.3),
+        SimpleNamespace(text="key", start_ts=0.3, end_ts=0.5),
+        SimpleNamespace(text="tail"),
+    ]
+    result = SimpleNamespace(
+        audio=torch.zeros(24000), tokens=tokens, pred_dur=torch.ones(8), phonemes=""
+    )
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+    ):
+        mock_pipeline = MagicMock(return_value=iter([result]))
+        with patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline):
+            chunks = [
+                c
+                async for c in kokoro_backend.generate(
+                    "What--key", "af_voice", lang_code="a", return_timestamps=True
+                )
+            ]
+
+    assert [t.word for t in chunks[0].word_timestamps] == ["What", "key"]
+
+
 def test_espeak_word_timestamps_basic():
     """Word times derived from pred_dur for an espeak (non-English) result."""
     from api.src.inference.kokoro_v1 import _espeak_word_timestamps
@@ -225,3 +285,37 @@ def test_espeak_word_timestamps_degenerate_inputs():
     assert _espeak_word_timestamps("", "abc", torch.tensor([0, 4, 4, 4, 0])) is None
     # pred_dur too short for the phoneme string.
     assert _espeak_word_timestamps("hola", "abcdef", torch.tensor([0, 4])) is None
+
+
+@pytest.fixture
+def restore_cudnn():
+    """Restore the global flag that _configure_rocm_backend mutates."""
+    previous = torch.backends.cudnn.enabled
+    yield
+    torch.backends.cudnn.enabled = previous
+
+
+def test_configure_rocm_backend_noop_on_cuda(restore_cudnn, monkeypatch):
+    """A CUDA build must keep cuDNN enabled."""
+    monkeypatch.setattr(torch.version, "hip", None)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is True
+
+
+def test_configure_rocm_backend_disables_miopen_on_rocm(restore_cudnn, monkeypatch):
+    """A ROCm build disables MIOpen to avoid per-shape kernel compilation."""
+    monkeypatch.setattr(torch.version, "hip", "7.2.0")
+    monkeypatch.setattr(settings, "enable_miopen", False)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is False
+
+
+def test_configure_rocm_backend_opt_out(restore_cudnn, monkeypatch):
+    """ENABLE_MIOPEN keeps MIOpen active."""
+    monkeypatch.setattr(torch.version, "hip", "7.2.0")
+    monkeypatch.setattr(settings, "enable_miopen", True)
+    torch.backends.cudnn.enabled = True
+    _configure_rocm_backend()
+    assert torch.backends.cudnn.enabled is True

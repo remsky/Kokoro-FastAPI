@@ -8,6 +8,7 @@ from loguru import logger
 
 from ..core.config import settings
 from ..core.paths import get_content_type, get_web_file_path, read_bytes
+from ..inference import inno_tuner
 
 router = APIRouter(
     tags=["Web Player"],
@@ -26,6 +27,8 @@ async def get_web_config():
     return {
         "root_path": root_path,
         "version": settings.api_version,
+        "tuner": inno_tuner.available(),
+        "voice_saving": settings.allow_local_voice_saving,
     }
 
 

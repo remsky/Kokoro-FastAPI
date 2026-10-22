@@ -1,6 +1,5 @@
 """Tests for settings loading."""
 
-import api.src.core.config as config_module
 from api.src.core.config import Settings, unrecognized_env_file_keys
 
 # keys removed from Settings, plus ones that were never fields, that a real .env may still carry

@@ -3,11 +3,9 @@
 import json
 import os
 import tempfile
-from typing import List, Optional
 
 import aiofiles
 import aiofiles.os
-from fastapi import HTTPException
 from loguru import logger
 
 from ..core.config import settings

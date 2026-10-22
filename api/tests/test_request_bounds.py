@@ -1,4 +1,4 @@
-"""Bounds on the request fields that used to accept anything."""
+"""Bounds on the request fields that used to accept anything (pr #511)."""
 
 import pytest
 from pydantic import ValidationError

@@ -7,6 +7,8 @@ import WaveVisualizer from './components/WaveVisualizer.js';
 import TextEditor from './components/TextEditor.js';
 import ReadAlong from './components/ReadAlong.js';
 import config from './config.js';
+import { decodeClip, encodeWav, fetchVoicePack, recordClip, saveVoice, tunedVoiceName } from './services/TuneService.js';
+import { drawSamples, liveLevels } from './components/ClipWave.js';
 import { closeOnOutsidePress } from './dismiss.js';
 import { locateInsert } from './insertLog.js';
 import {
@@ -37,6 +39,9 @@ export class App {
         this.cast = [];
         this.editing = null;
         this.tagMode = false;
+        this.tuneMode = false;
+        this.tuneClip = null;
+        this.recording = null;
         this.stagedBeforeTags = '';
         this.lastInsert = null;
         this.elements = {
@@ -46,15 +51,29 @@ export class App {
             downloadBtn: document.getElementById('download-btn'),
             downloadMenu: document.getElementById('download-menu'),
             autoplayToggle: document.getElementById('autoplay-toggle'),
+            normalizeToggle: document.getElementById('normalize-toggle'),
+            normalizeOptions: document.getElementById('normalize-options'),
             formatSelect: document.getElementById('format-select'),
             status: document.getElementById('status'),
             cancelBtn: document.getElementById('cancel-btn'),
             streamingNotice: document.getElementById('streaming-notice'),
             charCount: document.getElementById('char-count'),
             cup: document.querySelector('.logo-container .cup'),
-            voiceTabs: document.querySelector('.card-tabs'),
             voicesTab: document.getElementById('voices-tab'),
             voiceTagsTab: document.getElementById('voice-tags-tab'),
+            tuneTab: document.getElementById('tune-tab'),
+            voiceSelectContainer: document.querySelector('.voice-select-container'),
+            tunePanel: document.getElementById('tune-panel'),
+            tuneFile: document.getElementById('tune-file'),
+            tuneRecordBtn: document.getElementById('tune-record-btn'),
+            tuneUploadBtn: document.getElementById('tune-upload-btn'),
+            tuneClipLabel: document.getElementById('tune-clip'),
+            tuneWave: document.getElementById('tune-wave'),
+            tuneFmax: document.getElementById('tune-fmax'),
+            tuneName: document.getElementById('tune-name'),
+            tuneNamePrefix: document.getElementById('tune-name-prefix'),
+            tuneSaveBtn: document.getElementById('tune-save-btn'),
+            tuneDownloadBtn: document.getElementById('tune-download-btn'),
             voiceTagNotice: document.getElementById('voice-tag-notice'),
             voiceTagNoticeText: document.getElementById('voice-tag-notice-text'),
             removeVoiceTagsBtn: document.getElementById('remove-voice-tags-btn'),
@@ -113,24 +132,27 @@ export class App {
     }
 
     setupVoiceTags() {
-        const tabs = [this.elements.voicesTab, this.elements.voiceTagsTab];
+        const tabs = [this.elements.voicesTab, this.elements.voiceTagsTab, this.elements.tuneTab];
         if (tabs.some((tab) => !tab)) {
             return;
         }
+        const modes = ['voices', 'tags', 'tune'];
 
         tabs.forEach((tab, index) => {
-            tab.addEventListener('click', () => this.setVoiceTagMode(tab === this.elements.voiceTagsTab));
+            tab.addEventListener('click', () => this.setVoiceMode(modes[index]));
             tab.addEventListener('keydown', (e) => {
                 if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') {
                     return;
                 }
                 e.preventDefault();
                 const step = e.key === 'ArrowRight' ? 1 : tabs.length - 1;
-                const next = tabs[(index + step) % tabs.length];
-                this.setVoiceTagMode(next === this.elements.voiceTagsTab);
-                next.focus();
+                const at = (index + step) % tabs.length;
+                this.setVoiceMode(modes[at]);
+                tabs[at].focus();
             });
         });
+
+        this.setupTune().catch((error) => this.showStatus(error.message, 'error'));
 
         this.elements.removeVoiceTagsBtn.addEventListener('click', () => {
             this.textEditor.replaceText(stripVoiceTags(this.textEditor.getText()));
@@ -141,12 +163,140 @@ export class App {
         }
         this.elements.undoInsertBtn?.addEventListener('click', () => this.undoLastInsert());
 
-        this.setVoiceTagMode(this.tagMode);
+        this.setVoiceMode('voices');
     }
 
-    setVoiceTagMode(enabled) {
+    async setupTune() {
+        const { tuneTab, tuneFile, tuneRecordBtn, tuneUploadBtn, tuneSaveBtn, tuneDownloadBtn } = this.elements;
+
+        tuneUploadBtn.addEventListener('click', () => tuneFile.click());
+        tuneFile.addEventListener('change', () => {
+            const file = tuneFile.files?.[0];
+            if (file) {
+                decodeClip(file)
+                    .then(({ samples, sampleRate }) => {
+                        const trimmed = samples.subarray(0, sampleRate * 30);
+                        this.setTuneClip(encodeWav(trimmed, sampleRate), file.name, trimmed, sampleRate);
+                    })
+                    .catch(() => {
+                        if (file.size > 10 << 20) {
+                            this.showStatus('Reference clip exceeds 10 MB', 'error');
+                            return;
+                        }
+                        this.setTuneClip(file, file.name);
+                    });
+            }
+        });
+        tuneRecordBtn.addEventListener('click', () => {
+            this.toggleRecording().catch((error) => this.showStatus(error.message, 'error'));
+        });
+        tuneDownloadBtn.addEventListener('click', () => {
+            this.downloadVoicePack().catch((error) => this.showStatus(error.message, 'error'));
+        });
+        document.querySelectorAll('input[name="tune-prefix"]').forEach((radio) => {
+            radio.addEventListener('change', () => {
+                this.elements.tuneNamePrefix.textContent = `${radio.value}_`;
+            });
+        });
+        tuneSaveBtn.addEventListener('click', () => {
+            this.saveTunedVoice().catch((error) => this.showStatus(error.message, 'error'));
+        });
+
+        await config.ensureInitialized();
+        if (!config.tuner) {
+            tuneTab.disabled = true;
+            tuneTab.title = 'Voice tuner not loaded on this server';
+        }
+        if (!config.voiceSaving) {
+            tuneSaveBtn.title = 'Set ALLOW_LOCAL_VOICE_SAVING=true to save voices on the server';
+        }
+    }
+
+    setTuneClip(blob, label, samples = null, sampleRate = 0) {
+        this.tuneClip = blob;
+        const seconds = samples ? `, ${Math.round(samples.length / sampleRate)} s` : '';
+        this.elements.tuneClipLabel.textContent = label + seconds;
+        this.elements.tuneDownloadBtn.disabled = false;
+        this.elements.tuneSaveBtn.disabled = !config.voiceSaving;
+        drawSamples(this.elements.tuneWave, samples);
+    }
+
+    async toggleRecording() {
+        const button = this.elements.tuneRecordBtn;
+        if (this.recording) {
+            this.recording.stop();
+            return;
+        }
+        button.disabled = true;
+        try {
+            this.recording = await recordClip({
+                onTick: (elapsed) => {
+                    button.textContent = `Stop ${elapsed} s`;
+                    button.style.setProperty('--zone', Math.min(elapsed / 15, 1));
+                }
+            });
+        } finally {
+            button.disabled = false;
+        }
+        button.textContent = 'Stop';
+        button.classList.add('is-recording');
+        const stopLevels = liveLevels(this.elements.tuneWave, this.recording.stream);
+        try {
+            const { file, samples, sampleRate } = await this.recording.clip;
+            this.setTuneClip(file, 'recording', samples, sampleRate);
+        } finally {
+            stopLevels();
+            this.recording = null;
+            button.textContent = 'Record';
+            button.classList.remove('is-recording');
+            button.style.removeProperty('--zone');
+        }
+    }
+
+    tuneOptions() {
+        if (!this.elements.tuneFmax.checkValidity()) {
+            throw new Error('Ceiling must be 60 to 1000 Hz');
+        }
+        return {
+            file: this.tuneClip,
+            fmax: this.elements.tuneFmax.value
+        };
+    }
+
+    tunedName() {
+        const prefix = document.querySelector('input[name="tune-prefix"]:checked')?.value;
+        return tunedVoiceName(prefix, this.elements.tuneName.value);
+    }
+
+    async downloadVoicePack() {
+        const name = this.tunedName() || 'ax_tune';
+        const url = URL.createObjectURL(await fetchVoicePack(this.tuneOptions()));
+        this.triggerDownload(url, `${name}.pt`);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async saveTunedVoice() {
+        const name = this.tunedName();
+        if (!name) {
+            this.showStatus('Name the voice before saving it', 'error');
+            return;
+        }
+
+        const { voice } = await saveVoice(this.tuneOptions(), name);
+        this.showStatus(`Saved as ${voice}`, 'success');
+        await this.voiceService.loadVoices();
+        this.voiceSelector.renderVoiceOptions(this.voiceService.getAvailableVoices());
+    }
+
+    setVoiceMode(mode) {
+        if (mode === 'tune' && this.elements.tuneTab?.disabled) {
+            return;
+        }
+
+        const enabled = mode === 'tags';
         const switched = this.tagMode !== enabled;
         this.tagMode = enabled;
+        this.tuneMode = mode === 'tune';
         this.renderVoiceTabs();
         if (!enabled) {
             // an edit only exists while the pane is open, so it cannot survive into the next visit
@@ -173,9 +323,14 @@ export class App {
     }
 
     renderVoiceTabs() {
-        const active = this.tagMode ? this.elements.voiceTagsTab : this.elements.voicesTab;
-        this.elements.voiceTabs?.classList.toggle('is-tags', this.tagMode);
-        for (const tab of [this.elements.voicesTab, this.elements.voiceTagsTab]) {
+        const active = this.tuneMode
+            ? this.elements.tuneTab
+            : (this.tagMode ? this.elements.voiceTagsTab : this.elements.voicesTab);
+        if (this.elements.tunePanel) {
+            this.elements.tunePanel.hidden = !this.tuneMode;
+            this.elements.voiceSelectContainer.hidden = this.tuneMode;
+        }
+        for (const tab of [this.elements.voicesTab, this.elements.voiceTagsTab, this.elements.tuneTab]) {
             const on = tab === active;
             tab.classList.toggle('is-active', on);
             tab.setAttribute('aria-selected', String(on));
@@ -528,7 +683,7 @@ export class App {
         }
 
         const count = countVoiceTags(this.textEditor.getText());
-        notice.hidden = count === 0 || this.tagMode;
+        notice.hidden = count === 0 || this.tagMode || this.tuneMode;
         this.elements.voiceTagNoticeText.textContent =
             `${count} voice ${count === 1 ? 'tag' : 'tags'} will be read aloud.`;
     }
@@ -677,6 +832,10 @@ export class App {
         this.elements.formatSelect.addEventListener('change', () => this.applyBrowserStreamingNotice());
         this.elements.autoplayToggle.addEventListener('change', () => this.applyBrowserStreamingNotice());
 
+        this.elements.normalizeToggle.addEventListener('change', () => {
+            this.elements.normalizeOptions.disabled = !this.elements.normalizeToggle.checked;
+        });
+
         // Cancel button
         this.elements.cancelBtn.addEventListener('click', () => {
             this.audioService.cancel();
@@ -767,6 +926,9 @@ export class App {
      * cast member stands in for it, so what is spoken is only ever what the text says.
      */
     requestVoice() {
+        if (this.tuneMode) {
+            return 'a_tune';
+        }
         if (this.tagMode) {
             return leadingVoiceTag(this.textEditor.getText());
         }
@@ -808,6 +970,11 @@ export class App {
         const spoken = this.tagMode ? stripVoiceTags(text).trim() : text;
         if (!spoken) {
             this.showStatus('Please enter some text', 'error');
+            return false;
+        }
+
+        if (this.tuneMode && !this.tuneClip) {
+            this.showStatus('Record or upload a reference clip', 'error');
             return false;
         }
 
@@ -862,7 +1029,11 @@ export class App {
                 voice,
                 speed,
                 (loaded, total) => this.waveVisualizer.updateProgress(loaded, total),
-                { allowVoiceTags, voiceAliases: allowVoiceTags ? castAliases(this.cast) : null }
+                {
+                    allowVoiceTags,
+                    voiceAliases: allowVoiceTags ? castAliases(this.cast) : null,
+                    tune: this.tuneMode ? this.tuneOptions() : undefined
+                }
             );
         } catch (error) {
             console.error('Generation error:', error);

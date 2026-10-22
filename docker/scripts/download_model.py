@@ -126,6 +126,43 @@ def download_model(output_dir: str) -> None:
         raise
 
 
+def download_tuner(output_dir: str) -> None:
+    """Fetch the pinned Inno clone tuner weights into output_dir/inno_tuner, no-op if present."""
+    from inno_kokoro.enroll import fetch_weights
+
+    path = fetch_weights(os.path.join(output_dir, "inno_tuner"))
+    logger.info(f"✓ Inno tuner weights prepared at {path}")
+    check_tuner_update()
+
+
+def check_tuner_update() -> None:
+    """Log if the Hub has newer tuner weights than the pinned revision. Capped at 3 s,
+    never raises, skipped under HF_HUB_OFFLINE or HF_HUB_DISABLE_TELEMETRY."""
+    import threading
+
+    from huggingface_hub import constants, hf_hub_url
+    from huggingface_hub.utils import get_session
+    from inno_kokoro.enroll import HUB_REPO, HUB_REVISION
+
+    if constants.HF_HUB_OFFLINE or constants.HF_HUB_DISABLE_TELEMETRY:
+        return
+
+    def get():
+        try:
+            url = hf_hub_url(HUB_REPO, "config.json")
+            latest = get_session().get(url, timeout=3).json()["version"]
+            if latest != HUB_REVISION.lstrip("v"):
+                logger.info(
+                    f"Inno tuner weights {latest} available, pinned {HUB_REVISION}"
+                )
+        except Exception:
+            pass
+
+    t = threading.Thread(target=get, daemon=True)
+    t.start()
+    t.join(3)
+
+
 def main():
     """Main entry point."""
     import argparse
@@ -137,6 +174,10 @@ def main():
 
     args = parser.parse_args()
     download_model(args.output)
+    try:
+        download_tuner(args.output)
+    except Exception as e:
+        logger.error(f"Inno tuner weights not fetched, /dev/tune will answer 503: {e}")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 """Clean Kokoro implementation with controlled resource management."""
 
 import os
+import tempfile
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -80,6 +81,26 @@ def _espeak_word_timestamps(graphemes, phonemes, pred_dur, g2p=None):
         return None
 
 
+def _configure_rocm_backend() -> None:
+    """Disable MIOpen on ROCm.
+
+    MIOpen compiles a kernel per unseen tensor shape, and Kokoro's decoder
+    length varies with the input text, so nearly every request pays that
+    compile: 2433ms per generation against 268ms without, on gfx1100.
+    warmup_miopen.py does not help, as shape is not a function of phoneme
+    count.
+
+    ENABLE_MIOPEN=true keeps MIOpen. CUDA is unaffected.
+    """
+    if not torch.version.hip:
+        return
+    if settings.enable_miopen:
+        logger.info("MIOpen left enabled via ENABLE_MIOPEN")
+        return
+    torch.backends.cudnn.enabled = False
+    logger.info("ROCm detected: MIOpen disabled to avoid per-shape kernel compilation")
+
+
 class KokoroV1(BaseModelBackend):
     """Kokoro backend with controlled resource management."""
 
@@ -108,6 +129,18 @@ class KokoroV1(BaseModelBackend):
             )
             logger.debug(f"Cached voice tensor from {voice_path}")
         return self._voice_cache[cache_key]
+
+    def forget_voice(self, voice_path: str) -> None:
+        """Drop a pack's cached tensor and the temp copy generate() wrote for the pipeline."""
+        for key in [k for k in self._voice_cache if k.startswith(f"{voice_path}:")]:
+            del self._voice_cache[key]
+        temp_copy = os.path.join(
+            tempfile.gettempdir(), f"temp_voice_{os.path.basename(voice_path)}"
+        )
+        for pipeline in self._pipelines.values():
+            pipeline.voices.pop(temp_copy, None)
+        if os.path.exists(temp_copy):
+            os.remove(temp_copy)
 
     async def load_model(self, path: str) -> None:
         """Load pre-baked model.
@@ -141,6 +174,8 @@ class KokoroV1(BaseModelBackend):
                 )
                 self._model = self._model.to(torch.device("mps"))
             elif self._device == "cuda":
+                # ROCm reports device "cuda", so this is the ROCm path too.
+                _configure_rocm_backend()
                 self._model = self._model.cuda()
             else:
                 self._model = self._model.cpu()
@@ -198,7 +233,7 @@ class KokoroV1(BaseModelBackend):
 
         try:
             # Memory management for GPU
-            if self._device == "cuda":
+            if self._device in ("cuda", "mps"):
                 if self._check_memory():
                     self._clear_memory()
 
@@ -296,7 +331,7 @@ class KokoroV1(BaseModelBackend):
             raise RuntimeError("Model not loaded")
         try:
             # Memory management for GPU
-            if self._device == "cuda":
+            if self._device in ("cuda", "mps"):
                 if self._check_memory():
                     self._clear_memory()
 
@@ -378,6 +413,8 @@ class KokoroV1(BaseModelBackend):
                                         continue
                                     if not token.text or not token.text.strip():
                                         continue
+                                    if token.start_ts is None or token.end_ts is None:
+                                        continue
 
                                     start_time = float(token.start_ts) + current_offset
                                     end_time = float(token.end_ts) + current_offset
@@ -442,7 +479,10 @@ class KokoroV1(BaseModelBackend):
         if self._device == "cuda":
             memory_gb = torch.cuda.memory_allocated() / 1e9
             return memory_gb > model_config.pytorch_gpu.memory_threshold
-        # MPS doesn't provide memory management APIs
+        if self._device == "mps":
+            # Counts the allocator's cache, which is what grows.
+            memory_gb = torch.mps.driver_allocated_memory() / 1e9
+            return memory_gb > model_config.pytorch_gpu.memory_threshold
         return False
 
     def _clear_memory(self) -> None:

@@ -5,11 +5,10 @@ import os
 import re
 import tempfile
 import time
-from typing import AsyncGenerator, Dict, List, Optional, Tuple, Union
+from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
-from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
@@ -23,10 +22,8 @@ from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
-from .text_processing import tokenize
 from .text_processing.text_processor import (
     check_pause_budget,
-    process_text_chunk,
     smart_split,
     split_by_voice,
 )
@@ -291,8 +288,12 @@ class TTSService:
                 resolved[segment_voice] = await self.get_voices_path(segment_voice)
             voice_name, voice_path = resolved[segment_voice]
 
-            # request lang_code wins, else each speaker gets the pipeline their prefix implies
-            segment_lang = lang_code if lang_code else segment_voice[:1].lower()
+            # request lang_code wins, then default_voice_code setting, else each speaker gets the pipeline their prefix implies
+            segment_lang = (
+                lang_code
+                or settings.default_voice_code
+                or segment_voice[:1].lower()
+            )
             logger.debug(
                 f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"
             )
@@ -334,7 +335,6 @@ class TTSService:
             # backstop for direct callers; routers check pre-stream for a clean 400
             check_pause_budget(text)
             await self.model_manager.ensure_backend()
-            backend = self.model_manager.get_backend()
 
             # Process text in chunks with smart splitting, handling voice and pause tags
             async for (
@@ -562,44 +562,46 @@ class TTSService:
         """
         start_time = time.time()
         try:
-            await self.model_manager.ensure_backend()
-            backend = self.model_manager.get_backend()
-            voice_name, voice_path = await self.get_voices_path(voice)
+            async with self.model_manager.hold():
+                await self.model_manager.ensure_backend()
+                backend = self.model_manager.get_backend()
+                voice_name, voice_path = await self.get_voices_path(voice)
 
-            if isinstance(backend, KokoroV1):
-                # For Kokoro V1, use generate_from_tokens with raw phonemes
-                result = None
-                # Use provided lang_code or determine from voice name
-                pipeline_lang_code = lang_code if lang_code else voice[:1].lower()
-                logger.info(
-                    f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
-                )
+                if isinstance(backend, KokoroV1):
+                    # For Kokoro V1, use generate_from_tokens with raw phonemes
+                    result = None
+                    pipeline_lang_code = (
+                        lang_code or settings.default_voice_code or voice[:1].lower()
+                    )
+                    logger.info(
+                        f"Using lang_code '{pipeline_lang_code}' for voice '{voice_name}' in phoneme pipeline"
+                    )
 
-                try:
-                    # Use backend's pipeline management
-                    for r in backend._get_pipeline(
-                        pipeline_lang_code
-                    ).generate_from_tokens(
-                        tokens=phonemes,  # Pass raw phonemes string
-                        voice=voice_path,
-                        speed=speed,
-                    ):
-                        if r.audio is not None:
-                            result = r
-                            break
-                except Exception as e:
-                    logger.error(f"Failed to generate from phonemes: {e}")
-                    raise RuntimeError(f"Phoneme generation failed: {e}")
+                    try:
+                        # Use backend's pipeline management
+                        for r in backend._get_pipeline(
+                            pipeline_lang_code
+                        ).generate_from_tokens(
+                            tokens=phonemes,  # Pass raw phonemes string
+                            voice=voice_path,
+                            speed=speed,
+                        ):
+                            if r.audio is not None:
+                                result = r
+                                break
+                    except Exception as e:
+                        logger.error(f"Failed to generate from phonemes: {e}")
+                        raise RuntimeError(f"Phoneme generation failed: {e}")
 
-                if result is None or result.audio is None:
-                    raise ValueError("No audio generated")
+                    if result is None or result.audio is None:
+                        raise ValueError("No audio generated")
 
-                processing_time = time.time() - start_time
-                return result.audio.numpy(), processing_time
-            else:
-                raise ValueError(
-                    "Phoneme generation only supported with Kokoro V1 backend"
-                )
+                    processing_time = time.time() - start_time
+                    return result.audio.numpy(), processing_time
+                else:
+                    raise ValueError(
+                        "Phoneme generation only supported with Kokoro V1 backend"
+                    )
 
         except Exception as e:
             logger.error(f"Error in phoneme audio generation: {str(e)}")

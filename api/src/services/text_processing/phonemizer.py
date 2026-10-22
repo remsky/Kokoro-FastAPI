@@ -3,9 +3,6 @@ from abc import ABC, abstractmethod
 
 import phonemizer
 
-from ...structures.schemas import NormalizationOptions
-from .normalizer import normalize_text
-
 phonemizers = {}
 
 

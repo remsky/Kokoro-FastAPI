@@ -4,6 +4,59 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
+- Apple Silicon (MPS): memory no longer grows with every request; it stays near its startup size instead of climbing until the machine runs out
+
+## [v0.9.0] - 2026-09-09
+### Added
+- Voice clone-tuning from a short reference clip via [inno-kokoro](https://github.com/remsky/inno-kokoro):
+  - `POST /dev/tune` speaks with the tuned voice (passes through to `/v1/audio/speech`) or returns the `.pt` via `return_voice_pack=true`,
+  - When `ALLOW_LOCAL_VOICE_SAVING=true`, saves it as `<name>_tuned` with `save_voice=<name>`.
+  - Off by default, requires `ENABLE_INNO_TUNER=true`. See [docs/inno-tune.md](docs/inno-tune.md).
+- Web player: Tune tab (record or upload a clip, generate, download or save the pack).
+- Four tuned voices bundled with `_inno` suffix:
+  - `af_amelia_inno`, `af_goodall_inno`, `am_price_inno`, `bm_atten_inno`.
+- `normalization_options.remove_emoji`, off by default: drop emoji instead of reading their names (#353).
+- `normalization_options.caps_normalization`, on by default: all-caps names and headers read as words, short acronyms (`FBI`) still spelled.
+
+### Changed
+- Normalizer split into per-language classes, registry keyed by lang code.
+  - CONTRIBUTING.md documents standardized contract to add additional languages
+- `DEFAULT_VOICE` applies to requests that omit a voice, not just warmup. Reported as `default_voice` on `/v1/audio/voices`.
+- Web player:
+  - normalize checkbox replaced by a menu with every `normalization_options` field;
+  - voice list sorted by grade then name, `DEFAULT_VOICE` preselected.
+
+### Fixed
+- Aborting a stream mid-playback no longer segfaults the server on a follow-up request with a new lang_code engine (#288, #337).
+- Blank lines end a sentence, single newlines still join (#519, #525 by @Christian-Sidak).
+- Very long unpunctuated non-English text no longer truncates.
+- Blank or emoji-only input is a 400 on the streaming path too, not an empty 200.
+- Web player: voice search and alias minor fixes.
+- Normalization fixes:
+  - Number reading: `3,497` as thousands not a year (#259);
+  - `MP3`, `B2B`, `v1.0`, `COVID-19` read as written;
+  - `.5` as zero point five; long digit runs no longer stall or 500.
+  - Phone numbers, `3.5 GHz`, `1 min` (with `unit_normalization`), `DVDs`/`DVD's`, `12:30:15 pm` read correctly.
+  - `--` reads as a dash and no longer fuses words or drops word timestamps (#249).
+
+## [v0.8.2] - 2026-09-05
+### Added
+- Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
+- `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
+- Web player: `Normalize text` toggle in settings, off sends input as written (#391, #523 by @webdevsamran).
+
+### Changed
+- Sentence splitting via UAX #29 segmentation instead of regex; e.g: `etc.`, `Dr.`, and CJK punctuation split more accurately (#308, adapts #415 by @lionel-rowe).
+- ROCm: MIOpen off by default for better performance re: tensor shape recompilation (2.4s vs 0.27s on gfx1100). `ENABLE_MIOPEN=true` restores it (#518 by @s-kerdel).
+- Compose files no longer mount `api/` or set defaults already baked into the image (`DOWNLOAD_MODEL`, `PYTHONPATH`, etc).
+
+### Fixed
+- `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
+- Entrypoint and `start-*.sh` honour `HOST` / `PORT`, so `HOST=::` binds IPv6-only (#408, reported by @felixls).
+
 ## [v0.8.1] - 2026-08-24
 ### Fixed
 - `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).

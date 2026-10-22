@@ -1,6 +1,7 @@
 import { config } from '../config.js';
 import { BlockLoader } from './audio/BlockLoader.js';
 import { MsePipeline } from './audio/MsePipeline.js';
+import { tuneForm } from './TuneService.js';
 
 // orchestrator: owns the audio element, event bus, and download paths. picks a playback mode per response and hands the stream to BlockLoader or MsePipeline.
 export class AudioService {
@@ -100,26 +101,13 @@ export class AudioService {
             const canUseMseStream = this.shouldUseMseStream(responseFormat, canStreamMp3);
             this.downloadName = this.buildDownloadName(voice, responseFormat);
 
-            const apiUrl = await config.getApiUrl('/v1/audio/speech');
+            const tuning = Boolean(options.tune);
+            const apiUrl = await config.getApiUrl(tuning ? '/dev/tune' : '/v1/audio/speech');
+            const requestBody = this.buildRequestBody(text, voice, speed, options, responseFormat);
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    input: text,
-                    voice: voice,
-                    response_format: responseFormat,
-                    download_format: responseFormat,
-                    stream: true,
-                    speed: speed,
-                    return_download_link: true,
-                    return_timing: true,
-                    lang_code: document.getElementById('lang-select').value || undefined,
-                    allow_voice_tags: options.allowVoiceTags || undefined,
-                    // short names only mean something alongside the map that defines them
-                    voice_aliases: Object.keys(options.voiceAliases || {}).length
-                        ? options.voiceAliases
-                        : undefined
-                }),
+                headers: tuning ? undefined : { 'Content-Type': 'application/json' },
+                body: tuning ? tuneForm(options.tune, requestBody) : JSON.stringify(requestBody),
                 signal: this.controller.signal
             }).catch(error => {
                 // Handle abort errors gracefully
@@ -606,6 +594,46 @@ export class AudioService {
             .replace(/[^A-Za-z0-9._-]+/g, '_')
             .replace(/^[._-]+|[._-]+$/g, '');
         return `${safeVoice || 'speech'}_${stamp}.${format}`;
+    }
+
+    buildRequestBody(text, voice, speed, options = {}, responseFormat = null) {
+        const format = responseFormat || options.responseFormat || (typeof document !== 'undefined'
+            ? document.getElementById('format-select')?.value || 'mp3'
+            : 'mp3');
+        const langCode = typeof document !== 'undefined'
+            ? document.getElementById('lang-select')?.value || undefined
+            : undefined;
+        const optionInputs = typeof document !== 'undefined'
+            ? document.querySelectorAll('[data-normalization-option]')
+            : [];
+
+        const body = {
+            input: text,
+            voice: voice,
+            response_format: format,
+            download_format: format,
+            stream: true,
+            speed: speed,
+            return_download_link: true,
+            return_timing: true,
+            lang_code: langCode,
+            allow_voice_tags: options.allowVoiceTags || undefined,
+            voice_aliases: Object.keys(options.voiceAliases || {}).length
+                ? options.voiceAliases
+                : undefined
+        };
+
+        const normalization = {};
+        for (const input of optionInputs) {
+            if (input.checked !== input.defaultChecked) {
+                normalization[input.dataset.normalizationOption] = input.checked;
+            }
+        }
+        if (Object.keys(normalization).length) {
+            body.normalization_options = normalization;
+        }
+
+        return body;
     }
 
     async getTimingUrl() {
