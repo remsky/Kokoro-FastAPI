@@ -5,7 +5,6 @@ FastAPI OpenAI Compatible API
 import asyncio
 import logging
 import os
-import re
 import sys
 from contextlib import asynccontextmanager
 
@@ -58,35 +57,20 @@ for _key in unrecognized_env_file_keys():
 
 
 class _WebPlayerStartupHandler(logging.Handler):
-    """Log the /web/ URL once uvicorn emits its 'running on' record.
-
-    Uvicorn logs the bound address via the uvicorn.error logger just
-    before accepting connections, e.g.:
-
-        Uvicorn running on http://0.0.0.0:8880 (Press CTRL+C to quit)
-
-    Reading that record is more reliable than parsing sys.argv because
-    uvicorn does not have a -p short form and the record args already
-    carry the resolved host and port.
-    """
-
-    _RE = re.compile(r"Uvicorn running on (https?://[^\s]+)", re.IGNORECASE)
+    """Log the web player URL from uvicorn's bound address."""
 
     def emit(self, record: logging.LogRecord) -> None:
-        m = self._RE.search(record.getMessage())
-        if m and settings.enable_web_player:
-            base = m.group(1).rstrip("/")
-            port_match = re.search(r":(\d+)$", base)
-            if port_match:
-                port = port_match.group(1)
-                logger.info(
-                    f"Beta Web Player:  http://localhost:{port}/web/"
-                    f"\n                  or {base}/web/"
-                )
+        if not str(record.msg).startswith("Uvicorn running on %s://"):
+            return
+        scheme, host, port = record.args
+        logger.info(
+            f"Beta Web Player: {scheme}://{host}:{port}/web/"
+            f"\nor {scheme}://localhost:{port}/web/"
+        )
 
 
-# Register before the app loads so the handler is in place for startup.
-logging.getLogger("uvicorn.error").addHandler(_WebPlayerStartupHandler())
+if settings.enable_web_player:
+    logging.getLogger("uvicorn.error").addHandler(_WebPlayerStartupHandler())
 
 
 @asynccontextmanager
