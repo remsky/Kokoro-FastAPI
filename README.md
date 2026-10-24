@@ -33,6 +33,8 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](docs/deployment/kubernetes.md) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](docs/deployment/digitalocean.md) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](docs/integrations/sillytavern.md)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](docs/integrations/openwebui.md)
+<a href="https://repocloud.io/details/Kokoro%20FastAPI/"><img src="https://dnk92k33or340.cloudfront.net/deploy-20px.png" alt="Deploy on RepoCloud" height="20"></a>
+<a href="https://railway.com/deploy/kokoro-tts-api-cpu"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="20"></a>
 
 <details>
 <summary>🌐Community projects that enable Kokoro-FastAPI as a backend</summary>
