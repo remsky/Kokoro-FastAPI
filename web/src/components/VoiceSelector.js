@@ -150,6 +150,7 @@ export class VoiceSelector {
         }
 
         this.elements.createTagRow?.addEventListener('keydown', (e) => {
+            if (e.isComposing) return;
             if (e.key === 'Enter' && create && !create.disabled) {
                 e.preventDefault();
                 create.click();
@@ -372,6 +373,7 @@ export class VoiceSelector {
         this.settleRename = () => commit(input.value);
 
         input.addEventListener('keydown', (e) => {
+            if (e.isComposing) return;
             if (e.key === 'Enter') {
                 commit(input.value);
             } else if (e.key === 'Escape') {
@@ -461,6 +463,7 @@ export class VoiceSelector {
         });
 
         this.elements.voiceSearch.addEventListener('keydown', (e) => {
+            if (e.isComposing) return;
             if (e.key === 'Escape' || e.key === 'Enter') {
                 e.preventDefault();
                 this.elements.voiceDropdown.classList.remove('show');
