@@ -15,9 +15,9 @@ def test_web_player_url_uses_bound_port():
     )
     with patch("api.src.main.logger") as log:
         _WebPlayerStartupHandler().emit(record)
-    msg = log.info.call_args[0][0]
-    assert "http://0.0.0.0:3000/web/" in msg
-    assert "http://localhost:3000/web/" in msg
+    lines = [c.args[0] for c in log.info.call_args_list]
+    assert lines[0].endswith("http://0.0.0.0:3000/web/")
+    assert lines[1].endswith("http://localhost:3000/web/")
 
 
 def test_web_player_url_ignores_other_records():

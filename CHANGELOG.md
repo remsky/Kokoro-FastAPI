@@ -8,7 +8,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Fixed
 - `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
 - Apple Silicon (MPS): memory no longer grows with every request; it stays near its startup size instead of climbing until the machine runs out
-- Startup web player link shows the port the server is listening on, instead of 8880 when launched with `--port` (#545)
+- Startup web player link shows the port the server is listening on, instead of 8880 when launched with `--port` (#545). It now prints as its own log line after uvicorn binds, not inside the startup banner, if you grep for it
 
 ## [v0.9.0] - 2026-09-09
 ### Added

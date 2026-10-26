@@ -63,10 +63,8 @@ class _WebPlayerStartupHandler(logging.Handler):
         if not str(record.msg).startswith("Uvicorn running on %s://"):
             return
         scheme, host, port = record.args
-        logger.info(
-            f"Beta Web Player: {scheme}://{host}:{port}/web/"
-            f"\nor {scheme}://localhost:{port}/web/"
-        )
+        logger.info(f"Beta Web Player: {scheme}://{host}:{port}/web/")
+        logger.info(f"              or {scheme}://localhost:{port}/web/")
 
 
 if settings.enable_web_player:
