@@ -3,10 +3,12 @@
 from ....structures.schemas import NormalizationOptions
 from .base import Normalizer
 from .english import EnglishNormalizer
+from .portuguese import PortugueseNormalizer
 
 ENGLISH = EnglishNormalizer()
+PORTUGUESE = PortugueseNormalizer()
 
-LANGUAGES: tuple[Normalizer, ...] = (ENGLISH,)
+LANGUAGES: tuple[Normalizer, ...] = (ENGLISH, PORTUGUESE)
 
 NORMALIZERS: dict[str, Normalizer] = {
     code: normalizer for normalizer in LANGUAGES for code in normalizer.lang_codes
