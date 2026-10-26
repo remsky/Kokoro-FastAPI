@@ -38,7 +38,7 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 <summary>🌐Community projects that enable Kokoro-FastAPI as a backend</summary>
 
 - Home Assistant
-  - [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)
+  - [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS), [Kokoro-FastAPI App](https://github.com/YaannnTech/HA-Apps/tree/main/kokoro_fastapi)
 - App stores and templates
   - [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)
 - Readers and audiobooks
