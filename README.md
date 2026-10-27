@@ -145,8 +145,8 @@ docker run --device=/dev/kfd --device=/dev/dri -p 8880:8880 ghcr.io/remsky/kokor
 
         Windows
         ```powershell
-        .\start-cpu.ps1 OR
-        .\start-gpu.ps1 
+        ./start-cpu.sh OR
+        ./start-gpu.sh
         ```
 
 </details>
@@ -637,6 +637,7 @@ response = requests.post(
     },
     stream=False
 )
+response.raise_for_status()
 
 with open("output.mp3","wb") as f:
 
