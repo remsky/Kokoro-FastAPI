@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- The server stays responsive while it generates speech: `/health`, voice listings and other requests are answered between model calls instead of waiting for a long generation to finish. Generation itself still runs one model call at a time
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed

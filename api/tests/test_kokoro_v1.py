@@ -69,6 +69,78 @@ async def test_generate_clears_mps_memory_over_threshold(method, kokoro_backend)
     mock_clear.assert_called_once()
 
 
+async def test_generation_does_not_block_event_loop(kokoro_backend):
+    """Model calls run in a worker thread, so other requests and /health keep being served."""
+    import asyncio
+    import time
+
+    kokoro_backend._model = MagicMock()
+
+    def slow_pipeline(*args, **kwargs):
+        for _ in range(3):
+            time.sleep(0.1)
+            yield SimpleNamespace(audio=torch.zeros(4), tokens=None, phonemes=None)
+
+    ticks = 0
+
+    async def ticker():
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch(
+            "api.src.inference.kokoro_v1.KPipeline",
+            return_value=MagicMock(side_effect=slow_pipeline),
+        ),
+    ):
+        task = asyncio.create_task(ticker())
+        chunks = [c async for c in kokoro_backend.generate("test", "af_voice")]
+        task.cancel()
+    assert len(chunks) == 3
+    assert ticks > 10
+
+
+async def test_concurrent_generations_take_turns_on_the_model(kokoro_backend):
+    import asyncio
+    import threading
+    import time
+
+    kokoro_backend._model = MagicMock()
+    active = 0
+    peak = 0
+    guard = threading.Lock()
+
+    def pipeline(*args, **kwargs):
+        nonlocal active, peak
+        for _ in range(3):
+            with guard:
+                active += 1
+                peak = max(peak, active)
+            time.sleep(0.02)
+            with guard:
+                active -= 1
+            yield SimpleNamespace(audio=torch.zeros(4), tokens=None, phonemes=None)
+
+    async def run():
+        return [c async for c in kokoro_backend.generate("test", "af_voice")]
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch(
+            "api.src.inference.kokoro_v1.KPipeline",
+            return_value=MagicMock(side_effect=pipeline),
+        ),
+    ):
+        results = await asyncio.gather(run(), run(), run())
+    assert [len(r) for r in results] == [3, 3, 3]
+    assert peak == 1
+
+
 @patch("torch.cuda.empty_cache")
 @patch("torch.cuda.synchronize")
 def test_clear_memory(mock_sync, mock_clear, kokoro_backend):
