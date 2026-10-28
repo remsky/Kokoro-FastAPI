@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+from contextlib import suppress
 
 import aiofiles
 import aiofiles.os
@@ -138,6 +139,10 @@ class TempFileWriter:
         except Exception as e:
             logger.error(f"Error closing temp file: {e}")
             self._write_error = True
+        # a failed request must not leave a truncated file at its download link
+        if exc_type is not None and self.temp_file:
+            with suppress(FileNotFoundError):
+                os.remove(self.temp_path)
 
     async def write(self, chunk: bytes) -> None:
         """Write a chunk of audio data

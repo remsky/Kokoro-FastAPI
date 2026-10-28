@@ -3,7 +3,7 @@ import os
 import pytest
 
 from api.src.core.config import settings
-from api.src.services.temp_manager import cleanup_temp_files
+from api.src.services.temp_manager import TempFileWriter, cleanup_temp_files
 
 
 @pytest.mark.asyncio
@@ -32,3 +32,14 @@ async def test_cleanup_removes_timing_sidecar_with_its_audio(tmp_path, monkeypat
     assert not old_sidecar.exists()
     assert fresh_audio.exists()
     assert fresh_sidecar.exists()
+
+
+async def test_failed_write_removes_partial_download(tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "temp_file_dir", str(tmp_path))
+    writer = await TempFileWriter("mp3").__aenter__()
+    await writer.write(b"partial")
+
+    error = RuntimeError("generation failed")
+    await writer.__aexit__(type(error), error, None)
+
+    assert not os.path.exists(writer.temp_path)

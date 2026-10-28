@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- A sentence that fails to generate or encode now fails the request instead of being left out of an otherwise successful response. Non-streaming requests get an error; a stream is cut off rather than finished, and its download link file is removed instead of being kept with the sentence missing
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed
