@@ -9,3 +9,4 @@ import './insert-log.test.mjs';
 import './read-along.test.mjs';
 import './read-along-timing.test.mjs';
 import './tune-service.test.mjs';
+import './text-editor-ime.test.mjs';

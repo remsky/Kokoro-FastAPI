@@ -133,12 +133,14 @@ export default class TextEditor {
             this.setFindCount(this.elements.findInput.value ? `${matches} match${matches === 1 ? '' : 'es'}` : '');
         });
         this.elements.findInput.addEventListener('keydown', (e) => {
+            if (e.isComposing) return;
             if (e.key === 'Enter') {
                 e.preventDefault();
                 this.findNext();
             }
         });
         this.elements.replaceInput.addEventListener('keydown', (e) => {
+            if (e.isComposing) return;
             if (e.key === 'Enter') {
                 e.preventDefault();
                 this.replaceOne();
