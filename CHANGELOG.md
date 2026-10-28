@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- `/dev/generate_from_phonemes` checks its voice like `/v1/audio/speech` does, returning 400 for an unknown voice. It used to pass the voice straight to the mixer, where a file path as the voice could write a mixed voice pack into the voices directory
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed
