@@ -174,6 +174,18 @@ class EnglishNormalizer(Normalizer):
         re.IGNORECASE,
     )
 
+    # A stray comma before a unit ("1,5s") never reaches UNIT_PATTERN: its
+    # "(?<!\w[.,])" guard rejects a digit preceded by a comma, and once
+    # _comma_groups() drops that comma later the result ("15s") is never
+    # revisited. Fold such a run into a decimal first so units() sees
+    # "1.5s"; "10,000s" is a real thousands group and is left alone. Only a
+    # single comma followed by a single digit is folded, so "1,55" keeps its
+    # existing handling rather than being read as "1.55".
+    STRAY_COMMA_UNIT_PATTERN = re.compile(r"\b(\d+),(\d)(?=[A-Za-z])")
+
+    def _stray_commas_before_units(self, text: str) -> str:
+        return self.STRAY_COMMA_UNIT_PATTERN.sub(r"\1.\2", text)
+
     def units(self, text: str) -> str:
         def handle(u: re.Match[str]) -> str:
             unit_string = u.group(6).strip()
@@ -192,7 +204,7 @@ class EnglishNormalizer(Normalizer):
                 unit[0] = INFLECT_ENGINE.no(unit[0], number)
             return " ".join(unit)
 
-        return self.UNIT_PATTERN.sub(handle, text)
+        return self.UNIT_PATTERN.sub(handle, self._stray_commas_before_units(text))
 
     def optional_plurals(self, text: str) -> str:
         return re.sub(r"\(s\)", "s", text)
