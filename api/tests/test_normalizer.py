@@ -272,6 +272,9 @@ OPTION_CASES = [
     ("Tuned to 1 Hz", "Tuned to one hertz", UNITS),
     ("Wait 5 min", "Wait five minutes", UNITS),
     ("Wait 1 min", "Wait one minute", UNITS),
+    # issue #558: a comma that is not grouping thousands is a decimal separator
+    ("Woke up after 1,5s", "Woke up after one point five seconds", UNITS),
+    ("Woke up after 0,0s", "Woke up after zero seconds", UNITS),
     # pr #526
     ("It is 72 F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
     ("It is 72 °F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
