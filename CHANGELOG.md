@@ -4,10 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [Unreleased]: Security Bumps, IME & MPS Fixes
 
 ### Fixed
-- Voice-tag creation, rename, and search no longer consume Enter or Escape while an input method is composing text.
+- Voice-tag creation, rename, and search no longer consume Enter or Escape while an input method (IME) is composing text.
 - `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
 - Apple Silicon (MPS): memory no longer grows with every request; it stays near its startup size instead of climbing until the machine runs out
 - Startup web player link shows the port the server is listening on, instead of 8880 when launched with `--port` (#545). It now prints as its own log line after uvicorn binds, not inside the startup banner, if you grep for it
@@ -29,7 +29,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 
 `certifi` and `filelock` also bumped.
 
-## [v0.9.0] - 2026-09-09
+## [v0.9.0] - 2026-09-09: Inno Voice Tuning & Normalizer Rework
 ### Added
 - Voice clone-tuning from a short reference clip via [inno-kokoro](https://github.com/remsky/inno-kokoro):
   - `POST /dev/tune` speaks with the tuned voice (passes through to `/v1/audio/speech`) or returns the `.pt` via `return_voice_pack=true`,
@@ -62,7 +62,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
   - Phone numbers, `3.5 GHz`, `1 min` (with `unit_normalization`), `DVDs`/`DVD's`, `12:30:15 pm` read correctly.
   - `--` reads as a dash and no longer fuses words or drops word timestamps (#249).
 
-## [v0.8.2] - 2026-09-05
+## [v0.8.2] - 2026-09-05: Idle Auto-Unload & Smarter Sentence Splitting
 ### Added
 - Optional model auto-unload after an idle timeout (`MODEL_AUTO_UNLOAD_TIMEOUT_SECONDS`, default off) to release VRAM. Reloads on the next request. `/dev/model` reports load/idle state and `POST /dev/reload` pre-warms the model, both behind `ALLOW_DEV_UNLOAD`.
 - `/v1/audio/voices` entries carry the per-voice grades from [VOICES.md](https://huggingface.co/hexgrad/Kokoro-82M/blob/main/VOICES.md), where graded; added in web player dropdown w/ hover for the target quality and training duration.
@@ -77,7 +77,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 - `DEFAULT_VOICE_CODE` now applies on the speech endpoints and `/dev/generate_from_phonemes` (#514, #515 by @Christian-Sidak, #516).
 - Entrypoint and `start-*.sh` honour `HOST` / `PORT`, so `HOST=::` binds IPv6-only (#408, reported by @felixls).
 
-## [v0.8.1] - 2026-08-24
+## [v0.8.1] - 2026-08-24: Faster First Audio on Long Text
 ### Fixed
 - `/v1/audio/voices/combine` accepts weighted syntax (`af_bella(2)+af_sky(1)`), matching the speech endpoints (#285).
 - Oversized or pause-heavy requests now return 400 to avoid exhausting memory (reported by @sshpie, GHSA-f64g-9jmv-pm22). Two new configurable limits:
@@ -103,7 +103,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 
 </div>
 
-## [v0.8.0] - 2026-08-14
+## [v0.8.0] - 2026-08-14: Multi-Speaker Voice Tags & Read-Along Player
 ### Added
 - Multi-speaker input on `/v1/audio/speech` and `/dev/captioned_speech` (#294). Opt in per request with `allow_voice_tags: true`; disable server-wide with `ENABLE_VOICE_TAGS=false`.
   - Inline `[voice:name]` tags switch speaker mid-text.
@@ -141,7 +141,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 - Legacy ONNX config compose vars, endpoints e.g `/debug/session_pools`.
 - `OUTPUT_DIR`, `OUTPUT_DIR_SIZE_LIMIT_MB`, `SAMPLE_RATE` settings, never read.
 
-## [v0.7.2] 2026-08-06
+## [v0.7.2] - 2026-08-06: Starlette CVE Fix
 ### Security
 - `fastapi>=0.128.8`, `starlette>=1.3.1` to close CVE-2025-62727 (quadratic `Range` header parsing in `FileResponse`, reachable through the audio download path) (#500).
 
@@ -153,7 +153,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 ### Fixed
 - FLAC and WAV no longer lose the tail end of the audio; better muxer header patching at finalize (#497, covers #448 and #463). Diagnosis by @Technologicat.
 
-## [v0.7.1] - 2026-08-02
+## [v0.7.1] - 2026-08-02: Web UI Restyle & Accessibility
 ### Added
 - `/v1/download/{filename}` takes an optional `?name=` save-as name (sanitized, stored extension kept) and sets it in `Content-Disposition`. Omitting it keeps the previous name.
 - Web UI keyboard navigation and ARIA labeling across header, player controls, and editor.
@@ -169,7 +169,7 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 - Aborted streams no longer surface as playback failures; a user-initiated `MEDIA_ERR_ABORTED` is told apart from a real error.
 - Stream-to-file swap settles pending buffer operations instead of leaving the feeder awaiting forever.
 
-## [v0.7.0] - 2026-07-31
+## [v0.7.0] - 2026-07-31: Slimmer Images, Python 3.12
 ### Added
 - `AGENTS.md` contributor guidelines, plus `SKILL.md` notes for the API, benchmarks, and web areas.
 
@@ -203,7 +203,7 @@ Compressed image sizes + new bases:
 - `_find_file` rejects lookups that escape its search roots (`../` sequences, absolute paths) to avoid unintentional exposure of files outside the voices/models/web dirs. Symlinks placed inside those dirs resolve as before.
 - Text normalizer: anchored decimal regex to prevent quadratic backtracking on digit floods, reordered range substitution so `NUMBER_PATTERN` no longer swallows hyphens meant as range separators, added version-number handling (`2.0.1` renders as "two point zero point one" instead of being split).
 
-## [v0.6.0] - 2026-07-12
+## [v0.6.0] - 2026-07-12: Opt-in Dev Endpoints, Voice & Timestamp Fixes
 ### Breaking changes
 - `POST /dev/unload` is off by default; set `ALLOW_DEV_UNLOAD=true` to enable, otherwise returns 403. Shipped open in v0.5.0, now opt-in (#483).
 - `/debug/*` routes also set off by default, continuation of above; to avoid unintentional exposure of internals (stack traces, temp storage, CPU/mem/GPU); set `ENABLE_DEBUG_ENDPOINTS=true` to enable, otherwise 403's.
@@ -216,7 +216,7 @@ Compressed image sizes + new bases:
 - OpenAI voice aliases pointed at legacy v0.19 voicepacks that sound degraded on the v1.0 model. Added the proper v1.0 `bf_isabella` and repointed `nova` (`bf_v0isabella` -> `bf_isabella`), `alloy`, `ash`, `coral`, `echo` to their v1.0 voices. The `v0*` voices stay available by explicit name. (#479)
 - `/dev/captioned_speech` returned `timestamps: null` for non-English espeak voices (es/fr/it/hi/pt). Word timestamps are now derived from the model's own phoneme durations (`pred_dur`), so they match the audio exactly; falls back to the old behavior when word counts can't be reconciled. English path unchanged, ja/zh keep previous behavior. (#484)
 
-## [v0.5.0] - 2026-06-06
+## [v0.5.0] - 2026-06-06: VRAM Unload & Long-Playback Fixes
 ### Added
 - `POST /dev/unload` release model from VRAM without stopping container; lazy reload on next request. For freeing a shared GPU while idle. Reclaim scale with load (~0.7 GB; ~1.6 GB via long-form test on 4060Ti). (#474)
 ### Fixed
