@@ -6,8 +6,10 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Fixed
+- `/dev/generate_from_phonemes` checks its voice like `/v1/audio/speech` does, returning 400 for an unknown voice. It used to pass the voice straight to the mixer, where a file path as the voice could write a mixed voice pack into the voices directory
 - `/dev/phonemize` returns the phonemes for all of the text. Input the pipeline splits into several segments, such as separate paragraphs, used to come back with only the first segment
 - Saved downloads now expire `max_temp_dir_age_hours` after they were written. Age used to be counted up to the previous download rather than the current time, so after a quiet spell older files were kept
+- Numbers with a decimal comma before a unit, such as `1,5s`, are read as `one point five seconds` instead of `fifteen seconds`
 
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
