@@ -6,6 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Fixed
+- A sentence that fails to generate or encode now fails the request instead of being left out of an otherwise successful response. Non-streaming requests get an error; a stream is cut off rather than finished, and its download link file is removed instead of being kept with the sentence missing
 - CUDA out-of-memory during generation is retried once and then reported, instead of retrying the same request without limit; a retry no longer repeats audio already sent or drops word timestamps
 - `/dev/generate_from_phonemes` checks its voice like `/v1/audio/speech` does, returning 400 for an unknown voice. It used to pass the voice straight to the mixer, where a file path as the voice could write a mixed voice pack into the voices directory
 - `/dev/phonemize` returns the phonemes for all of the text. Input the pipeline splits into several segments, such as separate paragraphs, used to come back with only the first segment
