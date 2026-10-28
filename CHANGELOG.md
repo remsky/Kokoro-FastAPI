@@ -4,7 +4,7 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]: Security Bumps, IME & MPS Fixes
+## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed
 - Voice-tag creation, rename, and search, and text editor find and replace, no longer act on Enter or Escape while an input method (IME) is composing text.
@@ -20,10 +20,11 @@ Dependency bumps to resolve upstream advisories; none reachable from a running s
 
 | Package      |  Version | Advisory                                       | Notes                                          |
 |:-------------|---------:|:-----------------------------------------------|:-----------------------------------------------|
-| `anyio`      |   4.14.2 | CVE-2026-63374, CVE-2026-64847                 | TLS client and process-pool code aren't used    |
+| `anyio`      |   4.14.2 | CVE-2026-63374, CVE-2026-64847                 | TLS client and process-pool code aren't used   |
 | `urllib3`    |    2.8.0 | CVE-2026-97687, CVE-2026-97688, CVE-2026-97689 | A compromised download host could hang a build |
 | `fsspec`     | 2026.9.0 | CVE-2026-104851                                | `reference://` filesystem isn't used here      |
 | `setuptools` |   84.2.1 | GHSA-xmj3-9gf7-h52w                            | uv lockfile would reject any tampered wheels   |
+| `nltk`       |   3.10.4 | GHSA-j456-xh4h-cpf2                            | Weka classifier isn't used here                |
 
 </div>
 
