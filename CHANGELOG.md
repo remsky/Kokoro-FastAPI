@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- `/dev/phonemize` returns the phonemes for all of the text. Input the pipeline splits into several segments, such as separate paragraphs, used to come back with only the first segment
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed
