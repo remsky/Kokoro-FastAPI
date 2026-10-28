@@ -63,3 +63,20 @@ def test_dialogue_turns_over_limit_in_aggregate_rejected():
                 {"voice": "af_heart", "text": half},
             ]
         )
+
+
+@pytest.mark.parametrize("download_format", [None, "mp3"])
+def test_download_format_matching_response_accepted(download_format):
+    _req(response_format="mp3", download_format=download_format)
+
+
+def test_download_format_differing_from_response_rejected():
+    # the download is the streamed bytes, so wav here would be mp3 in a .wav
+    with pytest.raises(ValidationError):
+        _req(response_format="mp3", download_format="wav")
+    with pytest.raises(ValidationError):
+        DialogueRequest(
+            turns=[{"voice": "af_heart", "text": "hi"}],
+            response_format="mp3",
+            download_format="wav",
+        )

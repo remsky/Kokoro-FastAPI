@@ -180,6 +180,14 @@ class VoiceAliasesMixin(BaseModel):
         return _reject_tag_breaking_aliases(value)
 
 
+def _download_matches_response(request):
+    if request.download_format not in (None, request.response_format):
+        raise ValueError(
+            "download_format must match response_format; the download is the same audio, not re-encoded"
+        )
+    return request
+
+
 class OpenAISpeechRequest(VoiceAliasesMixin):
     """Request schema for OpenAI-compatible speech endpoint"""
 
@@ -199,7 +207,7 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = (
         Field(
             default=None,
-            description="Optional different format for the final download. If not provided, uses response_format.",
+            description="Format of the download link's file. Must match response_format if given; the download is the same audio, not re-encoded.",
         )
     )
     speed: Rate = Field(default=1.0, description="The speed of the generated audio")
@@ -234,6 +242,10 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
         default=False,
         description="If true, the input is translated from SSML before synthesis. Requires allow_voice_tags, since the translation emits [voice:] and [rate:] spans.",
     )
+
+    @model_validator(mode="after")
+    def _download_format_matches(self):
+        return _download_matches_response(self)
 
 
 class DialogueTurn(BaseModel):
@@ -295,7 +307,7 @@ class DialogueRequest(VoiceAliasesMixin):
     download_format: Optional[Literal["mp3", "opus", "aac", "flac", "wav", "pcm"]] = (
         Field(
             default=None,
-            description="Optional different format for the final download. If not provided, uses response_format.",
+            description="Format of the download link's file. Must match response_format if given; the download is the same audio, not re-encoded.",
         )
     )
     speed: Rate = Field(default=1.0, description="The speed of the generated audio")
@@ -337,6 +349,10 @@ class DialogueRequest(VoiceAliasesMixin):
         # the rendered string is what the speech endpoint actually receives
         _within_input_limit(self.to_tagged_input())
         return self
+
+    @model_validator(mode="after")
+    def _download_format_matches(self):
+        return _download_matches_response(self)
 
 
 class CaptionedSpeechRequest(VoiceAliasesMixin):
