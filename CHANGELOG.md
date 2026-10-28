@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Added
+- `API_KEYS`: set a JSON list of keys and the API routes require `Authorization: Bearer <key>`, as OpenAI clients send it. `/health` and the web player's files stay open. Off by default (#373)
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed

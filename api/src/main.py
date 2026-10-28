@@ -5,13 +5,15 @@ FastAPI OpenAI Compatible API
 import asyncio
 import logging
 import os
+import secrets
 import sys
 from contextlib import asynccontextmanager
 
 import torch
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
 
 from .core.config import settings, unrecognized_env_file_keys
@@ -163,11 +165,40 @@ if settings.cors_enabled:
     )
 
 # Include routers
-app.include_router(openai_router, prefix="/v1")
-app.include_router(dev_router)  # Development endpoints
-app.include_router(ssml_router)  # SSML translation and capabilities
-app.include_router(tune_router)  # /dev/tune, 403 unless enabled
-app.include_router(debug_router)  # Debug endpoints (403 unless enabled)
+_bearer = HTTPBearer(auto_error=False)
+
+
+async def require_api_key(
+    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
+) -> None:
+    """401 unless API_KEYS is empty or the request carries one of them as a bearer token"""
+    if not settings.api_keys:
+        return
+    token = credentials.credentials.encode() if credentials else b""
+    if not any(
+        secrets.compare_digest(token, key.encode()) for key in settings.api_keys
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "error": "unauthorized",
+                "message": "A valid API key is required",
+                "type": "authentication_error",
+            },
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
+protected = [Depends(require_api_key)]
+app.include_router(openai_router, prefix="/v1", dependencies=protected)
+app.include_router(dev_router, dependencies=protected)  # Development endpoints
+app.include_router(
+    ssml_router, dependencies=protected
+)  # SSML translation and capabilities
+app.include_router(tune_router, dependencies=protected)  # /dev/tune, 403 unless enabled
+app.include_router(
+    debug_router, dependencies=protected
+)  # Debug endpoints (403 unless enabled)
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 

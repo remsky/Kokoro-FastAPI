@@ -142,6 +142,12 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `CORS_ENABLED` | `true` | Send CORS headers |
 | `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost |
 
+**Access**
+
+| Variable | Default | |
+|---|---|---|
+| `API_KEYS` | `[]` | JSON list of accepted keys, e.g. `["key-one","key-two"]`. When set, `/v1/*`, `/dev/*` and `/debug/*` answer 401 unless the request carries `Authorization: Bearer <key>` (OpenAI clients send their API key this way). `/health`, the docs and the web player's files stay open; the web player does not send a key, so with keys set it needs a proxy that adds the header |
+
 **Temp files**
 
 | Variable | Default | |
