@@ -5,11 +5,29 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+
 ### Fixed
 - Voice-tag creation, rename, and search no longer consume Enter or Escape while an input method is composing text.
 - `/dev/tune` informative error instead of bare `Internal Server Error` if the blend solver could not converge on a reference (scipy 1.14 nnls bug)
 - Apple Silicon (MPS): memory no longer grows with every request; it stays near its startup size instead of climbing until the machine runs out
 - Startup web player link shows the port the server is listening on, instead of 8880 when launched with `--port` (#545). It now prints as its own log line after uvicorn binds, not inside the startup banner, if you grep for it
+
+### Security
+
+Dependency bumps to resolve upstream advisories; none reachable from a running server (see Notes for checks done).
+
+<div align="center">
+
+| Package      |  Version | Advisory                                       | Notes                                          |
+|:-------------|---------:|:-----------------------------------------------|:-----------------------------------------------|
+| `anyio`      |   4.14.2 | CVE-2026-63374, CVE-2026-64847                 | TLS client and process-pool code aren't used    |
+| `urllib3`    |    2.8.0 | CVE-2026-97687, CVE-2026-97688, CVE-2026-97689 | A compromised download host could hang a build |
+| `fsspec`     | 2026.9.0 | CVE-2026-104851                                | `reference://` filesystem isn't used here      |
+| `setuptools` |   84.2.1 | GHSA-xmj3-9gf7-h52w                            | uv lockfile would reject any tampered wheels   |
+
+</div>
+
+`certifi` and `filelock` also bumped.
 
 ## [v0.9.0] - 2026-09-09
 ### Added
