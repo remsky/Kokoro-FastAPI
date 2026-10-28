@@ -3,6 +3,7 @@ FastAPI OpenAI Compatible API
 """
 
 import asyncio
+import logging
 import os
 import sys
 from contextlib import asynccontextmanager
@@ -53,6 +54,21 @@ setup_logger()
 # unknown keys are ignored rather than fatal, so name them or a typo'd setting fails silently
 for _key in unrecognized_env_file_keys():
     logger.warning(f"ignoring unrecognized env file key: {_key}")
+
+
+class _WebPlayerStartupHandler(logging.Handler):
+    """Log the web player URL from uvicorn's bound address."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if not str(record.msg).startswith("Uvicorn running on %s://"):
+            return
+        scheme, host, port = record.args
+        logger.info(f"Beta Web Player: {scheme}://{host}:{port}/web/")
+        logger.info(f"              or {scheme}://localhost:{port}/web/")
+
+
+if settings.enable_web_player:
+    logging.getLogger("uvicorn.error").addHandler(_WebPlayerStartupHandler())
 
 
 @asynccontextmanager
@@ -116,12 +132,8 @@ async def lifespan(app: FastAPI):
             "ready at /dev/tune" if inno_tuner.available() else "not available"
         )
 
-    # Add web player info if enabled
     if settings.enable_web_player:
-        startup_msg += (
-            f"\n\nBeta Web Player: http://{settings.host}:{settings.port}/web/"
-        )
-        startup_msg += f"\nor http://localhost:{settings.port}/web/"
+        startup_msg += "\n\nWeb Player: enabled (URL logged below)"
     else:
         startup_msg += "\n\nWeb Player: disabled"
 

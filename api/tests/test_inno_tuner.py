@@ -303,6 +303,23 @@ def test_tune_without_tuner_raises(monkeypatch):
         inno_tuner.tune(wav_bytes())
 
 
+def test_tuner_crash_is_a_json_500(service, monkeypatch):
+    import inno_kokoro.enroll
+
+    def enroll(*a, **k):
+        raise RuntimeError("Maximum number of iterations reached.")
+
+    monkeypatch.setattr(inno_kokoro.enroll, "enroll", enroll)
+    before = temp_packs()
+    r = post({"return_voice_pack": "true"})
+    assert r.status_code == 500
+    assert r.json()["detail"]["error"] == "tune_failed"
+    assert "iterations" not in r.text
+    assert temp_packs() == before
+    assert inno_tuner.reserve()
+    inno_tuner._lock.release()
+
+
 def test_stereo_clip_is_mixed_to_mono(service, monkeypatch):
     import inno_kokoro.enroll
 
@@ -391,6 +408,7 @@ def test_broken_decoders_stay_generic_and_the_server_lives(
     sleeper = tmp_path / "sleep.py"
     sleeper.write_text("import sys, time; sys.stdin.buffer.read(); time.sleep(30)")
     decoder = inno_tuner.DECODER
+    timeout = inno_tuner.DECODE_TIMEOUT
     monkeypatch.setattr(inno_tuner, "DECODE_TIMEOUT", 1)
     for broken in (raiser, sleeper, tmp_path / "missing.py"):
         monkeypatch.setattr(inno_tuner, "DECODER", str(broken))
@@ -398,6 +416,7 @@ def test_broken_decoders_stay_generic_and_the_server_lives(
         assert r.status_code == 400, broken
         assert r.json()["detail"]["message"] == "reference audio could not be decoded"
     monkeypatch.setattr(inno_tuner, "DECODER", decoder)
+    monkeypatch.setattr(inno_tuner, "DECODE_TIMEOUT", timeout)
     assert post({"return_voice_pack": "true"}).status_code == 200
 
 

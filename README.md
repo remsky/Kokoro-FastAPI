@@ -10,14 +10,14 @@
 [![Misaki](https://img.shields.io/badge/misaki-0.9.4-B8860B)](https://github.com/hexgrad/misaki)
 [![Tested at Model Commit](https://img.shields.io/badge/model-1.0::41e5892-blue)](https://huggingface.co/hexgrad/Kokoro-82M/commit/41e5892b9d8b43e56fc560f892312a328a410973) 
 
-[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Downloads](https://img.shields.io/badge/downloads-2.6M%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
+[![Try on Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Try%20on-Spaces-blue)](https://huggingface.co/spaces/Remsky/FastKoko) [![Pulls](https://img.shields.io/badge/pulls%20per%20month-250K%2B-2496ED?logo=docker&logoColor=white)](https://github.com/remsky?tab=packages&repo_name=Kokoro-FastAPI)
 
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
-- Custom voicepack generation via [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
+- Custom voicepacks via [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
 - Optional integrated WebUI; read-along long-generation
 - Inline multi-speaker generation & voice mixing + aliasing weighted combinations, SSML support
 - Per-word, or per-chunk timestamped caption generation
@@ -29,18 +29,26 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 
 
 ### Integration & Guides 
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
+[![Ask DeepWiki](https://img.shields.io/badge/Ask%20DeepWiki-1f6feb)](https://deepwiki.com/remsky/Kokoro-FastAPI) [![Ask CodeWiki](https://img.shields.io/badge/Ask%20CodeWiki-4285F4?logo=googlegemini&logoColor=white)](https://codewiki.google/github.com/remsky/kokoro-fastapi)
 
  [![Helm Chart](https://img.shields.io/badge/Helm%20Chart-black?style=flat&logo=helm&logoColor=white)](docs/deployment/kubernetes.md) [![DigitalOcean](https://img.shields.io/badge/DigitalOcean-black?style=flat&logo=digitalocean&logoColor=white)](docs/deployment/digitalocean.md) [![SillyTavern](https://img.shields.io/badge/SillyTavern-black?style=flat&color=red)](docs/integrations/sillytavern.md)
 [![OpenWebUI](https://img.shields.io/badge/OpenWebUI-black?style=flat&color=white)](docs/integrations/openwebui.md)
 
-Community projects that use, recommend, or enable Kokoro-FastAPI as a backend:
+<details>
+<summary>🌐Community projects that enable Kokoro-FastAPI as a backend</summary>
 
-- <sub>Home Assistant: [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS)</sub>
-- <sub>App stores and templates: [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)</sub>
-- <sub>Readers and audiobooks: [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-TTS](https://github.com/xujialiu/Zotero-TTS)</sub>
-- <sub>Assistants and agents: [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)</sub>
-- <sub>Browser: [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)</sub>
+- Home Assistant
+  - [wyoming_openai](https://github.com/roryeckel/wyoming_openai), [openai_tts](https://github.com/sfortis/openai_tts), [Kokoro-TTS](https://github.com/beecho01/Kokoro-TTS), [Kokoro-FastAPI App](https://github.com/YaannnTech/HA-Apps/tree/main/kokoro_fastapi)
+- App stores and templates
+  - [Umbrel](https://github.com/getumbrel/umbrel-apps/tree/master/kokoro), [Unraid Apps](https://github.com/nwithan8/unraid_templates), [GPUStack](https://github.com/gpustack/gpustack), [jetson-containers](https://github.com/dusty-nv/jetson-containers/tree/master/packages/speech/kokoro-tts)
+- Readers and audiobooks
+  - [openreader](https://github.com/richardr1126/openreader), [epub_to_audiobook](https://github.com/p0n1/epub_to_audiobook), [audiobook-creator](https://github.com/prakharsr/audiobook-creator), [Zotero-OpenReader](https://github.com/xujialiu/Zotero-OpenReader)
+- Assistants and agents
+  - [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server), [call-me](https://github.com/ZeframLou/call-me), [agent-cli](https://github.com/basnijholt/agent-cli), [voice-chat-ai](https://github.com/bigsk1/voice-chat-ai)
+- Browser
+  - [kokoro-extension](https://github.com/Fooftilly/kokoro-extension), [customtts](https://github.com/BassGaming/customtts)
+
+</details>
 
 ## Get Started
 

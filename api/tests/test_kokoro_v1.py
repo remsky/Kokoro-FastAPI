@@ -40,6 +40,35 @@ def test_memory_management(mock_memory, mock_cuda, kokoro_backend):
             assert kokoro_backend._check_memory() == False
 
 
+@patch("torch.mps.driver_allocated_memory", return_value=5e9)
+def test_mps_memory_management(mock_memory, kokoro_backend):
+    with patch.object(kokoro_backend, "_device", "mps"):
+        with patch("api.src.inference.kokoro_v1.model_config") as mock_config:
+            mock_config.pytorch_gpu.memory_threshold = 4
+            assert kokoro_backend._check_memory()
+
+            mock_config.pytorch_gpu.memory_threshold = 6
+            assert not kokoro_backend._check_memory()
+
+
+@pytest.mark.parametrize("method", ["generate", "generate_from_tokens"])
+async def test_generate_clears_mps_memory_over_threshold(method, kokoro_backend):
+    kokoro_backend._model = MagicMock()
+    mock_pipeline = MagicMock(return_value=iter([]))
+    mock_pipeline.generate_from_tokens.return_value = iter([])
+    with (
+        patch.object(kokoro_backend, "_device", "mps"),
+        patch.object(kokoro_backend, "_check_memory", return_value=True),
+        patch.object(kokoro_backend, "_clear_memory") as mock_clear,
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline),
+    ):
+        async for _ in getattr(kokoro_backend, method)("test", "af_voice"):
+            pass
+    mock_clear.assert_called_once()
+
+
 @patch("torch.cuda.empty_cache")
 @patch("torch.cuda.synchronize")
 def test_clear_memory(mock_sync, mock_clear, kokoro_backend):

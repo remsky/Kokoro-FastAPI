@@ -151,6 +151,16 @@ async def tune_speech(
         )
     except ValueError as e:
         raise _bad_request(str(e))
+    except Exception:
+        logger.exception("Inno tuner failed")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "tune_failed",
+                "message": "voice tuning failed for this reference, try a different clip",
+                "type": "server_error",
+            },
+        )
 
     voice_name = os.path.splitext(os.path.basename(pack_path))[0]
     (await get_voice_manager()).register_transient(voice_name, pack_path)
