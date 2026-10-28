@@ -75,6 +75,8 @@ def test_standalone_numbers_are_spelled_out(before, open_, number, close, after,
 @example("0K,0", DEFAULTS)
 @example("v1.0", DEFAULTS)
 @example("0S", DEFAULTS)
+@example("1,5s", NormalizationOptions(unit_normalization=True))
+@example("0,0s", NormalizationOptions(unit_normalization=True))
 @given(st.one_of(any_text, dense_text), options)
 def test_idempotent(text, opts):
     once = normalize_text(text, opts)
