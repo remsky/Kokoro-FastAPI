@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- Saved downloads now expire `max_temp_dir_age_hours` after they were written. Age used to be counted up to the previous download rather than the current time, so after a quiet spell older files were kept
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed
