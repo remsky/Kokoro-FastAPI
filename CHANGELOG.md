@@ -4,6 +4,11 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- After an idle unload, a request arriving while the model reloads waits for it instead of starting on a half-loaded model, and a failed load is retried on the next request instead of leaving a broken model in place
+- `/dev/unload` and `/dev/reload` return 409 while speech is generating, instead of pulling the model out from under that request
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed

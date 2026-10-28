@@ -6,6 +6,7 @@ from kokoro import KPipeline
 from loguru import logger
 
 from ..core.config import settings
+from ..inference.model_manager import ModelBusyError
 from ..services.audio import AudioNormalizer
 from ..services.streaming_audio_writer import StreamingAudioWriter
 from ..services.text_processing.text_processor import (
@@ -495,6 +496,8 @@ async def unload_model(
         return JSONResponse({"status": "unloaded"})
     except HTTPException:
         raise
+    except ModelBusyError as e:
+        raise HTTPException(status_code=409, detail={"error": str(e)})
     except Exception as e:
         logger.error(f"Error unloading model: {e}")
         raise HTTPException(status_code=500, detail={"error": str(e)})
@@ -525,6 +528,8 @@ async def reload_model(
         )
     except HTTPException:
         raise
+    except ModelBusyError as e:
+        raise HTTPException(status_code=409, detail={"error": str(e)})
     except Exception as e:
         logger.error(f"Error reloading model: {e}")
         raise HTTPException(status_code=500, detail={"error": str(e)})
