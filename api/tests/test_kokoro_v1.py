@@ -1,5 +1,3 @@
-import tempfile
-from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import ANY, MagicMock, patch
 
@@ -67,6 +65,16 @@ async def test_generate_clears_mps_memory_over_threshold(method, kokoro_backend)
         async for _ in getattr(kokoro_backend, method)("test", "af_voice"):
             pass
     mock_clear.assert_called_once()
+
+
+async def test_voice_cache_evicts_least_recently_used(kokoro_backend, monkeypatch):
+    monkeypatch.setattr("api.src.inference.kokoro_v1.VOICE_CACHE_SIZE", 2)
+    with patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)):
+        await kokoro_backend._get_voice_tensor("a.pt")
+        await kokoro_backend._get_voice_tensor("b.pt")
+        await kokoro_backend._get_voice_tensor("a.pt")
+        await kokoro_backend._get_voice_tensor("c.pt")
+    assert [k.split(":")[0] for k in kokoro_backend._voice_cache] == ["a.pt", "c.pt"]
 
 
 @patch("torch.cuda.empty_cache")
@@ -186,11 +194,9 @@ async def test_generate_uses_correct_pipeline(kokoro_backend):
                 speed=1.0,
                 model=kokoro_backend._model,
             )
-            # Voice was staged to a temp file with the expected basename in
-            # the OS temp dir (cross-platform: don't string-match separators).
-            voice_arg = Path(mock_pipeline.call_args[1]["voice"])
-            assert voice_arg.name == "temp_voice_ef_voice"
-            assert voice_arg.parent == Path(tempfile.gettempdir())
+            # The cached tensor goes to the pipeline directly, so nothing is
+            # staged in the temp dir or kept in pipeline.voices
+            assert torch.equal(mock_pipeline.call_args[1]["voice"], torch.ones(1))
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,7 @@
 """TTS service using model and voice managers."""
 
 import asyncio
+import hashlib
 import os
 import re
 import tempfile
@@ -13,7 +14,7 @@ from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
-from ..inference.kokoro_v1 import KokoroV1
+from ..inference.kokoro_v1 import VOICE_CACHE_SIZE, KokoroV1
 from ..inference.model_manager import (
     ModelManager,
     get_manager as get_model_manager,
@@ -27,6 +28,15 @@ from .text_processing.text_processor import (
     smart_split,
     split_by_voice,
 )
+
+
+def _prune_oldest(directory: str, keep: int) -> None:
+    entries = sorted(os.scandir(directory), key=lambda e: e.stat().st_mtime)
+    for entry in entries[:-keep]:
+        try:
+            os.remove(entry.path)
+        except OSError:
+            pass
 
 
 class TTSService:
@@ -249,11 +259,15 @@ class TTSService:
                 else:
                     combined_tensor -= voice_tensor
 
-            # Save the new combined voice so it can be loaded latter
-            temp_dir = tempfile.gettempdir()
-            combined_path = os.path.join(temp_dir, f"{voice}.pt")
+            # Named by digest so the expression never becomes a path, and pruned so
+            # distinct mixes can't fill the disk
+            mix_dir = os.path.join(tempfile.gettempdir(), "kokoro_voice_mixes")
+            os.makedirs(mix_dir, exist_ok=True)
+            digest = hashlib.sha256(voice.encode()).hexdigest()[:32]
+            combined_path = os.path.join(mix_dir, f"{digest}.pt")
             logger.debug(f"Saving combined voice to: {combined_path}")
             torch.save(combined_tensor, combined_path)
+            _prune_oldest(mix_dir, VOICE_CACHE_SIZE)
             return voice, combined_path
         except Exception as e:
             logger.error(f"Failed to get voice path: {e}")
@@ -266,7 +280,9 @@ class TTSService:
         lang_code: Optional[str],
         normalization_options: Optional[NormalizationOptions],
         allow_voice_tags: bool = False,
-    ) -> AsyncGenerator[Tuple[str, str, str, float, str, List[int], Optional[float]], None]:
+    ) -> AsyncGenerator[
+        Tuple[str, str, str, float, str, List[int], Optional[float]], None
+    ]:
         """Chunk text across [voice:...] and [rate:...] segments.
 
         Yields (voice_name, voice_path, lang_code, rate, chunk_text, tokens, pause_s).
@@ -290,9 +306,7 @@ class TTSService:
 
             # request lang_code wins, then default_voice_code setting, else each speaker gets the pipeline their prefix implies
             segment_lang = (
-                lang_code
-                or settings.default_voice_code
-                or segment_voice[:1].lower()
+                lang_code or settings.default_voice_code or segment_voice[:1].lower()
             )
             logger.debug(
                 f"Using voice path '{voice_path}' with lang_code '{segment_lang}'"

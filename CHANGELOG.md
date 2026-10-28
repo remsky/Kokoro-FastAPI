@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- Voice mixes no longer leave files in the temp directory and memory on every distinct combination. Mixed packs are kept under `kokoro_voice_mixes/` in the temp dir, capped at the 64 most recent, voice tensors are cached for the 64 most recently used voices, and the per-voice `temp_voice_*.pt` copies are gone
+
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
 ### Fixed

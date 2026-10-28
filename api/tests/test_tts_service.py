@@ -129,11 +129,38 @@ async def test_get_voice_path_combined():
         service = await TTSService.create()
         name, path = await service.get_voices_path("voice1+voice2")
         assert name == "voice1+voice2"
-        # Verify the path points to a temporary file with expected format
-        assert Path(path).parent == Path("/tmp")
-        assert "voice1+voice2" in Path(path).name
+        # Named by digest under a dedicated dir, never by the expression itself
+        assert Path(path).parent == Path("/tmp/kokoro_voice_mixes")
+        assert "voice1" not in Path(path).name
         assert path.endswith(".pt")
         mock_save.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_voice_mixes_stay_in_mix_dir_and_are_pruned(tmp_path, monkeypatch):
+    """A path-like expression can't pick the write location, and distinct mixes don't pile up."""
+    monkeypatch.setattr("api.src.services.tts_service.VOICE_CACHE_SIZE", 3)
+    voice_manager = AsyncMock()
+    voice_manager.get_voice_path.return_value = "/path/to/voice.pt"
+
+    with (
+        patch(
+            "api.src.services.tts_service.get_model_manager", return_value=AsyncMock()
+        ),
+        patch(
+            "api.src.services.tts_service.get_voice_manager", return_value=voice_manager
+        ),
+        patch("torch.load", return_value=torch.ones(10)),
+        patch("tempfile.gettempdir", return_value=str(tmp_path)),
+    ):
+        service = await TTSService.create()
+        _, path = await service.get_voices_path(f"{tmp_path}/escape/af_a+af_b")
+        assert Path(path).parent == tmp_path / "kokoro_voice_mixes"
+        for weight in range(1, 6):
+            await service.get_voices_path(f"af_a({weight})+af_b")
+
+    assert not (tmp_path / "escape").exists()
+    assert len(list((tmp_path / "kokoro_voice_mixes").iterdir())) == 3
 
 
 @pytest.mark.asyncio
