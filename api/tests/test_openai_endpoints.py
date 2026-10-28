@@ -487,6 +487,21 @@ def test_phonemize_returns_phonemes():
     assert response.json()["phonemes"] == "hˈɛlO"
 
 
+def test_phonemize_returns_every_segment():
+    mock_pipeline = MagicMock(
+        return_value=iter(
+            [
+                MagicMock(phonemes="hˈɛlO", tokens=[]),
+                MagicMock(phonemes="wˈɜɹld", tokens=[]),
+            ]
+        )
+    )
+    with patch("api.src.routers.development.KPipeline", return_value=mock_pipeline):
+        response = client.post("/dev/phonemize", json={"text": "hello\n\nworld"})
+    assert response.status_code == 200
+    assert response.json()["phonemes"] == "hˈɛlO wˈɜɹld"
+
+
 def test_openai_speech_pcm_streaming(mock_tts_service, test_voice, mock_audio_bytes):
     """Test PCM streaming format"""
     response = client.post(
