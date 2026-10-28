@@ -168,7 +168,7 @@ class EnglishNormalizer(Normalizer):
         return self.URL_PATTERN.sub(handle, text)
 
     UNIT_PATTERN = re.compile(
-        r"((?<!\w)(?<!\w[.,])([+-]?)(\d{1,3}(,\d{3})*|\d+)(\.\d+)?)\s*("
+        r"((?<!\w)(?<!\w[.,])([+-]?)(\d{1,3}(,\d{3})*|\d+,\d+|\d+)(\.\d+)?)\s*("
         + "|".join(sorted(list(VALID_UNITS.keys()), reverse=True))
         + r"""){1}(?=[^\w\d]{1}|\b)""",
         re.IGNORECASE,
@@ -189,6 +189,11 @@ class EnglishNormalizer(Normalizer):
                         unit[0] = unit[0][:-3] + "byte"
 
                 number = u.group(1).strip()
+                # A comma that is not grouping thousands is a decimal separator
+                # ("1,5s"): read it as 1.5 so the unit is consumed in one pass
+                # instead of leaving "15s" for numbers() to strip apart later.
+                if "," in number and not self.THOUSANDS_PATTERN.fullmatch(number):
+                    number = number.replace(",", ".")
                 unit[0] = INFLECT_ENGINE.no(unit[0], number)
             return " ".join(unit)
 
