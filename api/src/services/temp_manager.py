@@ -3,6 +3,7 @@
 import json
 import os
 import tempfile
+import time
 
 import aiofiles
 import aiofiles.os
@@ -36,7 +37,7 @@ async def cleanup_temp_files() -> None:
         # 1. They're too old
         # 2. We have too many files
         # 3. Directory is too large
-        current_time = (await aiofiles.os.stat(settings.temp_file_dir)).st_mtime
+        current_time = time.time()
         max_age = settings.max_temp_dir_age_hours * 3600
 
         sizes = {path: size for path, _mtime, size in files}

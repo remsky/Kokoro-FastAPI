@@ -64,14 +64,10 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
             lang_code=request.language, repo_id=settings.model_repo_id, model=False
         )
 
-        # Get first result from pipeline (we only need one since we're not chunking)
-        for result in pipeline(request.text):
-            # result.graphemes = original text
-            # result.phonemes = phonemized text
-            # result.tokens = token objects (if available)
-            return PhonemeResponse(phonemes=result.phonemes, tokens=[])
-
-        raise ValueError("Failed to generate phonemes")
+        phonemes = [result.phonemes for result in pipeline(request.text)]
+        if not phonemes:
+            raise ValueError("Failed to generate phonemes")
+        return PhonemeResponse(phonemes=" ".join(phonemes), tokens=[])
     except ValueError as e:
         logger.warning(f"Invalid phoneme request: {str(e)}")
         raise HTTPException(
