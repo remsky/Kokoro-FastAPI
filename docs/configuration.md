@@ -122,6 +122,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
 | `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
+| `MAX_REQUEST_BODY_MB` | `32` | Ceiling for a request body in MB, checked while it arrives so an oversized upload is refused with a 413 before it is parsed or spooled. Room for `MAX_INPUT_LENGTH` text in escaped JSON and a `/dev/tune` reference clip |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, per-request fields in [Text normalization](#text-normalization) |
 
 **Audio**

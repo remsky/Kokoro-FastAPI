@@ -39,7 +39,9 @@ class Settings(BaseSettings):
     allow_local_voice_saving: bool = (
         False  # Whether to allow saving combined voices locally
     )
-    allow_dev_unload: bool = False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
+    allow_dev_unload: bool = (
+        False  # Whether to expose /dev/model, POST /dev/unload, and POST /dev/reload
+    )
     enable_inno_tuner: bool = False  # Whether to expose POST /dev/tune
     model_auto_unload_timeout_seconds: float = (
         0.0  # Idle seconds before unloading; 0 disables auto-unload
@@ -61,10 +63,15 @@ class Settings(BaseSettings):
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk
     absolute_max_tokens: int = 450  # Absolute maximum tokens per chunk
-    ssml_max_depth: int = 10  # Deepest SSML element nesting translated, real documents sit at 2-5
+    ssml_max_depth: int = (
+        10  # Deepest SSML element nesting translated, real documents sit at 2-5
+    )
     max_pause_duration_s: float = 60.0
     max_total_pause_s: float = 300.0  # Total silence one request may ask for
     max_input_length: int = 1_000_000  # Characters of text one request may submit
+    max_request_body_mb: int = (
+        32  # Bytes one request body may carry, refused with 413 before parsing
+    )
     advanced_text_normalization: bool = True  # Preproesses the text before misiki
     voice_weight_normalization: bool = (
         True  # Normalize the voice weights so they add up to 1
