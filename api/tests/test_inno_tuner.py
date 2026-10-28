@@ -408,6 +408,7 @@ def test_broken_decoders_stay_generic_and_the_server_lives(
     sleeper = tmp_path / "sleep.py"
     sleeper.write_text("import sys, time; sys.stdin.buffer.read(); time.sleep(30)")
     decoder = inno_tuner.DECODER
+    timeout = inno_tuner.DECODE_TIMEOUT
     monkeypatch.setattr(inno_tuner, "DECODE_TIMEOUT", 1)
     for broken in (raiser, sleeper, tmp_path / "missing.py"):
         monkeypatch.setattr(inno_tuner, "DECODER", str(broken))
@@ -415,6 +416,7 @@ def test_broken_decoders_stay_generic_and_the_server_lives(
         assert r.status_code == 400, broken
         assert r.json()["detail"]["message"] == "reference audio could not be decoded"
     monkeypatch.setattr(inno_tuner, "DECODER", decoder)
+    monkeypatch.setattr(inno_tuner, "DECODE_TIMEOUT", timeout)
     assert post({"return_voice_pack": "true"}).status_code == 200
 
 
