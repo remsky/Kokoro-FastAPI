@@ -164,6 +164,28 @@ async def test_voice_mixes_stay_in_mix_dir_and_are_pruned(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
+async def test_voice_mix_survives_prune_race(tmp_path):
+    voice_manager = AsyncMock()
+    voice_manager.get_voice_path.return_value = "/path/to/voice.pt"
+
+    with (
+        patch(
+            "api.src.services.tts_service.get_model_manager", return_value=AsyncMock()
+        ),
+        patch(
+            "api.src.services.tts_service.get_voice_manager", return_value=voice_manager
+        ),
+        patch("torch.load", return_value=torch.ones(10)),
+        patch("tempfile.gettempdir", return_value=str(tmp_path)),
+        patch("os.scandir", side_effect=FileNotFoundError),
+    ):
+        service = await TTSService.create()
+        _, path = await service.get_voices_path("af_a+af_b")
+
+    assert Path(path).exists()
+
+
+@pytest.mark.asyncio
 async def test_list_voices():
     """Test listing available voices."""
     model_manager = AsyncMock()

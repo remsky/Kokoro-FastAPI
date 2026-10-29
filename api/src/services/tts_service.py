@@ -6,6 +6,7 @@ import os
 import re
 import tempfile
 import time
+from contextlib import suppress
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -258,7 +259,8 @@ class TTSService:
             combined_path = os.path.join(mix_dir, f"{digest}.pt")
             logger.debug(f"Saving combined voice to: {combined_path}")
             torch.save(combined_tensor, combined_path)
-            _prune_oldest(mix_dir, VOICE_CACHE_SIZE)
+            with suppress(OSError):
+                _prune_oldest(mix_dir, VOICE_CACHE_SIZE)
             return voice, combined_path
         except Exception as e:
             logger.error(f"Failed to get voice path: {e}")
