@@ -2,8 +2,8 @@
 
 import asyncio
 import os
-import tempfile
 import threading
+from collections import OrderedDict
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
 import numpy as np
@@ -16,6 +16,9 @@ from ..core.config import settings
 from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
 from .base import AudioChunk, BaseModelBackend
+
+# Distinct voices and mixes held in memory; each is about half a megabyte
+VOICE_CACHE_SIZE = 64
 
 _ESPEAK_TS_SCALE = (
     2.0 / 80.0
@@ -113,7 +116,9 @@ class KokoroV1(BaseModelBackend):
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
-        self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
+        self._voice_cache: OrderedDict[str, torch.Tensor] = (
+            OrderedDict()
+        )  # LRU of voice tensors by path
         self._inference_lock = threading.Lock()  # one model call at a time
 
     def _next_locked(self, results, done):
@@ -138,24 +143,21 @@ class KokoroV1(BaseModelBackend):
             Voice tensor on the target device
         """
         cache_key = f"{voice_path}:{self._device}"
-        if cache_key not in self._voice_cache:
+        if cache_key in self._voice_cache:
+            self._voice_cache.move_to_end(cache_key)
+        else:
             self._voice_cache[cache_key] = await paths.load_voice_tensor(
                 voice_path, device=self._device
             )
             logger.debug(f"Cached voice tensor from {voice_path}")
+            while len(self._voice_cache) > VOICE_CACHE_SIZE:
+                self._voice_cache.popitem(last=False)
         return self._voice_cache[cache_key]
 
     def forget_voice(self, voice_path: str) -> None:
-        """Drop a pack's cached tensor and the temp copy generate() wrote for the pipeline."""
+        """Drop a pack's cached tensor."""
         for key in [k for k in self._voice_cache if k.startswith(f"{voice_path}:")]:
             del self._voice_cache[key]
-        temp_copy = os.path.join(
-            tempfile.gettempdir(), f"temp_voice_{os.path.basename(voice_path)}"
-        )
-        for pipeline in self._pipelines.values():
-            pipeline.voices.pop(temp_copy, None)
-        if os.path.exists(temp_copy):
-            os.remove(temp_copy)
 
     async def load_model(self, path: str) -> None:
         """Load pre-baked model.
@@ -275,16 +277,9 @@ class KokoroV1(BaseModelBackend):
 
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
-            # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
-            if not os.path.exists(temp_path):
-                await paths.save_voice_tensor(voice_tensor, temp_path)
-            voice_path = temp_path
+            # KPipeline uses a tensor as-is only when it is a CPU FloatTensor; a path
+            # would be cached in pipeline.voices for the life of the process
+            voice_pack = voice_tensor.cpu()
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
             if lang_code:  # api is given priority
@@ -301,7 +296,7 @@ class KokoroV1(BaseModelBackend):
             )
             async for result in self._iterate_off_loop(
                 pipeline.generate_from_tokens(
-                    tokens=tokens, voice=voice_path, speed=speed, model=self._model
+                    tokens=tokens, voice=voice_pack, speed=speed, model=self._model
                 )
             ):
                 if result.audio is not None:
@@ -382,16 +377,9 @@ class KokoroV1(BaseModelBackend):
 
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
-            # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
-            if not os.path.exists(temp_path):
-                await paths.save_voice_tensor(voice_tensor, temp_path)
-            voice_path = temp_path
+            # KPipeline uses a tensor as-is only when it is a CPU FloatTensor; a path
+            # would be cached in pipeline.voices for the life of the process
+            voice_pack = voice_tensor.cpu()
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
             pipeline_lang_code = (
@@ -409,7 +397,7 @@ class KokoroV1(BaseModelBackend):
                 f"Generating audio for text with lang_code '{pipeline_lang_code}': '{text[:100]}{'...' if len(text) > 100 else ''}'"
             )
             async for result in self._iterate_off_loop(
-                pipeline(text, voice=voice_path, speed=speed, model=self._model)
+                pipeline(text, voice=voice_pack, speed=speed, model=self._model)
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
