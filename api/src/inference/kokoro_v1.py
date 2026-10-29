@@ -6,6 +6,7 @@ import threading
 from collections import OrderedDict
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
+import aiofiles.os
 import numpy as np
 import torch
 from kokoro import KModel, KPipeline
@@ -173,7 +174,7 @@ class KokoroV1(BaseModelBackend):
             model_path = await paths.get_model_path(path)
             config_path = os.path.join(os.path.dirname(model_path), "config.json")
 
-            if not os.path.exists(config_path):
+            if not await aiofiles.os.path.exists(config_path):
                 raise RuntimeError(f"Config file not found: {config_path}")
 
             logger.info(f"Loading Kokoro model on {self._device}")

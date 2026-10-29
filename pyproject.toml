@@ -77,6 +77,9 @@ test = [
 #   docker compose -f docker/docker-compose.test.yml up --build \
 #       --abort-on-container-exit --exit-code-from test-client
 
+[dependency-groups]
+lint = ["ruff==0.17.3"]
+
 [tool.uv]
 conflicts = [
     [
