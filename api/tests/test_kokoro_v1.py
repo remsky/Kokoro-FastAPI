@@ -69,6 +69,156 @@ async def test_generate_clears_mps_memory_over_threshold(method, kokoro_backend)
     mock_clear.assert_called_once()
 
 
+async def test_generation_does_not_block_event_loop(kokoro_backend):
+    """Model calls run in a worker thread, so other requests and /health keep being served."""
+    import asyncio
+    import time
+
+    kokoro_backend._model = MagicMock()
+
+    def slow_pipeline(*args, **kwargs):
+        for _ in range(3):
+            time.sleep(0.1)
+            yield SimpleNamespace(audio=torch.zeros(4), tokens=None, phonemes=None)
+
+    ticks = 0
+
+    async def ticker():
+        nonlocal ticks
+        while True:
+            await asyncio.sleep(0.01)
+            ticks += 1
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch(
+            "api.src.inference.kokoro_v1.KPipeline",
+            return_value=MagicMock(side_effect=slow_pipeline),
+        ),
+    ):
+        task = asyncio.create_task(ticker())
+        chunks = [c async for c in kokoro_backend.generate("test", "af_voice")]
+        task.cancel()
+    assert len(chunks) == 3
+    assert ticks > 10
+
+
+async def test_concurrent_generations_take_turns_on_the_model(kokoro_backend):
+    import asyncio
+    import threading
+    import time
+
+    kokoro_backend._model = MagicMock()
+    active = 0
+    peak = 0
+    guard = threading.Lock()
+
+    def pipeline(*args, **kwargs):
+        nonlocal active, peak
+        for _ in range(3):
+            with guard:
+                active += 1
+                peak = max(peak, active)
+            time.sleep(0.02)
+            with guard:
+                active -= 1
+            yield SimpleNamespace(audio=torch.zeros(4), tokens=None, phonemes=None)
+
+    async def run():
+        return [c async for c in kokoro_backend.generate("test", "af_voice")]
+
+    with (
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch(
+            "api.src.inference.kokoro_v1.KPipeline",
+            return_value=MagicMock(side_effect=pipeline),
+        ),
+    ):
+        results = await asyncio.gather(run(), run(), run())
+    assert [len(r) for r in results] == [3, 3, 3]
+    assert peak == 1
+
+
+def _oom_backend(kokoro_backend, outcomes):
+    """Pipeline whose calls play out outcomes in order: an exception is raised, a list is iterated."""
+    kokoro_backend._model = MagicMock()
+
+    def run(*args, **kwargs):
+        outcome = outcomes.pop(0)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return iter(outcome)
+
+    mock_pipeline = MagicMock(side_effect=run)
+    mock_pipeline.generate_from_tokens.side_effect = run
+    return mock_pipeline
+
+
+def _audio_result():
+    return SimpleNamespace(audio=torch.zeros(4), tokens=None, phonemes=None)
+
+
+@pytest.mark.parametrize("method", ["generate", "generate_from_tokens"])
+async def test_oom_retries_once_then_raises(method, kokoro_backend):
+    outcomes = [RuntimeError("CUDA out of memory")] * 3
+    mock_pipeline = _oom_backend(kokoro_backend, outcomes)
+    with (
+        patch.object(kokoro_backend, "_device", "cuda"),
+        patch.object(kokoro_backend, "_check_memory", return_value=False),
+        patch.object(kokoro_backend, "_clear_memory") as mock_clear,
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline),
+    ):
+        with pytest.raises(RuntimeError, match="out of memory"):
+            async for _ in getattr(kokoro_backend, method)("test", "af_voice"):
+                pass
+    assert len(outcomes) == 1
+    mock_clear.assert_called_once()
+
+
+@pytest.mark.parametrize("method", ["generate", "generate_from_tokens"])
+async def test_oom_retry_success_does_not_raise(method, kokoro_backend):
+    outcomes = [RuntimeError("CUDA out of memory"), [_audio_result()]]
+    mock_pipeline = _oom_backend(kokoro_backend, outcomes)
+    with (
+        patch.object(kokoro_backend, "_device", "cuda"),
+        patch.object(kokoro_backend, "_check_memory", return_value=False),
+        patch.object(kokoro_backend, "_clear_memory"),
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline),
+    ):
+        chunks = [c async for c in getattr(kokoro_backend, method)("test", "af_voice")]
+    assert len(chunks) == 1
+
+
+async def test_oom_after_audio_is_not_retried(kokoro_backend):
+    def run(*args, **kwargs):
+        yield _audio_result()
+        raise RuntimeError("CUDA out of memory")
+
+    kokoro_backend._model = MagicMock()
+    mock_pipeline = MagicMock(side_effect=run)
+    with (
+        patch.object(kokoro_backend, "_device", "cuda"),
+        patch.object(kokoro_backend, "_check_memory", return_value=False),
+        patch.object(kokoro_backend, "_clear_memory") as mock_clear,
+        patch("api.src.core.paths.load_voice_tensor", return_value=torch.ones(1)),
+        patch("api.src.core.paths.save_voice_tensor"),
+        patch("api.src.inference.kokoro_v1.KPipeline", return_value=mock_pipeline),
+    ):
+        chunks = []
+        with pytest.raises(RuntimeError, match="out of memory"):
+            async for chunk in kokoro_backend.generate("test", "af_voice"):
+                chunks.append(chunk)
+    assert len(chunks) == 1
+    assert mock_pipeline.call_count == 1
+    mock_clear.assert_not_called()
+
+
 @patch("torch.cuda.empty_cache")
 @patch("torch.cuda.synchronize")
 def test_clear_memory(mock_sync, mock_clear, kokoro_backend):
