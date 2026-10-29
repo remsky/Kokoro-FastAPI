@@ -6,6 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Fixed
+- The server stays responsive while it generates speech: `/health`, voice listings and other requests are answered between model calls instead of waiting for a long generation to finish. Generation itself still runs one model call at a time
 - After an idle unload, a request arriving while the model reloads waits for it instead of starting on a half-loaded model, and a failed load is retried on the next request instead of leaving a broken model in place
 - `/dev/unload` and `/dev/reload` return 409 while speech is generating, instead of pulling the model out from under that request
 - A sentence that fails to generate or encode now fails the request instead of being left out of an otherwise successful response. Non-streaming requests get an error; a stream is cut off rather than finished, and its download link file is removed instead of being kept with the sentence missing
