@@ -798,8 +798,8 @@ System state and resource usage, for debugging exhaustion or performance issues.
 - `/debug/storage` - Disk usage per mounted partition
 - `/debug/system` - Get system information (CPU, memory, GPU)
 - `/dev/model` - Get model load state and auto-unload timing. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
-- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
-- `POST /dev/reload` - Load the model into VRAM. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable
+- `POST /dev/unload` - Release model from VRAM; reloads lazily on next request. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable. Returns 409 while speech is generating
+- `POST /dev/reload` - Load the model into VRAM. Off by default; set `ALLOW_DEV_UNLOAD=true` to enable. Returns 409 while speech is generating
 
 Stability: the `/v1/*` OpenAI-compatible routes are the stable API. `/dev/*` and `/debug/*` are operational helpers, and may change or move behind flags between minor releases.
 </details>
