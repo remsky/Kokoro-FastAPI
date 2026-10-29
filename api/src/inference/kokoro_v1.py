@@ -228,6 +228,7 @@ class KokoroV1(BaseModelBackend):
         voice: Union[str, Tuple[str, Union[torch.Tensor, str]]],
         speed: float = 1.0,
         lang_code: Optional[str] = None,
+        _retry_oom: bool = True,
     ) -> AsyncGenerator[np.ndarray, None]:
         """Generate audio from phoneme tokens.
 
@@ -246,6 +247,7 @@ class KokoroV1(BaseModelBackend):
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
 
+        yielded = False
         try:
             # Memory management for GPU
             if self._device in ("cuda", "mps"):
@@ -304,22 +306,27 @@ class KokoroV1(BaseModelBackend):
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
+                    yielded = True
                     yield result.audio.numpy()
                 else:
                     logger.warning("No audio in chunk")
 
         except Exception as e:
             logger.error(f"Generation failed: {e}")
+            # Retry once, and only before any audio went out, so a chunk is never repeated
             if (
-                self._device == "cuda"
+                _retry_oom
+                and not yielded
+                and self._device == "cuda"
                 and model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
                 async for chunk in self.generate_from_tokens(
-                    tokens, voice, speed, lang_code
+                    tokens, voice, speed, lang_code, _retry_oom=False
                 ):
                     yield chunk
+                return
             raise
 
     async def generate(
@@ -329,6 +336,7 @@ class KokoroV1(BaseModelBackend):
         speed: float = 1.0,
         lang_code: Optional[str] = None,
         return_timestamps: Optional[bool] = False,
+        _retry_oom: bool = True,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate audio using model.
 
@@ -346,6 +354,7 @@ class KokoroV1(BaseModelBackend):
         """
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
+        yielded = False
         try:
             # Memory management for GPU
             if self._device in ("cuda", "mps"):
@@ -473,6 +482,7 @@ class KokoroV1(BaseModelBackend):
                             g2p=getattr(pipeline, "g2p", None),
                         )
 
+                    yielded = True
                     yield AudioChunk(
                         result.audio.numpy(), word_timestamps=word_timestamps
                     )
@@ -482,13 +492,18 @@ class KokoroV1(BaseModelBackend):
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             if (
-                self._device == "cuda"
+                _retry_oom
+                and not yielded
+                and self._device == "cuda"
                 and model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
-                async for chunk in self.generate(text, voice, speed, lang_code):
+                async for chunk in self.generate(
+                    text, voice, speed, lang_code, return_timestamps, _retry_oom=False
+                ):
                     yield chunk
+                return
             raise
 
     def _check_memory(self) -> bool:
