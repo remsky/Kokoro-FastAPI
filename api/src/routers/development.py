@@ -65,14 +65,10 @@ async def phonemize_text(request: PhonemeRequest) -> PhonemeResponse:
             lang_code=request.language, repo_id=settings.model_repo_id, model=False
         )
 
-        # Get first result from pipeline (we only need one since we're not chunking)
-        for result in pipeline(request.text):
-            # result.graphemes = original text
-            # result.phonemes = phonemized text
-            # result.tokens = token objects (if available)
-            return PhonemeResponse(phonemes=result.phonemes, tokens=[])
-
-        raise ValueError("Failed to generate phonemes")
+        phonemes = [result.phonemes for result in pipeline(request.text)]
+        if not phonemes:
+            raise ValueError("Failed to generate phonemes")
+        return PhonemeResponse(phonemes=" ".join(phonemes), tokens=[])
     except ValueError as e:
         logger.warning(f"Invalid phoneme request: {str(e)}")
         raise HTTPException(
@@ -103,6 +99,7 @@ async def generate_from_phonemes(
             raise ValueError("Phonemes must be a string")
         if not request.phonemes:
             raise ValueError("Phonemes cannot be empty")
+        voice = await process_and_validate_voices(request.voice, tts_service)
 
         # Create streaming audio writer and normalizer
         writer = StreamingAudioWriter(format="wav", sample_rate=24000, channels=1)
@@ -113,7 +110,7 @@ async def generate_from_phonemes(
                 # Generate audio from phonemes
                 chunk_audio, _ = await tts_service.generate_from_phonemes(
                     phonemes=request.phonemes,  # Pass complete phoneme string
-                    voice=request.voice,
+                    voice=voice,
                     speed=1.0,
                 )
 
