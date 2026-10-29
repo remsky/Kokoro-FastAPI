@@ -616,3 +616,25 @@ async def test_generate_audio_with_nothing_speakable_raises():
             MagicMock(),
             allow_voice_tags=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_failed_chunk_raises_instead_of_dropping_speech():
+    """A chunk that fails to generate must fail the request, not vanish from a 200."""
+    model_manager = AsyncMock()
+    model_manager.get_backend = MagicMock()
+    model_manager.generate.side_effect = RuntimeError("model failed")
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = AsyncMock()
+        service = await TTSService.create()
+    service.get_voices_path = AsyncMock(return_value=("af_heart", "/p/af_heart.pt"))
+
+    with pytest.raises(RuntimeError, match="model failed"):
+        async for _ in service.generate_audio_stream(
+            "Hello there.", "af_heart", MagicMock(), output_format=None
+        ):
+            pass
