@@ -47,6 +47,16 @@ def voices_dir() -> str:
     return os.path.join(_API_DIR, settings.voices_dir)
 
 
+def _resolve_within(search_path: str, filename: str) -> Optional[str]:
+    root = os.path.realpath(search_path)
+    prefix = root if root.endswith(os.sep) else root + os.sep
+    candidate = os.path.normpath(os.path.join(root, filename))
+    if not candidate.startswith(prefix):
+        logger.warning(f"Rejected path outside {root}: {filename}")
+        return None
+    return os.path.realpath(candidate)
+
+
 async def _find_file(
     filename: str,
     search_paths: List[str],
@@ -66,14 +76,8 @@ async def _find_file(
         FileNotFoundError: If no readable file is found inside a search path
     """
     for path in search_paths:
-        root = os.path.realpath(path)
-        prefix = root if root.endswith(os.sep) else root + os.sep
-        candidate = os.path.normpath(os.path.join(root, filename))
-        if not candidate.startswith(prefix):
-            logger.warning(f"Rejected path outside {root}: {filename}")
-            continue
-        full_path = os.path.realpath(candidate)
-        if await aiofiles.os.path.isfile(full_path):
+        full_path = _resolve_within(path, filename)
+        if full_path and await aiofiles.os.path.isfile(full_path):
             if filter_fn is None or filter_fn(full_path):
                 return full_path
 

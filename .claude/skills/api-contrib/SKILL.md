@@ -30,4 +30,4 @@ Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING
 - `uv run pytest` runs `api/tests/` with coverage; integration tests are excluded (`-m integration` to opt in, needs a running server).
 - `asyncio_mode = auto` in pytest.ini, no `@pytest.mark.asyncio` needed. Hypothesis profiles in `api/tests/conftest.py`: `dev` 300 random examples, `ci` 500 derandomized, picked by the `CI` env var.
 - Tests mock the model; no GPU needed. If a change is only verifiable on CUDA/ROCm hardware you don't have, say so in the PR.
-- `ruff format .` and `ruff check . --fix` before staging.
+- `uv run --only-group lint ruff format .` and `uv run --only-group lint ruff check . --fix` before staging.
