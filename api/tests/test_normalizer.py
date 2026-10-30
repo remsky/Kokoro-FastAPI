@@ -205,6 +205,9 @@ CASES = [
     ("He said “hi” and ‘bye’", "He said \"hi\" and 'bye'"),
     ("Tab\there and   spaces", "Tab here and spaces"),
     ("Line one\n\nLine two", "Line one Line two"),
+    # issue #561
+    ("a hull is…um…unsettling", "a hull is… um… unsettling"),
+    ("the answer is…wait for it…yes!", "the answer is… wait for it… yes!"),
     # issue #249
     ("What key--the key", "What key — the key"),
     ("The Marbles. --- In", "The Marbles. — In"),

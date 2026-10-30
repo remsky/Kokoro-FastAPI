@@ -11,6 +11,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Fixed
 - `1,5s` reads as `one point five seconds` instead of `fifteen seconds` (#558, #559)
+- Short words around an unspaced ellipsis are read as words instead of spelled out (`is…um…` no longer reads as `I S U M`) (#561)
 - `/health`, voice listings etc stay responsive during long generations (generation itself is still one at a time) (#566)
 - Requests during idle-unload/reload wait for the model and failed loads retry on the next request (#572)
 - A sentence that fails to generate/encode fails the request instead of going silently missing, cleans up orphan files and stream (#571)
