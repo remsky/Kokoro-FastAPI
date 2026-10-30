@@ -22,7 +22,7 @@ from ..inference.model_manager import (
 )
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
-from .audio import AudioNormalizer, AudioService
+from .audio import AudioNormalizer, AudioService, time_stretch
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing.text_processor import (
     check_pause_budget,
@@ -58,6 +58,18 @@ class TTSService:
         service.model_manager = await get_model_manager()
         service._voice_manager = await get_voice_manager()
         return service
+
+    @staticmethod
+    async def _stretch_chunk(chunk_data: AudioChunk, speed: float) -> AudioChunk:
+        if speed == 1.0:
+            return chunk_data
+        chunk_data.audio = await asyncio.to_thread(
+            time_stretch, chunk_data.audio, speed
+        )
+        for timestamp in chunk_data.word_timestamps or []:
+            timestamp.start_time /= speed
+            timestamp.end_time /= speed
+        return chunk_data
 
     async def _process_chunk(
         self,
@@ -104,6 +116,9 @@ class TTSService:
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
+            stretch = settings.speed_mode == "stretch"
+            model_speed = 1.0 if stretch else speed
+
             # Generate audio using pre-warmed model
             if isinstance(backend, KokoroV1):
                 chunk_index = 0
@@ -111,10 +126,12 @@ class TTSService:
                 async for chunk_data in self.model_manager.generate(
                     chunk_text,
                     (voice_name, voice_path),
-                    speed=speed,
+                    speed=model_speed,
                     lang_code=lang_code,
                     return_timestamps=return_timestamps,
                 ):
+                    if stretch:
+                        chunk_data = await self._stretch_chunk(chunk_data, speed)
                     chunk_data.audio *= volume_multiplier
                     # For streaming, convert to bytes
                     if output_format:
@@ -142,7 +159,7 @@ class TTSService:
                 chunk_data = await self.model_manager.generate(
                     tokens,
                     voice_tensor,
-                    speed=speed,
+                    speed=model_speed,
                     return_timestamps=return_timestamps,
                 )
 
@@ -154,6 +171,8 @@ class TTSService:
                     logger.error("Model generated empty audio chunk")
                     return
 
+                if stretch:
+                    chunk_data = await self._stretch_chunk(chunk_data, speed)
                 chunk_data.audio *= volume_multiplier
 
                 # For streaming, convert to bytes
@@ -357,6 +376,8 @@ class TTSService:
             ):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
+                    if settings.speed_mode == "stretch":
+                        pause_duration_s /= clamp_rate(speed * segment_rate)
                     try:
                         logger.debug(f"Generating {pause_duration_s}s silence chunk")
                         silence_samples = int(

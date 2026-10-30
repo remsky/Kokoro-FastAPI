@@ -3,6 +3,7 @@ from importlib.metadata import (
     version as _pkg_version,
 )
 from pathlib import Path
+from typing import Literal
 
 from dotenv import dotenv_values
 from pydantic_settings import BaseSettings
@@ -62,6 +63,9 @@ class Settings(BaseSettings):
 
     # Audio Settings
     default_volume_multiplier: float = 1.0
+    speed_mode: Literal["model", "stretch"] = (
+        "model"  # model: Kokoro paces the speech. stretch: generate at 1.0x, then time-stretch with ffmpeg atempo
+    )
     # Text Processing Settings
     target_min_tokens: int = 175  # Target minimum tokens per chunk
     target_max_tokens: int = 250  # Target maximum tokens per chunk

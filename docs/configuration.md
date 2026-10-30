@@ -131,6 +131,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | Variable | Default | |
 |---|---|---|
 | `DEFAULT_VOLUME_MULTIPLIER` | `1.0` | Global gain applied to generated audio |
+| `SPEED_MODE` | `model` | How `speed` is applied. `model` has Kokoro pace the speech itself, `stretch` generates at 1.0x and time-stretches with ffmpeg `atempo` (pitch kept), which avoids slurred or skipped words at high and low speeds. `stretch` also scales `[pause:]` and SSML `<break>` lengths by the speed |
 | `GAP_TRIM_MS` | `1` | Base trim from each streaming chunk end |
 | `DYNAMIC_GAP_TRIM_PADDING_MS` | `410` | Padding added back for dynamic gap trim |
 | `DYNAMIC_GAP_TRIM_PADDING_CHAR_MULTIPLIER` | `{".": 1, "!": 0.9, "?": 1, ",": 0.8}` | Per-punctuation scaling of that padding, dict-valued so set it in `.env` rather than a shell |

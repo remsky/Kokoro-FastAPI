@@ -1,13 +1,16 @@
+import io
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import av
 import numpy as np
 import pytest
 import torch
 
 from api.src.inference.base import AudioChunk
 from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.services.streaming_audio_writer import StreamingAudioWriter
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -660,3 +663,122 @@ async def test_failed_chunk_raises_instead_of_dropping_speech():
             "Hello there.", "af_heart", MagicMock(), output_format=None
         ):
             pass
+
+
+async def _tone_service():
+    """A service on a KokoroV1 backend whose model yields 1s of 220Hz tone and records the speed it was asked for."""
+    model_manager = AsyncMock()
+    model_manager.get_backend = MagicMock(return_value=MagicMock(spec=KokoroV1))
+    model_speeds = []
+
+    async def generate(text, voice, speed, **kwargs):
+        model_speeds.append(speed)
+        t = np.arange(24000) / 24000
+        yield AudioChunk(
+            (0.5 * np.sin(2 * np.pi * 220 * t)).astype(np.float32),
+            word_timestamps=[WordTimestamp(word="tone", start_time=0.2, end_time=0.8)],
+        )
+
+    model_manager.generate = generate
+    with (
+        patch("api.src.services.tts_service.get_model_manager") as mock_get_model,
+        patch("api.src.services.tts_service.get_voice_manager") as mock_get_voice,
+    ):
+        mock_get_model.return_value = model_manager
+        mock_get_voice.return_value = AsyncMock()
+        service = await TTSService.create()
+    service.get_voices_path = AsyncMock(return_value=("af_heart", "/p/af_heart.pt"))
+    return service, model_speeds
+
+
+async def _tone_chunks(service, speed):
+    return [
+        chunk
+        async for chunk in service._process_chunk(
+            "Tone.",
+            [],
+            "af_heart",
+            "/p/af_heart.pt",
+            speed,
+            MagicMock(),
+            output_format=None,
+            return_timestamps=True,
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_stretch_mode_generates_at_1x_then_stretches(monkeypatch):
+    """The model paces at 1.0x and atempo applies the request speed, timestamps included (issue #551)"""
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+    service, model_speeds = await _tone_service()
+
+    (chunk,) = await _tone_chunks(service, 2.0)
+
+    assert model_speeds == [1.0]
+    assert len(chunk.audio) == pytest.approx(12000, abs=100)
+    (stamp,) = chunk.word_timestamps
+    assert (stamp.start_time, stamp.end_time) == pytest.approx((0.1, 0.4), abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_model_mode_passes_speed_to_the_model(monkeypatch):
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "model")
+    service, model_speeds = await _tone_service()
+
+    (chunk,) = await _tone_chunks(service, 2.0)
+
+    assert model_speeds == [2.0]
+    assert len(chunk.audio) == pytest.approx(24000, abs=100)
+
+
+@pytest.mark.parametrize(
+    ("speed_mode", "pause_end"), [("model", 1.1), ("stretch", 0.6)]
+)
+@pytest.mark.asyncio
+async def test_pauses_follow_speed_only_in_stretch_mode(
+    monkeypatch, speed_mode, pause_end
+):
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", speed_mode)
+    service = await _stubbed_service()
+
+    timings = []
+    async for _ in service.generate_audio_stream(
+        "One. [pause:1s] Two.",
+        "af_heart",
+        MagicMock(),
+        speed=2.0,
+        output_format=None,
+        timings=timings,
+    ):
+        pass
+
+    assert [(t["text"].strip(), t["start"], t["end"]) for t in timings][1] == (
+        "",
+        0.1,
+        pause_end,
+    )
+
+
+@pytest.mark.asyncio
+async def test_stretched_mp3_stream_finalizes_at_the_new_length(monkeypatch):
+    """Stretching per chunk must survive encode and finalize, not just raw output"""
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+
+    async def decoded_samples(speed):
+        service, _ = await _tone_service()
+        writer = StreamingAudioWriter("mp3", sample_rate=24000)
+        blob = b"".join(
+            [
+                chunk.output
+                async for chunk in service.generate_audio_stream(
+                    "Tone.", "af_heart", writer, speed=speed, output_format="mp3"
+                )
+            ]
+        )
+        with av.open(io.BytesIO(blob)) as container:
+            return sum(f.samples for f in container.decode(audio=0))
+
+    assert await decoded_samples(1.0) - await decoded_samples(2.0) == pytest.approx(
+        12000, abs=600
+    )
