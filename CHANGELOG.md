@@ -21,6 +21,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Saved downloads now expire `max_temp_dir_age_hours` after they were written. Age used to be counted up to the previous download rather than the current time, so after a quiet spell older files were kept
 - Numbers with a decimal comma before a unit, such as `1,5s`, are read as `one point five seconds` instead of `fifteen seconds`
 - Voice mixes no longer leave files in the temp directory and memory on every distinct combination. Mixed packs are kept under `kokoro_voice_mixes/` in the temp dir, capped at the 64 most recent, voice tensors are cached for the 64 most recently used voices, and the per-voice `temp_voice_*.pt` copies are gone
+- The disabled Tune tab in the web player now names the setting that enables it (`ENABLE_INNO_TUNER=true`)
 
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
