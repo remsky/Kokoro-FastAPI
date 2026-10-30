@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     max_total_pause_s: float = 300.0  # Total silence one request may ask for
     max_input_length: int = 1_000_000  # Characters of text one request may submit
     max_request_body_mb: int = (
-        32  # Bytes one request body may carry, refused with 413 before parsing
+        32  # MB one request body may carry, refused with 413 before parsing
     )
     advanced_text_normalization: bool = True  # Preproesses the text before misiki
     voice_weight_normalization: bool = (
