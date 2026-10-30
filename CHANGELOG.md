@@ -6,7 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
-- `API_KEYS`: set a JSON list of keys and the API routes require `Authorization: Bearer <key>`, as OpenAI clients send it. `/health` and the web player's files stay open. Off by default (#373)
+- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
 
 ### Changed

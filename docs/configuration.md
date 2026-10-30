@@ -148,7 +148,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 | Variable | Default | |
 |---|---|---|
-| `API_KEYS` | `[]` | JSON list of accepted keys, e.g. `["key-one","key-two"]`. When set, `/v1/*`, `/dev/*` and `/debug/*` answer 401 unless the request carries `Authorization: Bearer <key>` (OpenAI clients send their API key this way). `/health`, the docs and the web player's files stay open; the web player does not send a key, so with keys set it needs a proxy that adds the header |
+| `API_KEYS` | `[]` | JSON list of accepted keys, e.g. `["key-one","key-two"]`. When set, `/v1/*`, `/dev/*` and `/debug/*` and the ElevenLabs/Cartesia websocket routes answer 401 unless the request carries `Authorization: Bearer <key>` (OpenAI clients), `xi-api-key: <key>` (ElevenLabs clients) or `X-API-Key: <key>` (Cartesia clients). `/health`, the docs and the web player's files stay open; the web player does not send a key, so with keys set it needs a proxy that adds the header |
 
 **Temp files**
 

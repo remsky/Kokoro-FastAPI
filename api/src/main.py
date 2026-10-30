@@ -13,8 +13,8 @@ import torch
 import uvicorn
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from loguru import logger
+from starlette.requests import HTTPConnection
 
 from .core.body_limit import BodySizeLimitMiddleware
 from .core.config import settings, unrecognized_env_file_keys
@@ -170,19 +170,24 @@ if settings.cors_enabled:
         allow_headers=["*"],
     )
 
-# Include routers
-_bearer = HTTPBearer(auto_error=False)
 
+async def require_api_key(conn: HTTPConnection) -> None:
+    """401 unless API_KEYS is empty or the request carries one of them.
 
-async def require_api_key(
-    credentials: HTTPAuthorizationCredentials | None = Depends(_bearer),
-) -> None:
-    """401 unless API_KEYS is empty or the request carries one of them as a bearer token"""
+    Bearer token (OpenAI clients), xi-api-key (ElevenLabs), X-API-Key (Cartesia).
+    """
     if not settings.api_keys:
         return
-    token = credentials.credentials.encode() if credentials else b""
+    scheme, _, bearer = conn.headers.get("authorization", "").partition(" ")
+    offered = [
+        bearer if scheme.lower() == "bearer" else "",
+        conn.headers.get("xi-api-key", ""),
+        conn.headers.get("x-api-key", ""),
+    ]
     if not any(
-        secrets.compare_digest(token, key.encode()) for key in settings.api_keys
+        secrets.compare_digest(token.encode(), key.encode())
+        for token in offered
+        for key in settings.api_keys
     ):
         raise HTTPException(
             status_code=401,
@@ -195,6 +200,7 @@ async def require_api_key(
         )
 
 
+# Include routers
 protected = [Depends(require_api_key)]
 app.include_router(openai_router, prefix="/v1", dependencies=protected)
 app.include_router(dev_router, dependencies=protected)  # Development endpoints
@@ -205,8 +211,12 @@ app.include_router(tune_router, dependencies=protected)  # /dev/tune, 403 unless
 app.include_router(
     debug_router, dependencies=protected
 )  # Debug endpoints (403 unless enabled)
-app.include_router(elevenlabs_router)  # ElevenLabs compatible websocket TTS
-app.include_router(cartesia_router)  # Cartesia compatible websocket TTS
+app.include_router(
+    elevenlabs_router, dependencies=protected
+)  # ElevenLabs compatible websocket TTS
+app.include_router(
+    cartesia_router, dependencies=protected
+)  # Cartesia compatible websocket TTS
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 
