@@ -5,6 +5,9 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392)
+
 ### Fixed
 - The server stays responsive while it generates speech: `/health`, voice listings and other requests are answered between model calls instead of waiting for a long generation to finish. Generation itself still runs one model call at a time
 - After an idle unload, a request arriving while the model reloads waits for it instead of starting on a half-loaded model, and a failed load is retried on the next request instead of leaving a broken model in place
