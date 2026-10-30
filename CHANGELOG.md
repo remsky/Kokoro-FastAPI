@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `MAX_REQUEST_BODY_MB` (default 32): request bodies over it get a 413 as soon as they pass the limit, instead of being read in full before validation
+- Web player voice list can be sorted A to Z instead of by grade, with the toggle in the voice search box. The choice is remembered (#542)
 
 ### Fixed
 - `/dev/phonemize`, `/dev/generate_from_phonemes` and `/dev/ssml` now respect `MAX_INPUT_LENGTH` like the speech endpoints
