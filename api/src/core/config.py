@@ -50,6 +50,9 @@ class Settings(BaseSettings):
         False  # Whether to expose /debug/* host and process introspection routes
     )
     enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
+    enable_websocket_tts: bool = (
+        True  # Kill switch for the ElevenLabs and Cartesia compatible websocket routes
+    )
     enable_ssml: bool = True  # Kill switch for SSML translation, the /dev/ssml routes and ssml=true on the speech endpoints 403 when off
 
     # Container absolute paths
@@ -69,6 +72,9 @@ class Settings(BaseSettings):
     max_pause_duration_s: float = 60.0
     max_total_pause_s: float = 300.0  # Total silence one request may ask for
     max_input_length: int = 1_000_000  # Characters of text one request may submit
+    max_request_body_mb: int = (
+        32  # MB one request body may carry, refused with 413 before parsing
+    )
     advanced_text_normalization: bool = True  # Preproesses the text before misiki
     voice_weight_normalization: bool = (
         True  # Normalize the voice weights so they add up to 1

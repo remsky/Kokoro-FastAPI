@@ -21,7 +21,7 @@
 
 .voice-search {
     width: 100%;
-    padding: 0.25rem;
+    padding: 0.25rem 1.75rem 0.25rem 0.25rem;
     border: 1px solid var(--border);
     border-radius: 0.25rem;
     background: rgba(15, 23, 42, 0.3);
@@ -38,6 +38,32 @@
 
 .voice-search::placeholder {
     color: var(--text-light);
+}
+
+.voice-sort {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-inline-size: 1.5rem;
+    padding: 0 0.2rem;
+    border: none;
+    background: none;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.voice-sort:hover {
+    color: var(--fg-color);
+}
+
+.voice-sort[data-sort="grade"] .sort-grade,
+.voice-sort[data-sort="name"] .sort-az {
+    display: none;
 }
 
 .selected-voices {

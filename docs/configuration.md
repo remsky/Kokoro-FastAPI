@@ -109,6 +109,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
 | `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be downloaded (`/v1/audio/voices/combine`) and tuned voices be saved into `VOICES_DIR` (`/dev/tune` `save_voice`) |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
+| `ENABLE_WEBSOCKET_TTS` | `true` | Kill switch for the ElevenLabs and Cartesia compatible websocket routes |
 
 **Text processing**
 
@@ -122,6 +123,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
 | `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
+| `MAX_REQUEST_BODY_MB` | `32` | Ceiling for a request body in MB, checked while it arrives so an oversized upload is refused with a 413 before it is parsed or spooled. Room for `MAX_INPUT_LENGTH` text in escaped JSON and a `/dev/tune` reference clip |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, per-request fields in [Text normalization](#text-normalization) |
 
 **Audio**
@@ -140,7 +142,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `ENABLE_WEB_PLAYER` | `true` | Serve the browser UI |
 | `WEB_PLAYER_PATH` | `web` | Static file root for it |
 | `CORS_ENABLED` | `true` | Send CORS headers |
-| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost |
+| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost. Also applies to browser connections on the websocket routes |
 
 **Access**
 

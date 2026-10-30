@@ -1,9 +1,12 @@
 """Clean Kokoro implementation with controlled resource management."""
 
+import asyncio
 import os
-import tempfile
+import threading
+from collections import OrderedDict
 from typing import AsyncGenerator, Dict, Optional, Tuple, Union
 
+import aiofiles.os
 import numpy as np
 import torch
 from kokoro import KModel, KPipeline
@@ -14,6 +17,9 @@ from ..core.config import settings
 from ..core.model_config import model_config
 from ..structures.schemas import WordTimestamp
 from .base import AudioChunk, BaseModelBackend
+
+# Distinct voices and mixes held in memory; each is about half a megabyte
+VOICE_CACHE_SIZE = 64
 
 _ESPEAK_TS_SCALE = (
     2.0 / 80.0
@@ -111,7 +117,22 @@ class KokoroV1(BaseModelBackend):
         self._device = settings.get_device()
         self._model: Optional[KModel] = None
         self._pipelines: Dict[str, KPipeline] = {}  # Store pipelines by lang_code
-        self._voice_cache: Dict[str, torch.Tensor] = {}  # Cache voice tensors by path
+        self._voice_cache: OrderedDict[str, torch.Tensor] = (
+            OrderedDict()
+        )  # LRU of voice tensors by path
+        self._inference_lock = threading.Lock()  # one model call at a time
+
+    def _next_locked(self, results, done):
+        with self._inference_lock:
+            return next(results, done)
+
+    async def _iterate_off_loop(self, results):
+        """Step a pipeline generator in a worker thread so the event loop keeps serving."""
+        done = object()
+        while (
+            result := await asyncio.to_thread(self._next_locked, results, done)
+        ) is not done:
+            yield result
 
     async def _get_voice_tensor(self, voice_path: str) -> torch.Tensor:
         """Load voice tensor with in-memory caching to avoid repeated file I/O.
@@ -123,24 +144,21 @@ class KokoroV1(BaseModelBackend):
             Voice tensor on the target device
         """
         cache_key = f"{voice_path}:{self._device}"
-        if cache_key not in self._voice_cache:
+        if cache_key in self._voice_cache:
+            self._voice_cache.move_to_end(cache_key)
+        else:
             self._voice_cache[cache_key] = await paths.load_voice_tensor(
                 voice_path, device=self._device
             )
             logger.debug(f"Cached voice tensor from {voice_path}")
+            while len(self._voice_cache) > VOICE_CACHE_SIZE:
+                self._voice_cache.popitem(last=False)
         return self._voice_cache[cache_key]
 
     def forget_voice(self, voice_path: str) -> None:
-        """Drop a pack's cached tensor and the temp copy generate() wrote for the pipeline."""
+        """Drop a pack's cached tensor."""
         for key in [k for k in self._voice_cache if k.startswith(f"{voice_path}:")]:
             del self._voice_cache[key]
-        temp_copy = os.path.join(
-            tempfile.gettempdir(), f"temp_voice_{os.path.basename(voice_path)}"
-        )
-        for pipeline in self._pipelines.values():
-            pipeline.voices.pop(temp_copy, None)
-        if os.path.exists(temp_copy):
-            os.remove(temp_copy)
 
     async def load_model(self, path: str) -> None:
         """Load pre-baked model.
@@ -156,7 +174,7 @@ class KokoroV1(BaseModelBackend):
             model_path = await paths.get_model_path(path)
             config_path = os.path.join(os.path.dirname(model_path), "config.json")
 
-            if not os.path.exists(config_path):
+            if not await aiofiles.os.path.exists(config_path):
                 raise RuntimeError(f"Config file not found: {config_path}")
 
             logger.info(f"Loading Kokoro model on {self._device}")
@@ -213,6 +231,7 @@ class KokoroV1(BaseModelBackend):
         voice: Union[str, Tuple[str, Union[torch.Tensor, str]]],
         speed: float = 1.0,
         lang_code: Optional[str] = None,
+        _retry_oom: bool = True,
     ) -> AsyncGenerator[np.ndarray, None]:
         """Generate audio from phoneme tokens.
 
@@ -231,6 +250,7 @@ class KokoroV1(BaseModelBackend):
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
 
+        yielded = False
         try:
             # Memory management for GPU
             if self._device in ("cuda", "mps"):
@@ -258,16 +278,9 @@ class KokoroV1(BaseModelBackend):
 
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
-            # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
-            if not os.path.exists(temp_path):
-                await paths.save_voice_tensor(voice_tensor, temp_path)
-            voice_path = temp_path
+            # KPipeline uses a tensor as-is only when it is a CPU FloatTensor; a path
+            # would be cached in pipeline.voices for the life of the process
+            voice_pack = voice_tensor.cpu()
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
             if lang_code:  # api is given priority
@@ -282,27 +295,34 @@ class KokoroV1(BaseModelBackend):
             logger.debug(
                 f"Generating audio from tokens with lang_code '{pipeline_lang_code}': '{tokens[:100]}{'...' if len(tokens) > 100 else ''}'"
             )
-            for result in pipeline.generate_from_tokens(
-                tokens=tokens, voice=voice_path, speed=speed, model=self._model
+            async for result in self._iterate_off_loop(
+                pipeline.generate_from_tokens(
+                    tokens=tokens, voice=voice_pack, speed=speed, model=self._model
+                )
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
+                    yielded = True
                     yield result.audio.numpy()
                 else:
                     logger.warning("No audio in chunk")
 
         except Exception as e:
             logger.error(f"Generation failed: {e}")
+            # Retry once, and only before any audio went out, so a chunk is never repeated
             if (
-                self._device == "cuda"
+                _retry_oom
+                and not yielded
+                and self._device == "cuda"
                 and model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
                 async for chunk in self.generate_from_tokens(
-                    tokens, voice, speed, lang_code
+                    tokens, voice, speed, lang_code, _retry_oom=False
                 ):
                     yield chunk
+                return
             raise
 
     async def generate(
@@ -312,6 +332,7 @@ class KokoroV1(BaseModelBackend):
         speed: float = 1.0,
         lang_code: Optional[str] = None,
         return_timestamps: Optional[bool] = False,
+        _retry_oom: bool = True,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate audio using model.
 
@@ -329,6 +350,7 @@ class KokoroV1(BaseModelBackend):
         """
         if not self.is_loaded:
             raise RuntimeError("Model not loaded")
+        yielded = False
         try:
             # Memory management for GPU
             if self._device in ("cuda", "mps"):
@@ -356,16 +378,9 @@ class KokoroV1(BaseModelBackend):
 
             # Load voice tensor with caching to avoid repeated file I/O
             voice_tensor = await self._get_voice_tensor(voice_path)
-            # Save to temp file only if needed (pipeline requires a file path)
-            import tempfile
-
-            temp_dir = tempfile.gettempdir()
-            temp_path = os.path.join(
-                temp_dir, f"temp_voice_{os.path.basename(voice_path)}"
-            )
-            if not os.path.exists(temp_path):
-                await paths.save_voice_tensor(voice_tensor, temp_path)
-            voice_path = temp_path
+            # KPipeline uses a tensor as-is only when it is a CPU FloatTensor; a path
+            # would be cached in pipeline.voices for the life of the process
+            voice_pack = voice_tensor.cpu()
 
             # Use provided lang_code, settings voice code override, or first letter of voice name
             pipeline_lang_code = (
@@ -382,8 +397,8 @@ class KokoroV1(BaseModelBackend):
             logger.debug(
                 f"Generating audio for text with lang_code '{pipeline_lang_code}': '{text[:100]}{'...' if len(text) > 100 else ''}'"
             )
-            for result in pipeline(
-                text, voice=voice_path, speed=speed, model=self._model
+            async for result in self._iterate_off_loop(
+                pipeline(text, voice=voice_pack, speed=speed, model=self._model)
             ):
                 if result.audio is not None:
                     logger.debug(f"Got audio chunk with shape: {result.audio.shape}")
@@ -456,6 +471,7 @@ class KokoroV1(BaseModelBackend):
                             g2p=getattr(pipeline, "g2p", None),
                         )
 
+                    yielded = True
                     yield AudioChunk(
                         result.audio.numpy(), word_timestamps=word_timestamps
                     )
@@ -465,13 +481,18 @@ class KokoroV1(BaseModelBackend):
         except Exception as e:
             logger.error(f"Generation failed: {e}")
             if (
-                self._device == "cuda"
+                _retry_oom
+                and not yielded
+                and self._device == "cuda"
                 and model_config.pytorch_gpu.retry_on_oom
                 and "out of memory" in str(e).lower()
             ):
                 self._clear_memory()
-                async for chunk in self.generate(text, voice, speed, lang_code):
+                async for chunk in self.generate(
+                    text, voice, speed, lang_code, return_timestamps, _retry_oom=False
+                ):
                     yield chunk
+                return
             raise
 
     def _check_memory(self) -> bool:
