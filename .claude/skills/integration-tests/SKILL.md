@@ -19,13 +19,17 @@ Unit tests (no server needed):
 
 Integration tests use the prebuilt test-client image with Whisper baked in. Mount the test directory and point at the running server:
 
-    docker run --rm --network host       -v "$PWD/api/tests/integration:/tests/integration:ro"       -e KOKORO_BASE_URL=http://localhost:8880       -e WHISPER_MODEL=/opt/whisper/small       ghcr.io/remsky/tts-api-test-client:latest
+    docker run --rm --network host \
+      -v "$PWD/api/tests/integration:/tests/integration:ro" \
+      -e KOKORO_BASE_URL=http://localhost:8880 \
+      -e WHISPER_MODEL=/opt/whisper/small \
+      ghcr.io/remsky/tts-api-test-client:latest
 
 `--network host` is Linux only. On Docker Desktop drop it, use `-e KOKORO_BASE_URL=http://host.docker.internal:8880`, and mount with an absolute `C:/...` path. Restart a hot-mounted server container first, the Python process only loads code at start.
 
 Or the full compose stack (builds a CPU server + test-client, self-contained):
 
-    docker compose -f docker/docker-compose.test.yml up --build ^
+    docker compose -f docker/docker-compose.test.yml up --build \
       --abort-on-container-exit --exit-code-from test-client
 
 ## What runs

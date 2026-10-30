@@ -39,7 +39,7 @@ Before submitting changes, please ensure all tests pass as this is a automated r
 # Make sure your virtual environment is activated
 uv run pytest
 ```
-*Note: CI runs `uv run --extra test --extra cpu pytest api/tests/ --cov=api --cov-report=xml` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
+*Note: CI runs `ruff check .`, `uv run --extra test --extra cpu pytest api/tests/` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
 
 ## Testing with Docker Compose
 
