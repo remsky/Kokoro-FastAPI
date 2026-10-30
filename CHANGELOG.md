@@ -5,7 +5,11 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- `MAX_REQUEST_BODY_MB` (default 32): request bodies over it get a 413 as soon as they pass the limit, instead of being read in full before validation
+
 ### Fixed
+- `/dev/phonemize`, `/dev/generate_from_phonemes` and `/dev/ssml` now respect `MAX_INPUT_LENGTH` like the speech endpoints
 - The server stays responsive while it generates speech: `/health`, voice listings and other requests are answered between model calls instead of waiting for a long generation to finish. Generation itself still runs one model call at a time
 - After an idle unload, a request arriving while the model reloads waits for it instead of starting on a half-loaded model, and a failed load is retried on the next request instead of leaving a broken model in place
 - `/dev/unload` and `/dev/reload` return 409 while speech is generating, instead of pulling the model out from under that request
