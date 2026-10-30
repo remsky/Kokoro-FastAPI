@@ -2,12 +2,21 @@ import { closeOnOutsidePress } from '../dismiss.js';
 import { parseVoiceMix, suggestCastName } from '../voiceTags.js';
 
 const PINS_KEY = 'kokoro.cast-pins';
+const SORT_KEY = 'kokoro.voice-sort';
 
 function readPins() {
     try {
         return new Set(JSON.parse(localStorage.getItem(PINS_KEY)) || []);
     } catch {
         return new Set();
+    }
+}
+
+function readSortByName() {
+    try {
+        return localStorage.getItem(SORT_KEY) === 'name';
+    } catch {
+        return false;
     }
 }
 
@@ -28,6 +37,7 @@ export class VoiceSelector {
         this.handlers = {};
         this.elements = {
             voiceSearch: document.getElementById('voice-search'),
+            voiceSort: document.getElementById('voice-sort'),
             voiceDropdown: document.getElementById('voice-dropdown'),
             voiceOptions: document.getElementById('voice-options'),
             selectedVoices: document.getElementById('selected-voices'),
@@ -46,6 +56,8 @@ export class VoiceSelector {
         this.pins = readPins();
         this.nameEdited = false;
         this.settleRename = () => {};
+        this.voiceService.alphabetical = readSortByName();
+        this.paintSortButton();
 
         this.setupEventListeners();
         this.setupCastListeners();
@@ -481,6 +493,15 @@ export class VoiceSelector {
             this.renderVoiceOptions(filteredVoices);
         });
 
+        this.elements.voiceSort?.addEventListener('mousedown', (e) => e.preventDefault());
+        this.elements.voiceSort?.addEventListener('click', () => {
+            const alphabetical = !this.voiceService.alphabetical;
+            this.voiceService.setAlphabetical(alphabetical);
+            this.paintSortButton();
+            this.renderVoiceOptions(this.voiceService.filterVoices(this.elements.voiceSearch.value));
+            localStorage.setItem(SORT_KEY, alphabetical ? 'name' : 'grade');
+        });
+
         // Voice selection - handle clicks on the entire voice option
         this.elements.voiceOptions.addEventListener('mousedown', (e) => {
             e.preventDefault(); // Prevent blur on search input
@@ -538,12 +559,23 @@ export class VoiceSelector {
         });
 
         closeOnOutsidePress(
-            [this.elements.selectedVoices, this.elements.voiceSearch, this.elements.voiceDropdown],
+            [this.elements.selectedVoices, this.elements.voiceSearch, this.elements.voiceSort, this.elements.voiceDropdown],
             () => {
                 this.elements.voiceDropdown.classList.remove('show');
                 this.elements.voiceSearch.blur();
             }
         );
+    }
+
+    paintSortButton() {
+        const button = this.elements.voiceSort;
+        if (!button) {
+            return;
+        }
+        const alphabetical = this.voiceService.alphabetical;
+        button.dataset.sort = alphabetical ? 'name' : 'grade';
+        button.title = alphabetical ? 'Sort by grade' : 'Sort A to Z';
+        button.setAttribute('aria-label', alphabetical ? 'Sort voices by grade' : 'Sort voices A to Z');
     }
 
     renderVoiceOptions(voices) {

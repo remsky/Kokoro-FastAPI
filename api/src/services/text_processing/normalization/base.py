@@ -62,6 +62,7 @@ class Normalizer:
 
     def whitespace(self, text: str) -> str:
         text = re.sub(r"[^\S ]", " ", text)
+        text = re.sub(r"…(?=\w)", "… ", text)
         return re.sub(r"  +", " ", text)
 
     # language hooks, no-op until overridden

@@ -205,7 +205,7 @@ export class App {
         await config.ensureInitialized();
         if (!config.tuner) {
             tuneTab.disabled = true;
-            tuneTab.title = 'Voice tuner not loaded on this server';
+            tuneTab.title = 'Set ENABLE_INNO_TUNER=true to tune voices on the server';
         }
         if (!config.voiceSaving) {
             tuneSaveBtn.title = 'Set ALLOW_LOCAL_VOICE_SAVING=true to save voices on the server';

@@ -28,7 +28,7 @@ Task guides for agents live in `.claude/skills/`, listed in [CONTRIBUTING.md](CO
 ## Commands
 
 - Python tests: `uv run pytest` (runs `api/tests/`; integration tests are excluded by default, opt in with `-m integration`).
-- Format and lint: `ruff format .` then `ruff check . --fix`.
+- Format and lint: `uv run --only-group lint ruff format .` then `uv run --only-group lint ruff check . --fix`.
 - Web unit tests: `npm run test:web`. E2e: `npm run test:e2e`. New unit test files must be imported from `web/tests/unit/index.test.mjs`; it is a manual registry.
 - Container smoke test: `npm run cpu:up` (or `gpu:up`, `rocm:up`).
 

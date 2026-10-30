@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from .core.body_limit import BodySizeLimitMiddleware
 from .core.config import settings, unrecognized_env_file_keys
 from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
@@ -151,6 +152,9 @@ app = FastAPI(
     lifespan=lifespan,
     openapi_url="/openapi.json",  # Explicitly enable OpenAPI schema
 )
+
+
+app.add_middleware(BodySizeLimitMiddleware)
 
 # Add CORS middleware if enabled
 if settings.cors_enabled:
