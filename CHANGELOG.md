@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Added
+- ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
+
 ## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting
 ### Added
 - `MAX_REQUEST_BODY_MB` (default 32): oversized request bodies get a 413 up front (#567)

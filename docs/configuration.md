@@ -109,6 +109,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `VOICE_WEIGHT_NORMALIZATION` | `true` | Rescale combined voice weights to sum to 1 |
 | `ALLOW_LOCAL_VOICE_SAVING` | `false` | Let combined voices be downloaded (`/v1/audio/voices/combine`) and tuned voices be saved into `VOICES_DIR` (`/dev/tune` `save_voice`) |
 | `ENABLE_VOICE_TAGS` | `true` | Kill switch for `[voice:]` parsing and `/dev/dialogue` |
+| `ENABLE_WEBSOCKET_TTS` | `true` | Kill switch for the ElevenLabs and Cartesia compatible websocket routes |
 
 **Text processing**
 
@@ -141,7 +142,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `ENABLE_WEB_PLAYER` | `true` | Serve the browser UI |
 | `WEB_PLAYER_PATH` | `web` | Static file root for it |
 | `CORS_ENABLED` | `true` | Send CORS headers |
-| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost |
+| `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost. Also applies to browser connections on the websocket routes |
 
 **Temp files**
 

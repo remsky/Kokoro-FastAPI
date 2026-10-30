@@ -308,6 +308,30 @@ Key Streaming Metrics:
 </details>
 
 <details>
+<summary>Voice Agents (ElevenLabs / Cartesia websocket)</summary>
+
+ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored.
+
+```python
+# LiveKit Agents
+from livekit.plugins import cartesia, elevenlabs
+tts = elevenlabs.TTS(base_url="http://localhost:8880/v1", api_key="x", voice_id="af_heart")
+tts = cartesia.TTS(base_url="http://localhost:8880", api_key="x", voice="am_michael")
+
+# Pipecat
+from pipecat.services.cartesia.tts import CartesiaTTSService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+tts = ElevenLabsTTSService(url="ws://localhost:8880", api_key="x", voice_id="af_heart")
+tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", voice_id="am_michael")
+```
+
+- Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
+- Word timestamps where Kokoro has them (English, espeak languages)
+- Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
+- `ENABLE_WEBSOCKET_TTS=false` turns both off
+</details>
+
+<details>
 <summary>Multiple Output Audio Formats</summary>
 
 - mp3

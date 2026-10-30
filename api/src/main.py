@@ -16,8 +16,10 @@ from loguru import logger
 
 from .core.body_limit import BodySizeLimitMiddleware
 from .core.config import settings, unrecognized_env_file_keys
+from .routers.cartesia_compatible import router as cartesia_router
 from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
+from .routers.elevenlabs_compatible import router as elevenlabs_router
 from .routers.openai_compatible import router as openai_router
 from .routers.ssml import router as ssml_router
 from .routers.tune import router as tune_router
@@ -172,6 +174,8 @@ app.include_router(dev_router)  # Development endpoints
 app.include_router(ssml_router)  # SSML translation and capabilities
 app.include_router(tune_router)  # /dev/tune, 403 unless enabled
 app.include_router(debug_router)  # Debug endpoints (403 unless enabled)
+app.include_router(elevenlabs_router)  # ElevenLabs compatible websocket TTS
+app.include_router(cartesia_router)  # Cartesia compatible websocket TTS
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 

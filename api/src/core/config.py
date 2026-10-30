@@ -50,6 +50,9 @@ class Settings(BaseSettings):
         False  # Whether to expose /debug/* host and process introspection routes
     )
     enable_voice_tags: bool = True  # Kill switch for [voice:...] parsing and /dev/dialogue, for deployments proxying untrusted text
+    enable_websocket_tts: bool = (
+        True  # Kill switch for the ElevenLabs and Cartesia compatible websocket routes
+    )
     enable_ssml: bool = True  # Kill switch for SSML translation, the /dev/ssml routes and ssml=true on the speech endpoints 403 when off
 
     # Container absolute paths
