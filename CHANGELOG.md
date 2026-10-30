@@ -4,24 +4,25 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]
+## [Unreleased]: Stability, Request Handling & Voice Sorting
 ### Added
-- `MAX_REQUEST_BODY_MB` (default 32): request bodies over it get a 413 as soon as they pass the limit, instead of being read in full before validation
-- Web player voice list can be sorted A to Z instead of by grade, with the toggle in the voice search box. The choice is remembered (#542)
+- `MAX_REQUEST_BODY_MB` (default 32): oversized request bodies get a 413 up front (#567)
+- Web player voice list can sort A to Z instead of by grade (toggle in the voice search box; remembered in local storage) (#542, #575)
 
 ### Fixed
-- `/dev/phonemize`, `/dev/generate_from_phonemes` and `/dev/ssml` now respect `MAX_INPUT_LENGTH` like the speech endpoints
-- The server stays responsive while it generates speech: `/health`, voice listings and other requests are answered between model calls instead of waiting for a long generation to finish. Generation itself still runs one model call at a time
-- After an idle unload, a request arriving while the model reloads waits for it instead of starting on a half-loaded model, and a failed load is retried on the next request instead of leaving a broken model in place
-- `/dev/unload` and `/dev/reload` return 409 while speech is generating, instead of pulling the model out from under that request
-- A sentence that fails to generate or encode now fails the request instead of being left out of an otherwise successful response. Non-streaming requests get an error; a stream is cut off rather than finished, and its download link file is removed instead of being kept with the sentence missing
-- CUDA out-of-memory during generation is retried once and then reported, instead of retrying the same request without limit; a retry no longer repeats audio already sent or drops word timestamps
-- `/dev/generate_from_phonemes` checks its voice like `/v1/audio/speech` does, returning 400 for an unknown voice. It used to pass the voice straight to the mixer, where a file path as the voice could write a mixed voice pack into the voices directory
-- `/dev/phonemize` returns the phonemes for all of the text. Input the pipeline splits into several segments, such as separate paragraphs, used to come back with only the first segment
-- Saved downloads now expire `max_temp_dir_age_hours` after they were written. Age used to be counted up to the previous download rather than the current time, so after a quiet spell older files were kept
-- Numbers with a decimal comma before a unit, such as `1,5s`, are read as `one point five seconds` instead of `fifteen seconds`
-- Voice mixes no longer leave files in the temp directory and memory on every distinct combination. Mixed packs are kept under `kokoro_voice_mixes/` in the temp dir, capped at the 64 most recent, voice tensors are cached for the 64 most recently used voices, and the per-voice `temp_voice_*.pt` copies are gone
-- The disabled Tune tab in the web player now names the setting that enables it (`ENABLE_INNO_TUNER=true`)
+- `1,5s` reads as `one point five seconds` instead of `fifteen seconds` (#558, #559)
+- `/health`, voice listings etc stay responsive during long generations (generation itself is still one at a time) (#566)
+- Requests during idle-unload/reload wait for the model and failed loads retry on the next request (#572)
+- A sentence that fails to generate/encode fails the request instead of going silently missing, cleans up orphan files and stream (#571)
+- CUDA out-of-memory retries once then errors, instead of retrying forever. Retries no longer repeat audio or drop timestamps (#562)
+- Saved downloads expire on time (`max_temp_dir_age_hours`) instead of lingering after quiet spells (#563)
+- Voice mixes now live in `kokoro_voice_mixes/` in the temp dir, and no longer leak temp files/memory per combination, capped at 64 most recent (#565)
+- Alt-text on the disabled Tune tab in the web player is now more informative (#575)
+- `/dev` endpoints:
+  - `/dev/unload` and `/dev/reload` return 409 while speech is generating (#572)
+  - `/dev/phonemize`, `/dev/generate_from_phonemes` and `/dev/ssml` respect `MAX_INPUT_LENGTH` (#567)
+  - `/dev/generate_from_phonemes` returns 400 for unknown voices and rejects file paths (#564)
+  - `/dev/phonemize` phonemizes the full text, not just the first paragraph (#569)
 
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 
