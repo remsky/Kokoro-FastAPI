@@ -4,7 +4,7 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
-## [Unreleased]: Stability, Request Handling & Voice Sorting
+## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting
 ### Added
 - `MAX_REQUEST_BODY_MB` (default 32): oversized request bodies get a 413 up front (#567)
 - Web player voice list can sort A to Z instead of by grade (toggle in the voice search box; remembered in local storage) (#542, #575)
@@ -12,7 +12,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Fixed
 - `1,5s` reads as `one point five seconds` instead of `fifteen seconds` (#558, #559)
 - Short words around an unspaced ellipsis are read as words instead of spelled out (`is…um…` no longer reads as `I S U M`) (#561)
-- `/health`, voice listings etc stay responsive during long generations (generation itself is still one at a time) (#566)
+- `/health`, voice listings etc stay responsive during generation (~93% faster under load), ~25% faster first audio with concurrent requests (#566)
 - Requests during idle-unload/reload wait for the model and failed loads retry on the next request (#572)
 - A sentence that fails to generate/encode fails the request instead of going silently missing, cleans up orphan files and stream (#571)
 - CUDA out-of-memory retries once then errors, instead of retrying forever. Retries no longer repeat audio or drop timestamps (#562)
