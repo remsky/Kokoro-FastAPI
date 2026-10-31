@@ -72,4 +72,5 @@ def test_websocket_with_key_connects(keys, url, headers):
 
 def test_health_and_web_player_stay_open(keys):
     assert client.get("/health").status_code == 200
+    assert client.get("/v1/test").status_code == 200
     assert client.get("/web/").status_code != 401
