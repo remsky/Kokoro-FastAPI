@@ -310,7 +310,7 @@ Key Streaming Metrics:
 <details>
 <summary>Voice Agents (ElevenLabs / Cartesia websocket)</summary>
 
-ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored.
+ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored unless `API_KEYS` is set.
 
 ```python
 # LiveKit Agents
@@ -810,6 +810,31 @@ To reproduce, see `examples/assorted_checks/test_transcription/README.md`.
 <summary>Configuration Variables</summary>
 
 Every setting is an environment variable, or a line in a `.env` file at the project root. Full reference in [the configuration guide](docs/configuration.md).
+
+</details>
+
+<details>
+<summary>API Keys</summary>
+
+- A basic shared-key check, not a full auth layer. No rate limiting or scoped keys, and over HTTP keys are sent in plain text.
+- For security over a network, run the server behind a reverse proxy with HTTPS at minimum.
+
+- Off by default: every route stays open.
+- Set `API_KEYS` to a JSON list, and API routes answer `401 Unauthorized` without one of the keys.
+- With keys set, `/health`, `/v1/test` and `/docs` stay open.
+- `/web` also stays open currently, but the player won't load voices or generate audio.
+
+```bash
+docker run --env 'API_KEYS=["key-one","key-two"]' -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
+```
+
+Clients send it as their usual `api_key`:
+
+```python
+client = OpenAI(base_url="http://localhost:8880/v1", api_key="key-one")
+```
+
+Headers: `Authorization: Bearer` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia)
 
 </details>
 

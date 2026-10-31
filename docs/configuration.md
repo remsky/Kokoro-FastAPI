@@ -144,6 +144,12 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `CORS_ENABLED` | `true` | Send CORS headers |
 | `CORS_ORIGINS` | `["*"]` | Allowed origins, narrow this if the port is reachable beyond localhost. Also applies to browser connections on the websocket routes |
 
+**Access**
+
+| Variable | Default | |
+|---|---|---|
+| `API_KEYS` | `[]` | JSON list of accepted keys, e.g. `["key-one","key-two"]`. When set, the API and websocket routes answer 401 without one. `/health`, `/v1/test` and the docs stay open. The web player still loads but sends no key, so its requests 401. See API Keys in the README |
+
 **Temp files**
 
 | Variable | Default | |

@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     web_player_path: str = "web"  # Path to web player static files
     cors_origins: list[str] = ["*"]  # CORS origins for web player
     cors_enabled: bool = True  # Whether to enable CORS
+    api_keys: list[
+        str
+    ] = []  # When set, API routes need "Authorization: Bearer <key>" with one of these
 
     # Temp File Settings for WEB Ui
     temp_file_dir: str = "api/temp_files"  # Directory for temporary audio files (relative to project root)
