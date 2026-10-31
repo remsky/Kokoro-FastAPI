@@ -12,6 +12,10 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Changed
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
 
+### Fixed
+- OpenAI voice names added to mapped defaults: 
+  - `"marin": "af_heart"`, `"cedar": "am_fenrir"`, `"verse": "am_puck"`, `"ballad": "bm_fable"`
+
 ## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting
 ### Added
 - `MAX_REQUEST_BODY_MB` (default 32): oversized request bodies get a 413 up front (#567)
