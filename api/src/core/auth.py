@@ -21,8 +21,9 @@ async def require_api_key(conn: HTTPConnection) -> None:
         conn.headers.get("xi-api-key", ""),
         conn.headers.get("x-api-key", ""),
     ]
+    # an empty token (absent header) or empty key never matches, so API_KEYS=[""] fails closed
     if not any(
-        secrets.compare_digest(token.encode(), key.encode())
+        token and key and secrets.compare_digest(token.encode(), key.encode())
         for token in offered
         for key in settings.api_keys
     ):

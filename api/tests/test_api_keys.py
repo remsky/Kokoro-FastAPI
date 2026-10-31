@@ -45,6 +45,13 @@ def test_any_configured_key_in_any_client_header_is_accepted(keys, headers):
     assert client.get("/v1/models", headers=headers).status_code == 200
 
 
+def test_empty_configured_key_never_matches_a_missing_header(monkeypatch):
+    monkeypatch.setattr(settings, "api_keys", ["", "key-one"])
+    assert client.get("/v1/models").status_code == 401
+    assert client.get("/v1/models", headers={"Authorization": "Bearer "}).status_code == 401
+    assert client.get("/v1/models", headers={"xi-api-key": "key-one"}).status_code == 200
+
+
 WS_URLS = ["/v1/text-to-speech/af_heart/multi-stream-input", "/tts/websocket"]
 
 
