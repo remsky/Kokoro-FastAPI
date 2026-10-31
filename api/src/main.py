@@ -5,17 +5,16 @@ FastAPI OpenAI Compatible API
 import asyncio
 import logging
 import os
-import secrets
 import sys
 from contextlib import asynccontextmanager
 
 import torch
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
-from starlette.requests import HTTPConnection
 
+from .core.auth import require_api_key
 from .core.body_limit import BodySizeLimitMiddleware
 from .core.config import settings, unrecognized_env_file_keys
 from .routers.cartesia_compatible import router as cartesia_router
@@ -169,35 +168,6 @@ if settings.cors_enabled:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-
-async def require_api_key(conn: HTTPConnection) -> None:
-    """401 unless API_KEYS is empty or the request carries one of them.
-
-    Bearer token (OpenAI clients), xi-api-key (ElevenLabs), X-API-Key (Cartesia).
-    """
-    if not settings.api_keys:
-        return
-    scheme, _, bearer = conn.headers.get("authorization", "").partition(" ")
-    offered = [
-        bearer if scheme.lower() == "bearer" else "",
-        conn.headers.get("xi-api-key", ""),
-        conn.headers.get("x-api-key", ""),
-    ]
-    if not any(
-        secrets.compare_digest(token.encode(), key.encode())
-        for token in offered
-        for key in settings.api_keys
-    ):
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "error": "unauthorized",
-                "message": "A valid API key is required",
-                "type": "authentication_error",
-            },
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
 
 # Include routers
