@@ -10,6 +10,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
 
 ### Changed
+- Input with nothing to speak (`...`, `*`, whitespace, emoji with `remove_emoji`, bare voice tags) returns 0.3s of silence instead of an empty 200 or a 400, like OpenAI. `UNSPOKEN_INPUT_PAUSE_S` sets the length, `0` keeps the old behavior. Empty input is still a 400 (#579)
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
 
 ## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting

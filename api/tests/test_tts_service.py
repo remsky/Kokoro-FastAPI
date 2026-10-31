@@ -631,13 +631,45 @@ async def test_generate_audio_with_nothing_speakable_raises():
     """Tags-only input is a ValueError the routers map to a 400, not an IndexError"""
     service = await _stubbed_service()
 
-    with pytest.raises(ValueError, match="no speakable text"):
+    with (
+        patch("api.src.services.tts_service.settings.unspoken_input_pause_s", 0),
+        pytest.raises(ValueError, match="no speakable text"),
+    ):
         await service.generate_audio(
             "[voice:af_bella] [voice:bm_george]",
             "af_heart",
             MagicMock(),
             allow_voice_tags=True,
         )
+
+
+@pytest.mark.asyncio
+async def test_unspoken_input_streams_silence_and_finalizes():
+    """Nothing to say yields a short silence and still flushes the encoder (#579)"""
+    service = await _stubbed_service()
+    finalized = []
+    original = service._process_chunk
+
+    def capture(*args, **kwargs):
+        finalized.append(kwargs.get("is_last"))
+        return original(*args, **kwargs)
+
+    service._process_chunk = capture
+
+    with patch("api.src.services.tts_service.settings.unspoken_input_pause_s", 0.3):
+        chunks = [
+            chunk
+            async for chunk in service.generate_audio_stream(
+                "[voice:af_bella] [voice:bm_george]",
+                "af_heart",
+                MagicMock(),
+                output_format=None,
+                allow_voice_tags=True,
+            )
+        ]
+
+    assert sum(len(chunk.audio) for chunk in chunks) == 7200
+    assert finalized == [True]
 
 
 @pytest.mark.asyncio
