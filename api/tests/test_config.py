@@ -1,5 +1,8 @@
 """Tests for settings loading."""
 
+import pytest
+from pydantic import ValidationError
+
 from api.src.core.config import Settings, unrecognized_env_file_keys
 
 # keys removed from Settings, plus ones that were never fields, that a real .env may still carry
@@ -38,3 +41,12 @@ def test_unrecognized_keys_are_reported(tmp_path, monkeypatch):
 def test_no_env_file_reports_nothing(tmp_path, monkeypatch):
     monkeypatch.setitem(Settings.model_config, "env_file", str(tmp_path / "absent"))
     assert unrecognized_env_file_keys() == []
+
+
+def test_speed_mode_defaults_to_model_and_rejects_unknown(monkeypatch):
+    """Existing deployments keep model pacing, and a typo fails at boot rather than per request"""
+    monkeypatch.delenv("SPEED_MODE", raising=False)
+
+    assert Settings(_env_file=None).speed_mode == "model"
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, speed_mode="resample")

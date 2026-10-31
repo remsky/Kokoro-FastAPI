@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from api.src.inference.base import AudioChunk
-from api.src.services.audio import AudioService
+from api.src.services.audio import AudioService, time_stretch
 from api.src.services.streaming_audio_writer import StreamingAudioWriter
 
 
@@ -239,3 +239,41 @@ def test_finalize_preserves_tail(format):
     else:
         # lossy encoders pad with encoder delay, but must not truncate
         assert decoded >= 2 * len(audio)
+
+
+def _dominant_hz(audio, sample_rate=24000):
+    spectrum = np.abs(np.fft.rfft(audio))
+    return np.fft.rfftfreq(len(audio), 1 / sample_rate)[np.argmax(spectrum)]
+
+
+@pytest.mark.parametrize("speed", [0.25, 0.5, 0.8, 1.5, 2.0, 4.0])
+def test_time_stretch_scales_length_keeps_pitch(speed):
+    """Duration follows speed while pitch stays put, unlike resampling (issue #551)"""
+    t = np.arange(24000) / 24000
+    audio = (0.5 * np.sin(2 * np.pi * 220 * t)).astype(np.float32)
+
+    stretched = time_stretch(audio, speed)
+
+    assert len(stretched) == round(len(audio) / speed)
+    assert stretched.dtype == np.float32
+    assert abs(_dominant_hz(stretched) - 220) < 5
+
+
+def test_time_stretch_identity_and_int16():
+    audio = (np.sin(np.arange(4800) / 10) * 20000).astype(np.int16)
+
+    assert time_stretch(audio, 1.0) is audio
+    stretched = time_stretch(audio, 2.0)
+    assert stretched.dtype == np.int16
+    assert len(stretched) == 2400
+
+
+def test_time_stretch_keeps_clip_shorter_than_one_window():
+    """atempo drops its last partial window on flush, which would empty a short clip"""
+    t = np.arange(200) / 24000
+    audio = (0.5 * np.sin(2 * np.pi * 220 * t)).astype(np.float32)
+
+    stretched = time_stretch(audio, 0.5)
+
+    assert len(stretched) == 400
+    assert np.abs(stretched).max() > 0.1

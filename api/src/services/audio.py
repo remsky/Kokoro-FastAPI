@@ -2,12 +2,71 @@
 
 import math
 
+import av
 import numpy as np
 from loguru import logger
 
 from ..core.config import settings
 from ..inference.base import AudioChunk
 from .streaming_audio_writer import StreamingAudioWriter
+
+# per-filter range on older ffmpeg builds, chained past it
+ATEMPO_MIN, ATEMPO_MAX = 0.5, 2.0
+# atempo drops its last partial window on flush, so feed it silence to sacrifice
+STRETCH_PAD_SAMPLES = 4096
+
+
+def _atempo_factors(speed: float) -> list[float]:
+    factors = []
+    while speed > ATEMPO_MAX:
+        factors.append(ATEMPO_MAX)
+        speed /= ATEMPO_MAX
+    while speed < ATEMPO_MIN:
+        factors.append(ATEMPO_MIN)
+        speed /= ATEMPO_MIN
+    return factors + [speed]
+
+
+def time_stretch(
+    audio: np.ndarray, speed: float, sample_rate: int = 24000
+) -> np.ndarray:
+    """Change tempo without changing pitch, returning round(len(audio) / speed) samples"""
+    if speed == 1.0 or len(audio) == 0:
+        return audio
+
+    sample_format = "s16" if audio.dtype == np.int16 else "flt"
+    dtype = np.int16 if sample_format == "s16" else np.float32
+    padded = np.concatenate(
+        [audio.astype(dtype, copy=False), np.zeros(STRETCH_PAD_SAMPLES, dtype)]
+    )
+
+    graph = av.filter.Graph()
+    nodes = [
+        graph.add_abuffer(format=sample_format, sample_rate=sample_rate, layout="mono")
+    ]
+    nodes += [graph.add("atempo", f"{factor}") for factor in _atempo_factors(speed)]
+    nodes.append(graph.add("abuffersink"))
+    for upstream, downstream in zip(nodes, nodes[1:]):
+        upstream.link_to(downstream)
+    graph.configure()
+
+    frame = av.AudioFrame.from_ndarray(
+        padded.reshape(1, -1), format=sample_format, layout="mono"
+    )
+    frame.sample_rate = sample_rate
+    frame.pts = 0
+    graph.push(frame)
+    graph.push(None)
+
+    stretched = []
+    while True:
+        try:
+            stretched.append(graph.pull().to_ndarray().reshape(-1))
+        except (av.BlockingIOError, av.EOFError):
+            break
+
+    out = np.concatenate(stretched) if stretched else np.zeros(0, dtype)
+    return out[: round(len(audio) / speed)]
 
 
 class AudioNormalizer:
