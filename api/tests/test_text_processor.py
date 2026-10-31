@@ -97,16 +97,27 @@ async def test_smart_split_remove_emoji_option(lang_code):
     ] == []
 
 
-def test_check_speakable():
+def test_check_speakable(monkeypatch):
+    monkeypatch.setattr(text_processor.settings, "unspoken_input_pause_s", 0)
     check_speakable("hi")
     check_speakable("[pause:1s]")
     check_speakable("[voice:af_bella]")
     check_speakable("😊")
-    for text in ["😊", "⏰ 1️⃣", "  ", "[voice:af_bella] [voice:bm_george]"]:
+    for text in ["", "😊", "⏰ 1️⃣", "  ", "[voice:af_bella] [voice:bm_george]"]:
         with pytest.raises(ValueError, match="no speakable text"):
             check_speakable(
                 text, allow_voice_tags=True, normalization_options=REMOVE_EMOJI
             )
+
+
+def test_check_speakable_allows_unspoken_input_when_silence_is_set(monkeypatch):
+    monkeypatch.setattr(text_processor.settings, "unspoken_input_pause_s", 0.3)
+    for text in ["😊", "⏰ 1️⃣", "  ", "[voice:af_bella] [voice:bm_george]"]:
+        check_speakable(
+            text, allow_voice_tags=True, normalization_options=REMOVE_EMOJI
+        )
+    with pytest.raises(ValueError, match="no speakable text"):
+        check_speakable("")
 
 
 def test_strip_emoji_sequences():
