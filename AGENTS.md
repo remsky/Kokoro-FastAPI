@@ -3,7 +3,7 @@
 Guidance for coding agents working on Kokoro-FastAPI. 
 Agent-assisted contributions are welcome, with caveats:
     - All judgement and accountability falls to the named human contributor as the reviewer. 
-    - If the user doesn't demonstrate understanding a change, it's not ready to merge. 
+    - If the user doesn't demonstrate understanding of a change, it's not ready to merge. 
     - Code style here must still match house style. 
     - To the above, explicitly: 
         - wanton em-dash usage is not permitted.
@@ -47,4 +47,4 @@ Task guides for agents live in `.claude/skills/`, listed in [CONTRIBUTING.md](CO
 - Local (non-Docker) runs need espeak-ng installed and on PATH; the Docker images handle this separately.
 - Japanese support (`misaki[ja]`) requires the full UniDic dictionary (~526MB), not `unidic-lite`. The Docker images download it at build time, the CI pytest job does not install it.
 - Workflow actions are pinned to commit SHAs with a `# vX.Y.Z` comment. Dependabot bumps them monthly; don't hand-edit refs back to tags.
-- The release/publish workflow triggers itself on push to the `release` branch. It should never never be triggered manually. Tag @remsky to do so. 
+- The release/publish workflow triggers itself on push to the `release` branch. It must never be triggered manually. Tag @remsky to do so. 
