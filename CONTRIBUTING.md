@@ -32,12 +32,6 @@ We use `uv` for managing Python environments and dependencies, and `ruff` for li
 
     *Note: If running via uv locally, you will have to install espeak and handle any pathing issues that arise. The Docker images handle this automatically*
 
-4.  **Install `ruff` (if not already installed globally):**
-    While `ruff` might be included via dependencies, installing it explicitly ensures you have it available.
-    ```bash
-    uv pip install ruff
-    ```
-
 ## Running Tests
 
 Before submitting changes, please ensure all tests pass as this is a automated requirement. The tests are run using `pytest`. 
@@ -45,7 +39,7 @@ Before submitting changes, please ensure all tests pass as this is a automated r
 # Make sure your virtual environment is activated
 uv run pytest
 ```
-*Note: CI runs `uv run --extra test --extra cpu pytest api/tests/ --cov=api --cov-report=xml` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
+*Note: CI runs `ruff check .`, `uv run --extra test --extra cpu pytest api/tests/` on Python 3.10 and 3.12, plus `npm run test:web` and `npm run test:e2e` for the web player. Running `uv run pytest` locally should cover the essential checks.*
 
 ## Testing with Docker Compose
 
@@ -60,18 +54,16 @@ This command will build the Docker images (if they've changed) and start the ser
 
 ## Code Formatting and Linting
 
-We use `ruff` to maintain code quality and consistency. Please format and lint your code before committing. 
+We use `ruff` to maintain code quality and consistency. Please format and lint your code before committing. The version is pinned in the `lint` dependency group, so these match CI.
 
 1.  **Format the code:**
     ```bash
-    # Make sure your virtual environment is activated
-    ruff format .
+    uv run --only-group lint ruff format .
     ```
 
 2.  **Lint the code (and apply automatic fixes):**
     ```bash
-    # Make sure your virtual environment is activated
-    ruff check . --fix
+    uv run --only-group lint ruff check . --fix
     ```
     Review any changes made by `--fix` and address any remaining linting errors manually.
 

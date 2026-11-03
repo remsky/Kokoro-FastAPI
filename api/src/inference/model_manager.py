@@ -15,6 +15,10 @@ from .base import BaseModelBackend
 from .kokoro_v1 import KokoroV1
 
 
+class ModelBusyError(RuntimeError):
+    """Unload or reload asked for while requests are generating."""
+
+
 class ModelManager:
     """Manages Kokoro V1 model loading and inference."""
 
@@ -108,13 +112,25 @@ Model files not found! You need to download the Kokoro V1 model:
 
     async def ensure_backend(self) -> None:
         """Reload the backend if it was unloaded."""
-        if self._backend:
-            return
+        # always take the lock: _backend is set before its model finishes loading
         async with self._lock:
             if not self._backend:
                 self._cancel_idle_unload_timer()
-                await self.initialize()
-                await self.load_model(self._config.pytorch_kokoro_v1_file)
+                await self._load_backend_locked()
+
+    async def _load_backend_locked(self) -> None:
+        try:
+            await self.initialize()
+            await self.load_model(self._config.pytorch_kokoro_v1_file)
+        except BaseException:
+            self._backend = None
+            raise
+
+    def _refuse_while_generating_locked(self) -> None:
+        if self._active_requests > 0:
+            raise ModelBusyError(
+                f"{self._active_requests} request(s) are generating; try again when they finish"
+            )
 
     def get_backend(self) -> BaseModelBackend:
         """Get initialized backend.
@@ -267,6 +283,7 @@ Model files not found! You need to download the Kokoro V1 model:
     async def unload(self) -> None:
         """Release model from GPU memory. Reloads automatically on next request."""
         async with self._lock:
+            self._refuse_while_generating_locked()
             self._cancel_idle_unload_timer()
             self._unload_backend_locked()
         if torch.cuda.is_available():
@@ -276,10 +293,10 @@ Model files not found! You need to download the Kokoro V1 model:
     async def reload(self) -> None:
         """Reload the model immediately."""
         async with self._lock:
+            self._refuse_while_generating_locked()
             self._cancel_idle_unload_timer()
             self._unload_backend_locked()
-            await self.initialize()
-            await self.load_model(self._config.pytorch_kokoro_v1_file)
+            await self._load_backend_locked()
             self._schedule_idle_unload_timer_locked()
         logger.info("Model reloaded")
 

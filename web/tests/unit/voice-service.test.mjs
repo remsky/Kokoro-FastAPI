@@ -55,6 +55,23 @@ test('voices sort by grade then name, ungraded last, and the best one is presele
     assert.deepEqual(service.getSelectedVoices(), ['af_heart']);
 });
 
+test('the a to z sort ignores grades and survives a reload', async () => {
+    stubVoices([
+        { id: 'am_eric', name: 'am_eric', overall_grade: 'D' },
+        { id: 'bf_emma', name: 'bf_emma', overall_grade: 'B-' },
+        { id: 'af_sky', name: 'af_sky', overall_grade: 'C-' }
+    ]);
+    const service = new VoiceService();
+    assert.deepEqual(await service.loadVoices(), ['bf_emma', 'af_sky', 'am_eric']);
+
+    service.setAlphabetical(true);
+    assert.deepEqual(service.getAvailableVoices(), ['af_sky', 'am_eric', 'bf_emma']);
+    assert.deepEqual(await service.loadVoices(), ['af_sky', 'am_eric', 'bf_emma']);
+
+    service.setAlphabetical(false);
+    assert.deepEqual(service.getAvailableVoices(), ['bf_emma', 'af_sky', 'am_eric']);
+});
+
 test('the legacy string list still loads, with no grades', async () => {
     stubVoices(['af_bella']);
     const service = new VoiceService();

@@ -248,19 +248,16 @@ def test_stream_failure_still_discards_pack(service):
     svc.model_manager.get_backend.return_value.forget_voice.assert_called_once()
 
 
-def test_forget_voice_evicts_pipeline_cache(tmp_path):
-    from types import SimpleNamespace
-
+def test_forget_voice_evicts_cached_tensor(tmp_path):
     from api.src.inference.kokoro_v1 import KokoroV1
 
     backend = KokoroV1()
     pack = str(tmp_path / "a_tune_x.pt")
-    temp_copy = os.path.join(tempfile.gettempdir(), "temp_voice_a_tune_x.pt")
+    other = str(tmp_path / "a_tune_y.pt")
     backend._voice_cache[f"{pack}:cpu"] = torch.zeros(1)
-    backend._pipelines["a"] = SimpleNamespace(voices={temp_copy: torch.zeros(1)})
+    backend._voice_cache[f"{other}:cpu"] = torch.zeros(1)
     backend.forget_voice(pack)
-    assert backend._voice_cache == {}
-    assert backend._pipelines["a"].voices == {}
+    assert list(backend._voice_cache) == [f"{other}:cpu"]
 
 
 @pytest.mark.asyncio

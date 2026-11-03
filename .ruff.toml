@@ -3,7 +3,10 @@ line-length = 88
 exclude = ["examples"]
 
 [lint]
-select = ["F", "I"]
+select = ["F", "I", "ASYNC"]
+
+[lint.per-file-ignores]
+"api/tests/**" = ["ASYNC240"]
 
 [lint.isort]
 combine-as-imports = true

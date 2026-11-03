@@ -5,8 +5,38 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Added
+- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
+- ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
+
+### Changed
+- uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
+
 ### Fixed
 - A `download_format` different from `response_format` is rejected with a 422. The download link served the streamed audio unchanged under the other format's name and type, so asking for mp3 with a wav download gave an mp3 file called `.wav`
+- OpenAI voice names added to mapped defaults:
+  - `"marin": "af_heart"`, `"cedar": "am_fenrir"`, `"verse": "am_puck"`, `"ballad": "bm_fable"`
+
+## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting
+### Added
+- `MAX_REQUEST_BODY_MB` (default 32): oversized request bodies get a 413 up front (#567)
+- Web player voice list can sort A to Z instead of by grade (toggle in the voice search box; remembered in local storage) (#542, #575)
+
+### Fixed
+- `1,5s` reads as `one point five seconds` instead of `fifteen seconds` (#558, #559)
+- Short words around an unspaced ellipsis are read as words instead of spelled out (`is…um…` no longer reads as `I S U M`) (#561)
+- `/health`, voice listings etc stay responsive during generation (~93% faster under load), ~25% faster first audio with concurrent requests (#566)
+- Requests during idle-unload/reload wait for the model and failed loads retry on the next request (#572)
+- A sentence that fails to generate/encode fails the request instead of going silently missing, cleans up orphan files and stream (#571)
+- CUDA out-of-memory retries once then errors, instead of retrying forever. Retries no longer repeat audio or drop timestamps (#562)
+- Saved downloads expire on time (`max_temp_dir_age_hours`) instead of lingering after quiet spells (#563)
+- Voice mixes now live in `kokoro_voice_mixes/` in the temp dir, and no longer leak temp files/memory per combination, capped at 64 most recent (#565)
+- Alt-text on the disabled Tune tab in the web player is now more informative (#575)
+- `/dev` endpoints:
+  - `/dev/unload` and `/dev/reload` return 409 while speech is generating (#572)
+  - `/dev/phonemize`, `/dev/generate_from_phonemes` and `/dev/ssml` respect `MAX_INPUT_LENGTH` (#567)
+  - `/dev/generate_from_phonemes` returns 400 for unknown voices and rejects file paths (#564)
+  - `/dev/phonemize` phonemizes the full text, not just the first paragraph (#569)
 
 ## [v0.9.1] - 2026-10-28: Security Bumps, IME & MPS Fixes
 

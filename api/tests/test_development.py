@@ -129,3 +129,32 @@ def test_generate_captioned_speech():
         # Verify we got both audio and timestamps
         assert audio == b"mock audio data"
         assert timestamps == [{"word": "test", "start_time": 0.0, "end_time": 1.0}]
+
+
+@pytest.mark.parametrize(
+    "voice", ["/app/api/src/voices/v1_0/af_heart+af_bella", "../test_voice", "nope"]
+)
+def test_generate_from_phonemes_rejects_unknown_voice(mock_tts_service, voice):
+    """The phoneme route validates voices like the speech routes, so a path never reaches the mixer."""
+    response = client.post(
+        "/dev/generate_from_phonemes", json={"phonemes": "həlˈO", "voice": voice}
+    )
+    assert response.status_code == 400
+    mock_tts_service.generate_from_phonemes.assert_not_called()
+    mock_tts_service.get_voices_path.assert_not_called()
+
+
+def test_generate_from_phonemes_passes_validated_voice(mock_tts_service):
+    mock_tts_service.generate_from_phonemes.return_value = (
+        np.zeros(10, np.int16),
+        None,
+    )
+    response = client.post(
+        "/dev/generate_from_phonemes",
+        json={"phonemes": "həlˈO", "voice": "test_voice"},
+    )
+    assert response.status_code == 200
+    assert (
+        mock_tts_service.generate_from_phonemes.call_args.kwargs["voice"]
+        == "test_voice"
+    )

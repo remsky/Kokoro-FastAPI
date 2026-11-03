@@ -10,11 +10,11 @@ Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING
 ## Where things live
 
 - `api/src/routers/openai_compatible.py` - main API surface (`/v1/audio/speech`, `/v1/audio/voices`, `/v1/models`). Captioned speech is `/dev/captioned_speech` in `development.py`. Changes here affect every OpenAI-client consumer, so keep request/response shapes backward compatible.
-- `api/src/routers/debug.py` - introspection endpoints, opt-in (`enable_debug_endpoints`). `development.py` is on by default except `/dev/model`, `/dev/unload`, `/dev/reload` behind `allow_dev_unload`.
-- `api/src/routers/ssml.py` - `/dev/ssml`, behind `enable_ssml`. `web_player.py` serves `/web`.
+- `api/src/routers/debug.py` - introspection endpoints, opt-in (`enable_debug_endpoints`). `development.py` is on by default except `/dev/model`, `/dev/unload`, `/dev/reload` behind `allow_dev_unload`, and `/dev/dialogue` behind `enable_voice_tags`.
+- `api/src/routers/ssml.py` - `/dev/ssml`, behind `enable_ssml`. `tune.py` - `/dev/tune`, opt-in (`enable_inno_tuner`). `web_player.py` serves `/web`.
 - `api/src/services/tts_service.py` - orchestration between text processing, inference, and audio encoding.
 - `api/src/services/streaming_audio_writer.py` - per-format encode/finalize. Historically fragile at chunk boundaries and finalize time (WAV trailer click, OGG final-page loss), so test full stream + finalize output, not just single chunks.
-- `api/src/inference/` - `kokoro_v1.py` (backend), `model_manager.py`, `voice_manager.py`. Voice tensors are cached and loaded with `weights_only=True`; keep both properties intact.
+- `api/src/inference/` - `kokoro_v1.py` (backend), `model_manager.py`, `voice_manager.py`. Voice tensors are loaded with `weights_only=True` (`core/paths.py`) and kept in a bounded LRU in `kokoro_v1.py`; keep both properties intact.
 - `api/src/core/config.py` - pydantic-settings, all env-overridable.
 
 ## Adding an endpoint
@@ -30,4 +30,4 @@ Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING
 - `uv run pytest` runs `api/tests/` with coverage; integration tests are excluded (`-m integration` to opt in, needs a running server).
 - `asyncio_mode = auto` in pytest.ini, no `@pytest.mark.asyncio` needed. Hypothesis profiles in `api/tests/conftest.py`: `dev` 300 random examples, `ci` 500 derandomized, picked by the `CI` env var.
 - Tests mock the model; no GPU needed. If a change is only verifiable on CUDA/ROCm hardware you don't have, say so in the PR.
-- `ruff format .` and `ruff check . --fix` before staging.
+- `uv run --only-group lint ruff format .` and `uv run --only-group lint ruff check . --fix` before staging.

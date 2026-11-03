@@ -27,4 +27,4 @@ Text normalization (numbers, money, time, URLs, etc. spelled out before phonemiz
 ## Testing
 
 - Keep regexes linear. `test_normalizer_redos.py` shows the flood inputs that have bitten before.
-- `uv run pytest api/tests/test_normalizer*.py`, then `ruff format .` and `ruff check . --fix` before staging.
+- `uv run pytest api/tests/test_normalizer*.py`, then `uv run --only-group lint ruff format .` and `uv run --only-group lint ruff check . --fix` before staging.

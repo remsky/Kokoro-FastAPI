@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 
 from api.src.core.config import settings
 from api.src.inference.base import AudioChunk
-from api.src.inference.model_manager import ModelManager
+from api.src.inference.model_manager import ModelBusyError, ModelManager
 from api.src.main import app
 from api.src.routers.development import get_tts_service
 from api.src.services.tts_service import TTSService
@@ -428,3 +428,78 @@ def test_model_status_endpoint_returns_status():
 
     assert response.status_code == 200
     assert response.json() == {"loaded": False}
+
+
+@pytest.mark.asyncio
+async def test_ensure_backend_waits_for_a_load_in_progress():
+    """A caller arriving mid-load must not get the half-initialized backend."""
+    manager = ModelManager()
+    loaded = asyncio.Event()
+
+    async def fake_initialize():
+        manager._backend = MagicMock()
+
+    async def fake_load(path):
+        await asyncio.sleep(0.01)
+        loaded.set()
+
+    async def second_caller():
+        await asyncio.sleep(0)  # let the first caller publish _backend
+        await manager.ensure_backend()
+        return loaded.is_set()
+
+    with (
+        patch.object(manager, "initialize", side_effect=fake_initialize),
+        patch.object(manager, "load_model", side_effect=fake_load),
+    ):
+        _, saw_loaded = await asyncio.gather(manager.ensure_backend(), second_caller())
+
+    assert saw_loaded
+
+
+@pytest.mark.asyncio
+async def test_failed_load_leaves_no_backend_and_retries():
+    manager = ModelManager()
+
+    async def fake_initialize():
+        manager._backend = MagicMock()
+
+    load = AsyncMock(side_effect=[RuntimeError("disk"), None])
+    with (
+        patch.object(manager, "initialize", side_effect=fake_initialize),
+        patch.object(manager, "load_model", load),
+    ):
+        with pytest.raises(RuntimeError, match="disk"):
+            await manager.ensure_backend()
+        assert manager._backend is None
+        await manager.ensure_backend()
+
+    assert manager._backend is not None
+    assert load.call_count == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action", ["unload", "reload"])
+async def test_lifecycle_change_refused_while_generating(action):
+    manager = ModelManager()
+    backend = MagicMock()
+    manager._backend = backend
+    manager._active_requests = 1
+
+    with pytest.raises(ModelBusyError):
+        await getattr(manager, action)()
+
+    assert manager._backend is backend
+    backend.unload.assert_not_called()
+
+
+@pytest.mark.parametrize("action", ["unload", "reload"])
+def test_lifecycle_endpoint_409_while_generating(action):
+    mock_manager = MagicMock()
+    setattr(mock_manager, action, AsyncMock(side_effect=ModelBusyError("busy")))
+    service = _mock_service(manager=mock_manager)
+
+    with override_tts_service(service):
+        response = client.post(f"/dev/{action}")
+
+    assert response.status_code == 409

@@ -73,6 +73,30 @@ def test_load_openai_mappings_file_not_found():
         assert mappings == {"models": {}, "voices": {}}
 
 
+def test_openai_voice_names_map_to_real_voices():
+    """Every OpenAI voice name maps to a voice file that ships with the repo"""
+    openai_voices = {
+        "alloy",
+        "ash",
+        "ballad",
+        "cedar",
+        "coral",
+        "echo",
+        "fable",
+        "marin",
+        "nova",
+        "onyx",
+        "sage",
+        "shimmer",
+        "verse",
+    }
+    mapped = load_openai_mappings()["voices"]
+    assert openai_voices <= mapped.keys()
+    voices_dir = os.path.join(os.path.dirname(__file__), "..", "src", "voices", "v1_0")
+    for name, target in mapped.items():
+        assert os.path.isfile(os.path.join(voices_dir, f"{target}.pt")), name
+
+
 def test_list_models(mock_openai_mappings):
     """Test listing available models endpoint"""
     response = client.get("/v1/models")
@@ -485,6 +509,21 @@ def test_phonemize_returns_phonemes():
         response = client.post("/dev/phonemize", json={"text": "hello"})
     assert response.status_code == 200
     assert response.json()["phonemes"] == "hˈɛlO"
+
+
+def test_phonemize_returns_every_segment():
+    mock_pipeline = MagicMock(
+        return_value=iter(
+            [
+                MagicMock(phonemes="hˈɛlO", tokens=[]),
+                MagicMock(phonemes="wˈɜɹld", tokens=[]),
+            ]
+        )
+    )
+    with patch("api.src.routers.development.KPipeline", return_value=mock_pipeline):
+        response = client.post("/dev/phonemize", json={"text": "hello\n\nworld"})
+    assert response.status_code == 200
+    assert response.json()["phonemes"] == "hˈɛlO wˈɜɹld"
 
 
 def test_openai_speech_pcm_streaming(mock_tts_service, test_voice, mock_audio_bytes):

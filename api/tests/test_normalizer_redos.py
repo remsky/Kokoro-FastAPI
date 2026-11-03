@@ -48,6 +48,11 @@ def test_dash_flood_is_fast():
     assert _elapsed(" --" * 30_000) < BUDGET_S
 
 
+def test_ellipsis_flood_is_fast():
+    """Ellipsis spacing in the whitespace pass (issue #561)."""
+    assert _elapsed("a…" * 50_000) < BUDGET_S
+
+
 def test_digit_flood_is_fast():
     """Bare digit runs must not backtrack quadratically in the number passes (pr #492)."""
     assert _elapsed("9" * 80_000) < BUDGET_S

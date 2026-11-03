@@ -2,9 +2,11 @@ from typing import Dict, List
 
 from pydantic import BaseModel, Field, field_validator
 
+from .schemas import InputText
+
 
 class PhonemeRequest(BaseModel):
-    text: str
+    text: InputText
     language: str = "a"  # Default to American English
 
 
@@ -37,14 +39,14 @@ class StitchOptions(BaseModel):
 class GenerateFromPhonemesRequest(BaseModel):
     """Simple request for phoneme-to-speech generation"""
 
-    phonemes: str = Field(..., description="Phoneme string to synthesize")
+    phonemes: InputText = Field(..., description="Phoneme string to synthesize")
     voice: str = Field(..., description="Voice ID to use for generation")
 
 
 class SsmlRequest(BaseModel):
     """Request to translate SSML into native inline control tokens"""
 
-    text: str = Field(..., description="SSML document starting with <speak>")
+    text: InputText = Field(..., description="SSML document starting with <speak>")
     voice: str = Field(
         default="",
         description="Voice the speech request will use. Enables [voice:]/[rate:] emission with reverts; when empty those elements are stripped and their content kept.",
