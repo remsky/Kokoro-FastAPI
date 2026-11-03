@@ -30,11 +30,11 @@ We use `uv` for managing Python environments and dependencies, and `ruff` for li
     ```
     *Note: If you have an NVIDIA GPU and want to test GPU-specific features locally, use `--extra gpu` instead, ensuring you have the correct CUDA toolkit installed.*
 
-    *Note: If running via uv locally, you will have to install espeak and handle any pathing issues that arise. The Docker images handle this automatically*
+    *Note: If running via uv locally, you need espeak-ng installed and on your PATH. The Docker images handle this automatically.*
 
 ## Running Tests
 
-Before submitting changes, please ensure all tests pass as this is a automated requirement. The tests are run using `pytest`. 
+Before submitting changes, make sure all tests pass. CI checks this automatically. The tests are run using `pytest`. 
 ```bash
 # Make sure your virtual environment is activated
 uv run pytest
@@ -43,14 +43,14 @@ uv run pytest
 
 ## Testing with Docker Compose
 
-In addition to local `pytest` runs, test your changes using Docker Compose to ensure they work correctly within the containerized environment. If you aren't able to test on CUDA hardware, make note so it can be tested by another maintainer
+In addition to local `pytest` runs, test your changes using Docker Compose to ensure they work correctly within the containerized environment. If you aren't able to test on CUDA hardware, say so in the PR so another maintainer can test it.
 
 ```bash
 
 docker compose -f docker/cpu/docker-compose.yml up --build
 docker compose -f docker/gpu/docker-compose.yml up --build
 ```
-This command will build the Docker images (if they've changed) and start the services defined in the respective compose file. Verify the application starts correctly and test the relevant functionality.
+These commands build the images (if they changed) and start the services in each compose file. Make sure the app starts, then test what you changed.
 
 ## Code Formatting and Linting
 
@@ -76,13 +76,14 @@ Task guides in `.claude/skills/`, written for coding agents, readable as plain m
 - [adding-normalizer](.claude/skills/adding-normalizer/SKILL.md): adding a language normalizer.
 - [integration-tests](.claude/skills/integration-tests/SKILL.md): the e2e suite against a live server.
 - [readme-benchmarks](.claude/skills/readme-benchmarks/SKILL.md): benchmark runs and README plots.
+- [consumer-check](.claude/skills/consumer-check/SKILL.md): finding downstream users a behavior change could break.
 
 ## Submitting Changes
 
-0.  Clone the repo
+0.  Fork the repo and clone your fork.
 1.  Create a new branch for your feature or bug fix.
 2.  Make your changes, following setup, testing, and formatting guidelines above.
-3.  Please try to keep your changes inline with the current design, and modular. Large-scale changes will take longer to review and integrate, and have less chance of being approved outright.
+3.  Please try to keep your changes in line with the current design, and modular, and pass tasts and lint locally before creating a PR. Large-scale changes will take longer to review and integrate, and have less chance of being approved outright.
 4.  Push your branch to your fork.
 5.  Open a Pull Request against the `master` branch of the main repository.
 
