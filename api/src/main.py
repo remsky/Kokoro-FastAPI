@@ -22,6 +22,7 @@ from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
 from .routers.elevenlabs_compatible import router as elevenlabs_router
 from .routers.openai_compatible import router as openai_router
+from .routers.openai_realtime import router as realtime_router
 from .routers.ssml import router as ssml_router
 from .routers.tune import router as tune_router
 from .routers.web_player import router as web_router
@@ -187,6 +188,9 @@ app.include_router(
 app.include_router(
     cartesia_router, dependencies=protected
 )  # Cartesia compatible websocket TTS
+app.include_router(
+    realtime_router, dependencies=protected
+)  # OpenAI Realtime compatible websocket TTS
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 

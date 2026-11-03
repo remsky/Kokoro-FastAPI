@@ -15,7 +15,7 @@
 
 Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) text-to-speech model. Generate hours of high quality speech in minutes.
 
-- OpenAI-compatible Speech endpoint, multi-language support
+- OpenAI-compatible Speech + Realtime (TTS only) endpoints, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
 - ElevenLabs and Cartesia compatible websockets for voice agents (LiveKit, Pipecat)
 - Custom voicepacks via [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
@@ -258,7 +258,50 @@ tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", v
 - Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
 - Word timestamps where Kokoro has them (English, espeak languages)
 - Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
-- `ENABLE_WEBSOCKET_TTS=false` turns both off
+- `ENABLE_WEBSOCKET_TTS=false` turns these and the Realtime route off
+</details>
+
+<details>
+<summary>OpenAI Realtime (TTS only)</summary>
+
+For Realtime TTS clients (wyoming_openai `TTS_REALTIME_MODELS` etc). Voice names map the same as on the Speech endpoint (`voice_aliases` do not work here).
+
+```python
+import asyncio
+import base64
+import wave
+
+from openai import AsyncOpenAI
+
+
+async def main():
+    client = AsyncOpenAI(api_key="x", base_url="http://localhost:8880/v1")
+    audio = bytearray()
+    async with client.realtime.connect(model="kokoro") as conn:
+        await conn.session.update(session={"type": "realtime", "audio": {"output": {"voice": "af_heart"}}})
+        await conn.response.create(response={"conversation": "none", "input": [
+            {"type": "message", "role": "user", "content": [{"type": "input_text", "text": "Hello there."}]}
+        ]})
+        async for event in conn:
+            if event.type == "response.output_audio.delta":
+                audio += base64.b64decode(event.delta)
+            elif event.type == "response.done":
+                break
+
+    with wave.open("output.wav", "wb") as f:
+        f.setnchannels(1)
+        f.setsampwidth(2)
+        f.setframerate(24000)
+        f.writeframes(audio)
+
+
+asyncio.run(main())
+```
+
+- Text is read as written, `instructions` are ignored
+- Audio: PCM at 24000 Hz only
+- `response.cancel` stops a response. Audio input and conversation events get an `error` back
+- OpenAI SDK 2.x forces `wss://`, and requires you pass `websocket_base_url="ws://localhost:8880/v1"`
 </details>
 
 <details>
