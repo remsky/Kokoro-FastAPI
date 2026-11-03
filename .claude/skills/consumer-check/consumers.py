@@ -108,7 +108,7 @@ def search_consumers(terms, repos):
                     for ln in match["fragment"].splitlines()
                 ]
                 line = next((ln for ln in lines if term.lower() in ln.lower()), "")
-                print(f"{term}	{repo}	{item['html_url']}	{line[:160]}")
+                print(f"{term}\t{repo}\t{item['html_url']}\t{line[:160]}")
         print(f"{term}: {len(hit_repos)} of {len(repos)} consumers", file=sys.stderr)
     print(
         f"skipped hits in {len(copies)} repos that copy Kokoro's own api/ or web/ files",

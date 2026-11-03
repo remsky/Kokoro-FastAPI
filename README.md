@@ -17,9 +17,10 @@ Dockerized FastAPI wrapper for [Kokoro-82M](https://huggingface.co/hexgrad/Kokor
 
 - OpenAI-compatible Speech endpoint, multi-language support
   - English (US/GB), Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin Chinese
+- ElevenLabs and Cartesia compatible websockets for voice agents (LiveKit, Pipecat)
 - Custom voicepacks via [Inno Clone-Tuner](https://github.com/remsky/inno-kokoro)
 - Optional integrated WebUI; read-along long-generation
-- Inline multi-speaker generation & voice mixing + aliasing weighted combinations, SSML support
+- Inline multi-speaker generation, weighted voice mixing with short aliases, SSML support
 - Per-word, or per-chunk timestamped caption generation
 - Phoneme endpoints: generate phonemes from text, or generate audio from phonemes
 - Prebuilt multiplatform images
@@ -237,6 +238,30 @@ python examples/assorted_checks/test_voices/test_all_voices.py # Test all availa
 </details>
 
 <details>
+<summary>Voice Agents (ElevenLabs / Cartesia websocket)</summary>
+
+ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored unless `API_KEYS` is set.
+
+```python
+# LiveKit Agents
+from livekit.plugins import cartesia, elevenlabs
+tts = elevenlabs.TTS(base_url="http://localhost:8880/v1", api_key="x", voice_id="af_heart")
+tts = cartesia.TTS(base_url="http://localhost:8880", api_key="x", voice="am_michael")
+
+# Pipecat
+from pipecat.services.cartesia.tts import CartesiaTTSService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+tts = ElevenLabsTTSService(url="ws://localhost:8880", api_key="x", voice_id="af_heart")
+tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", voice_id="am_michael")
+```
+
+- Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
+- Word timestamps where Kokoro has them (English, espeak languages)
+- Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
+- `ENABLE_WEBSOCKET_TTS=false` turns both off
+</details>
+
+<details>
 <summary>Streaming Support</summary>
 
 ```python
@@ -305,30 +330,6 @@ Key Streaming Metrics:
 - Adjustable chunking settings for real-time playback 
 
 *Note: Artifacts in intonation can increase with smaller chunks*
-</details>
-
-<details>
-<summary>Voice Agents (ElevenLabs / Cartesia websocket)</summary>
-
-ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored unless `API_KEYS` is set.
-
-```python
-# LiveKit Agents
-from livekit.plugins import cartesia, elevenlabs
-tts = elevenlabs.TTS(base_url="http://localhost:8880/v1", api_key="x", voice_id="af_heart")
-tts = cartesia.TTS(base_url="http://localhost:8880", api_key="x", voice="am_michael")
-
-# Pipecat
-from pipecat.services.cartesia.tts import CartesiaTTSService
-from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
-tts = ElevenLabsTTSService(url="ws://localhost:8880", api_key="x", voice_id="af_heart")
-tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", voice_id="am_michael")
-```
-
-- Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
-- Word timestamps where Kokoro has them (English, espeak languages)
-- Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
-- `ENABLE_WEBSOCKET_TTS=false` turns both off
 </details>
 
 <details>
@@ -403,9 +404,9 @@ response = requests.post(
 <summary>Voice Aliases</summary>
 
 Weighted mixes can get long fast. `voice_aliases` maps a short name per request, for both the `voice` field and `[voice:...]` tags:
-- Aliases prefer to match case-insensitively (keep lowercase to avoid inconsistencies). 
+- Names match case-insensitively, but an exact match wins. Keep them lowercase to avoid surprises.
 - An alias pointing at a nonexistent voice returns a 400.
-- The web UI's cast exports in the same format e.g. `{"voice_aliases": {...}}`; interchangeable for API calls.
+- The web UI's cast exports as `{"voice_aliases": {...}}`, which can be sent as-is in API calls.
 
 
 ```python
@@ -423,40 +424,47 @@ client.audio.speech.create(
 )
 ```
 
-or
-
-```bash
-curl -X POST http://localhost:8880/v1/audio/speech \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "kokoro",
-    "voice": "narrator",
-    "input": "[voice:narrator] Once upon a time. [voice:villain] Never!",
-    "allow_voice_tags": true,
-    "voice_aliases": {"narrator": "af_bella(2)+af_sky", "villain": "am_michael"},
-    "response_format": "mp3"
-  }' --output aliased.mp3
-```
-
 </details>
 
 <details>
 <summary>Voice Tuning (reference clip) 🧪</summary>
 
-`POST /dev/tune` takes a 3 to 30 s clip of one English speaker and speaks with a voice tuned toward it, via [inno-kokoro](https://github.com/remsky/inno-kokoro). A tuner, not a cloner: expect the same neighbourhood, not a match. Only tune voices you have permission to use.
+`POST /dev/tune` takes a 3 to 30 s clip of one English speaker and returns speech in a voice tuned toward it, via [inno-kokoro](https://github.com/remsky/inno-kokoro). It is a tuner, not a cloner. Expect a similar voice, not a match. Only tune voices you have permission to use.
 
-```bash
-curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F 'request={"input":"Hello there."}' -o out.mp3
-curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F return_voice_pack=true -o ref.pt
-curl -s http://localhost:8880/dev/tune -F audio=@ref.wav -F save_voice=am_ref   # saves am_ref_tuned, needs ALLOW_LOCAL_VOICE_SAVING=true
+Off by default. `ENABLE_INNO_TUNER=true` enables the route and a Tune tab in the web player.
+
+```python
+import json
+import requests
+
+url = "http://localhost:8880/dev/tune"
+
+# Speak text in the tuned voice
+with open("ref.wav", "rb") as ref:
+    response = requests.post(
+        url,
+        files={"audio": ref},
+        data={"request": json.dumps({"input": "Hello there."})},
+    )
+with open("out.mp3", "wb") as f:
+    f.write(response.content)
+
+# Download the tuned voice pack
+with open("ref.wav", "rb") as ref:
+    response = requests.post(url, files={"audio": ref}, data={"return_voice_pack": "true"})
+with open("ref.pt", "wb") as f:
+    f.write(response.content)
+
+# Save it on the server as am_ref_tuned
+with open("ref.wav", "rb") as ref:
+    response = requests.post(url, files={"audio": ref}, data={"save_voice": "am_ref"})
+print(response.json())  # {"voice": "am_ref_tuned"}
 ```
 
-- `request` is the `/v1/audio/speech` body minus `voice`; the pack only exists for the length of the response unless `save_voice` keeps it in `VOICES_DIR`
-- Names follow the existing language prefix pattern (`am_`, `bf_`, `ax_`, etc.) and saved voices get a `_tuned` suffix. Bundled tuned voices end in `_inno`
-- Knobs: `prosody_head` (default on), `fmax` pitch ceiling in Hz (default auto)
-- Off by default:
-    - `ENABLE_INNO_TUNER=true` enables with a web player tab
-    - `ALLOW_LOCAL_VOICE_SAVING=true` allows saving them to the live server.
+- `request` is the `/v1/audio/speech` body without `voice`
+- `save_voice` keeps the pack in `VOICES_DIR` as `<name>_tuned`, usable like any other voice. Off unless `ALLOW_LOCAL_VOICE_SAVING=true`. Without it, the pack is deleted after the response
+- Saved names use the usual prefix (`am_`, `bf_`, `ax_`, etc.). Bundled tuned voices end in `_inno`
+- Optional: `prosody_head` (default on), `fmax` pitch ceiling in Hz (default auto)
 - Full reference in [docs/inno-tune.md](docs/inno-tune.md)
 
 </details>
@@ -491,19 +499,24 @@ client.audio.speech.create(
 )
 ```
 
-`POST /dev/dialogue` uses structured turns, and allows `pause_between_turns` to be controlled by param. 
+`POST /dev/dialogue` takes structured turns instead of tags, with an optional `pause_between_turns` in seconds.
 
-```bash
-curl -X POST http://localhost:8880/dev/dialogue \
-  -H "Content-Type: application/json" \
-  -d '{
-    "turns": [
-      {"voice": "af_bella", "text": "Did the multi speaker support land?"},
-      {"voice": "am_michael", "text": "It did. Turns switch voices inline."}
-    ],
-    "pause_between_turns": 0.4,
-    "response_format": "mp3"
-  }' --output dialogue.mp3
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:8880/dev/dialogue",
+    json={
+        "turns": [
+            {"voice": "af_bella", "text": "Did the multi speaker support land?"},
+            {"voice": "am_michael", "text": "It did. Turns switch voices inline."},
+        ],
+        "pause_between_turns": 0.4,
+        "response_format": "mp3",
+    },
+)
+with open("dialogue.mp3", "wb") as f:
+    f.write(response.content)
 ```
 
 Notes:
@@ -517,7 +530,7 @@ Notes:
   <img src="assets/gpu_dialogue_text_length.png" width="45%" alt="Throughput at two voice change rates as the generation grows" style="border: 2px solid #333; padding: 10px;">
 </div>
 
-Number of voices has minimal impact on generation speed. For continuous swaps though, if each speaker gets less than about 2 sentences, chunking requirements slow generation down. Still a flat cost, not compounding as the text grows. Regenerate with `examples/assorted_checks/test_dialogue/`.
+The number of voices has little impact on generation speed. Turns shorter than about 2 sentences do slow it down, from extra chunking. The cost is flat and does not grow with text length. Regenerate with `examples/assorted_checks/test_dialogue/`.
 </details>
 
 ### Text Control
@@ -531,12 +544,12 @@ Four tokens can be embedded in the `input` text and are parsed server-side (API,
 - **Pronunciation**: `[Worcester](/wˈʊstər/)` speaks the IPA between the slashes instead of the word. English only; use `/dev/phonemize` to find the IPA.
 - **Voice**: `[voice:am_michael]` switches speaker for everything that follows.
   - Requires `allow_voice_tags: true` per request, and `ENABLE_VOICE_TAGS` server-side (on by default). Otherwise the tag is spoken as written.
-  - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`), 
-  - Short names/aliases can be defined in `voice_aliases`, 
+  - Accepts the same combine syntax as the `voice` parameter (`[voice:af_bella(2)+af_sky]`).
+  - Short names/aliases can be defined in `voice_aliases`.
   - Unknown values return a 400.
 - **Rate**: `[rate:1.5]` scales the speaking voice's pace until the next rate tag or voice change; `[rate:1.0]` reverts. Applies on top of the request `speed`, clamped to 0.25-4.0. Same gating as voice tags.
   - A voice alias can carry a natural pace: `{"grandpa": {"voice": "am_michael", "rate": 0.8}}` applies that rate whenever the alias speaks, as the `voice` parameter or in tags. Useful for voices that read fast or slow, and for named presets over one voice (`narrator_fast`, `narrator_slow`).
-  - Rate belongs to the voice speaking it. A `[rate:]` tag scales the speaker's calibrated pace rather than replacing it, so an alias throttled to `0.8` stays proportionally slower under `[rate:1.1]`. Every `[voice:...]` tag resets to the new voice's own rate, so a calibrated speaker cannot drag its pace onto the next one. Use `speed` for a pace over the whole request.
+  - Rate belongs to the voice speaking it. A `[rate:]` tag scales the speaker's own pace instead of replacing it, so an alias set to `0.8` stays slower under `[rate:1.1]`. Each `[voice:...]` tag resets to the new voice's own rate. Use `speed` to set the pace for the whole request.
 
 ```text
 The city of [Worcester](/wˈʊstər/) is easy. [pause:1s] See?
@@ -572,10 +585,12 @@ Send `ssml: true` with `allow_voice_tags: true` on `/v1/audio/speech` or `/dev/c
 - Prefixed names (`google:style`, `mstts:express-as`, `amazon:effect`) need their `xmlns:` on `<speak>`, vendor docs often omit it
 - `GET /dev/ssml` serves these tables as data, read off the translator itself
 
-```bash
-curl -s http://localhost:8880/dev/ssml -H "Content-Type: application/json" \
-  -d '{"text": "<speak>The city of <phoneme alphabet=\"ipa\" ph=\"wˈʊstər\">Worcester</phoneme> is easy.<break time=\"1s\"/>See?</speak>"}'
-# {"text": "The city of [Worcester](/wˈʊstər/) is easy. [pause:1.0s] See?"}
+```python
+import requests
+
+ssml = '<speak>The city of <phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme> is easy.<break time="1s"/>See?</speak>'
+response = requests.post("http://localhost:8880/dev/ssml", json={"text": ssml})
+print(response.json())  # {"text": "The city of [Worcester](/wˈʊstər/) is easy. [pause:1.0s] See?"}
 ```
 </details>
 
@@ -758,7 +773,7 @@ Key Performance Metrics:
 
 ### Model Unload / VRAM Reclaim
 
-`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. Reclaim scales with load (the activation pool, not just weights) but plateaus: chunks cap at 450 tokens. Long-form = ~30 paragraphs. Same setup as above.
+`POST /dev/unload` frees the model from VRAM and reloads lazily on the next request. The memory freed grows with load (the activation pool, not just weights), but levels off because chunks cap at 450 tokens. The long-form workload is ~30 paragraphs. Same setup as above.
 
 <p align="center">
   <img src="assets/gpu_model_unload_short.png" width="45%" alt="Short workload" style="border: 2px solid #333; padding: 10px; margin-right: 1%;">
@@ -922,7 +937,7 @@ WAV responses use a streaming-sentinel (`0xFFFFFFFF`) for the size fields in the
 
 Note: This is a *development* focused project at its core.
 
-If you run into trouble, you may have to roll back a version on the release tags if something comes up, or build up from source and/or troubleshoot + submit a PR.
+If something breaks, roll back to an earlier release tag, or build from source and submit a PR.
 
 Free and open source is a community effort, and there's only really so many hours in a day. If you'd like to support the work, feel free to open a PR, buy me a coffee, or report any bugs/features/etc you find during use.
 

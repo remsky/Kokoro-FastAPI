@@ -1,6 +1,6 @@
 ---
 name: consumer-check
-description: "Checking whether a Kokoro-FastAPI change breaks downstream users (image consumers, HTTP clients, in-process shims). Use before merging a behavior change, removal, rename, or a status code or response shape change, or when asked who uses X."
+description: "Checking whether a Kokoro-FastAPI change breaks downstream users (image consumers, HTTP clients, in-process shims). Use before merging a behavior change that can't be compared against the OpenAI, ElevenLabs, or Cartesia client libraries, or when asked who uses X feature."
 ---
 
 Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING.md) first, house rules live there.
@@ -8,6 +8,8 @@ Read [AGENTS.md](../../../AGENTS.md) and [CONTRIBUTING.md](../../../CONTRIBUTING
 # Consumer check
 
 A consumer is a public GitHub repo that runs or calls Kokoro-FastAPI. A search of this repo only shows that Kokoro itself no longer uses something. Consumers often use the parts that look unused from inside: test and health endpoints, `api.src` internals, status codes, and empty responses.
+
+Skip it if the change can be compared against the OpenAI, ElevenLabs, or Cartesia client libraries.
 
 A GitHub search for the changed endpoint or field alone finds almost nothing. First find the consumers by how they get Kokoro. Then search those repos.
 
