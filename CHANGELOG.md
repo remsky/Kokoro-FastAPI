@@ -13,7 +13,8 @@ Per-PR attribution and contributor credits are published automatically on the co
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
 
 ### Fixed
-- OpenAI voice names added to mapped defaults: 
+- A `download_format` different from `response_format` is rejected with a 422. The download link served the streamed audio unchanged under the other format's name and type, so asking for mp3 with a wav download gave an mp3 file called `.wav`
+- OpenAI voice names added to mapped defaults:
   - `"marin": "af_heart"`, `"cedar": "am_fenrir"`, `"verse": "am_puck"`, `"ballad": "bm_fable"`
 
 ## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting
