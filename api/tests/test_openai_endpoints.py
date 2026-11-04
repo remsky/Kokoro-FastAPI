@@ -413,8 +413,11 @@ def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test
     assert response.json()["detail"]["error"] == "validation_error"
 
 
-def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test_voice):
+def test_openai_speech_streaming_nothing_speakable_is_400(
+    mock_tts_service, test_voice, monkeypatch
+):
     """Blank input, or emoji-only with remove_emoji, 400s before the stream opens instead of an empty 200 (issue #353)."""
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0)
     for body in [
         {"input": "   "},
         {"input": "😊", "normalization_options": {"remove_emoji": True}},

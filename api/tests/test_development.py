@@ -39,8 +39,9 @@ def word(text, start):
     return WordTimestamp(word=text, start_time=start, end_time=start + 0.1)
 
 
-def test_captioned_speech_nothing_speakable_is_400(mock_tts_service):
+def test_captioned_speech_nothing_speakable_is_400(mock_tts_service, monkeypatch):
     """Blank input, or emoji-only with remove_emoji, 400s before the stream opens (issue #353)."""
+    monkeypatch.setattr(temp_manager.settings, "unspoken_input_pause_s", 0)
     for body in [
         {"input": "   "},
         {"input": "😊", "normalization_options": {"remove_emoji": True}},
