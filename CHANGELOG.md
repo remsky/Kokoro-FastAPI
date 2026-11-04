@@ -7,7 +7,12 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
-- ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
+- ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc):
+  - Streamed text input, PCM or MP3 output with word timestamps
+  - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
+- OpenAI Realtime compatible websocket TTS on `/v1/realtime` (wyoming_openai etc):
+  - Text input only, 24 kHz PCM output
+  - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
 
 ### Changed
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
