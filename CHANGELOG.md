@@ -6,6 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
+- Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392)
 - `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc):
   - Streamed text input, PCM or MP3 output with word timestamps
@@ -16,7 +17,6 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ### Changed
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
-- Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392)
 
 ### Fixed
 - A `download_format` different from `response_format` is rejected with a 422. The download link served the streamed audio unchanged under the other format's name and type, so asking for mp3 with a wav download gave an mp3 file called `.wav`
