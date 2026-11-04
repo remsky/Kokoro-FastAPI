@@ -50,3 +50,11 @@ def test_speed_mode_defaults_to_model_and_rejects_unknown(monkeypatch):
     assert Settings(_env_file=None).speed_mode == "model"
     with pytest.raises(ValidationError):
         Settings(_env_file=None, speed_mode="resample")
+
+
+def test_audio_normalization_is_opt_in(monkeypatch):
+    monkeypatch.delenv("NORMALIZE_AUDIO", raising=False)
+    assert hasattr(Settings(_env_file=None), "normalize_audio")
+    assert Settings(_env_file=None).normalize_audio is False
+    monkeypatch.setenv("NORMALIZE_AUDIO", "true")
+    assert Settings(_env_file=None).normalize_audio is True

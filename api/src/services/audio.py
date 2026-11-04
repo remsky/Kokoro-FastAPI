@@ -1,6 +1,7 @@
 """Audio conversion service"""
 
 import math
+from fractions import Fraction
 
 import av
 import numpy as np
@@ -12,8 +13,6 @@ from .streaming_audio_writer import StreamingAudioWriter
 
 # per-filter range on older ffmpeg builds, chained past it
 ATEMPO_MIN, ATEMPO_MAX = 0.5, 2.0
-# atempo drops its last partial window on flush, so feed it silence to sacrifice
-STRETCH_PAD_SAMPLES = 4096
 
 
 def _atempo_factors(speed: float) -> list[float]:
@@ -27,46 +26,161 @@ def _atempo_factors(speed: float) -> list[float]:
     return factors + [speed]
 
 
+class AudioFilterStream:
+    """One sequential, request-owned filter graph; arrays are samples by channels."""
+
+    def __init__(
+        self, speed=1.0, sample_rate=24000, channels=1, normalize=False, gain=1.0
+    ):
+        if not math.isfinite(speed) or not 0.25 <= speed <= 4.0:
+            raise ValueError("speed must be between 0.25 and 4.0")
+        if sample_rate <= 0 or channels not in (1, 2):
+            raise ValueError("positive sample rate and mono/stereo audio required")
+        self.speed = speed
+        self.normalize = normalize
+        self.sample_rate = sample_rate
+        self.channels = channels
+        self.layout = "mono" if channels == 1 else "stereo"
+        self.time_base = Fraction(1, sample_rate)
+        self.graph = None
+        self.input_samples = 0
+        self.output_samples = 0
+        self._pts = 0
+        self._finished = False
+        self._pending = self._empty()
+        self._last_sample = 0.0
+        if speed != 1.0 or normalize:
+            self.graph = av.filter.Graph()
+            nodes = [
+                self.graph.add_abuffer(
+                    format="flt",
+                    sample_rate=sample_rate,
+                    layout=self.layout,
+                    time_base=self.time_base,
+                )
+            ]
+            if speed != 1.0:
+                nodes += [
+                    self.graph.add("atempo", str(f)) for f in _atempo_factors(speed)
+                ]
+            if normalize:
+                # Short lookahead, bounded gain and a noise gate for streaming speech.
+                nodes.append(
+                    self.graph.add("dynaudnorm", "f=40:g=5:p=0.9:m=4:r=0.12:t=0.005")
+                )
+                if gain != 1.0:
+                    nodes.append(self.graph.add("volume", str(gain)))
+                nodes.append(
+                    self.graph.add("alimiter", "limit=0.95:level=false:latency=true")
+                )
+                nodes.append(
+                    self.graph.add(
+                        "aformat",
+                        f"sample_fmts=flt:sample_rates={sample_rate}:channel_layouts={self.layout}",
+                    )
+                )
+            nodes.append(self.graph.add("abuffersink"))
+            for source, sink in zip(nodes, nodes[1:]):
+                source.link_to(sink)
+            self.graph.configure()
+            self.graph.set_audio_frame_size(1024)
+
+    def _empty(self):
+        shape = (0,) if self.channels == 1 else (0, self.channels)
+        return np.empty(shape, dtype=np.float32)
+
+    def _push_frame(self, audio):
+        # atempo sizes output from input frames; small feeds avoid chunk-sized latency.
+        for start in range(0, len(audio), 1024):
+            block = audio[start : start + 1024]
+            frame = av.AudioFrame.from_ndarray(
+                np.ascontiguousarray(block.reshape(1, -1)),
+                format="flt",
+                layout=self.layout,
+            )
+            frame.sample_rate = self.sample_rate
+            frame.time_base = self.time_base
+            frame.pts = self._pts
+            self._pts += len(block)
+            self.graph.push(frame)
+
+    def _drain(self):
+        frames = [self._pending]
+        while True:
+            try:
+                frame = self.graph.pull()
+            except (av.BlockingIOError, av.EOFError):
+                break
+            values = frame.to_ndarray().reshape(-1, self.channels)
+            frames.append(values[:, 0] if self.channels == 1 else values)
+        available = np.concatenate(frames)
+        remaining = max(round(self.input_samples / self.speed) - self.output_samples, 0)
+        result = available[:remaining]
+        self._pending = available[len(result) :].copy()
+        self.output_samples += len(result)
+        return result
+
+    def push(self, audio):
+        if self._finished:
+            raise RuntimeError("audio filter is closed")
+        audio = np.asarray(audio)
+        expected = 1 if self.channels == 1 else 2
+        if audio.ndim != expected or (
+            expected == 2 and audio.shape[1] != self.channels
+        ):
+            raise ValueError("audio shape does not match channel layout")
+        if audio.dtype == np.int16:
+            audio = audio.astype(np.float32) / 32768.0
+        else:
+            audio = audio.astype(np.float32, copy=False)
+        self.input_samples += len(audio)
+        if not len(audio):
+            return self._empty()
+        self._last_sample = audio[-1].copy()
+        if self.graph is None:
+            self.output_samples += len(audio)
+            return audio
+        self._push_frame(audio)
+        return self._drain()
+
+    def flush(self):
+        if self._finished:
+            return self._empty()
+        self._finished = True
+        if self.graph is None or not self.input_samples:
+            return self._empty()
+        # Sacrifice silence only at EOF, never at model chunk boundaries.
+        if self.speed != 1.0:
+            padding = math.ceil(self.sample_rate * 0.2 * max(self.speed, 1.0))
+            shape = (padding,) if self.channels == 1 else (padding, self.channels)
+            fill = self._last_sample if self.normalize else 0.0
+            self._push_frame(np.full(shape, fill, dtype=np.float32))
+        self.graph.push(None)
+        result = self._drain()
+        if self.output_samples != round(self.input_samples / self.speed):
+            raise RuntimeError("audio filter failed to flush the complete tail")
+        return result
+
+    def close(self):
+        self._finished = True
+        self.graph = None
+        self._pending = self._empty()
+
+
 def time_stretch(
     audio: np.ndarray, speed: float, sample_rate: int = 24000
 ) -> np.ndarray:
-    """Change tempo without changing pitch, returning round(len(audio) / speed) samples"""
+    """Convenience wrapper for callers with a complete mono clip."""
     if speed == 1.0 or len(audio) == 0:
         return audio
-
-    sample_format = "s16" if audio.dtype == np.int16 else "flt"
-    dtype = np.int16 if sample_format == "s16" else np.float32
-    padded = np.concatenate(
-        [audio.astype(dtype, copy=False), np.zeros(STRETCH_PAD_SAMPLES, dtype)]
-    )
-
-    graph = av.filter.Graph()
-    nodes = [
-        graph.add_abuffer(format=sample_format, sample_rate=sample_rate, layout="mono")
-    ]
-    nodes += [graph.add("atempo", f"{factor}") for factor in _atempo_factors(speed)]
-    nodes.append(graph.add("abuffersink"))
-    for upstream, downstream in zip(nodes, nodes[1:]):
-        upstream.link_to(downstream)
-    graph.configure()
-
-    frame = av.AudioFrame.from_ndarray(
-        padded.reshape(1, -1), format=sample_format, layout="mono"
-    )
-    frame.sample_rate = sample_rate
-    frame.pts = 0
-    graph.push(frame)
-    graph.push(None)
-
-    stretched = []
-    while True:
-        try:
-            stretched.append(graph.pull().to_ndarray().reshape(-1))
-        except (av.BlockingIOError, av.EOFError):
-            break
-
-    out = np.concatenate(stretched) if stretched else np.zeros(0, dtype)
-    return out[: round(len(audio) / speed)]
+    processor = AudioFilterStream(speed, sample_rate)
+    try:
+        result = np.concatenate([processor.push(audio), processor.flush()])
+        if audio.dtype == np.int16:
+            return np.clip(np.rint(result * 32768), -32768, 32767).astype(np.int16)
+        return result
+    finally:
+        processor.close()
 
 
 class AudioNormalizer:

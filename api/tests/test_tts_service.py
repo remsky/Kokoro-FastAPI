@@ -694,16 +694,15 @@ async def _tone_service():
 async def _tone_chunks(service, speed):
     return [
         chunk
-        async for chunk in service._process_chunk(
+        async for chunk in service.generate_audio_stream(
             "Tone.",
-            [],
             "af_heart",
-            "/p/af_heart.pt",
-            speed,
             MagicMock(),
+            speed=speed,
             output_format=None,
             return_timestamps=True,
         )
+        if len(chunk.audio)
     ]
 
 
@@ -713,7 +712,11 @@ async def test_stretch_mode_generates_at_1x_then_stretches(monkeypatch):
     monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
     service, model_speeds = await _tone_service()
 
-    (chunk,) = await _tone_chunks(service, 2.0)
+    chunks = await _tone_chunks(service, 2.0)
+    chunk = AudioChunk(
+        np.concatenate([c.audio for c in chunks]),
+        [w for c in chunks for w in c.word_timestamps or []],
+    )
 
     assert model_speeds == [1.0]
     assert len(chunk.audio) == pytest.approx(12000, abs=100)
@@ -726,14 +729,18 @@ async def test_model_mode_passes_speed_to_the_model(monkeypatch):
     monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "model")
     service, model_speeds = await _tone_service()
 
-    (chunk,) = await _tone_chunks(service, 2.0)
+    chunks = await _tone_chunks(service, 2.0)
+    chunk = AudioChunk(
+        np.concatenate([c.audio for c in chunks]),
+        [w for c in chunks for w in c.word_timestamps or []],
+    )
 
     assert model_speeds == [2.0]
     assert len(chunk.audio) == pytest.approx(24000, abs=100)
 
 
 @pytest.mark.parametrize(
-    ("speed_mode", "pause_end"), [("model", 1.1), ("stretch", 0.6)]
+    ("speed_mode", "pause_end"), [("model", 1.1), ("stretch", 0.55)]
 )
 @pytest.mark.asyncio
 async def test_pauses_follow_speed_only_in_stretch_mode(
@@ -755,7 +762,7 @@ async def test_pauses_follow_speed_only_in_stretch_mode(
 
     assert [(t["text"].strip(), t["start"], t["end"]) for t in timings][1] == (
         "",
-        0.1,
+        0.05 if speed_mode == "stretch" else 0.1,
         pause_end,
     )
 
@@ -782,3 +789,190 @@ async def test_stretched_mp3_stream_finalizes_at_the_new_length(monkeypatch):
     assert await decoded_samples(1.0) - await decoded_samples(2.0) == pytest.approx(
         12000, abs=600
     )
+
+
+async def test_stretch_stream_reuses_graph_and_keeps_delayed_words(monkeypatch):
+    from api.src.services.audio import AudioFilterStream
+
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+    service, _ = await _tone_service()
+    graphs = []
+    original = AudioFilterStream.push
+
+    def observe(self, audio):
+        result = original(self, audio)
+        graphs.append(self.graph)
+        return result
+
+    monkeypatch.setattr(AudioFilterStream, "push", observe)
+    chunks = [
+        chunk
+        async for chunk in service.generate_audio_stream(
+            "One. [pause:0.2s] Two.",
+            "af_heart",
+            MagicMock(),
+            speed=1.5,
+            output_format=None,
+            return_timestamps=True,
+        )
+    ]
+    assert len(graphs) >= 3
+    assert graphs[0] is not None
+    assert all(graph is graphs[0] for graph in graphs)
+    words = [word for chunk in chunks for word in chunk.word_timestamps or []]
+    assert len(words) == 2
+    assert words[1].start_time > words[0].end_time
+    assert sum(len(c.audio) for c in chunks) == pytest.approx(35200, abs=100)
+
+
+async def test_filtered_stream_closes_graph_on_generator_close(monkeypatch):
+    from api.src.services.audio import AudioFilterStream
+
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+    service, _ = await _tone_service()
+    processors = []
+    original = AudioFilterStream.push
+
+    def observe(self, audio):
+        processors.append(self)
+        return original(self, audio)
+
+    monkeypatch.setattr(AudioFilterStream, "push", observe)
+    stream = service.generate_audio_stream(
+        "Hello.",
+        "af_heart",
+        MagicMock(),
+        speed=1.5,
+        output_format=None,
+    )
+    assert len((await anext(stream)).audio) > 0
+    await stream.aclose()
+    assert processors and all(p.graph is None for p in processors)
+
+
+async def test_stretch_rate_changes_preserve_words_and_timing(monkeypatch):
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+    service, model_speeds = await _tone_service()
+    timings = []
+    chunks = [
+        chunk
+        async for chunk in service.generate_audio_stream(
+            "One. [rate:2] Two. [pause:0.4s] [rate:0.5] Three.",
+            "af_heart",
+            MagicMock(),
+            speed=1.0,
+            output_format=None,
+            allow_voice_tags=True,
+            return_timestamps=True,
+            timings=timings,
+        )
+    ]
+    assert model_speeds == [1.0, 1.0, 1.0]
+    words = [w for c in chunks for w in c.word_timestamps or []]
+    assert len(words) == 3
+    assert [w.start_time for w in words] == pytest.approx(
+        [0.199, 1.0975, 2.096], abs=0.01
+    )
+    assert sum(len(c.audio) for c in chunks) / 24000 == pytest.approx(3.693, abs=0.01)
+    assert timings[-1]["end"] == pytest.approx(3.693, abs=0.01)
+
+
+@pytest.mark.parametrize("mode", ["model", "stretch"])
+@pytest.mark.parametrize("normalize", [False, True])
+@pytest.mark.parametrize("format", ["pcm", "wav", "mp3", "flac", "aac", "opus"])
+async def test_speed_and_normalization_encode_complete_stream(
+    monkeypatch, mode, normalize, format
+):
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", mode)
+    monkeypatch.setattr(
+        "api.src.services.tts_service.settings.normalize_audio", normalize
+    )
+    service, _ = await _tone_service()
+    writer = StreamingAudioWriter(format, 24000)
+    chunks = [
+        chunk
+        async for chunk in service.generate_audio_stream(
+            "Tone.",
+            "af_heart",
+            writer,
+            speed=1.5,
+            output_format=format,
+            return_timestamps=True,
+        )
+    ]
+    blob = b"".join(chunk.output for chunk in chunks)
+    if format == "pcm":
+        audio = np.frombuffer(blob, dtype=np.int16).astype(np.float32) / 32768
+        seconds = len(audio) / 24000
+    else:
+        with av.open(io.BytesIO(blob)) as container:
+            frames = list(container.decode(audio=0))
+        seconds = sum(f.samples / f.sample_rate for f in frames)
+        audio = np.concatenate([f.to_ndarray().reshape(-1) for f in frames])
+    expected = 2 / 3 if mode == "stretch" else 1.0
+    assert seconds == pytest.approx(expected, abs=0.15)
+    assert np.all(np.isfinite(audio))
+    words = [w for c in chunks for w in c.word_timestamps or []]
+    assert len(words) == 1
+    assert words[0].end_time <= seconds + 0.02
+    if format == "pcm" and normalize:
+        assert abs(audio).max() < 0.96
+
+
+async def test_default_mode_does_not_create_filter(monkeypatch):
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "model")
+    monkeypatch.setattr("api.src.services.tts_service.settings.normalize_audio", False)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("default mode must not allocate a filter graph")
+
+    monkeypatch.setattr("api.src.services.tts_service.AudioFilterStream", forbidden)
+    service, _ = await _tone_service()
+    chunks = [
+        c
+        async for c in service.generate_audio_stream(
+            "Hello.",
+            "af_heart",
+            MagicMock(),
+            output_format=None,
+        )
+    ]
+    assert sum(len(c.audio) for c in chunks) > 0
+
+
+async def test_cancel_waits_for_filter_worker_before_cleanup(monkeypatch):
+    import asyncio
+    import threading
+
+    from api.src.services.audio import AudioFilterStream
+
+    monkeypatch.setattr("api.src.services.tts_service.settings.speed_mode", "stretch")
+    entered, release = threading.Event(), threading.Event()
+    processors = []
+    original = AudioFilterStream.push
+
+    def slow_push(self, audio):
+        processors.append(self)
+        entered.set()
+        assert release.wait(5)
+        assert self.graph is not None
+        return original(self, audio)
+
+    monkeypatch.setattr(AudioFilterStream, "push", slow_push)
+    service, _ = await _tone_service()
+    stream = service.generate_audio_stream(
+        "Hello.",
+        "af_heart",
+        MagicMock(),
+        speed=1.5,
+        output_format=None,
+    )
+    task = asyncio.create_task(anext(stream))
+    assert await asyncio.to_thread(entered.wait, 5)
+    task.cancel()
+    await asyncio.sleep(0)
+    assert not task.done()
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert processors[0].graph is None

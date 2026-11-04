@@ -63,6 +63,7 @@ class Settings(BaseSettings):
 
     # Audio Settings
     default_volume_multiplier: float = 1.0
+    normalize_audio: bool = False
     speed_mode: Literal["model", "stretch"] = (
         "model"  # model: Kokoro paces the speech. stretch: generate at 1.0x, then time-stretch with ffmpeg atempo
     )

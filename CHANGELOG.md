@@ -7,9 +7,11 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc): point their ElevenLabs/Cartesia plugin at Kokoro, streamed text in, PCM (or MP3) audio out with word timestamps, any common sample rate
-- `SPEED_MODE=stretch` (default `model`): speech is generated at normal pace then sped up or slowed down without changing pitch, so fast and slow speeds no longer slur or skip words. Pauses scale with the speed in this mode (#551)
+- `SPEED_MODE=stretch` (default `model`): speech is generated at normal pace then sped up or slowed down without changing pitch. Pauses scale with the speed in this mode (#551)
+- `NORMALIZE_AUDIO=true` optionally brings quiet voices closer to louder ones while limiting peaks; it is off by default (#551)
 
 ### Changed
+- Stretch mode now processes successive speech chunks through one filter per stream, avoiding filter resets at chunk boundaries
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
 
 ## [v0.9.2] - 2026-10-30: Stability, Request Handling & Voice Sorting

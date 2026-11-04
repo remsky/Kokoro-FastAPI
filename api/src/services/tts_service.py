@@ -6,7 +6,8 @@ import os
 import re
 import tempfile
 import time
-from contextlib import suppress
+from collections import deque
+from contextlib import aclosing, suppress
 from typing import AsyncGenerator, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -22,7 +23,7 @@ from ..inference.model_manager import (
 )
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
-from .audio import AudioNormalizer, AudioService, time_stretch
+from .audio import AudioFilterStream, AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
 from .text_processing.text_processor import (
     check_pause_budget,
@@ -58,18 +59,6 @@ class TTSService:
         service.model_manager = await get_model_manager()
         service._voice_manager = await get_voice_manager()
         return service
-
-    @staticmethod
-    async def _stretch_chunk(chunk_data: AudioChunk, speed: float) -> AudioChunk:
-        if speed == 1.0:
-            return chunk_data
-        chunk_data.audio = await asyncio.to_thread(
-            time_stretch, chunk_data.audio, speed
-        )
-        for timestamp in chunk_data.word_timestamps or []:
-            timestamp.start_time /= speed
-            timestamp.end_time /= speed
-        return chunk_data
 
     async def _process_chunk(
         self,
@@ -116,9 +105,6 @@ class TTSService:
             await self.model_manager.ensure_backend()
             backend = self.model_manager.get_backend()
 
-            stretch = settings.speed_mode == "stretch"
-            model_speed = 1.0 if stretch else speed
-
             # Generate audio using pre-warmed model
             if isinstance(backend, KokoroV1):
                 chunk_index = 0
@@ -126,12 +112,10 @@ class TTSService:
                 async for chunk_data in self.model_manager.generate(
                     chunk_text,
                     (voice_name, voice_path),
-                    speed=model_speed,
+                    speed=speed,
                     lang_code=lang_code,
                     return_timestamps=return_timestamps,
                 ):
-                    if stretch:
-                        chunk_data = await self._stretch_chunk(chunk_data, speed)
                     chunk_data.audio *= volume_multiplier
                     # For streaming, convert to bytes
                     if output_format:
@@ -159,7 +143,7 @@ class TTSService:
                 chunk_data = await self.model_manager.generate(
                     tokens,
                     voice_tensor,
-                    speed=model_speed,
+                    speed=speed,
                     return_timestamps=return_timestamps,
                 )
 
@@ -171,8 +155,6 @@ class TTSService:
                     logger.error("Model generated empty audio chunk")
                     return
 
-                if stretch:
-                    chunk_data = await self._stretch_chunk(chunk_data, speed)
                 chunk_data.audio *= volume_multiplier
 
                 # For streaming, convert to bytes
@@ -354,6 +336,25 @@ class TTSService:
         timings: Optional[List[dict]] = None,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
+        if settings.speed_mode == "stretch" or settings.normalize_audio:
+            async with aclosing(
+                self._generate_filtered_stream(
+                    text,
+                    voice,
+                    writer,
+                    speed,
+                    output_format,
+                    lang_code,
+                    volume_multiplier,
+                    normalization_options,
+                    return_timestamps,
+                    allow_voice_tags,
+                    timings,
+                )
+            ) as stream:
+                async for chunk in stream:
+                    yield chunk
+            return
         stream_normalizer = AudioNormalizer()
         chunk_index = 0
         current_offset = 0.0
@@ -376,8 +377,6 @@ class TTSService:
             ):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
-                    if settings.speed_mode == "stretch":
-                        pause_duration_s /= clamp_rate(speed * segment_rate)
                     try:
                         logger.debug(f"Generating {pause_duration_s}s silence chunk")
                         silence_samples = int(
@@ -505,6 +504,151 @@ class TTSService:
         except Exception as e:
             logger.error(f"Error in phoneme audio generation: {str(e)}")
             raise e
+
+    async def _generate_filtered_stream(
+        self,
+        text,
+        voice,
+        writer,
+        speed,
+        output_format,
+        lang_code,
+        volume_multiplier,
+        normalization_options,
+        return_timestamps,
+        allow_voice_tags,
+        timings,
+    ):
+        """Keep filter delay independent of the source chunks' caption timeline."""
+        check_pause_budget(text)
+        normalizer = AudioNormalizer()
+        processor = None
+        pending_words = deque()
+        timeline = 0.0
+        emitted_samples = 0
+
+        async def run_filter(operation, *args):
+            # A cancelled to_thread keeps running; join it before releasing its graph.
+            task = asyncio.create_task(asyncio.to_thread(operation, *args))
+            try:
+                return await asyncio.shield(task)
+            except asyncio.CancelledError:
+                await task
+                raise
+
+        async def output(audio, final=False):
+            nonlocal emitted_samples
+            emitted_samples += len(audio)
+            end = emitted_samples / 24000
+            words = []
+            while pending_words and (final or pending_words[0].start_time < end):
+                words.append(pending_words.popleft())
+            audio = np.clip(np.rint(audio * 32768), -32768, 32767).astype(np.int16)
+            chunk = AudioChunk(audio, word_timestamps=words)
+            if output_format:
+                return await AudioService.convert_audio(
+                    chunk,
+                    output_format,
+                    writer,
+                    trim_audio=False,
+                    normalizer=normalizer,
+                    is_last_chunk=final,
+                )
+            chunk.audio = normalizer.normalize(audio)
+            return chunk
+
+        try:
+            await self.model_manager.ensure_backend()
+            async for (
+                voice_name,
+                voice_path,
+                pipeline_lang,
+                segment_rate,
+                chunk_text,
+                tokens,
+                pause_s,
+            ) in self._split_multi_voice(
+                text, voice, lang_code, normalization_options, allow_voice_tags
+            ):
+                effective_speed = clamp_rate(speed * segment_rate)
+                factor = effective_speed if settings.speed_mode == "stretch" else 1.0
+                # Explicit rate changes are discontinuities: drain the old rate first.
+                if processor is not None and processor.speed != factor:
+                    tail = await run_filter(processor.flush)
+                    if len(tail):
+                        yield await output(tail)
+                    processor.close()
+                    processor = None
+                    timeline = emitted_samples / 24000
+                if processor is None:
+                    processor = AudioFilterStream(
+                        factor,
+                        normalize=settings.normalize_audio,
+                        gain=volume_multiplier,
+                    )
+                start = timeline
+                if pause_s is not None and pause_s > 0:
+                    samples = round(pause_s * 24000)
+                    # Bound allocations even for a long explicit pause.
+                    for offset in range(0, samples, 24000):
+                        silence = np.zeros(min(24000, samples - offset), np.float32)
+                        processed = await run_filter(processor.push, silence)
+                        timeline += len(silence) / (24000 * factor)
+                        if len(processed):
+                            yield await output(processed)
+                elif tokens or chunk_text.strip():
+                    model_speed = (
+                        1.0 if settings.speed_mode == "stretch" else effective_speed
+                    )
+                    async with aclosing(
+                        self._process_chunk(
+                            chunk_text,
+                            tokens,
+                            voice_name,
+                            voice_path,
+                            model_speed,
+                            writer,
+                            output_format=None,
+                            volume_multiplier=1.0
+                            if settings.normalize_audio
+                            else volume_multiplier,
+                            normalizer=normalizer,
+                            lang_code=pipeline_lang,
+                            return_timestamps=return_timestamps,
+                        )
+                    ) as chunks:
+                        async for chunk in chunks:
+                            for word in chunk.word_timestamps or []:
+                                word.start_time = (
+                                    timeline + max(0.0, word.start_time) / factor
+                                )
+                                word.end_time = (
+                                    timeline + max(0.0, word.end_time) / factor
+                                )
+                                if allow_voice_tags:
+                                    word.voice = voice_name
+                                pending_words.append(word)
+                            timeline += len(chunk.audio) / (24000 * factor)
+                            processed = await run_filter(processor.push, chunk.audio)
+                            if len(processed):
+                                yield await output(processed)
+                if timings is not None and timeline > start:
+                    entry = {
+                        "text": "" if pause_s else chunk_text,
+                        "start": round(start, 3),
+                        "end": round(timeline, 3),
+                    }
+                    if allow_voice_tags and not pause_s:
+                        entry["voice"] = voice_name
+                    timings.append(entry)
+            if processor is not None:
+                tail = await run_filter(processor.flush)
+                yield await output(tail, final=True)
+        finally:
+            if processor is not None:
+                processor.close()
+            if output_format:
+                writer.close()
 
     async def generate_audio(
         self,
