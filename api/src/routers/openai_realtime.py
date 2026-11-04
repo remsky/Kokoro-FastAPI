@@ -18,7 +18,12 @@ from ..services.speech_context import (
     check_websocket_access,
     parse_speed,
 )
-from .openai_compatible import get_tts_service, process_and_validate_voices
+from ..structures.schemas import SpeechOptions
+from .openai_compatible import (
+    alias_rate,
+    get_tts_service,
+    process_and_validate_voices,
+)
 
 router = APIRouter(tags=["OpenAI Realtime Compatible TTS"])
 
@@ -69,6 +74,7 @@ async def realtime(websocket: WebSocket, model: str = "kokoro"):
     tts_service = await get_tts_service()
     session_id = new_id("sess")
     output = {"format": PCM_FORMAT, "voice": settings.default_voice, "speed": 1.0}
+    speech_fields: dict = {}
     contexts: Dict[str, SpeechContext] = {}
     send_lock = asyncio.Lock()
 
@@ -91,10 +97,14 @@ async def realtime(websocket: WebSocket, model: str = "kokoro"):
         }
 
     async def update_session(update: dict) -> None:
-        nonlocal output
+        nonlocal output, speech_fields
         merged = merge_output(output, update)
-        await process_and_validate_voices(voice_name(merged["voice"]), tts_service)
-        output = merged
+        fields = {**speech_fields, **update}
+        aliases = SpeechOptions.model_validate(fields).voice_aliases
+        await process_and_validate_voices(
+            voice_name(merged["voice"]), tts_service, aliases
+        )
+        output, speech_fields = merged, fields
         await send("session.updated", session=session())
 
     async def create_response(params: dict) -> None:
@@ -108,9 +118,10 @@ async def realtime(websocket: WebSocket, model: str = "kokoro"):
         if len(contexts) >= MAX_CONTEXTS:
             raise ValueError(f"More than {MAX_CONTEXTS} responses in progress")
         chosen = merge_output(output, params)
-        voice = await process_and_validate_voices(
-            voice_name(chosen["voice"]), tts_service
-        )
+        options = SpeechOptions.model_validate({**speech_fields, **params})
+        aliases = options.voice_aliases
+        name = voice_name(chosen["voice"])
+        voice = await process_and_validate_voices(name, tts_service, aliases)
 
         response_id, item_id = new_id("resp"), new_id("item")
         ids = {
@@ -182,7 +193,8 @@ async def realtime(websocket: WebSocket, model: str = "kokoro"):
         context = contexts[response_id] = SpeechContext(
             tts_service,
             voice,
-            parse_speed(chosen["speed"]),
+            parse_speed(chosen["speed"], alias_rate(name, aliases) or 1.0),
+            options,
             "pcm",
             MODEL_RATE,
             False,

@@ -11,6 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from api.src.core.config import settings
 from api.src.inference.base import AudioChunk
 from api.src.main import app
+from api.src.routers.openai_compatible import resolve_voice_alias
 from api.src.services.speech_context import MAX_CONTEXTS, SENTENCE_END, resample
 from api.src.structures.schemas import WordTimestamp
 
@@ -28,6 +29,7 @@ class FakeService:
     async def generate_audio_stream(self, text, voice, writer, **kwargs):
         self.spoken.append(text)
         self.voice, self.speed = voice, kwargs.get("speed")
+        self.kwargs = kwargs
         await asyncio.sleep(self.delay)
         if self.fail:
             raise RuntimeError("Model failed")
@@ -45,7 +47,11 @@ class FakeService:
 @pytest.fixture
 def service():
     fake = FakeService()
-    voices = AsyncMock(side_effect=lambda voice, _service: voice)
+    voices = AsyncMock(
+        side_effect=lambda voice, _service, aliases=None: resolve_voice_alias(
+            voice, aliases
+        )
+    )
     with (
         patch(
             "api.src.routers.elevenlabs_compatible.get_tts_service",
@@ -500,6 +506,77 @@ def test_realtime_generation_failure(service):
     response = messages[-1]["response"]
     assert response["status"] == "failed"
     assert response["status_details"]["error"]["message"] == "Model failed"
+
+
+SPEECH_FIELDS = {
+    "voice_aliases": {"narrator": {"voice": "af_bella", "rate": 0.5}},
+    "lang_code": "b",
+    "volume_multiplier": 2.0,
+    "normalization_options": {"normalize": False},
+}
+
+
+def speak_with_fields(route: str, fields: dict) -> list:
+    if route == "elevenlabs":
+        url = "/v1/text-to-speech/narrator/multi-stream-input?output_format=pcm_24000"
+        with client.websocket_connect(url) as ws:
+            ws.send_json(
+                {
+                    "text": "Hi.",
+                    "context_id": "c1",
+                    "voice_settings": {"speed": 1.2},
+                    **fields,
+                }
+            )
+            ws.send_json({"context_id": "c1", "flush": True})
+            return receive_until(ws, lambda m: "error" in m or m.get("audio"))
+    if route == "cartesia":
+        with client.websocket_connect("/tts/websocket") as ws:
+            ws.send_json(
+                cartesia_message(
+                    voice={"mode": "id", "id": "narrator"},
+                    generation_config={"speed": 1.2},
+                    transcript="Hi.",
+                    **{"continue": False},
+                    **fields,
+                )
+            )
+            return receive_until(ws, lambda m: m["type"] in ("done", "error"))
+    session = {
+        "type": "realtime",
+        "audio": {"output": {"voice": "narrator", "speed": 1.2}},
+        **fields,
+    }
+    with client.websocket_connect("/v1/realtime") as ws:
+        ws.receive_json()
+        ws.send_json({"type": "session.update", "session": session})
+        updated = ws.receive_json()
+        if updated["type"] == "error":
+            return [updated]
+        ws.send_json(realtime_response("Hi."))
+        return receive_until(ws, is_response_done)
+
+
+@pytest.mark.parametrize("route", ["elevenlabs", "cartesia", "realtime"])
+def test_speech_fields_reach_generation(service, route):
+    speak_with_fields(route, SPEECH_FIELDS)
+    assert service.voice == "af_bella"
+    assert service.speed == pytest.approx(0.6)
+    assert service.kwargs["lang_code"] == "b"
+    assert service.kwargs["volume_multiplier"] == 2.0
+    assert service.kwargs["normalization_options"].normalize is False
+
+
+@pytest.mark.parametrize("route", ["elevenlabs", "cartesia", "realtime"])
+def test_bad_speech_fields_are_refused(service, route):
+    fields = {**SPEECH_FIELDS, "lang_code": "zz"}
+    if route == "elevenlabs":
+        with pytest.raises(WebSocketDisconnect) as e:
+            speak_with_fields(route, fields)
+        assert e.value.code == 1008
+    else:
+        assert speak_with_fields(route, fields)[-1]["type"] == "error"
+    assert service.spoken == []
 
 
 def test_resample_lengths():

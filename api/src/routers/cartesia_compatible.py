@@ -15,8 +15,13 @@ from ..services.speech_context import (
     check_websocket_access,
     parse_speed,
 )
+from ..structures.schemas import SpeechOptions
 from .elevenlabs_compatible import SAMPLE_RATES
-from .openai_compatible import get_tts_service, process_and_validate_voices
+from .openai_compatible import (
+    alias_rate,
+    get_tts_service,
+    process_and_validate_voices,
+)
 
 router = APIRouter(tags=["Cartesia Compatible TTS"])
 
@@ -60,7 +65,10 @@ async def tts_websocket(websocket: WebSocket):
         )
 
     async def open_context(context_id: str, message: dict) -> SpeechContext:
-        voice = await process_and_validate_voices(message["voice"]["id"], tts_service)
+        options = SpeechOptions.model_validate(message)
+        aliases = options.voice_aliases
+        voice_id = message["voice"]["id"]
+        voice = await process_and_validate_voices(voice_id, tts_service, aliases)
         sample_rate = parse_output_format(message.get("output_format") or {})
         speed = (message.get("generation_config") or {}).get("speed", 1.0)
 
@@ -109,7 +117,8 @@ async def tts_websocket(websocket: WebSocket):
         return SpeechContext(
             tts_service,
             voice,
-            parse_speed(speed),
+            parse_speed(speed, alias_rate(voice_id, aliases) or 1.0),
+            options,
             "pcm",
             sample_rate,
             message.get("max_buffer_delay_ms") == 0,

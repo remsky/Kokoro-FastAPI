@@ -15,7 +15,12 @@ from ..services.speech_context import (
     check_websocket_access,
     parse_speed,
 )
-from .openai_compatible import get_tts_service, process_and_validate_voices
+from ..structures.schemas import SpeechOptions
+from .openai_compatible import (
+    alias_rate,
+    get_tts_service,
+    process_and_validate_voices,
+)
 
 router = APIRouter(tags=["ElevenLabs Compatible TTS"])
 
@@ -71,7 +76,6 @@ async def multi_stream_input(
     try:
         audio_format, sample_rate = parse_output_format(output_format)
         tts_service = await get_tts_service()
-        voice = await process_and_validate_voices(voice_id, tts_service)
     except ValueError as e:
         await websocket.close(code=1008, reason=str(e)[:120])
         return
@@ -86,8 +90,12 @@ async def multi_stream_input(
             except (WebSocketDisconnect, RuntimeError):
                 pass
 
-    def open_context(context_id: str, message: dict) -> SpeechContext:
+    async def open_context(context_id: str, message: dict) -> SpeechContext:
         voice_settings = message.get("voice_settings") or {}
+        options = SpeechOptions.model_validate(message)
+        aliases = options.voice_aliases
+        voice = await process_and_validate_voices(voice_id, tts_service, aliases)
+        speed = voice_settings.get("speed", 1.0)
 
         async def on_audio(
             data: bytes, words: Words, start: float, duration: float
@@ -115,7 +123,8 @@ async def multi_stream_input(
         return SpeechContext(
             tts_service,
             voice,
-            parse_speed(voice_settings.get("speed", 1.0)),
+            parse_speed(speed, alias_rate(voice_id, aliases) or 1.0),
+            options,
             audio_format,
             sample_rate,
             auto_mode,
@@ -142,7 +151,7 @@ async def multi_stream_input(
                     continue
                 if len(contexts) >= MAX_CONTEXTS:
                     raise ValueError(f"More than {MAX_CONTEXTS} open contexts")
-                context = contexts[context_id] = open_context(context_id, message)
+                context = contexts[context_id] = await open_context(context_id, message)
             context.push(text, flush=flush)
     except WebSocketDisconnect:
         pass

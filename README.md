@@ -258,13 +258,18 @@ tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", v
 - Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
 - Word timestamps where Kokoro has them (English, espeak languages)
 - Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
+- Speech endpoint fields go on the message that opens a context (voice tags are not supported):
+  - `voice_aliases`
+  - `lang_code`
+  - `volume_multiplier`
+  - `normalization_options`
 - `ENABLE_WEBSOCKET_TTS=false` turns these and the Realtime route off
 </details>
 
 <details>
 <summary>OpenAI Realtime (TTS only)</summary>
 
-For Realtime TTS clients (wyoming_openai `TTS_REALTIME_MODELS` etc). Voice names map the same as on the Speech endpoint (`voice_aliases` do not work here).
+For Realtime TTS clients (wyoming_openai `TTS_REALTIME_MODELS` etc). Voice names map the same as on the Speech endpoint.
 
 ```python
 import asyncio
@@ -299,6 +304,11 @@ asyncio.run(main())
 ```
 
 - Text is read as written, `instructions` are ignored
+- Speech endpoint fields go in `session.update` or `response.create`:
+  - `voice_aliases`
+  - `lang_code`
+  - `volume_multiplier`
+  - `normalization_options`
 - Audio: PCM at 24000 Hz only
 - `response.cancel` stops a response. Audio input and conversation events get an `error` back
 - OpenAI SDK 2.x forces `wss://`, and requires you pass `websocket_base_url="ws://localhost:8880/v1"`

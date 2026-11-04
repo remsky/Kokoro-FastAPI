@@ -188,7 +188,23 @@ def _download_matches_response(request):
     return request
 
 
-class OpenAISpeechRequest(VoiceAliasesMixin):
+class SpeechOptions(VoiceAliasesMixin):
+    """Speech fields shared by the speech endpoint and the websocket routes"""
+
+    lang_code: Optional[LangCode] = Field(
+        default=None,
+        description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
+    )
+    volume_multiplier: Optional[Volume] = Field(
+        default=1.0, description="A volume multiplier to multiply the output audio by."
+    )
+    normalization_options: Optional[NormalizationOptions] = Field(
+        default=NormalizationOptions(),
+        description="Options for the normalization system",
+    )
+
+
+class OpenAISpeechRequest(SpeechOptions):
     """Request schema for OpenAI-compatible speech endpoint"""
 
     model: str = Field(
@@ -222,17 +238,6 @@ class OpenAISpeechRequest(VoiceAliasesMixin):
     return_timing: bool = Field(
         default=False,
         description="If true with return_download_link, writes per-chunk timing JSON next to the download file and returns its path in the X-Timing-Path header",
-    )
-    lang_code: Optional[LangCode] = Field(
-        default=None,
-        description="Optional language code to use for text processing. If not provided, will use first letter of voice name.",
-    )
-    volume_multiplier: Optional[Volume] = Field(
-        default=1.0, description="A volume multiplier to multiply the output audio by."
-    )
-    normalization_options: Optional[NormalizationOptions] = Field(
-        default=NormalizationOptions(),
-        description="Options for the normalization system",
     )
     allow_voice_tags: bool = Field(
         default=False,

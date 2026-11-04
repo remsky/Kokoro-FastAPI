@@ -11,7 +11,7 @@ from fastapi import WebSocket, WebSocketException
 from scipy.signal import resample_poly
 
 from ..core.config import settings
-from ..structures.schemas import clamp_rate
+from ..structures.schemas import SpeechOptions, clamp_rate
 from .streaming_audio_writer import StreamingAudioWriter
 from .tts_service import TTSService
 
@@ -43,11 +43,11 @@ def check_websocket_access(websocket: WebSocket) -> None:
         raise WebSocketException(code=1008, reason="Origin not allowed")
 
 
-def parse_speed(value) -> float:
+def parse_speed(value, rate: float = 1.0) -> float:
     speed = float(value)
     if not math.isfinite(speed):
         raise ValueError(f"Unsupported speed: {value}")
-    return clamp_rate(speed)
+    return clamp_rate(speed * rate)
 
 
 class SpeechContext:
@@ -64,6 +64,7 @@ class SpeechContext:
         tts_service: TTSService,
         voice: str,
         speed: float,
+        options: SpeechOptions,
         audio_format: str,
         sample_rate: int,
         immediate: bool,
@@ -74,6 +75,7 @@ class SpeechContext:
         self.tts_service = tts_service
         self.voice = voice
         self.speed = speed
+        self.options = options
         self.writer = StreamingAudioWriter(audio_format, sample_rate)
         self.sample_rate = sample_rate
         self.immediate = immediate
@@ -154,6 +156,9 @@ class SpeechContext:
             StreamingAudioWriter("pcm", MODEL_RATE),
             speed=self.speed,
             output_format="pcm",
+            lang_code=self.options.lang_code,
+            volume_multiplier=self.options.volume_multiplier,
+            normalization_options=self.options.normalization_options,
             return_timestamps=True,
         ):
             if not chunk.output:

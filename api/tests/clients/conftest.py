@@ -8,13 +8,18 @@ import pytest
 import uvicorn
 
 from api.src.main import app
+from api.src.routers.openai_compatible import resolve_voice_alias
 from api.tests.test_websocket_tts import FakeService
 
 
 @pytest.fixture
 def service():
     fake = FakeService()
-    voices = AsyncMock(side_effect=lambda voice, _service: voice)
+    voices = AsyncMock(
+        side_effect=lambda voice, _service, aliases=None: resolve_voice_alias(
+            voice, aliases
+        )
+    )
     with (
         patch(
             "api.src.routers.openai_realtime.get_tts_service",
