@@ -73,10 +73,21 @@ def test_download_format_matching_response_accepted(download_format):
 def test_download_format_differing_from_response_rejected():
     # the download is the streamed bytes, so wav here would be mp3 in a .wav
     with pytest.raises(ValidationError):
-        _req(response_format="mp3", download_format="wav")
+        _req(response_format="mp3", download_format="wav", return_download_link=True)
     with pytest.raises(ValidationError):
         DialogueRequest(
             turns=[{"voice": "af_heart", "text": "hi"}],
             response_format="mp3",
             download_format="wav",
+            return_download_link=True,
         )
+
+
+def test_download_format_differing_without_download_link_accepted():
+    # clients that hardcode download_format next to a configurable response_format
+    _req(response_format="pcm", download_format="mp3")
+    DialogueRequest(
+        turns=[{"voice": "af_heart", "text": "hi"}],
+        response_format="pcm",
+        download_format="mp3",
+    )

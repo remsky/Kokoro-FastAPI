@@ -181,6 +181,10 @@ class VoiceAliasesMixin(BaseModel):
 
 
 def _download_matches_response(request):
+    # download_format is unused without a download link, and some clients
+    # always send one regardless of response_format
+    if not request.return_download_link:
+        return request
     if request.download_format not in (None, request.response_format):
         raise ValueError(
             "download_format must match response_format; the download is the same audio, not re-encoded"
