@@ -6,16 +6,23 @@ since normalize_text runs synchronously inside the request path).
 
 import time
 
-from api.src.services.text_processing.normalization import normalize_text
+from api.src.services.text_processing.normalization import get_normalizer, normalize_text
 from api.src.structures.schemas import NormalizationOptions
 
 OPTS = NormalizationOptions()
+PORTUGUESE_NORMALIZER = get_normalizer("p")
 BUDGET_S = 2.0  # generous ceiling; pathological inputs previously took 10-65s
 
 
 def _elapsed(payload: str, opts: NormalizationOptions = OPTS) -> float:
     start = time.monotonic()
     normalize_text(payload, opts)
+    return time.monotonic() - start
+
+
+def _elapsed_portuguese(payload: str, opts: NormalizationOptions = OPTS) -> float:
+    start = time.monotonic()
+    PORTUGUESE_NORMALIZER.normalize(payload, opts)
     return time.monotonic() - start
 
 
@@ -63,6 +70,14 @@ def test_number_floods_scale_linearly():
     for unit in ("1", "1,", "123,", "123,4", "$1,"):
         small = _elapsed(unit * 5_000)
         large = _elapsed(unit * 20_000)
+        assert large / max(small, 0.05) < 9.0, unit
+
+
+def test_portuguese_number_floods_scale_linearly():
+    """Portuguese number and currency regexes must stay linear on request text."""
+    for unit in ("9", "1.000", "R$1,"):
+        small = _elapsed_portuguese(unit * 2_000)
+        large = _elapsed_portuguese(unit * 8_000)
         assert large / max(small, 0.05) < 9.0, unit
 
 
