@@ -6,7 +6,10 @@ since normalize_text runs synchronously inside the request path).
 
 import time
 
-from api.src.services.text_processing.normalization import get_normalizer, normalize_text
+from api.src.services.text_processing.normalization import (
+    get_normalizer,
+    normalize_text,
+)
 from api.src.structures.schemas import NormalizationOptions
 
 OPTS = NormalizationOptions()
