@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Fixed
 - `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
+- Non-streamed WAV (`"stream": false`) has its real length in the header. It said 4 GB, so readers that trust the header, like Python's `wave`, reported a one-sentence file as about 25 hours long (#586)
 
 ## [v0.10.0] - 2026-11-08: Websockets/Realtime API, CPU Memory & API Keys
 ### Added
