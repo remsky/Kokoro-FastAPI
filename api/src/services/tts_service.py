@@ -23,7 +23,7 @@ from ..inference.model_manager import (
 from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
-from .streaming_audio_writer import StreamingAudioWriter
+from .streaming_audio_writer import StreamingAudioWriter, set_wav_sizes
 from .text_processing.text_processor import (
     check_pause_budget,
     smart_split,
@@ -523,9 +523,10 @@ class TTSService:
             if not output_parts:
                 raise ValueError("Input contains no speakable text")
 
-            return AudioChunk(
-                np.array([], dtype=np.int16), word_timestamps, b"".join(output_parts)
-            )
+            output = b"".join(output_parts)
+            if output_format == "wav":
+                output = set_wav_sizes(output)
+            return AudioChunk(np.array([], dtype=np.int16), word_timestamps, output)
         except Exception as e:
             logger.error(f"Error in audio generation: {str(e)}")
             raise

@@ -1,11 +1,28 @@
 """Audio conversion service with proper streaming support"""
 
+import struct
 from io import BytesIO
 from typing import Optional
 
 import av
 import numpy as np
 from loguru import logger
+
+
+def set_wav_sizes(data: bytes) -> bytes:
+    """Replace the streaming size placeholders in a complete WAV with the real sizes."""
+    if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
+        return data
+    out = bytearray(data)
+    struct.pack_into("<I", out, 4, len(out) - 8)
+    pos = 12
+    while pos + 8 <= len(out):
+        if out[pos : pos + 4] == b"data":
+            struct.pack_into("<I", out, pos + 4, len(out) - pos - 8)
+            break
+        (size,) = struct.unpack_from("<I", out, pos + 4)
+        pos += 8 + size + (size & 1)
+    return bytes(out)
 
 
 class StreamingAudioWriter:

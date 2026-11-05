@@ -1,3 +1,6 @@
+import io
+import struct
+import wave
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -8,6 +11,7 @@ import torch
 
 from api.src.inference.base import AudioChunk
 from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.services.streaming_audio_writer import StreamingAudioWriter
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -608,6 +612,28 @@ async def test_generate_audio_joins_encoded_chunks():
 
     assert result.output == b"id3frame1frame2"
     assert [t.word for t in result.word_timestamps] == ["id3", "frame1", "frame2"]
+
+
+@pytest.mark.asyncio
+async def test_generate_audio_wav_header_carries_real_sizes():
+    """Non-streamed WAV is complete, so its sizes must not keep the streaming placeholder (#586)."""
+    service = await _stubbed_service()
+    audio = (np.sin(np.linspace(0, 200, 4800)) * 20000).astype(np.int16)
+    writer = StreamingAudioWriter("wav", sample_rate=24000)
+
+    async def fake_stream(*args, **kwargs):
+        empty = np.array([], dtype=np.int16)
+        yield AudioChunk(empty, output=writer.write_chunk(audio))
+        yield AudioChunk(empty, output=writer.write_chunk(audio))
+        yield AudioChunk(empty, output=writer.write_chunk(finalize=True))
+
+    service.generate_audio_stream = fake_stream
+
+    result = await service.generate_audio("hi", "af_heart", writer, output_format="wav")
+
+    assert struct.unpack("<I", result.output[4:8])[0] == len(result.output) - 8
+    with wave.open(io.BytesIO(result.output)) as wav:
+        assert wav.getnframes() == 2 * len(audio)
 
 
 @pytest.mark.asyncio
