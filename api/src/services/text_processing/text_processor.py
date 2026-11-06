@@ -154,8 +154,7 @@ def check_speakable(
 ) -> None:
     """Raise before a stream opens when nothing would be spoken (issue #353).
 
-    Empty input always raises. Other unspoken input (whitespace, emoji, bare
-    tags) gets UNSPOKEN_INPUT_PAUSE_S of silence instead when it is set (#579).
+    Only empty input raises while UNSPOKEN_INPUT_PAUSE_S is set (#579).
     """
     if not text:
         raise ValueError("Input contains no speakable text")

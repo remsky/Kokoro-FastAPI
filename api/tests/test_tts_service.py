@@ -1,13 +1,16 @@
+import io
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import av
 import numpy as np
 import pytest
 import torch
 
 from api.src.inference.base import AudioChunk
 from api.src.inference.kokoro_v1 import KokoroV1
+from api.src.services.streaming_audio_writer import StreamingAudioWriter
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -645,7 +648,7 @@ async def test_generate_audio_with_nothing_speakable_raises():
 
 @pytest.mark.asyncio
 async def test_unspoken_input_streams_silence_and_finalizes():
-    """Nothing to say yields a short silence and still flushes the encoder (#579)"""
+    """Nothing to say yields a short silence and still finalizes (#579)"""
     service = await _stubbed_service()
     finalized = []
     original = service._process_chunk
@@ -670,6 +673,102 @@ async def test_unspoken_input_streams_silence_and_finalizes():
 
     assert sum(len(chunk.audio) for chunk in chunks) == 7200
     assert finalized == [True]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("output_format", ["mp3", "wav"])
+async def test_unspoken_input_encodes_silence(output_format):
+    service = await _stubbed_service()
+    del service._process_chunk
+    writer = StreamingAudioWriter(output_format, 24000)
+
+    with patch("api.src.services.tts_service.settings.unspoken_input_pause_s", 0.3):
+        chunks = [
+            chunk
+            async for chunk in service.generate_audio_stream(
+                "[voice:af_bella] [voice:bm_george]",
+                "af_heart",
+                writer,
+                output_format=output_format,
+                allow_voice_tags=True,
+            )
+        ]
+    writer.close()
+
+    encoded = b"".join(chunk.output for chunk in chunks if chunk.output)
+    with av.open(io.BytesIO(encoded)) as container:
+        samples = sum(frame.samples for frame in container.decode(audio=0))
+    assert samples / 24000 == pytest.approx(0.3, abs=0.1)
+
+
+@pytest.mark.asyncio
+async def test_text_that_yields_no_audio_gets_silence():
+    service = await _stubbed_service()
+
+    async def no_audio(*args, **kwargs):
+        return
+        yield
+
+    service._process_chunk = no_audio
+
+    with patch("api.src.services.tts_service.settings.unspoken_input_pause_s", 0.3):
+        chunks = [
+            chunk
+            async for chunk in service.generate_audio_stream(
+                "Hello there.", "af_heart", MagicMock(), output_format=None
+            )
+        ]
+
+    assert sum(len(chunk.audio) for chunk in chunks) == 7200
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "text,pause_s,expected_lengths",
+    [
+        ("Hello there.", 0.3, [2400]),
+        ("[voice:af_bella] [voice:bm_george]", 0, []),
+    ],
+)
+async def test_no_silence_after_speech_or_when_disabled(
+    text, pause_s, expected_lengths
+):
+    service = await _stubbed_service()
+
+    with patch("api.src.services.tts_service.settings.unspoken_input_pause_s", pause_s):
+        chunks = [
+            chunk
+            async for chunk in service.generate_audio_stream(
+                text,
+                "af_heart",
+                MagicMock(),
+                output_format=None,
+                allow_voice_tags=True,
+            )
+        ]
+
+    assert [len(chunk.audio) for chunk in chunks] == expected_lengths
+
+
+@pytest.mark.asyncio
+async def test_unspoken_input_stays_empty_without_silence():
+    """Websocket contexts opt out, so markup lines don't pause a reply mid-stream"""
+    service = await _stubbed_service()
+
+    with patch("api.src.services.tts_service.settings.unspoken_input_pause_s", 0.3):
+        chunks = [
+            chunk
+            async for chunk in service.generate_audio_stream(
+                "[voice:af_bella] [voice:bm_george]",
+                "af_heart",
+                MagicMock(),
+                output_format=None,
+                allow_voice_tags=True,
+                silence_unspoken=False,
+            )
+        ]
+
+    assert chunks == []
 
 
 @pytest.mark.asyncio
