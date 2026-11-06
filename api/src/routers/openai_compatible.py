@@ -283,6 +283,7 @@ async def stream_audio_chunks(
                 return_timestamps=return_timestamps,
                 allow_voice_tags=request.allow_voice_tags,
                 timings=timings,
+                return_original_words=getattr(request, "return_original_words", False),
             )
         ) as audio_stream:
             async for chunk_data in audio_stream:

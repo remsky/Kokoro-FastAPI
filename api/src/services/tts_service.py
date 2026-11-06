@@ -24,6 +24,7 @@ from ..inference.voice_manager import get_manager as get_voice_manager
 from ..structures.schemas import NormalizationOptions, clamp_rate
 from .audio import AudioNormalizer, AudioService
 from .streaming_audio_writer import StreamingAudioWriter
+from .text_processing.original_words import OriginalWords
 from .text_processing.text_processor import (
     check_pause_budget,
     smart_split,
@@ -273,6 +274,7 @@ class TTSService:
         lang_code: Optional[str],
         normalization_options: Optional[NormalizationOptions],
         allow_voice_tags: bool = False,
+        original_words: Optional[OriginalWords] = None,
     ) -> AsyncGenerator[
         Tuple[str, str, str, float, str, List[int], Optional[float]], None
     ]:
@@ -309,6 +311,7 @@ class TTSService:
                 segment_text,
                 lang_code=segment_lang,
                 normalization_options=normalization_options,
+                original_words=original_words,
             ):
                 yield (
                     voice_name,
@@ -333,9 +336,13 @@ class TTSService:
         return_timestamps: Optional[bool] = False,
         allow_voice_tags: bool = False,
         timings: Optional[List[dict]] = None,
+        return_original_words: bool = False,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
+        original_words = (
+            OriginalWords() if return_timestamps and return_original_words else None
+        )
         chunk_index = 0
         current_offset = 0.0
         try:
@@ -353,7 +360,12 @@ class TTSService:
                 tokens,
                 pause_duration_s,
             ) in self._split_multi_voice(
-                text, voice, lang_code, normalization_options, allow_voice_tags
+                text,
+                voice,
+                lang_code,
+                normalization_options,
+                allow_voice_tags,
+                original_words,
             ):
                 if pause_duration_s is not None and pause_duration_s > 0:
                     # --- Handle Pause Chunk ---
@@ -433,6 +445,8 @@ class TTSService:
                                 timestamp.end_time += current_offset
                                 if allow_voice_tags:
                                     timestamp.voice = voice_name
+                            if original_words is not None:
+                                original_words.annotate(chunk_data.word_timestamps)
 
                         # Update offset based on the actual duration of the generated audio chunk
                         chunk_duration = 0
@@ -497,6 +511,7 @@ class TTSService:
         lang_code: Optional[str] = None,
         allow_voice_tags: bool = False,
         output_format: str = "wav",
+        return_original_words: bool = False,
     ) -> AudioChunk:
         """Generate complete audio for text, encoding chunks as they arrive."""
         output_parts = []
@@ -514,6 +529,7 @@ class TTSService:
                 lang_code=lang_code,
                 output_format=output_format,
                 allow_voice_tags=allow_voice_tags,
+                return_original_words=return_original_words,
             ):
                 if audio_stream_data.output:
                     output_parts.append(audio_stream_data.output)

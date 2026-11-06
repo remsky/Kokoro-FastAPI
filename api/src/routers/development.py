@@ -395,6 +395,7 @@ async def create_captioned_speech(
                 lang_code=request.lang_code,
                 allow_voice_tags=request.allow_voice_tags,
                 output_format=request.response_format,
+                return_original_words=request.return_original_words,
             )
             output = audio_data.output
 

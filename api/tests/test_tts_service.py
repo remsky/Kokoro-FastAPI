@@ -482,6 +482,38 @@ async def test_timestamps_omit_speaker_by_default():
     assert stamped and all(voice is None for _, voice, _ in stamped)
 
 
+async def _original_words(service, **kwargs):
+    return [
+        (t.word, t.original_word)
+        async for chunk in service.generate_audio_stream(
+            "I have 105 apples. [pause:0.5s] 3 more.",
+            "af_heart",
+            MagicMock(),
+            return_timestamps=True,
+            **kwargs,
+        )
+        for t in chunk.word_timestamps
+    ]
+
+
+@pytest.mark.asyncio
+async def test_timestamps_carry_original_word_when_asked():
+    service = await _stubbed_service()
+
+    stamped = await _original_words(service, return_original_words=True)
+
+    assert stamped == [("I", "I"), ("three", "3")]
+
+
+@pytest.mark.asyncio
+async def test_timestamps_omit_original_word_by_default():
+    service = await _stubbed_service()
+
+    stamped = await _original_words(service)
+
+    assert stamped and all(original is None for _, original in stamped)
+
+
 @pytest.mark.asyncio
 async def test_timings_collect_chunks_and_pauses():
     """Spoken chunks land as {text, start, end} from sample counts, pauses as empty-text gaps."""

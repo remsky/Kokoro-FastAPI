@@ -76,13 +76,18 @@ class WordTimestamp(BaseModel):
         None,
         description="Resolved voice that spoke the word, present only when allow_voice_tags is on",
     )
+    original_word: Optional[str] = Field(
+        None,
+        description="Input text the word was read from before normalization, present only when return_original_words is on",
+    )
 
     @model_serializer(mode="wrap")
-    def _omit_unset_voice(self, handler):
-        # keeps responses byte-identical to before the field existed when tags are off
+    def _omit_unset_fields(self, handler):
+        # keeps responses byte-identical to before the fields existed when they are off
         data = handler(self)
-        if data.get("voice") is None:
-            data.pop("voice", None)
+        for field in ("voice", "original_word"):
+            if data.get(field) is None:
+                data.pop(field, None)
         return data
 
 
@@ -388,6 +393,10 @@ class CaptionedSpeechRequest(VoiceAliasesMixin):
     return_timestamps: bool = Field(
         default=True,
         description="If true (default), returns word-level timestamps in the response",
+    )
+    return_original_words: bool = Field(
+        default=False,
+        description="If true, each timestamp also carries original_word, the input text it was read from before normalization, so one, hundred, and, five all get 105 for an input of 105",
     )
     return_download_link: bool = Field(
         default=False,
