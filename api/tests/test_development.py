@@ -103,6 +103,42 @@ def test_captioned_speech_non_stream_returns_audio_and_timestamps(mock_tts_servi
     assert [t["word"] for t in body["timestamps"]] == ["hi"]
 
 
+@pytest.mark.parametrize("asked", [True, False])
+def test_captioned_speech_passes_return_original_words(mock_tts_service, asked):
+    stream_kwargs = {}
+
+    async def stream(*args, **kwargs):
+        stream_kwargs.update(kwargs)
+        yield AudioChunk(np.zeros(1, np.int16), output=b"mp3", word_timestamps=[])
+
+    mock_tts_service.generate_audio_stream = stream
+    mock_tts_service.generate_audio.return_value = AudioChunk(
+        np.zeros(1, np.int16), output=b"mp3", word_timestamps=[]
+    )
+    body = {"input": "hi"} | ({"return_original_words": True} if asked else {})
+
+    assert captioned(stream=True, **body).status_code == 200
+    assert captioned(stream=False, **body).status_code == 200
+    assert stream_kwargs["return_original_words"] is asked
+    assert (
+        mock_tts_service.generate_audio.call_args.kwargs["return_original_words"]
+        is asked
+    )
+
+
+def test_captioned_speech_serializes_original_word(mock_tts_service):
+    stamp = word("one", 0.0)
+    stamp.original_word = "1"
+    mock_tts_service.generate_audio.return_value = AudioChunk(
+        np.zeros(1, np.int16), output=b"mp3", word_timestamps=[stamp, word("x", 0.1)]
+    )
+    response = captioned(input="1 x", stream=False, return_original_words=True)
+
+    timestamps = response.json()["timestamps"]
+    assert timestamps[0]["original_word"] == "1"
+    assert "original_word" not in timestamps[1]
+
+
 def test_generate_captioned_speech():
     """Test the generate_captioned_speech function with mocked responses"""
     # Mock the API responses

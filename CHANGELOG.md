@@ -13,6 +13,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - OpenAI Realtime compatible websocket TTS on `/v1/realtime` (wyoming_openai etc):
   - Text input only, 24 kHz PCM output
   - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
+- `return_original_words` on `/dev/captioned_speech`: each timestamp also carries `original_word`, the input text it was read from, so `one hundred and five` points back to `105` for highlighting. Off by default (#368)
 
 ### Changed
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish

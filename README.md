@@ -767,6 +767,8 @@ for chunk in response.iter_lines(decode_unicode=True):
 ```
 
 With `"allow_voice_tags": true`, each timestamp also carries the `voice` that spoke the word, so multi-speaker captions can be labelled without re-deriving the split client side. Without it the field is absent.
+
+With `"return_original_words": true`, each timestamp also carries `original_word`, the input text the word was read from before normalization, so highlighting can find it in the source text. `105` reads as `one hundred and five`, and all four words come back with `"original_word": "105"`. Without it the field is absent.
 </details>
 
 <details>

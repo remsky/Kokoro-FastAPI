@@ -13,6 +13,8 @@ from unicode_segmentation_rs import unicode_sentences
 from ...core.config import settings
 from ...structures.schemas import VOICE_NAME_BODY, NormalizationOptions, clamp_rate
 from .normalization import get_normalizer
+from .normalization.base import Normalizer
+from .original_words import OriginalWords
 from .phonemizer import phonemize
 from .vocabulary import tokenize
 
@@ -174,6 +176,16 @@ def check_pause_budget(text: str) -> None:
         )
 
 
+def normalize_outside_phonemes(
+    text: str, normalizer: Normalizer, options: NormalizationOptions
+) -> str:
+    """Normalize text, leaving [word](/ipa/) spans as written."""
+    parts = CUSTOM_PHONEMES.split(text)
+    for index in range(0, len(parts), 2):
+        parts[index] = normalizer.normalize(parts[index], options)
+    return "".join(parts).strip()
+
+
 def join_lines(text: str) -> str:
     """Blank lines end a sentence, single newlines are hard wraps."""
     paragraphs = []
@@ -275,8 +287,12 @@ async def smart_split(
     max_tokens: int = settings.absolute_max_tokens,
     lang_code: str = "a",
     normalization_options: NormalizationOptions = NormalizationOptions(),
+    original_words: Optional[OriginalWords] = None,
 ) -> AsyncGenerator[Tuple[str, List[int], Optional[float]], None]:
     """Build optimal chunks targeting 300-400 tokens, never exceeding max_tokens.
+
+    When original_words is given, each part's spoken words are added to it
+    before that part's chunks are yielded.
 
     Yields:
         Tuple of (text_chunk, tokens, pause_duration_s).
@@ -301,11 +317,12 @@ async def smart_split(
         if (
             text_part_raw and text_part_raw.strip()
         ):  # Only process if the part is not empty string
+            input_part = text_part_raw
             if normalization_options.remove_emoji:
                 text_part_raw = strip_emoji(text_part_raw)
             processed_text = join_lines(text_part_raw)
 
-            # Normalize text (original logic)
+            normalizer = None
             if settings.advanced_text_normalization and normalization_options.normalize:
                 normalizer = get_normalizer(lang_code)
                 if normalizer is None:
@@ -313,13 +330,22 @@ async def smart_split(
                         f"Skipping text normalization, none registered for lang_code '{lang_code}'"
                     )
                 else:
-                    processed_text = CUSTOM_PHONEMES.split(processed_text)
-                    for index in range(0, len(processed_text), 2):
-                        processed_text[index] = normalizer.normalize(
-                            processed_text[index], normalization_options
-                        )
+                    processed_text = normalize_outside_phonemes(
+                        processed_text, normalizer, normalization_options
+                    )
 
-                    processed_text = "".join(processed_text).strip()
+            if original_words is not None:
+
+                def spoken_form(word: str) -> str:
+                    if normalization_options.remove_emoji:
+                        word = strip_emoji(word)
+                    if normalizer is None:
+                        return word
+                    return normalize_outside_phonemes(
+                        word, normalizer, normalization_options
+                    )
+
+                original_words.add(input_part, processed_text, spoken_form)
 
             sentences = get_sentence_info(processed_text, lang_code=lang_code)
             for chunk_text, chunk_tokens in chunk_sentences(sentences, max_tokens):
