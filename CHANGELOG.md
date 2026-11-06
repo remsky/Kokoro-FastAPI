@@ -15,7 +15,7 @@ Per-PR attribution and contributor credits are published automatically on the co
   - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
 
 ### Changed
-- Input with nothing to speak (`...`, `*`, whitespace, emoji with `remove_emoji`, bare voice tags) returns 0.3s of silence instead of an empty 200 or a 400, like OpenAI. `UNSPOKEN_INPUT_PAUSE_S` sets the length, `0` keeps the old behavior. Empty input is still a 400 (#579)
+- Input with nothing to speak (`...`, whitespace etc) returns 0.3s of silence instead of an empty 200 or a 400, like OpenAI. `UNSPOKEN_INPUT_PAUSE_S=0` for the old behavior. Websockets send it once per context, whitespace-only contexts stay empty (#579)
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
 
 ### Fixed

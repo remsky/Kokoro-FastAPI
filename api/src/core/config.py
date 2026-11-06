@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     max_pause_duration_s: float = 60.0
     max_total_pause_s: float = 300.0  # Total silence one request may ask for
     unspoken_input_pause_s: float = (
-        0.3  # Silence returned for input with nothing to speak, 0 to reject it instead
+        0.3  # Silence for input with nothing to speak, 0 for an empty stream or 400
     )
     max_input_length: int = 1_000_000  # Characters of text one request may submit
     max_request_body_mb: int = (

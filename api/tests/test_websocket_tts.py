@@ -126,6 +126,44 @@ def test_elevenlabs_turn(service):
         )
 
 
+def test_speak_opts_out_of_per_call_silence(service):
+    with patch.object(
+        service, "generate_audio_stream", wraps=service.generate_audio_stream
+    ) as generate:
+        with client.websocket_connect(el_url()) as ws:
+            ws.send_json({"text": "---\n", "context_id": "c1"})
+            ws.send_json({"context_id": "c1", "close_context": True})
+            receive_until(ws, lambda m: m.get("isFinal"))
+    generate.assert_called_once()
+    assert generate.call_args.kwargs["silence_unspoken"] is False
+
+
+@pytest.mark.parametrize("pause_s,expected_bytes", [(0.3, 9600), (0, 0)])
+def test_context_with_nothing_spoken_gets_one_silence(
+    service, monkeypatch, pause_s, expected_bytes
+):
+    service.samples = 0
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", pause_s)
+    with client.websocket_connect(el_url()) as ws:
+        ws.send_json({"text": "...", "context_id": "c1"})
+        ws.send_json({"text": "---", "context_id": "c1"})
+        ws.send_json({"context_id": "c1", "close_context": True})
+        messages = receive_until(ws, lambda m: m.get("isFinal"))
+    audio = b"".join(base64.b64decode(m["audio"]) for m in messages if m.get("audio"))
+    assert len(service.spoken) == 2
+    assert len(audio) == expected_bytes
+
+
+def test_whitespace_only_context_stays_empty(service, monkeypatch):
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0.3)
+    with client.websocket_connect(el_url()) as ws:
+        ws.send_json({"text": "   ", "context_id": "c1"})
+        ws.send_json({"context_id": "c1", "close_context": True})
+        messages = receive_until(ws, lambda m: m.get("isFinal"))
+    assert service.spoken == []
+    assert not any(m.get("audio") for m in messages)
+
+
 def test_elevenlabs_sync_alignment_is_cumulative(service):
     with client.websocket_connect(el_url() + "&sync_alignment=true") as ws:
         ws.send_json({"text": "Hello there. ", "context_id": "c1"})

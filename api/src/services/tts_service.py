@@ -333,6 +333,7 @@ class TTSService:
         return_timestamps: Optional[bool] = False,
         allow_voice_tags: bool = False,
         timings: Optional[List[dict]] = None,
+        silence_unspoken: bool = True,
     ) -> AsyncGenerator[AudioChunk, None]:
         """Generate and stream audio chunks."""
         stream_normalizer = AudioNormalizer()
@@ -342,7 +343,6 @@ class TTSService:
             # backstop for direct callers; routers check pre-stream for a clean 400
             check_pause_budget(text)
             await self.model_manager.ensure_backend()
-            # Finalizer defaults for input that yields no segments at all
             voice_name, voice_path, pipeline_lang_code = voice, None, lang_code
 
             # Process text in chunks with smart splitting, handling voice and pause tags
@@ -463,9 +463,11 @@ class TTSService:
                             entry["voice"] = voice_name
                         timings.append(entry)
 
-            # Nothing was voiced (punctuation, emoji, bare tags), so return a short
-            # silence instead of an empty body strict players reject (#579)
-            if current_offset == 0 and settings.unspoken_input_pause_s > 0:
+            if (
+                silence_unspoken
+                and current_offset == 0
+                and settings.unspoken_input_pause_s > 0
+            ):
                 silence_chunk = AudioChunk(
                     audio=np.zeros(
                         int(settings.unspoken_input_pause_s * 24000), dtype=np.int16
@@ -484,8 +486,7 @@ class TTSService:
                         normalizer=stream_normalizer,
                     )
                 yield silence_chunk
-                current_offset += settings.unspoken_input_pause_s
-                chunk_index += 1  # Count silence as a chunk so the encoder flushes
+                chunk_index += 1
 
             # Only finalize if we successfully processed at least one chunk
             if chunk_index > 0:
