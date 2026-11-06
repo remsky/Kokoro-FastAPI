@@ -32,6 +32,7 @@ jobs:
     
     # Match Dockerfile dependencies
     - name: Install Dependencies
+      timeout-minutes: 5
       run: |
         sudo rm -f /etc/apt/sources.list.d/google-chrome*
         sudo apt-get update
