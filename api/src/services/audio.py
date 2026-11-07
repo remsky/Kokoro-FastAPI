@@ -212,8 +212,10 @@ class AudioService:
         audio_chunk.audio = normalizer.normalize(audio_chunk.audio)
 
         trimed_samples = 0
-        # Trim start and end if enough samples
-        if len(audio_chunk.audio) > (2 * normalizer.samples_to_trim):
+        # Trim start and end if enough samples, a zero trim would slice [0:-0] to nothing
+        if normalizer.samples_to_trim > 0 and len(audio_chunk.audio) > (
+            2 * normalizer.samples_to_trim
+        ):
             audio_chunk.audio = audio_chunk.audio[
                 normalizer.samples_to_trim : -normalizer.samples_to_trim
             ]
