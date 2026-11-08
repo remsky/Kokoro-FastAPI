@@ -73,6 +73,30 @@ def test_load_openai_mappings_file_not_found():
         assert mappings == {"models": {}, "voices": {}}
 
 
+def test_openai_voice_names_map_to_real_voices():
+    """Every OpenAI voice name maps to a voice file that ships with the repo"""
+    openai_voices = {
+        "alloy",
+        "ash",
+        "ballad",
+        "cedar",
+        "coral",
+        "echo",
+        "fable",
+        "marin",
+        "nova",
+        "onyx",
+        "sage",
+        "shimmer",
+        "verse",
+    }
+    mapped = load_openai_mappings()["voices"]
+    assert openai_voices <= mapped.keys()
+    voices_dir = os.path.join(os.path.dirname(__file__), "..", "src", "voices", "v1_0")
+    for name, target in mapped.items():
+        assert os.path.isfile(os.path.join(voices_dir, f"{target}.pt")), name
+
+
 def test_list_models(mock_openai_mappings):
     """Test listing available models endpoint"""
     response = client.get("/v1/models")
@@ -413,8 +437,11 @@ def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test
     assert response.json()["detail"]["error"] == "validation_error"
 
 
-def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test_voice):
+def test_openai_speech_streaming_nothing_speakable_is_400(
+    mock_tts_service, test_voice, monkeypatch
+):
     """Blank input, or emoji-only with remove_emoji, 400s before the stream opens instead of an empty 200 (issue #353)."""
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0)
     for body in [
         {"input": "   "},
         {"input": "😊", "normalization_options": {"remove_emoji": True}},
@@ -431,6 +458,24 @@ def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test
         )
         assert response.status_code == 400
         assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_empty_input_with_alias_rate_is_400(mock_tts_service, test_voice, monkeypatch):
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0.3)
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "",
+            "voice": "grandpa",
+            "allow_voice_tags": True,
+            "voice_aliases": {"grandpa": {"voice": test_voice, "rate": 0.8}},
+            "response_format": "mp3",
+            "stream": True,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
 
 
 def test_openai_speech_streaming_null_normalization_options(

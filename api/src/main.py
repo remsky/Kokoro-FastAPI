@@ -10,15 +10,19 @@ from contextlib import asynccontextmanager
 
 import torch
 import uvicorn
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
+from .core.auth import require_api_key
 from .core.body_limit import BodySizeLimitMiddleware
 from .core.config import settings, unrecognized_env_file_keys
+from .routers.cartesia_compatible import router as cartesia_router
 from .routers.debug import router as debug_router
 from .routers.development import router as dev_router
+from .routers.elevenlabs_compatible import router as elevenlabs_router
 from .routers.openai_compatible import router as openai_router
+from .routers.openai_realtime import router as realtime_router
 from .routers.ssml import router as ssml_router
 from .routers.tune import router as tune_router
 from .routers.web_player import router as web_router
@@ -166,12 +170,27 @@ if settings.cors_enabled:
         allow_headers=["*"],
     )
 
+
 # Include routers
-app.include_router(openai_router, prefix="/v1")
-app.include_router(dev_router)  # Development endpoints
-app.include_router(ssml_router)  # SSML translation and capabilities
-app.include_router(tune_router)  # /dev/tune, 403 unless enabled
-app.include_router(debug_router)  # Debug endpoints (403 unless enabled)
+protected = [Depends(require_api_key)]
+app.include_router(openai_router, prefix="/v1", dependencies=protected)
+app.include_router(dev_router, dependencies=protected)  # Development endpoints
+app.include_router(
+    ssml_router, dependencies=protected
+)  # SSML translation and capabilities
+app.include_router(tune_router, dependencies=protected)  # /dev/tune, 403 unless enabled
+app.include_router(
+    debug_router, dependencies=protected
+)  # Debug endpoints (403 unless enabled)
+app.include_router(
+    elevenlabs_router, dependencies=protected
+)  # ElevenLabs compatible websocket TTS
+app.include_router(
+    cartesia_router, dependencies=protected
+)  # Cartesia compatible websocket TTS
+app.include_router(
+    realtime_router, dependencies=protected
+)  # OpenAI Realtime compatible websocket TTS
 if settings.enable_web_player:
     app.include_router(web_router, prefix="/web")  # Web player static files
 

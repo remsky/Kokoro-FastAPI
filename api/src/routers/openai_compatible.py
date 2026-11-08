@@ -249,7 +249,7 @@ def apply_alias_rate(
     speed.
     """
     rate = alias_rate(request.voice, request.voice_aliases)
-    if not rate:
+    if not rate or not request.input:
         return
     if request.allow_voice_tags:
         request.input = f"[baserate:{rate}] {request.input}"
