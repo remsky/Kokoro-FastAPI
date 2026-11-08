@@ -238,36 +238,7 @@ python examples/assorted_checks/test_voices/test_all_voices.py # Test all availa
 </details>
 
 <details>
-<summary>Voice Agents (ElevenLabs / Cartesia websocket)</summary>
-
-ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored unless `API_KEYS` is set.
-
-```python
-# LiveKit Agents
-from livekit.plugins import cartesia, elevenlabs
-tts = elevenlabs.TTS(base_url="http://localhost:8880/v1", api_key="x", voice_id="af_heart")
-tts = cartesia.TTS(base_url="http://localhost:8880", api_key="x", voice="am_michael")
-
-# Pipecat
-from pipecat.services.cartesia.tts import CartesiaTTSService
-from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
-tts = ElevenLabsTTSService(url="ws://localhost:8880", api_key="x", voice_id="af_heart")
-tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", voice_id="am_michael")
-```
-
-- Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
-- Word timestamps where Kokoro has them (English, espeak languages)
-- Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
-- Speech endpoint fields go on the message that opens a context (voice tags are not supported):
-  - `voice_aliases`
-  - `lang_code`
-  - `volume_multiplier`
-  - `normalization_options`
-- `ENABLE_WEBSOCKET_TTS=false` turns these and the Realtime route off
-</details>
-
-<details>
-<summary>OpenAI Realtime (TTS only)</summary>
+<summary>OpenAI-Compatible Realtime (TTS only)</summary>
 
 For Realtime TTS clients (wyoming_openai `TTS_REALTIME_MODELS` etc). Voice names map the same as on the Speech endpoint.
 
@@ -312,6 +283,35 @@ asyncio.run(main())
 - Audio: PCM at 24000 Hz only
 - `response.cancel` stops a response. Audio input and conversation events get an `error` back
 - OpenAI SDK 2.x forces `wss://`, and requires you pass `websocket_base_url="ws://localhost:8880/v1"`
+</details>
+
+<details>
+<summary>ElevenLabs / Cartesia-Compatible Websockets (Voice Agents)</summary>
+
+ElevenLabs (`multi-stream-input`) and Cartesia (`/tts/websocket`) compatible websockets, so voice agent frameworks can use their existing plugins. Voice ids are Kokoro voice names, API keys are ignored unless `API_KEYS` is set.
+
+```python
+# LiveKit Agents
+from livekit.plugins import cartesia, elevenlabs
+tts = elevenlabs.TTS(base_url="http://localhost:8880/v1", api_key="x", voice_id="af_heart")
+tts = cartesia.TTS(base_url="http://localhost:8880", api_key="x", voice="am_michael")
+
+# Pipecat
+from pipecat.services.cartesia.tts import CartesiaTTSService
+from pipecat.services.elevenlabs.tts import ElevenLabsTTSService
+tts = ElevenLabsTTSService(url="ws://localhost:8880", api_key="x", voice_id="af_heart")
+tts = CartesiaTTSService(url="ws://localhost:8880/tts/websocket", api_key="x", voice_id="am_michael")
+```
+
+- Audio: PCM at 8000 to 48000 Hz, plus MP3 on the ElevenLabs route
+- Word timestamps where Kokoro has them (English, espeak languages)
+- Cartesia `cancel` stops generation for that context. ElevenLabs `close_context` finishes what was already sent
+- Speech endpoint fields go on the message that opens a context (voice tags are not supported):
+  - `voice_aliases`
+  - `lang_code`
+  - `volume_multiplier`
+  - `normalization_options`
+- `ENABLE_WEBSOCKET_TTS=false` turns these and the Realtime route off
 </details>
 
 <details>
@@ -884,25 +884,21 @@ Every setting is an environment variable, or a line in a `.env` file at the proj
 <details>
 <summary>API Keys</summary>
 
-- A basic shared-key check, not a full auth layer. No rate limiting or scoped keys, and over HTTP keys are sent in plain text.
-- For security over a network, run the server behind a reverse proxy with HTTPS at minimum.
-
-- Off by default: every route stays open.
-- Set `API_KEYS` to a JSON list, and API routes answer `401 Unauthorized` without one of the keys.
-- With keys set, `/health`, `/v1/test` and `/docs` stay open.
-- `/web` also stays open currently, but the player won't load voices or generate audio.
+Off by default. Set `API_KEYS` to a JSON list and API routes answer `401 Unauthorized` without one of the keys.
 
 ```bash
 docker run --env 'API_KEYS=["key-one","key-two"]' -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest
 ```
 
-Clients send it as their usual `api_key`:
+Clients send it as their usual `api_key`, in the header they already use (`Authorization: Bearer` for OpenAI, `xi-api-key` for ElevenLabs, `X-API-Key` for Cartesia):
 
 ```python
 client = OpenAI(base_url="http://localhost:8880/v1", api_key="key-one")
 ```
 
-Headers: `Authorization: Bearer` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia)
+`/health`, `/v1/test` and `/docs` stay open. `/web` does too for now, but the player won't load voices or generate audio.
+
+This is a basic shared-key check, not a full auth layer (no rate limiting, scoped keys etc). Keys are sent in plain text over HTTP, so if it's reachable over a network, put it behind a reverse proxy with HTTPS.
 
 </details>
 

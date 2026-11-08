@@ -6,7 +6,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 
 ## [Unreleased]
 ### Added
-- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
+- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default. Convenience feature, be sure of your security requirements (e.g. if public, put a TLS reverse proxy in front) (#373)
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc):
   - Streamed text input, PCM or MP3 output with word timestamps
   - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
@@ -21,7 +21,18 @@ Per-PR attribution and contributor credits are published automatically on the co
 - `docker/scripts/download_model.sh` removed, use `python docker/scripts/download_model.py --output api/src/models/v1_0`
 
 ### Fixed
-- CPU image: Memory no longer keeps growing with every new input length. The image now preloads jemalloc (`LD_PRELOAD=libjemalloc.so.2` with a tuned `MALLOC_CONF`); set `LD_PRELOAD=` to go back to glibc's allocator (#594)
+- CPU image: memory no longer keeps growing with new input lengths (jemalloc preload). Set `LD_PRELOAD=` to revert (#594)
+
+<div align="center">
+
+| CPU image RSS            |  v0.9.2 | v0.10.0 |      |
+|:-------------------------|--------:|--------:|-----:|
+| after 100 requests       | 1971 MB | 1552 MB | -21% |
+| 60 s idle after that     | 1994 MB | 1318 MB | -34% |
+| 60 s after `/dev/unload` | 1630 MB |  691 MB | -58% |
+
+</div>
+
 - A `download_format` different from `response_format` is rejected with a 422 when `return_download_link` is set. The download link served the streamed audio unchanged under the other format's name and type, so asking for mp3 with a wav download gave an mp3 file called `.wav`
 - OpenAI voice names added to mapped defaults:
   - `"marin": "af_heart"`, `"cedar": "am_fenrir"`, `"verse": "am_puck"`, `"ballad": "bm_fable"`
