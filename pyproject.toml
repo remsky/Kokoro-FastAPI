@@ -19,7 +19,7 @@ dependencies = [
     "scipy==1.14.1",
     # Audio processing
     "soundfile==0.13.0",
-    "inno-kokoro==0.2.0",
+    "inno-kokoro==0.3.0",
     "python-multipart>=0.0.20",
     "regex>=2025.10.22",
     "unicode-segmentation-rs>=0.3.3",
@@ -34,6 +34,7 @@ dependencies = [
     "psutil>=6.1.1",
     "espeakng-loader==0.2.4",
     "kokoro==0.9.4",
+    "huggingface-hub>=1.6.0",
     "transformers>=5.5.0,<6",
     "misaki[en,ja,ko,zh]==0.9.4",
     "pyopenjtalk-plus>=0.4.1 ; sys_platform == 'win32'",

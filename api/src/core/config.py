@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
     voices_dir: str = "/app/api/src/voices/v1_0"  # Absolute path in container
-    model_repo_id: str = "hexgrad/Kokoro-82M"  # default if model not present in model_dir; silences warnings
+    model_repo_id: str = "hexgrad/Kokoro-82M"  # silences warnings, picks g2p version; weights only load from model_dir
 
     # Audio Settings
     default_volume_multiplier: float = 1.0
