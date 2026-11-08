@@ -279,8 +279,8 @@ def test_load_puts_tuner_on_configured_device(monkeypatch):
     class Tuner:
         version = "0.2.0"
 
-        def __init__(self, path, device):
-            built.append((path, device))
+        def __init__(self, path, device, check_update):
+            built.append((path, device, check_update))
             self.device = device
 
     monkeypatch.setattr(inno_kokoro.enroll, "Tuner", Tuner)
@@ -288,7 +288,7 @@ def test_load_puts_tuner_on_configured_device(monkeypatch):
     monkeypatch.setattr(settings, "use_gpu", False)
     inno_tuner.load()
     assert inno_tuner.available()
-    assert built == [(inno_tuner.weights_path(), "cpu")]
+    assert built == [(inno_tuner.weights_path(), "cpu", False)]
     assert inno_tuner.weights_path().endswith(
         os.path.join("v1_0", "inno_tuner", "model.safetensors")
     )
