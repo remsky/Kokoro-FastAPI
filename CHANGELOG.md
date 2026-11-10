@@ -5,8 +5,12 @@ Notable changes to this project will be documented in this file.
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
 ## [Unreleased]
+### Fixed
+- `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
+
+## [v0.10.0] - 2026-11-08: Websockets/Realtime API, CPU Memory & API Keys
 ### Added
-- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default (#373)
+- `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default. Convenience feature, be sure of your security requirements (e.g. if public, put a TLS reverse proxy in front) (#373)
 - ElevenLabs and Cartesia compatible websocket TTS, for voice agent frameworks (Pipecat, LiveKit Agents etc):
   - Streamed text input, PCM or MP3 output with word timestamps
   - Supports `voice_aliases`, `lang_code`, `volume_multiplier`, `normalization_options`
@@ -17,9 +21,22 @@ Per-PR attribution and contributor credits are published automatically on the co
 ### Changed
 - Input with nothing to speak (`...`, whitespace etc) returns 0.3s of silence instead of an empty 200 or a 400, like OpenAI. `UNSPOKEN_INPUT_PAUSE_S=0` for the old behavior. Websockets send it once per context, whitespace-only contexts stay empty (#579)
 - uvicorn (the server) bumped 0.34 to 0.54: websocket messages over 16 MB are refused, keepalive pings drop connections to clients that vanish
+- Model weights bake from [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) at a pinned commit, checksum verified. Previous method that pinned to a GitHub release stays as a fallback. One GET per model (e.g. Inno) on HF Hub at startup, logged if the upstream configs change. See [docs/configuration.md](docs/configuration.md) to skip.
+- `docker/scripts/download_model.sh` removed, use `python docker/scripts/download_model.py --output api/src/models/v1_0`
 
 ### Fixed
-- `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
+- CPU image: memory no longer keeps growing with new input lengths (jemalloc preload). Set `LD_PRELOAD=` to revert (#594)
+
+<div align="center">
+
+| CPU image RSS            |  v0.9.2 | v0.10.0 |      |
+|:-------------------------|--------:|--------:|-----:|
+| after 100 requests       | 1971 MB | 1552 MB | -21% |
+| 60 s idle after that     | 1994 MB | 1318 MB | -34% |
+| 60 s after `/dev/unload` | 1630 MB |  691 MB | -58% |
+
+</div>
+
 - A `download_format` different from `response_format` is rejected with a 422 when `return_download_link` is set. The download link served the streamed audio unchanged under the other format's name and type, so asking for mp3 with a wav download gave an mp3 file called `.wav`
 - OpenAI voice names added to mapped defaults:
   - `"marin": "af_heart"`, `"cedar": "am_fenrir"`, `"verse": "am_puck"`, `"ballad": "bm_fable"`

@@ -36,7 +36,7 @@ def load() -> None:
     global _tuner
     from inno_kokoro.enroll import Tuner
 
-    _tuner = Tuner(weights_path(), device=settings.get_device())
+    _tuner = Tuner(weights_path(), device=settings.get_device(), check_update=False)
     logger.info(f"Inno voice tuner v{_tuner.version} loaded on {_tuner.device}")
 
 

@@ -97,8 +97,9 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `DEVICE_TYPE` | auto | Force `cuda`, `mps`, or `cpu` |
 | `MODEL_DIR` | `/app/api/src/models` | Where model weights live, container path |
 | `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where voice packs live, container path |
-| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Fallback download source when `MODEL_DIR` is empty |
+| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Repo passed to Kokoro, picks the G2P version. Weights only load from `MODEL_DIR` |
 | `DOWNLOAD_MODEL` | `true` | Fetch weights at image build and container start (process-only) |
+| `HF_HUB_OFFLINE` / `HF_HUB_DISABLE_TELEMETRY` | unset | Either one skips the startup GET of each model's `config.json` on HF Hub, logs if it changed upstream |
 
 **Voices**
 

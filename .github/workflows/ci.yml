@@ -55,7 +55,9 @@ jobs:
         path: api/src/models/v1_0
         key: kokoro-model-${{ hashFiles('docker/scripts/download_model.py') }}
     - name: Download model
-      run: python3 docker/scripts/download_model.py --output api/src/models/v1_0
+      env:
+        HF_HUB_DISABLE_TELEMETRY: "1"
+      run: uv run --extra test --extra cpu python docker/scripts/download_model.py --output api/src/models/v1_0
     - name: Run Tests
       run: |
         uv run --extra test --extra cpu pytest api/tests/ --asyncio-mode=auto --cov=api --cov-report=term-missing --cov-report=xml

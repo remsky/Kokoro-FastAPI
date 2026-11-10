@@ -15,19 +15,11 @@ If neither is reaching the service, check that it's running on the expected port
 
 ## Missing models
 
-The prebuilt images have the model baked in, so this only comes up when running from source.
+The prebuilt images have the model baked in, so this should only come up when running from source. Run the following to download them to your machine. It pulls `kokoro-v1_0.pth` and `config.json`, exiting early if valid copies are already in place. (Note: the `.sh` script is deprecated and removed as of v0.10.0)
 
 ```bash
 python docker/scripts/download_model.py --output api/src/models/v1_0
 ```
-
-Or the bash version, which finds the project root and output path on its own:
-
-```bash
-./docker/scripts/download_model.sh
-```
-
-Both pull `kokoro-v1_0.pth` and `config.json`, and exit early if valid copies are already in place.
 
 ## Linux GPU Permissions
 
