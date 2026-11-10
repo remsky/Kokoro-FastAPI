@@ -22,7 +22,7 @@ class PortugueseNormalizer(Normalizer):
         r"(?P<amount>\d{1,3}(?:\.\d{3}){1,9}(?:,\d{1,2})?|\d{1,30}(?:,\d{1,2})?)",
         re.IGNORECASE,
     )
-    TIME_PATTERN = re.compile(r"(?<!\d)(?P<hour>\d{1,2}):(?P<minute>\d{2})(?!\d)")
+    TIME_PATTERN = re.compile(r"(?<![\d:])(?P<hour>\d{1,2}):(?P<minute>\d{2})(?![\d:])")
     UNIT_PATTERN = re.compile(
         r"(?P<number>(?:\d{1,3}(?:\.\d{3}){1,9}|\d{1,30})(?:,\d{1,18})?)\s*"
         r"(?P<unit>km/h|m/s|km|cm|mm|kg|mg|g|ml|l|h|min|s|°c|°f)\b",
@@ -60,7 +60,10 @@ class PortugueseNormalizer(Normalizer):
             hour, minute = int(match.group("hour")), int(match.group("minute"))
             if hour > 23 or minute > 59:
                 return match.group()
-            parts = [num2words(hour, lang="pt_BR"), "hora" if hour == 1 else "horas"]
+            hour_words = num2words(hour, lang="pt_BR")
+            if hour in (1, 21):
+                hour_words = hour_words.removesuffix("um") + "uma"
+            parts = [hour_words, "hora" if hour == 1 else "horas"]
             if minute:
                 parts.extend(
                     (
