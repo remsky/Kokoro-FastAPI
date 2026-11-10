@@ -239,3 +239,18 @@ def test_finalize_preserves_tail(format):
     else:
         # lossy encoders pad with encoder delay, but must not truncate
         assert decoded >= 2 * len(audio)
+
+
+@pytest.mark.parametrize("is_last_chunk", [False, True])
+def test_zero_gap_trim_keeps_audio(mock_settings, sample_audio, is_last_chunk):
+    """GAP_TRIM_MS=0 turns the base trim off instead of emptying the chunk"""
+    mock_settings.gap_trim_ms = 0
+    mock_settings.dynamic_gap_trim_padding_ms = 410
+    mock_settings.dynamic_gap_trim_padding_char_multiplier = {".": 1}
+    audio_data, _ = sample_audio
+
+    audio_chunk = AudioService.trim_audio(
+        AudioChunk(audio_data), "Hello.", is_last_chunk=is_last_chunk
+    )
+
+    assert len(audio_chunk.audio) == len(audio_data)

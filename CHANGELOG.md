@@ -4,6 +4,10 @@ Notable changes to this project will be documented in this file.
 
 Per-PR attribution and contributor credits are published automatically on the corresponding GitHub release page; this file is the curated, human-readable summary.
 
+## [Unreleased]
+### Fixed
+- `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
+
 ## [v0.10.0] - 2026-11-08: Websockets/Realtime API, CPU Memory & API Keys
 ### Added
 - `API_KEYS`: set a JSON list of keys and the API routes require one of them, in the header each client already sends: `Authorization: Bearer <key>` (OpenAI), `xi-api-key` (ElevenLabs), `X-API-Key` (Cartesia). `/health` and the web player's files stay open. Off by default. Convenience feature, be sure of your security requirements (e.g. if public, put a TLS reverse proxy in front) (#373)
