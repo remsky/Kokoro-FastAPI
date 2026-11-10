@@ -65,13 +65,11 @@ Off by default. With `ALLOW_LOCAL_VOICE_SAVING=true` any caller can write into `
 | `ENABLE_INNO_TUNER` | `false` | Load the tuner at startup and expose the route, otherwise 403 |
 | `ALLOW_LOCAL_VOICE_SAVING` | `false` | Allow `save_voice` |
 | `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where saved packs go |
-| `HF_HUB_OFFLINE` / `HF_HUB_DISABLE_TELEMETRY` | unset | Either one skips the startup version check below |
+| `HF_HUB_OFFLINE` / `HF_HUB_DISABLE_TELEMETRY` | unset | Either one skips the startup GET below |
 
-`docker/scripts/download_model.py` fetches the pinned tuner weights into `MODEL_DIR/v1_0/inno_tuner/` next to the Kokoro weights. The Docker images ship with them.
+`docker/scripts/download_model.py` fetches the pinned tuner weights into `MODEL_DIR/v1_0/inno_tuner/` next to the Kokoro weights, the Docker images ship with them. It also does one GET of the tuner `config.json` on Hugging Face per startup, a SHA check, and logs if newer weights exist.
 
-On load the package does one GET of the weights' `config.json` on Hugging Face and logs a line if newer weights exist. `HF_HUB_OFFLINE=1` skips it.
-
-If the weights are missing or fail to load, the server still starts, logs `Inno voice tuner not loaded`, and the route answers 503.
+If the weights are missing/fail to load, server logs `Inno voice tuner not loaded`, and the route answers 503.
 
 ## Errors
 

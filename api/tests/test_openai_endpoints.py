@@ -437,8 +437,11 @@ def test_openai_speech_streaming_over_pause_budget_is_400(mock_tts_service, test
     assert response.json()["detail"]["error"] == "validation_error"
 
 
-def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test_voice):
+def test_openai_speech_streaming_nothing_speakable_is_400(
+    mock_tts_service, test_voice, monkeypatch
+):
     """Blank input, or emoji-only with remove_emoji, 400s before the stream opens instead of an empty 200 (issue #353)."""
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0)
     for body in [
         {"input": "   "},
         {"input": "😊", "normalization_options": {"remove_emoji": True}},
@@ -455,6 +458,24 @@ def test_openai_speech_streaming_nothing_speakable_is_400(mock_tts_service, test
         )
         assert response.status_code == 400
         assert response.json()["detail"]["error"] == "validation_error"
+
+
+def test_empty_input_with_alias_rate_is_400(mock_tts_service, test_voice, monkeypatch):
+    monkeypatch.setattr(settings, "unspoken_input_pause_s", 0.3)
+    response = client.post(
+        "/v1/audio/speech",
+        json={
+            "model": "kokoro",
+            "input": "",
+            "voice": "grandpa",
+            "allow_voice_tags": True,
+            "voice_aliases": {"grandpa": {"voice": test_voice, "rate": 0.8}},
+            "response_format": "mp3",
+            "stream": True,
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error"] == "validation_error"
 
 
 def test_openai_speech_streaming_null_normalization_options(

@@ -123,9 +123,18 @@ class SpeechContext:
 
     async def _run(self) -> None:
         offset = 0.0
+        had_text = False
         try:
             while (text := await self.queue.get()) is not None:
+                had_text = True
                 offset = await self._speak(text, offset)
+            pause = settings.unspoken_input_pause_s
+            if had_text and offset == 0 and pause > 0:
+                silence = np.zeros(int(pause * self.sample_rate), np.int16)
+                data = self.writer.write_chunk(silence)
+                offset = pause
+                if data:
+                    await self._emit(data, offset)
             tail = self.writer.write_chunk(finalize=True)
             if tail:
                 await self._emit(tail, offset)
@@ -160,6 +169,7 @@ class SpeechContext:
             volume_multiplier=self.options.volume_multiplier,
             normalization_options=self.options.normalization_options,
             return_timestamps=True,
+            silence_unspoken=False,
         ):
             if not chunk.output:
                 continue

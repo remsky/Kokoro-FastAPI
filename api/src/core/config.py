@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # Container absolute paths
     model_dir: str = "/app/api/src/models"  # Absolute path in container
     voices_dir: str = "/app/api/src/voices/v1_0"  # Absolute path in container
-    model_repo_id: str = "hexgrad/Kokoro-82M"  # default if model not present in model_dir; silences warnings
+    model_repo_id: str = "hexgrad/Kokoro-82M"  # silences warnings, picks g2p version; weights only load from model_dir
 
     # Audio Settings
     default_volume_multiplier: float = 1.0
@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     )
     max_pause_duration_s: float = 60.0
     max_total_pause_s: float = 300.0  # Total silence one request may ask for
+    unspoken_input_pause_s: float = (
+        0.3  # Silence for input with nothing to speak, 0 for an empty stream or 400
+    )
     max_input_length: int = 1_000_000  # Characters of text one request may submit
     max_request_body_mb: int = (
         32  # MB one request body may carry, refused with 413 before parsing

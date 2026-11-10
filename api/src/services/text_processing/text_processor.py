@@ -152,7 +152,14 @@ def check_speakable(
     allow_voice_tags: bool = False,
     normalization_options: Optional[NormalizationOptions] = None,
 ) -> None:
-    """Raise before a stream opens when nothing would be spoken (issue #353)."""
+    """Raise before a stream opens when nothing would be spoken (issue #353).
+
+    Only empty input raises while UNSPOKEN_INPUT_PAUSE_S is set (#579).
+    """
+    if not text:
+        raise ValueError("Input contains no speakable text")
+    if settings.unspoken_input_pause_s > 0:
+        return
     if allow_voice_tags:
         text = CONTROL_TAG_PATTERN.sub(" ", text)
     if normalization_options is not None and normalization_options.remove_emoji:

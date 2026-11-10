@@ -27,7 +27,7 @@ FROM python:3.12-slim
 
 # Install runtime dependencies
 RUN apt-get update -y && \
-    apt-get install -y --no-install-recommends espeak-ng espeak-ng-data libsndfile1 curl && \
+    apt-get install -y --no-install-recommends espeak-ng espeak-ng-data libsndfile1 curl libjemalloc2 && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     mkdir -p /usr/share/espeak-ng-data && \
     ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/ && \
@@ -77,7 +77,9 @@ ENV PYTHONUNBUFFERED=1 \
     PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data \
-    DEVICE="cpu"
+    DEVICE="cpu" \
+    LD_PRELOAD=libjemalloc.so.2 \
+    MALLOC_CONF=oversize_threshold:0,background_thread:true,dirty_decay_ms:30000,muzzy_decay_ms:30000
 
 # Run FastAPI server
 CMD ["./entrypoint.sh"]

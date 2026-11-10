@@ -97,8 +97,9 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `DEVICE_TYPE` | auto | Force `cuda`, `mps`, or `cpu` |
 | `MODEL_DIR` | `/app/api/src/models` | Where model weights live, container path |
 | `VOICES_DIR` | `/app/api/src/voices/v1_0` | Where voice packs live, container path |
-| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Fallback download source when `MODEL_DIR` is empty |
+| `MODEL_REPO_ID` | `hexgrad/Kokoro-82M` | Repo passed to Kokoro, picks the G2P version. Weights only load from `MODEL_DIR` |
 | `DOWNLOAD_MODEL` | `true` | Fetch weights at image build and container start (process-only) |
+| `HF_HUB_OFFLINE` / `HF_HUB_DISABLE_TELEMETRY` | unset | Either one skips the startup GET of each model's `config.json` on HF Hub, logs if it changed upstream |
 
 **Voices**
 
@@ -122,6 +123,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `SSML_MAX_DEPTH` | `10` | Deepest SSML nesting translated, past it is a 400 |
 | `MAX_PAUSE_DURATION_S` | `60.0` | Ceiling for a single `[pause:Ns]` tag or SSML `<break>`, longer values are clamped |
 | `MAX_TOTAL_PAUSE_S` | `300.0` | Ceiling for total pause silence per request, over it is a 400 |
+| `UNSPOKEN_INPUT_PAUSE_S` | `0.3` | Seconds of silence returned for input with nothing to speak (`...`, `*`, whitespace, emoji with `remove_emoji`, bare voice tags), like OpenAI. `0` returns an empty stream / 400 instead. Empty input is always a 400. Websockets send it once, only when a whole context has nothing to speak (whitespace-only contexts stay empty) |
 | `MAX_INPUT_LENGTH` | `1000000` | Ceiling for characters of text per request, over it is a 400 |
 | `MAX_REQUEST_BODY_MB` | `32` | Ceiling for a request body in MB, checked while it arrives so an oversized upload is refused with a 413 before it is parsed or spooled. Room for `MAX_INPUT_LENGTH` text in escaped JSON and a `/dev/tune` reference clip |
 | `ADVANCED_TEXT_NORMALIZATION` | `true` | Master switch for number/URL/email expansion before phonemizing; English only, per-request fields in [Text normalization](#text-normalization) |
