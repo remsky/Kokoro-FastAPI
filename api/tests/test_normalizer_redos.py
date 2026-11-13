@@ -77,10 +77,11 @@ def test_number_floods_scale_linearly():
 
 
 def test_portuguese_number_floods_scale_linearly():
-    """Portuguese number and currency regexes must stay linear on request text."""
-    for unit in ("9", "1.000", "R$1,"):
-        small = _elapsed_portuguese(unit * 2_000)
-        large = _elapsed_portuguese(unit * 8_000)
+    """Portuguese number, currency, time and unit regexes must stay linear on request text."""
+    opts = NormalizationOptions(unit_normalization=True)
+    for unit in ("9", "1.000", "R$1,", "1 h", "12:30h", "12h30", "1,5 km/h ", "1%"):
+        small = _elapsed_portuguese(unit * 2_000, opts)
+        large = _elapsed_portuguese(unit * 8_000, opts)
         assert large / max(small, 0.05) < 9.0, unit
 
 
