@@ -1,7 +1,7 @@
 """Brazilian Portuguese text normalization."""
 
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from num2words import num2words
 
@@ -18,12 +18,18 @@ class PortugueseNormalizer(Normalizer):
         r"(?P<fraction>,\d{1,18})?(?![\w:])"
     )
     CURRENCY_PATTERN = re.compile(
-        r"(?P<symbol>R\$|US\$|[$€£])\s*"
-        r"(?P<amount>\d{1,3}(?:\.\d{3}){1,9}(?:,\d{1,2})?|\d{1,30}(?:,\d{1,2})?)",
+        r"(?P<sign>(?<!\w)[+-])?(?P<symbol>R\$|US\$|[$€£])\s*"
+        r"(?P<amount>\d{1,3}(?:\.\d{3}){1,9}(?:,\d{1,2})?"
+        r"|\d{1,30}(?:,\d{1,2}|(?P<dot_cents>\.\d{2}))?)"
+        r"(?!\d|[.,]\d)",
         re.IGNORECASE,
     )
-    TIME_PATTERN = re.compile(r"(?<![\d:])(?P<hour>\d{1,2}):(?P<minute>\d{2})(?![\d:])")
+    PERCENT_PATTERN = re.compile(r"(?<=\d)\s?%")
+    TIME_PATTERN = re.compile(
+        r"(?<![\d:])(?P<hour>\d{1,2}):(?P<minute>\d{2})(?:\s?h\b)?(?![\d:])"
+    )
     UNIT_PATTERN = re.compile(
+        r"(?P<sign>(?<!\w)[+-])?(?<![\w:])"
         r"(?P<number>(?:\d{1,3}(?:\.\d{3}){1,9}|\d{1,30})(?:,\d{1,18})?)\s*"
         r"(?P<unit>km/h|m/s|km|cm|mm|kg|mg|g|ml|l|h|min|s|°c|°f)\b",
         re.IGNORECASE,
@@ -45,13 +51,32 @@ class PortugueseNormalizer(Normalizer):
         "°c": ("grau Celsius", "graus Celsius"),
         "°f": ("grau Fahrenheit", "graus Fahrenheit"),
     }
+    FEMININE = {
+        "um": "uma",
+        "dois": "duas",
+        "duzentos": "duzentas",
+        "trezentos": "trezentas",
+        "quatrocentos": "quatrocentas",
+        "quinhentos": "quinhentas",
+        "seiscentos": "seiscentas",
+        "setecentos": "setecentas",
+        "oitocentos": "oitocentas",
+        "novecentos": "novecentas",
+    }
 
     def units(self, text: str) -> str:
         def spell(match: re.Match[str]) -> str:
             amount = self._parse_amount(match.group("number"))
             unit = self.UNITS[match.group("unit").lower()]
             name = unit[0] if amount == 1 else unit[1]
-            return f"{match.group('number')} {name}"
+            if unit[0] == "hora" and amount == int(amount):
+                try:
+                    words = self._feminine(num2words(int(amount), lang="pt_BR"))
+                    sign = "menos " if match.group("sign") == "-" else ""
+                    return f"{sign}{words} {name}"
+                except (NotImplementedError, OverflowError, ValueError):
+                    pass
+            return f"{match.group('sign') or ''}{match.group('number')} {name}"
 
         return self.UNIT_PATTERN.sub(spell, text)
 
@@ -60,9 +85,7 @@ class PortugueseNormalizer(Normalizer):
             hour, minute = int(match.group("hour")), int(match.group("minute"))
             if hour > 23 or minute > 59:
                 return match.group()
-            hour_words = num2words(hour, lang="pt_BR")
-            if hour in (1, 21):
-                hour_words = hour_words.removesuffix("um") + "uma"
+            hour_words = self._feminine(num2words(hour, lang="pt_BR"))
             parts = [hour_words, "hora" if hour == 1 else "horas"]
             if minute:
                 parts.extend(
@@ -78,23 +101,29 @@ class PortugueseNormalizer(Normalizer):
 
     def numbers(self, text: str) -> str:
         text = self.CURRENCY_PATTERN.sub(self._currency, text)
+        text = self.PERCENT_PATTERN.sub(" por cento", text)
 
         def spell(match: re.Match[str]) -> str:
-            raw = match.group("whole").replace(".", "")
-            if match.group("fraction"):
-                raw += "." + match.group("fraction")[1:]
+            whole = int(match.group("whole").replace(".", ""))
             try:
-                value = Decimal(raw)
-                if match.group("sign") == "-":
-                    value = -value
-                return num2words(value, lang="pt_BR")
-            except (InvalidOperation, NotImplementedError, OverflowError, ValueError):
+                parts = [num2words(whole, lang="pt_BR")]
+            except (NotImplementedError, OverflowError, ValueError):
                 return match.group()
+            if match.group("fraction"):
+                digits = match.group("fraction")[1:].rstrip("0") or "0"
+                parts.append("vírgula")
+                parts.extend(num2words(int(digit), lang="pt_BR") for digit in digits)
+            if match.group("sign") == "-":
+                parts.insert(0, "menos")
+            return " ".join(parts)
 
         return self.NUMBER_PATTERN.sub(spell, text)
 
     def _currency(self, match: re.Match[str]) -> str:
-        amount = self._parse_amount(match.group("amount"))
+        raw = match.group("amount")
+        if match.group("dot_cents"):
+            raw = raw.replace(".", ",")
+        amount = self._parse_amount(raw)
         symbol = match.group("symbol").upper()
         currency = {
             "R$": ("real", "reais", "centavo", "centavos"),
@@ -109,8 +138,12 @@ class PortugueseNormalizer(Normalizer):
         integer_part = int(amount)
         cents = int((amount - integer_part) * 100)
         try:
-            parts = [num2words(integer_part, lang="pt_BR")]
-            parts.append(currency[0] if integer_part == 1 else currency[1])
+            words = num2words(integer_part, lang="pt_BR")
+            if currency[0] == "libra":
+                words = self._feminine(words)
+            if words.endswith(("ão", "ões")):
+                words += " de"
+            parts = [words, currency[0] if integer_part == 1 else currency[1]]
             if cents:
                 parts.extend(
                     (
@@ -119,9 +152,24 @@ class PortugueseNormalizer(Normalizer):
                         currency[2] if cents == 1 else currency[3],
                     )
                 )
+            if match.group("sign") == "-":
+                parts.insert(0, "menos")
             return " ".join(parts)
         except (NotImplementedError, OverflowError, ValueError):
             return match.group()
+
+    def _feminine(self, words: str) -> str:
+        tokens = words.split()
+        start = max(
+            (
+                i + 1
+                for i, token in enumerate(tokens)
+                if token.rstrip(",").endswith(("ão", "ões"))
+            ),
+            default=0,
+        )
+        tokens[start:] = [self.FEMININE.get(token, token) for token in tokens[start:]]
+        return " ".join(tokens)
 
     @staticmethod
     def _parse_amount(raw: str) -> Decimal:
