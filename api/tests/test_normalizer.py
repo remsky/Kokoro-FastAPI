@@ -79,6 +79,11 @@ CASES = [
     ("-$0.25", "minus zero dollars and twenty-five cents"),
     ("$1.05 each", "one dollar and five cents each"),
     ("€1.20", "one euro and twenty cents"),
+    # more than two decimals is a rate, not cents
+    ("Gas is $3.499 a gallon", "Gas is three point four nine nine dollars a gallon"),
+    ("$0.0012 per token", "zero point zero zero one two dollars per token"),
+    ("-$1.005", "minus one point zero zero five dollars"),
+    ("£2.000", "two pounds"),
     # issue #224
     (
         "still slated to lose $400 million.",
