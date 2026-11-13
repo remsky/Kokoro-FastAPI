@@ -12,7 +12,7 @@ import torch
 
 from api.src.inference.base import AudioChunk
 from api.src.inference.kokoro_v1 import KokoroV1
-from api.src.services.streaming_audio_writer import StreamingAudioWriter
+from api.src.services.streaming_audio_writer import StreamingAudioWriter, set_wav_sizes
 from api.src.services.tts_service import TTSService
 from api.src.structures.schemas import WordTimestamp
 
@@ -635,6 +635,17 @@ async def test_generate_audio_wav_header_carries_real_sizes():
     assert struct.unpack("<I", result.output[4:8])[0] == len(result.output) - 8
     with wave.open(io.BytesIO(result.output)) as wav:
         assert wav.getnframes() == 2 * len(audio)
+
+
+def test_set_wav_sizes_keeps_placeholder_past_4_gib():
+    """Sizes past 4 GiB do not fit the header, so the WAV is returned unchanged."""
+
+    class Huge(bytes):
+        def __len__(self):
+            return 0x1_0000_0000
+
+    data = Huge(b"RIFF\xff\xff\xff\xffWAVE")
+    assert set_wav_sizes(data) is data
 
 
 @pytest.mark.asyncio

@@ -13,6 +13,9 @@ def set_wav_sizes(data: bytes) -> bytes:
     """Replace the streaming size placeholders in a complete WAV with the real sizes."""
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         return data
+    if len(data) > 0xFFFFFFFF:
+        logger.warning("WAV over 4 GiB, using placeholder streaming size")
+        return data
     out = bytearray(data)
     struct.pack_into("<I", out, 4, len(out) - 8)
     pos = 12
