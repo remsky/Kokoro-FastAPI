@@ -73,6 +73,12 @@ CASES = [
     ("$1 trillion", "one trillion dollars"),
     ("Costs $1,000,000", "Costs one million dollars"),
     ("-$5", "minus five dollars"),
+    # cents with a negative or one-unit whole part
+    ("-$1.50", "minus one dollar and fifty cents"),
+    ("-£3.75 owed", "minus three pounds and seventy-five pence owed"),
+    ("-$0.25", "minus zero dollars and twenty-five cents"),
+    ("$1.05 each", "one dollar and five cents each"),
+    ("€1.20", "one euro and twenty cents"),
     # issue #224
     (
         "still slated to lose $400 million.",
