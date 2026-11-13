@@ -27,7 +27,7 @@ Text normalization (numbers, money, time, URLs, etc. spelled out before phonemiz
 
 ## Gotchas
 
-- Passes run in order (`units` only with `unit_normalization`, then `times`, then `numbers`), and an early pass hides text from the later ones. Each pattern that takes digits owns its sign and its left boundary (`(?<![\w:])`), or `-1 h` keeps a bare `-` and `abc2h` / `12:30h` get read as units.
+- Passes run in order (`units` only with `unit_normalization`, then `times`, then `numbers`), and an early pass hides text from the later ones. Each pattern that takes digits owns its sign and its left boundary (`(?<![\w:])`), or `-2 km` keeps a bare `-` and `abc2km` / `12:30min` get read as units.
 - Reject malformed input whole (a trailing lookahead like `(?!\d|[.,]\d)`), so it falls through to the plain number pass. A half match reads worse than no match.
 - Bound every digit quantifier (`\d{1,30}`, `(?:\.\d{3}){1,9}`). It keeps the regex linear, and long runs are left for the phonemizer.
 - `num2words` raises `OverflowError` on large values (from 10^18 in `pt_BR`, limits vary by language). Catch it and return the digits unchanged, in every pass that calls it.

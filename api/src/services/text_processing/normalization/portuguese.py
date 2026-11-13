@@ -26,12 +26,16 @@ class PortugueseNormalizer(Normalizer):
     )
     PERCENT_PATTERN = re.compile(r"(?<=\d)\s?%")
     TIME_PATTERN = re.compile(
-        r"(?<![\d:])(?P<hour>\d{1,2}):(?P<minute>\d{2})(?:\s?h\b)?(?![\d:])"
+        r"(?<![\w:])(?P<hour>\d{1,2})(?P<sep>[:h])(?P<minute>\d{2})(?:\s?(?:h|min|m)\b)?(?![\w:])",
+        re.IGNORECASE,
     )
-    UNIT_PATTERN = re.compile(
+    QUANTITY = (
         r"(?P<sign>(?<!\w)[+-])?(?<![\w:])"
         r"(?P<number>(?:\d{1,3}(?:\.\d{3}){1,9}|\d{1,30})(?:,\d{1,18})?)\s*"
-        r"(?P<unit>km/h|m/s|km|cm|mm|kg|mg|g|ml|l|h|min|s|°c|°f)\b",
+    )
+    HOUR_PATTERN = re.compile(QUANTITY + r"(?P<unit>h)\b")
+    UNIT_PATTERN = re.compile(
+        QUANTITY + r"(?P<unit>km/h|m/s|km|cm|mm|kg|mg|g|ml|l|min|s|°c|°f)\b",
         re.IGNORECASE,
     )
     UNITS = {
@@ -65,25 +69,14 @@ class PortugueseNormalizer(Normalizer):
     }
 
     def units(self, text: str) -> str:
-        def spell(match: re.Match[str]) -> str:
-            amount = self._parse_amount(match.group("number"))
-            unit = self.UNITS[match.group("unit").lower()]
-            name = unit[0] if amount == 1 else unit[1]
-            if unit[0] == "hora" and amount == int(amount):
-                try:
-                    words = self._feminine(num2words(int(amount), lang="pt_BR"))
-                    sign = "menos " if match.group("sign") == "-" else ""
-                    return f"{sign}{words} {name}"
-                except (NotImplementedError, OverflowError, ValueError):
-                    pass
-            return f"{match.group('sign') or ''}{match.group('number')} {name}"
-
-        return self.UNIT_PATTERN.sub(spell, text)
+        return self.UNIT_PATTERN.sub(self._unit, text)
 
     def times(self, text: str) -> str:
+        text = self.HOUR_PATTERN.sub(self._unit, text)
+
         def spell(match: re.Match[str]) -> str:
             hour, minute = int(match.group("hour")), int(match.group("minute"))
-            if hour > 23 or minute > 59:
+            if minute > 59 or (hour > 23 and match.group("sep") == ":"):
                 return match.group()
             hour_words = self._feminine(num2words(hour, lang="pt_BR"))
             parts = [hour_words, "hora" if hour == 1 else "horas"]
@@ -118,6 +111,19 @@ class PortugueseNormalizer(Normalizer):
             return " ".join(parts)
 
         return self.NUMBER_PATTERN.sub(spell, text)
+
+    def _unit(self, match: re.Match[str]) -> str:
+        amount = self._parse_amount(match.group("number"))
+        unit = self.UNITS[match.group("unit").lower()]
+        name = unit[0] if amount == 1 else unit[1]
+        if unit[0] == "hora" and amount == int(amount):
+            try:
+                words = self._feminine(num2words(int(amount), lang="pt_BR"))
+                sign = "menos " if match.group("sign") == "-" else ""
+                return f"{sign}{words} {name}"
+            except (NotImplementedError, OverflowError, ValueError):
+                pass
+        return f"{match.group('sign') or ''}{match.group('number')} {name}"
 
     def _currency(self, match: re.Match[str]) -> str:
         raw = match.group("amount")
