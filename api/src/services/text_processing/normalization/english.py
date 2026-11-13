@@ -1,7 +1,6 @@
 """English text normalization: URLs, emails, numbers, money, time, units."""
 
 import functools
-import math
 import re
 
 import inflect
@@ -321,10 +320,14 @@ class EnglishNormalizer(Normalizer):
                 whole = INFLECT_ENGINE.number_to_words(conditional_int(number))
                 return f"{whole}{multiplier} {bills}"
 
-            whole = INFLECT_ENGINE.number_to_words(int(math.floor(number)))
-            fraction = int(str(number).split(".")[-1].ljust(2, "0"))
+            # Read the sign on its own: floor(-1.5) is -2, and int(-0.25) drops the minus.
+            sign = "minus " if number < 0 else ""
+            dollars = int(abs(number))
+            whole = INFLECT_ENGINE.number_to_words(dollars)
+            bills = INFLECT_ENGINE.plural(bill, count=dollars)
+            fraction = int(str(abs(number)).split(".")[-1].ljust(2, "0"))
             coins = INFLECT_ENGINE.plural(coin, count=fraction)
-            return f"{whole} {bills} and {INFLECT_ENGINE.number_to_words(fraction)} {coins}"
+            return f"{sign}{whole} {bills} and {INFLECT_ENGINE.number_to_words(fraction)} {coins}"
 
         return self.MONEY_PATTERN.sub(handle, text)
 
