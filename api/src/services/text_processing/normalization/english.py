@@ -320,6 +320,15 @@ class EnglishNormalizer(Normalizer):
                 whole = INFLECT_ENGINE.number_to_words(conditional_int(number))
                 return f"{whole}{multiplier} {bills}"
 
+            digits = m.group(3).replace(",", "")
+            if len(digits.partition(".")[2]) > 2:
+                # More than two decimals is not a cents amount ($3.499 a gallon,
+                # $0.0012 per token): read the decimal number, not 499 or 12 cents.
+                if digits.startswith("."):
+                    digits = "0" + digits
+                whole = INFLECT_ENGINE.number_to_words(m.group(1) + digits)
+                return f"{whole} {bills}"
+
             # Read the sign on its own: floor(-1.5) is -2, and int(-0.25) drops the minus.
             sign = "minus " if number < 0 else ""
             dollars = int(abs(number))
