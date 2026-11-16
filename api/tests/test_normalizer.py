@@ -111,6 +111,11 @@ CASES = [
     ("Lap time 1:02:03", "Lap time one oh two and three seconds"),
     ("Finished in 0:05:01", "Finished in zero oh five and one second"),
     ("Logged at 12:30:15 pm", "Logged at twelve thirty and fifteen seconds pm"),
+    # zero seconds are not read, and a whole hour keeps its "o'clock"
+    ("It was 10:30:00", "It was ten thirty"),
+    ("Starts at 3:00:00", "Starts at three o'clock"),
+    ("Alarm at 10:00:05", "Alarm at ten o'clock and five seconds"),
+    ("Logged at 9:00:00 am", "Logged at nine am"),
     # numbers (pr #303)
     (
         "I bought 1035 cans of soda",
