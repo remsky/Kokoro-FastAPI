@@ -15,7 +15,7 @@
 > <details>
 > <summary><ins>Would FastKoko users have been affected?</ins> Nope, not by this. We hardcode model hash validations. </summary>
 > 
-> - Our released images bake from a pinned commit on Hugging Face, checked against a hardcoded [sha256 hash](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L18-L21). 
+> - Our released images use a pinned commit on HuggingFace, checked against a hardcoded [sha256 hash](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L18-L21). 
 > - If you run with `uv` from a fresh clone, or build the image yourself?
 >   - The download step uses the same safeguards
 >   - It skips if verified weights already exist on disk & logs a warning if `config.json` is changed upstream
