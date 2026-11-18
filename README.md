@@ -1,6 +1,31 @@
 ![FastKoko: Dockerized Kokoro-82M TTS, OpenAI-compatible API](assets/banner.png)
 <br>
 
+> [!NOTE]
+> Nov 18, 2026 re: the HuggingFace takeover of `hexgrad/Kokoro-82M` via [@alonhertz1](https://medium.com/@alonhertz1/one-click-from-180-million-downloads-taking-over-the-hugging-face-account-behind-an-ai-model-ac61c16305b7)
+>
+> <details>
+> <summary><ins>Are FastKoko users affected?</ins>: Nope. It was a security demonstration only. No action is needed.</summary>
+>
+> - Researchers registered a lapsed `hexgrad.com` domain and used it to reset the account password.
+> - They fine-tuned a copy of the weights, changing its spoken oututs. Same size and format, still passed HuggingFace scans
+> - Nothing was uploaded, and the account is currently secure.
+> - The vulnerability they noted: anything pulling the latest weights would have pulled it, a new hash just looks like a new version.
+> </details>
+> <details>
+> <summary><ins>Would FastKoko users have been affected?</ins> Nope, not by this. We hardcode model hash validations. </summary>
+> 
+> - Our released images bake from a pinned commit on Hugging Face, checked against a hardcoded [sha256 hash](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L18-L21). 
+> - If you run with `uv` from a fresh clone, or build the image yourself?
+>   - The download step uses the same safeguards
+>   - It skips if verified weights already exist on disk & logs a warning if `config.json` is changed upstream
+>   - If the hash check fails; it falls back to our mirror in the [v0.1.4 release](https://github.com/remsky/Kokoro-FastAPI/releases/tag/v0.1.4).
+>   - If it also fails the hash check; the server simply doesn't start.  
+> - Code references: [download_model.py#L11](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L11), [#L18-L21](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L18-L21), [#L119-L120](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L119-L120), [#L170-L175](https://github.com/remsky/Kokoro-FastAPI/blob/3c0d616d75ad542a4ff87fa6a3026720888f809a/docker/scripts/download_model.py#L170-L175)
+>  
+> PRs or [private reports](https://github.com/remsky/Kokoro-FastAPI/security/advisories/new) are always welcome if a gap is found. 
+> </details>
+
 <a href="https://trendshift.io/repositories/13745?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-13745"><img src="https://trendshift.io/api/badge/repositories/13745" alt="remsky%2FKokoro-FastAPI | Trendshift" width="164" height="36"/></a>
 
 [![Changelog](https://img.shields.io/badge/changelog-white)](./CHANGELOG.md)
