@@ -49,6 +49,8 @@ def char_alignment(words: Words, duration: float, offset: float) -> dict:
     chars, starts, durations = [], [], []
     next_starts = [max(start, 0.0) for _, start, _ in words[1:]] + [duration]
     for (word, start, end), next_start in zip(words, next_starts):
+        if not word:
+            continue
         start = max(start, 0.0)
         step = max(end - start, 0) / len(word)
         for j, char in enumerate(word):
