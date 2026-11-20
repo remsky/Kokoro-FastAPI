@@ -92,8 +92,8 @@ async def test_find_file_skips_directories(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_find_file_follows_symlinked_files(tmp_path):
-    """A file symlinked into a search root resolves to its target (K8s/NAS voice setups)."""
+async def test_find_file_rejects_symlinked_files_outside_root(tmp_path):
+    """A file symlinked into a search root is rejected if it points outside."""
     outside = tmp_path / "outside"
     outside.mkdir()
     target = outside / "voice.pt"
@@ -104,8 +104,8 @@ async def test_find_file_follows_symlinked_files(tmp_path):
         (root / "af_custom.pt").symlink_to(target)
     except OSError:
         pytest.skip("symlink creation not permitted on this host")  # ty: ignore[too-many-positional-arguments]
-    path = await _find_file("af_custom.pt", [str(root)])
-    assert Path(path) == Path(os.path.realpath(target))
+    with pytest.raises(FileNotFoundError):
+        await _find_file("af_custom.pt", [str(root)])
 
 
 @pytest.mark.asyncio
