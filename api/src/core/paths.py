@@ -50,11 +50,11 @@ def voices_dir() -> str:
 def _resolve_within(search_path: str, filename: str) -> Optional[str]:
     root = os.path.realpath(search_path)
     prefix = root if root.endswith(os.sep) else root + os.sep
-    candidate = os.path.normpath(os.path.join(root, filename))
-    if not candidate.startswith(prefix):
+    resolved = os.path.realpath(os.path.join(root, filename))
+    if not resolved.startswith(prefix):
         logger.warning(f"Rejected path outside {root}: {filename}")
         return None
-    return os.path.realpath(candidate)
+    return resolved
 
 
 async def _find_file(

@@ -9,6 +9,7 @@ import torch
 from api.src.core.config import settings
 from api.src.core.paths import (
     _find_file,
+    _resolve_within,
     _scan_directories,
     cleanup_temp_files,
     get_content_type,
@@ -336,3 +337,21 @@ async def test_cleanup_temp_files_creates_missing_dir(tmp_path):
         await cleanup_temp_files()
 
     assert target.is_dir()
+
+
+def test_resolve_within_rejects_symlink_pointing_outside(tmp_path):
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    target_file = outside_dir / "secret.txt"
+    target_file.write_text("secret")
+
+    search_dir = tmp_path / "search"
+    search_dir.mkdir()
+    link = search_dir / "link_to_outside"
+
+    try:
+        os.symlink(target_file, link)
+    except OSError:
+        pytest.skip("Symlink creation not permitted in this environment")
+
+    assert _resolve_within(str(search_dir), "link_to_outside") is None
