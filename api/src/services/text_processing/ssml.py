@@ -43,7 +43,7 @@ BREAK_STRENGTH_S = {
 }
 
 TIME_ATTR = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(ms|s)\s*$", re.IGNORECASE)
-VALID_VOICE_NAME = re.compile(rf"^{VOICE_NAME_BODY}$")
+VALID_VOICE_NAME = re.compile(VOICE_NAME_BODY)
 
 # an xml declaration or comments may precede the root, the spec's own examples carry one
 PROLOG = re.compile(r"(?:\s|<\?[^>]*\?>|<!--.*?-->)*", re.DOTALL)
