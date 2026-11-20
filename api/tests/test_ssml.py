@@ -18,7 +18,10 @@ assert CORPUS, "ssml corpus fixtures missing, the corpus test would collect noth
 
 def test_plain_text_passthrough():
     assert translate_ssml("Hello world") == "Hello world"
-    assert translate_ssml("[pause:1s] native tags untouched") == "[pause:1s] native tags untouched"
+    assert (
+        translate_ssml("[pause:1s] native tags untouched")
+        == "[pause:1s] native tags untouched"
+    )
 
 
 def test_roots_merely_starting_with_speak_pass_through():
@@ -33,22 +36,38 @@ def test_namespaced_speak_root_still_translates():
 
 
 def test_break_time_and_strength():
-    assert translate_ssml('<speak>Hi<break time="750ms"/>there</speak>') == "Hi [pause:0.75s] there"
-    assert translate_ssml('<speak>Hi<break time="1.5s"/>there</speak>') == "Hi [pause:1.5s] there"
-    assert translate_ssml('<speak>Hi<break strength="x-strong"/>there</speak>') == "Hi [pause:1.5s] there"
+    assert (
+        translate_ssml('<speak>Hi<break time="750ms"/>there</speak>')
+        == "Hi [pause:0.75s] there"
+    )
+    assert (
+        translate_ssml('<speak>Hi<break time="1.5s"/>there</speak>')
+        == "Hi [pause:1.5s] there"
+    )
+    assert (
+        translate_ssml('<speak>Hi<break strength="x-strong"/>there</speak>')
+        == "Hi [pause:1.5s] there"
+    )
     assert translate_ssml('<speak>Hi<break strength="none"/>there</speak>') == "Hithere"
 
 
 def test_phoneme_maps_to_custom_ipa():
-    out = translate_ssml('<speak><phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme></speak>')
+    out = translate_ssml(
+        '<speak><phoneme alphabet="ipa" ph="wˈʊstər">Worcester</phoneme></speak>'
+    )
     assert out == "[Worcester](/wˈʊstər/)"
     # non-ipa alphabet speaks the text instead
-    out = translate_ssml('<speak><phoneme alphabet="x-sampa" ph="wUst@r">Worcester</phoneme></speak>')
+    out = translate_ssml(
+        '<speak><phoneme alphabet="x-sampa" ph="wUst@r">Worcester</phoneme></speak>'
+    )
     assert out == "Worcester"
 
 
 def test_sub_speaks_alias():
-    assert translate_ssml('<speak><sub alias="World Wide Web">WWW</sub></speak>') == "World Wide Web"
+    assert (
+        translate_ssml('<speak><sub alias="World Wide Web">WWW</sub></speak>')
+        == "World Wide Web"
+    )
 
 
 def test_voice_gated_and_reverts():
@@ -146,7 +165,10 @@ def test_malformed_ssml_raises():
 )
 def test_prolog_before_the_root_still_translates(prolog):
     """The spec's own examples all open with a declaration, so it can't defeat detection."""
-    assert translate_ssml(f'{prolog}<speak>Hi<break time="1s"/>there</speak>') == "Hi [pause:1.0s] there"
+    assert (
+        translate_ssml(f'{prolog}<speak>Hi<break time="1s"/>there</speak>')
+        == "Hi [pause:1.0s] there"
+    )
 
 
 def test_dtd_is_refused_rather_than_expanded():
@@ -160,7 +182,9 @@ def _nested(levels: int) -> str:
 
 
 def test_nesting_is_refused_past_the_configured_depth():
-    assert translate_ssml(_nested(settings.ssml_max_depth)) == " ".join("x" * settings.ssml_max_depth)
+    assert translate_ssml(_nested(settings.ssml_max_depth)) == " ".join(
+        "x" * settings.ssml_max_depth
+    )
     with pytest.raises(ET.ParseError):
         translate_ssml(_nested(settings.ssml_max_depth + 1))
 
@@ -187,7 +211,11 @@ def test_kill_switch_403s_both_routes(route, monkeypatch):
 
     monkeypatch.setattr(settings, "enable_ssml", False)
     client = TestClient(app)
-    resp = client.get("/dev/ssml") if route == "get" else client.post("/dev/ssml", json={"text": "<speak>hi</speak>"})
+    resp = (
+        client.get("/dev/ssml")
+        if route == "get"
+        else client.post("/dev/ssml", json={"text": "<speak>hi</speak>"})
+    )
     assert resp.status_code == 403
     assert resp.json()["detail"]["error"] == "permission_denied"
 
@@ -202,3 +230,11 @@ def test_provider_corpus_never_leaks_markup(doc):
     )
     assert not MARKUP.search(out)
     assert "xmlns" not in out and "interpret-as" not in out
+
+
+def test_voice_name_outside_allowed_charset_is_ignored():
+    ssml = '<speak><voice name="af_bella] [rate:2.0] [voice:x">hello</voice></speak>'
+    translated = translate_ssml(ssml, default_voice="af_heart", allow_voice_tags=True)
+    assert "[rate:2.0]" not in translated
+    assert "[voice:x]" not in translated
+    assert translated == "hello"
