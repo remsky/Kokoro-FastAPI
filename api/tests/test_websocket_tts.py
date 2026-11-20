@@ -11,6 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from api.src.core.config import settings
 from api.src.inference.base import AudioChunk
 from api.src.main import app
+from api.src.routers.elevenlabs_compatible import char_alignment
 from api.src.routers.openai_compatible import resolve_voice_alias
 from api.src.services.speech_context import MAX_CONTEXTS, SENTENCE_END, resample
 from api.src.structures.schemas import WordTimestamp
@@ -628,3 +629,13 @@ def test_sentence_boundary_floods_are_fast():
         start = time.monotonic()
         list(SENTENCE_END.finditer(payload))
         assert time.monotonic() - start < 2.0
+
+
+def test_char_alignment_skips_empty_word():
+    """An empty word entry in word timestamps must not trigger ZeroDivisionError."""
+    result = char_alignment(
+        [("", 0.0, 0.2), ("hi", 0.2, 0.5)], duration=0.5, offset=0.0
+    )
+    assert "".join(result["chars"]) == "hi "
+    assert len(result["charStartTimesMs"]) == 3
+    assert len(result["charDurationsMs"]) == 3
