@@ -11,7 +11,7 @@ import xml.etree.ElementTree as ET
 from typing import Dict, List, Optional
 
 from ...core.config import settings
-from ...structures.schemas import clamp_rate
+from ...structures.schemas import VOICE_NAME_BODY, clamp_rate
 
 # element surface served by GET /dev/ssml, None means markup dropped and text spoken
 SSML_ELEMENTS: Dict[str, Optional[str]] = {
@@ -43,6 +43,7 @@ BREAK_STRENGTH_S = {
 }
 
 TIME_ATTR = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*(ms|s)\s*$", re.IGNORECASE)
+VALID_VOICE_NAME = re.compile(VOICE_NAME_BODY)
 
 # an xml declaration or comments may precede the root, the spec's own examples carry one
 PROLOG = re.compile(r"(?:\s|<\?[^>]*\?>|<!--.*?-->)*", re.DOTALL)
@@ -118,10 +119,12 @@ def _render(
     inner_rate = current_rate
     name = el.get("name")
     if tag == "voice" and control_tags and name:
-        inner_voice = name.strip()
-        parts.append(f" [voice:{inner_voice}] ")
-        if current_rate != 1.0:
-            parts.append(f" [rate:{current_rate}] ")
+        stripped_name = name.strip()
+        if VALID_VOICE_NAME.fullmatch(stripped_name):
+            inner_voice = stripped_name
+            parts.append(f" [voice:{inner_voice}] ")
+            if current_rate != 1.0:
+                parts.append(f" [rate:{current_rate}] ")
     if tag == "prosody" and control_tags and el.get("rate"):
         inner_rate = _prosody_rate(el.get("rate", ""))
         if inner_rate != current_rate:
