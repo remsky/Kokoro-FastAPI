@@ -231,13 +231,14 @@ class EnglishNormalizer(Normalizer):
             elif minute >= 10:
                 numbers.append(minute_number)
 
-            if len(time_parts) > 2:
-                seconds = int(time_parts[2])
+            seconds = int(time_parts[2]) if len(time_parts) > 2 else 0
+            if half is None and minute == 0:
+                numbers.append("o'clock")
+            if seconds:
+                # 10:30:00 is "ten thirty", not "ten thirty and zero seconds"
                 seconds_number = INFLECT_ENGINE.number_to_words(time_parts[2].strip())
                 second_word = INFLECT_ENGINE.plural("second", seconds)
                 numbers.append(f"and {seconds_number} {second_word}")
-            elif half is None and minute == 0:
-                numbers.append("o'clock")
 
             if half:
                 numbers.append(half)
