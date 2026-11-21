@@ -291,10 +291,11 @@ class EnglishNormalizer(Normalizer):
     NUMBER_MULTIPLIER = r"((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b)*)"
     MONEY_MULTIPLIER = r"((?: hundred| thousand| (?:[bm]|tr|quadr)illion|k|m|b|t)*)"
 
+    # The minus sign may come before or after the currency symbol: -$5 or $-5
     MONEY_PATTERN = re.compile(
         r"(-?)(["
         + "".join(MONEY_UNITS.keys())
-        + r"])"
+        + r"])(-?)"
         + NUMBER_BODY
         + MONEY_MULTIPLIER
         + NOT_GLUED_AFTER,
@@ -305,12 +306,13 @@ class EnglishNormalizer(Normalizer):
         @unchanged_on_error
         def handle(m: re.Match[str]) -> str:
             bill, coin = MONEY_UNITS[m.group(2)]
-            number = float(m.group(3).replace(",", ""))
+            number = float(m.group(4).replace(",", ""))
 
-            if m.group(1) == "-":
+            sign = "-" if "-" in (m.group(1), m.group(3)) else ""
+            if sign:
                 number *= -1
 
-            multiplier = translate_multiplier(m.group(4))
+            multiplier = translate_multiplier(m.group(5))
 
             if multiplier != "":
                 multiplier = f" {multiplier}"
@@ -320,13 +322,13 @@ class EnglishNormalizer(Normalizer):
                 whole = INFLECT_ENGINE.number_to_words(conditional_int(number))
                 return f"{whole}{multiplier} {bills}"
 
-            digits = m.group(3).replace(",", "")
+            digits = m.group(4).replace(",", "")
             if len(digits.partition(".")[2]) > 2:
                 # More than two decimals is not a cents amount ($3.499 a gallon,
                 # $0.0012 per token): read the decimal number, not 499 or 12 cents.
                 if digits.startswith("."):
                     digits = "0" + digits
-                whole = INFLECT_ENGINE.number_to_words(m.group(1) + digits)
+                whole = INFLECT_ENGINE.number_to_words(sign + digits)
                 return f"{whole} {bills}"
 
             # Read the sign on its own: floor(-1.5) is -2, and int(-0.25) drops the minus.
