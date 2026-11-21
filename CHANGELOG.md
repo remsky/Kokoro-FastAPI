@@ -9,6 +9,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392, #598)
 
 ### Fixed
+- A URL that starts with `HTTPS://` or `Https://` is read as "https", not "http"
 - SSML `<voice>` names with characters outside valid voice names are ignored instead of emitting extra control tags
 - `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
 - Money with cents reads the whole part right: `-$1.50` is "minus one dollar and fifty cents" (was "minus two dollars"), and `$1.05` says "one dollar", not "one dollars"

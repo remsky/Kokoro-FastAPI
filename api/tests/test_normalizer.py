@@ -10,6 +10,8 @@ CASES = [
     ("Check out https://example.com", "Check out https example dot com"),
     ("Visit http://site.com", "Visit http site dot com"),
     ("Go to https://test.org/path", "Go to https test dot org slash path"),
+    ("Visit HTTPS://example.com", "Visit https example dot com"),
+    ("Go to Https://test.org/path", "Go to https test dot org slash path"),
     # url www (pr #10, #12)
     ("Go to www.example.com", "Go to www example dot com"),
     ("Visit www.test.org/docs", "Visit www test dot org slash docs"),

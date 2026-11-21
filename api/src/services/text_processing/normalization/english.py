@@ -130,7 +130,7 @@ class EnglishNormalizer(Normalizer):
             # Handle protocol first
             url = re.sub(
                 r"^https?://",
-                lambda a: "https " if "https" in a.group() else "http ",
+                lambda a: "https " if a.group().lower() == "https://" else "http ",
                 url,
                 flags=re.IGNORECASE,
             )
