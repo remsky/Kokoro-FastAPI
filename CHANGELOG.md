@@ -7,6 +7,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 ## [Unreleased]
 ### Added
 - Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392, #598)
+- Words hyphenated across a line break are read as one word: `compo-` then `nents` on the next line reads as "components". On by default, `hyphen_wrap_normalization: false` in `normalization_options` turns it off
 
 ### Fixed
 - A URL that starts with `HTTPS://` or `Https://` is read as "https", not "http"

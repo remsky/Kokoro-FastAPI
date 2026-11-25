@@ -178,7 +178,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 
 ## Text normalization
 
-`normalization_options` on the speech endpoints, per request. The normalizer runs for English only, the one language with a normalizer registered. Other languages go to the phonemizer as written, `remove_emoji` aside.
+`normalization_options` on the speech endpoints, per request. The normalizer runs for English only, the one language with a normalizer registered. Other languages go to the phonemizer as written, `remove_emoji` and `hyphen_wrap_normalization` aside.
 
 | Field | Default | |
 |---|---|---|
@@ -190,6 +190,7 @@ Names are the field names from `api/src/core/config.py`, uppercased. Unrecognize
 | `unit_normalization` | `false` | `10KB` reads as 10 kilobytes |
 | `optional_pluralization_normalization` | `true` | `friend(s)` reads as friends |
 | `replace_remaining_symbols` | `true` | Leftover symbols read as words, `&` as and, `@` as at |
+| `hyphen_wrap_normalization` | `true` | `compo-` at a line end followed by `nents` reads as components, every language. Only joins when the next line starts lowercase, so `Jean-`/`Paul` keeps its hyphen |
 | `remove_emoji` | `false` | Emoji dropped instead of read by name, every language |
 
 ```json

@@ -599,6 +599,43 @@ def test_join_lines(text, expected):
     assert join_lines(text) == expected
 
 
+HYPHEN_WRAP_CASES = [
+    ("service compo-\nnents", "service components"),
+    ("compo- \r\n  nents", "components"),
+    ("naïve-\nté", "naïveté"),
+    ("Jean-\nPaul", "Jean- Paul"),
+    ("Chapter 1-\n2", "Chapter 1- 2"),
+    ("a --\nb", "a -- b"),
+    ("end-\n\nnext", "end-. next"),
+    ("well-known", "well-known"),
+]
+
+
+@pytest.mark.parametrize("text, expected", HYPHEN_WRAP_CASES)
+def test_join_lines_rejoins_hyphens(text, expected):
+    assert join_lines(text, rejoin_hyphens=True) == expected
+
+
+def test_join_lines_keeps_hyphens_by_default():
+    assert join_lines("compo-\nnents") == "compo- nents"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "options, expected",
+    [
+        (NormalizationOptions(), "COMPONENTS"),
+        (NormalizationOptions(hyphen_wrap_normalization=False), "COMPO- NENTS"),
+        (NormalizationOptions(normalize=False), "compo- nents"),
+    ],
+)
+async def test_smart_split_hyphen_wrap_option(shouting_language, options, expected):
+    async for chunk_text, _, _ in smart_split(
+        "compo-\nnents", lang_code="xx", normalization_options=options
+    ):
+        assert chunk_text == expected
+
+
 def test_split_words_fits_each_piece(monkeypatch):
     monkeypatch.setattr(
         text_processor, "process_text_chunk", lambda text, *a, **k: [0] * len(text)

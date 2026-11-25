@@ -130,6 +130,10 @@ class NormalizationOptions(BaseModel):
         default=True,
         description="Replaces the remaining symbols after normalization with their words",
     )
+    hyphen_wrap_normalization: bool = Field(
+        default=True,
+        description="Rejoins words hyphenated across a line break, compo-\\nnents reads as components",
+    )
     remove_emoji: bool = Field(
         default=False,
         description="Removes emoji instead of letting the phonemizer read them by name",

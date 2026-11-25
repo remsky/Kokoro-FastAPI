@@ -29,6 +29,8 @@ EMOJI_PATTERN = regex.compile(
 )
 PARAGRAPH_PATTERN = re.compile(r"(?:\r?\n[^\S\r\n]*){2,}")
 LINE_PATTERN = re.compile(r"\r?\n[^\S\r\n]*")
+# lowercase after the break only, so Jean-\nPaul keeps its hyphen
+HYPHEN_WRAP_PATTERN = regex.compile(r"(?<=\p{L})-[^\S\r\n]*\r?\n[^\S\r\n]*(?=\p{Ll})")
 # Pattern to find voice tags like [voice:af_bella] or [voice:af_bella(2)+af_sky]
 VOICE_TAG_PATTERN = re.compile(rf"\[voice:\s*({VOICE_NAME_BODY}?)\s*\]", re.IGNORECASE)
 # Pattern to find voice, rate, and alias base-rate tags in one split pass, like [voice:af_bella] or [rate:1.2]
@@ -181,10 +183,12 @@ def check_pause_budget(text: str) -> None:
         )
 
 
-def join_lines(text: str) -> str:
+def join_lines(text: str, rejoin_hyphens: bool = False) -> str:
     """Blank lines end a sentence, single newlines are hard wraps."""
     paragraphs = []
     for paragraph in PARAGRAPH_PATTERN.split(text):
+        if rejoin_hyphens:
+            paragraph = HYPHEN_WRAP_PATTERN.sub("", paragraph)
         paragraph = LINE_PATTERN.sub(" ", paragraph).strip()
         if paragraph:
             paragraphs.append(paragraph)
@@ -310,7 +314,11 @@ async def smart_split(
         ):  # Only process if the part is not empty string
             if normalization_options.remove_emoji:
                 text_part_raw = strip_emoji(text_part_raw)
-            processed_text = join_lines(text_part_raw)
+            processed_text = join_lines(
+                text_part_raw,
+                rejoin_hyphens=normalization_options.normalize
+                and normalization_options.hyphen_wrap_normalization,
+            )
 
             # Normalize text (original logic)
             if settings.advanced_text_normalization and normalization_options.normalize:
