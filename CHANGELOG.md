@@ -9,6 +9,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392, #598)
 
 ### Fixed
+- With unit normalization on, `ml`, `mm/s`, `ft/s`, `cm/h` and `MV` are read with correct names: "milliliters", "millimeters per second", "one foot per second" (was "one feet" / "three feets"), "centimeters per hour" (was "per day") and "megavolts" (was "mergavolts")
 - A URL that starts with `HTTPS://` or `Https://` is read as "https", not "http"
 - SSML `<voice>` names with characters outside valid voice names are ignored instead of emitting extra control tags
 - `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent

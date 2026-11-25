@@ -60,7 +60,7 @@ VALID_UNITS = {
     "min": "minute",
     "h": "hour",  # Time
     "l": "liter",
-    "ml": "mililiter",
+    "ml": "milliliter",
     "cl": "centiliter",
     "dl": "deciliter",  # Volume
     "kph": "kilometer per hour",
@@ -68,10 +68,10 @@ VALID_UNITS = {
     "mi/h": "mile per hour",
     "m/s": "meter per second",
     "km/h": "kilometer per hour",
-    "mm/s": "milimeter per second",
+    "mm/s": "millimeter per second",
     "cm/s": "centimeter per second",
-    "ft/s": "feet per second",
-    "cm/h": "centimeter per day",  # Speed
+    "ft/s": "foot per second",
+    "cm/h": "centimeter per hour",  # Speed
     "°c": "degree celsius",
     "c": "degree celsius",
     "°f": "degree fahrenheit",
@@ -87,7 +87,7 @@ VALID_UNITS = {
     "ghz": "gigahertz",  # Frequency
     "v": "volt",
     "kv": "kilovolt",
-    "mv": "mergavolt",  # Voltage
+    "mv": "megavolt",  # Voltage
     "a": "amp",
     "ma": "megaamp",
     "ka": "kiloamp",  # Current
