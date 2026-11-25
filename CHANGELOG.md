@@ -9,6 +9,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Brazilian Portuguese text normalization for numbers, common currencies, times, and units (#392, #598)
 
 ### Fixed
+- With unit normalization on, ohm values keep their number: `3 Ω` is "three ohms" and `10kΩ` is "ten kiloohms" (was "Ω" and "k Ω", with the number dropped)
 - A URL that starts with `HTTPS://` or `Https://` is read as "https", not "http"
 - SSML `<voice>` names with characters outside valid voice names are ignored instead of emitting extra control tags
 - `GAP_TRIM_MS=0` turns the base chunk trim off. It used to slice every chunk to nothing, so all audio came back silent
