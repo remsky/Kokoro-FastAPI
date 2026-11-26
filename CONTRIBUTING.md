@@ -15,7 +15,7 @@ We use `uv` for managing Python environments and dependencies, and `ruff` for li
     ```
 
 2.  **Install `uv`:**
-    Follow the instructions on the [official `uv` documentation](https://docs.astral.sh/uv/install/).
+    Follow the instructions on the [official `uv` documentation](https://docs.astral.sh/uv/getting-started/installation/).
 
 3.  **Create a virtual environment and install dependencies:**
     It's recommended to use a virtual environment. `uv` can create one for you. Install the base dependencies along with the `test` and `cpu` extras (needed for running tests locally).
