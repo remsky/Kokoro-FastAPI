@@ -294,6 +294,10 @@ OPTION_CASES = [
     # pr #526
     ("It is 72 F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
     ("It is 72 °F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
+    # the number was dropped for ohm units, whose keys are not lowercase
+    ("A 3 Ω resistor", "A three ohms resistor", UNITS),
+    ("A 1 Ω resistor", "A one ohm resistor", UNITS),
+    ("A 10kΩ resistor", "A ten kiloohms resistor", UNITS),
     (
         "Visit www.example.com",
         "Visit www-example-com",

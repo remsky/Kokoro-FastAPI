@@ -18,6 +18,9 @@ INFLECT_ENGINE = inflect.engine()
 for singular, plural in INFLECT_NOUNS.items():
     INFLECT_ENGINE.defnoun(singular, plural)
 
+# Units match case-insensitively and are looked up lowercased; "Ω".lower() is "ω".
+UNIT_NAMES = {unit.lower(): name for unit, name in VALID_UNITS.items()}
+
 
 def conditional_int(number: float, threshold: float = 0.00001):
     if abs(round(number) - number) < threshold:
@@ -178,8 +181,8 @@ class EnglishNormalizer(Normalizer):
             unit_string = u.group(6).strip()
             unit = unit_string
 
-            if unit_string.lower() in VALID_UNITS:
-                unit = VALID_UNITS[unit_string.lower()].split(" ")
+            if unit_string.lower() in UNIT_NAMES:
+                unit = UNIT_NAMES[unit_string.lower()].split(" ")
 
                 # Handles the B vs b case
                 if unit[0].endswith("bit"):
