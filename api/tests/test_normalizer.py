@@ -294,6 +294,13 @@ OPTION_CASES = [
     # pr #526
     ("It is 72 F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
     ("It is 72 °F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
+    # misspelled or wrong names in VALID_UNITS
+    ("Add 5 ml of water", "Add five milliliters of water", UNITS),
+    ("It moves 2 mm/s", "It moves two millimeters per second", UNITS),
+    ("It falls 3 ft/s", "It falls three feet per second", UNITS),
+    ("It falls 1 ft/s", "It falls one foot per second", UNITS),
+    ("Rain at 2 cm/h", "Rain at two centimeters per hour", UNITS),
+    ("A 5 MV line", "A five megavolts line", UNITS),
     (
         "Visit www.example.com",
         "Visit www-example-com",
