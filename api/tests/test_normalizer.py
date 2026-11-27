@@ -75,6 +75,10 @@ CASES = [
     ("$1 trillion", "one trillion dollars"),
     ("Costs $1,000,000", "Costs one million dollars"),
     ("-$5", "minus five dollars"),
+    # minus sign after the currency symbol
+    ("$-5", "minus five dollars"),
+    ("Balance: $-1.50", "Balance: minus one dollar and fifty cents"),
+    ("€-0.0012", "minus zero point zero zero one two euros"),
     # cents with a negative or one-unit whole part
     ("-$1.50", "minus one dollar and fifty cents"),
     ("-£3.75 owed", "minus three pounds and seventy-five pence owed"),
