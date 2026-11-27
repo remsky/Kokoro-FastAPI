@@ -15,6 +15,7 @@ Per-PR attribution and contributor credits are published automatically on the co
 - Money with cents reads the whole part right: `-$1.50` is "minus one dollar and fifty cents" (was "minus two dollars"), and `$1.05` says "one dollar", not "one dollars"
 - Money with more than two decimals is read as a decimal number: `$3.499` is "three point four nine nine dollars" (was "three dollars and four hundred and ninety-nine cents"), and `$0.0012` no longer becomes "twelve cents"
 - Non-streamed WAV (`"stream": false`) has its real length in the header. It said 4 GB, so readers that trust the header, like Python's `wave`, reported a one-sentence file as about 25 hours long (#586)
+- With `unit_normalization` on, a number and unit next to an underscore (`__2.5 GB__` in markdown, `timeout_500ms`) read like the spaced form instead of `GB` or the raw `500ms`
 
 ## [v0.10.0] - 2026-11-08: Websockets/Realtime API, CPU Memory & API Keys
 ### Added

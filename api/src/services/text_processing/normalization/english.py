@@ -167,9 +167,9 @@ class EnglishNormalizer(Normalizer):
         return self.URL_PATTERN.sub(handle, text)
 
     UNIT_PATTERN = re.compile(
-        r"((?<!\w)(?<!\w[.,])([+-]?)(\d{1,3}(,\d{3})*|\d+,\d+|\d+)(\.\d+)?)\s*("
+        r"((?<![^\W_])(?<![^\W_][.,])([+-]?)(\d{1,3}(,\d{3})*|\d+,\d+|\d+)(\.\d+)?)\s*("
         + "|".join(sorted(list(VALID_UNITS.keys()), reverse=True))
-        + r"""){1}(?=[^\w\d]{1}|\b)""",
+        + r"""){1}(?![^\W_])""",
         re.IGNORECASE,
     )
 

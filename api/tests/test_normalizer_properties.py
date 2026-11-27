@@ -68,6 +68,7 @@ def test_standalone_numbers_are_spelled_out(before, open_, number, close, after,
     assert not re.search(r"\d", out), out
 
 
+@example("0A_", NormalizationOptions(unit_normalization=True))
 @example("0_", DEFAULTS)
 @example(".00A", DEFAULTS)
 @example("1.5x faster", DEFAULTS)

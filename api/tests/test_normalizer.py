@@ -294,6 +294,9 @@ OPTION_CASES = [
     # pr #526
     ("It is 72 F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
     ("It is 72 °F outside", "It is seventy-two degrees fahrenheit outside", UNITS),
+    # units glued to an underscore
+    ("cable_10m_long", "cable ten meters long", UNITS),
+    ("timeout_500ms", "timeout five hundred milliseconds", UNITS),
     (
         "Visit www.example.com",
         "Visit www-example-com",
